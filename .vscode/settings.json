@@ -1,0 +1,36 @@
+{
+  // Directories VS Code must not put a file watcher on.
+  //
+  // Without watchman, Metro watches with Node's `fs.watch`, which costs one
+  // inotify watch per directory — and the ceiling is shared process-wide across
+  // the whole machine. On a stock Linux box `fs.inotify.max_user_watches` is
+  // 65536, and an unfiltered VS Code on this project claims ~56,000 of them:
+  // enough on its own to starve Metro at startup with
+  //
+  //     Error: ENOSPC: System limit for number of file watchers reached
+  //
+  // Everything excluded here is generated output or dead weight — build
+  // artifacts, an orphaned pnpm store — so nothing you would edit or search is
+  // affected. metro.config.js blocks the same paths on Metro's side.
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/android/build/**": true,
+    "**/android/.cxx/**": true,
+    "**/android/.gradle/**": true,
+    "**/ios/build/**": true,
+    "**/ios/Pods/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true
+  },
+
+  // Keep these out of search results and the file tree too — they are noise,
+  // and excluding them keeps indexing cheap.
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/android/build": true,
+    "**/android/.cxx": true,
+    "**/android/.gradle": true,
+    "**/ios/build": true,
+    "**/ios/Pods": true
+  }
+}
