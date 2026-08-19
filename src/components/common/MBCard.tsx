@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { MBPressable } from '@/components/common/MBPressable';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export interface MBCardProps {
@@ -46,15 +47,19 @@ export function MBCard({
     );
   }
 
+  // The card used to darken to `surfaceSunken` while held. That is gone: the
+  // press layer already scales and dims, and a surface doing both at once reads
+  // as two separate things happening to one card. Colour is kept for state that
+  // outlives a touch — selection, status — not for the touch itself.
   return (
-    <Pressable
+    <MBPressable
       testID={testID}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [surface, pressed && { backgroundColor: theme.colors.surfaceSunken }]}>
+      style={surface}>
       {children}
-    </Pressable>
+    </MBPressable>
   );
 }
 

@@ -4,6 +4,7 @@ import { writeOffline } from '@/database/repositories/offlineWriteRepository';
 import { qk } from '@/services/query/queryKeys';
 import type { CreateExpenseInput } from '@/shared/schemas/expense.schemas';
 import { useAuthStore } from '@/store/authStore';
+import { resolveWriteOutcome, type WriteOutcome } from '@/services/sync/writeOutcome';
 import { useSyncStore } from '@/store/syncStore';
 
 /**
@@ -19,10 +20,12 @@ import { useSyncStore } from '@/store/syncStore';
  * statement and the one the spec requires.
  */
 
-export type SaveOutcome = 'synced' | 'queued';
+export type SaveOutcome = WriteOutcome;
 
 export interface CreateExpenseResult {
   outcome: SaveOutcome;
+  /** The server's reason, when it refused. */
+  reason?: string;
   clientOperationId: string;
   businessDate: string;
 }
@@ -50,16 +53,17 @@ export function useCreateExpense(): {
           payload: { ...input },
         });
 
-        // Attempt to send immediately. A failure here is not an error the user
-        // needs to see — the operation is safely queued and will retry.
-        let outcome: SaveOutcome = 'queued';
+        // Attempt to send immediately. A failure to *start* is not an error the
+        // user needs to see — the operation is safely queued and will retry. A
+        // refusal by the server is a different thing entirely, and
+        // `resolveWriteOutcome` is what tells the two apart.
         try {
           await sync();
-          const state = useSyncStore.getState();
-          if (state.lastResult && state.lastResult.synced > 0) outcome = 'synced';
         } catch {
-          outcome = 'queued';
+          // Left pending, which reads as queued below.
         }
+
+        const { outcome, reason } = await resolveWriteOutcome(written.clientOperationId);
 
         if (outcome === 'synced') {
           queryClient.invalidateQueries({ queryKey: qk.expenses.all() });
@@ -67,6 +71,7 @@ export function useCreateExpense(): {
 
         return {
           outcome,
+          ...(reason ? { reason } : {}),
           clientOperationId: written.clientOperationId,
           businessDate: written.businessDate,
         };

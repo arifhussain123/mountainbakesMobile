@@ -1,22 +1,26 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useNavigation } from '@react-navigation/native';
 
 import {
-  MBCard,
   MBEmptyState,
   MBErrorState,
+  MBFab,
   MBHeader,
-  MBSearchBar,
-  MBSyncStatus,
+  MBPressable,
   MBSkeletonList,
+  MBSyncStatus,
+  MBProductCard,
 } from '@/components';
+import { useAccessProfile } from '@/hooks/useAccessProfile';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useCategories, useProducts, useSettings } from '@/hooks/useCatalog';
 import type { Product } from '@/shared/types/product.types';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, layout, space } from '@/theme/spacing';
 
 /**
  * Product catalogue — the read-only vertical slice.
@@ -32,20 +36,44 @@ import { formatCurrency } from '@/utils/money';
 
 const ALL_CATEGORIES = 'all';
 
+/**
+ * Status is a three-way filter, not a checkbox.
+ *
+ * An admin managing the catalogue needs "everything" as often as either half:
+ * finding the product someone deactivated last month is the whole reason to
+ * look. The list defaults to Active, which is what the catalogue *is*.
+ */
+const STATUS_FILTERS = [
+  { key: 'active', label: 'Active', isActive: true as boolean | undefined },
+  { key: 'inactive', label: 'Inactive', isActive: false as boolean | undefined },
+  { key: 'all', label: 'All', isActive: undefined as boolean | undefined },
+] as const;
+
+type StatusKey = (typeof STATUS_FILTERS)[number]['key'];
+
 export function ProductsScreen(): React.ReactElement {
   const theme = useTheme();
   const isOnline = useNetworkStore(s => s.isOnline);
 
+  const navigation = useNavigation<{ navigate: (screen: string, params?: object) => void }>();
+  const profile = useAccessProfile();
+  // Mirrors `requireRole('super_admin')` on every product write endpoint. The
+  // server is the boundary; this only decides what is offered.
+  const canManage = profile?.capabilities.has('admin') ?? false;
+
   const [searchInput, setSearchInput] = useState('');
   const [categoryId, setCategoryId] = useState<string>(ALL_CATEGORIES);
+  const [status, setStatus] = useState<StatusKey>('active');
   const search = useDebouncedValue(searchInput.trim(), 300);
 
   const categories = useCategories();
   const settings = useSettings();
+  const statusFilter = STATUS_FILTERS.find(f => f.key === status) ?? STATUS_FILTERS[0];
   const products = useProducts({
     search: search || undefined,
     categoryId: categoryId === ALL_CATEGORIES ? undefined : categoryId,
-    isActive: true,
+    // `undefined` asks the server for both halves; it filters only when told to.
+    isActive: statusFilter.isActive,
   });
 
   const currencySymbol = settings.data?.currencySymbol;
@@ -64,30 +92,47 @@ export function ProductsScreen(): React.ReactElement {
     [categories.data],
   );
 
+  /**
+   * One handler for the whole list rather than a closure per row.
+   *
+   * A `() => navigate(...)` built inside `renderItem` is a new function for
+   * every row on every render, which makes `ProductRow`'s memoisation useless:
+   * the screen re-renders on each keystroke of the debounced search, and every
+   * visible row would re-render with it.
+   */
+  const onSelect = useCallback(
+    (product: Product) => navigation.navigate('ProductDetail', { productId: product.id }),
+    [navigation],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Product }) => (
-      <ProductRow product={item} currencySymbol={currencySymbol} />
+      <MBProductCard
+        product={item}
+        currencySymbol={currencySymbol}
+        onSelect={canManage ? onSelect : undefined}
+      />
     ),
-    [currencySymbol],
+    [canManage, currencySymbol, onSelect],
   );
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Products"
+        dataAsOf={dataAsOfFrom(products.dataUpdatedAt)}
         subtitle={products.data ? `${products.data.length} items` : undefined}
+        search={{
+          value: searchInput,
+          onChangeText: setSearchInput,
+          placeholder: 'Search by name or code',
+          searching: isSearching,
+          testID: 'product-search',
+        }}
         right={<MBSyncStatus />}
       />
 
       <View style={{ padding: theme.layout.screenPad, gap: theme.space.md }}>
-        <MBSearchBar
-          value={searchInput}
-          onChangeText={setSearchInput}
-          placeholder="Search by name or code"
-          searching={isSearching}
-          testID="product-search"
-        />
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -95,7 +140,7 @@ export function ProductsScreen(): React.ReactElement {
           {filterChips.map(chip => {
             const selected = chip.id === categoryId;
             return (
-              <Pressable
+              <MBPressable
                 key={chip.id}
                 onPress={() => setCategoryId(chip.id)}
                 accessibilityRole="button"
@@ -112,14 +157,51 @@ export function ProductsScreen(): React.ReactElement {
                 <Text
                   style={[
                     theme.type.label,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
+                    {
+                      color: selected ? theme.colors.onPrimary : theme.colors.text,
+                    },
                   ]}>
                   {chip.name}
                 </Text>
-              </Pressable>
+              </MBPressable>
             );
           })}
         </ScrollView>
+
+        {/* Status sits below the categories rather than beside them: two
+            horizontal scrollers on one line is a row nobody can tell apart. */}
+        {canManage ? (
+          <View style={styles.chips}>
+            {STATUS_FILTERS.map(filter => {
+              const selected = filter.key === status;
+              return (
+                <MBPressable
+                  key={filter.key}
+                  onPress={() => setStatus(filter.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  testID={`status-${filter.key}`}
+                  style={[
+                    styles.chip,
+                    {
+                      borderRadius: theme.radius.pill,
+                      paddingHorizontal: theme.space.lg,
+                      backgroundColor: selected ? theme.colors.accent : theme.colors.surface,
+                      borderColor: selected ? theme.colors.accent : theme.colors.border,
+                    },
+                  ]}>
+                  <Text
+                    style={[
+                      theme.type.label,
+                      { color: selected ? theme.colors.onPrimary : theme.colors.text },
+                    ]}>
+                    {filter.label}
+                  </Text>
+                </MBPressable>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
 
       <ProductList
@@ -133,6 +215,17 @@ export function ProductsScreen(): React.ReactElement {
           setCategoryId(ALL_CATEGORIES);
         }}
       />
+
+      {/* The screen's one dominant create action. The list is never empty in the
+          way Expenses can be — a catalogue with no products is a first-run state
+          — so the FAB is unconditional here. */}
+      {canManage ? (
+        <MBFab
+          label="New product"
+          onPress={() => navigation.navigate('ProductForm')}
+          testID="new-product"
+        />
+      ) : null}
     </View>
   );
 }
@@ -159,7 +252,9 @@ function ProductList({
   if (products.isPending) return <MBSkeletonList rows={8} />;
 
   if (products.isError) {
-    return <MBErrorState error={products.error} onRetry={onRefresh} retrying={products.isFetching} />;
+    return (
+      <MBErrorState error={products.error} onRetry={onRefresh} retrying={products.isFetching} />
+    );
   }
 
   const rows = products.data ?? [];
@@ -180,6 +275,7 @@ function ProductList({
             ? 'No active products in this category yet.'
             : "You're offline, so this may be incomplete."
         }
+        icon="products"
       />
     );
   }
@@ -202,36 +298,7 @@ function ProductList({
   );
 }
 
-function ProductRow({
-  product,
-  currencySymbol,
-}: {
-  product: Product;
-  currencySymbol?: string;
-}): React.ReactElement {
-  const theme = useTheme();
-
-  return (
-    <MBCard accessibilityLabel={`${product.name}, ${formatCurrency(product.price, currencySymbol)}`}>
-      <View style={styles.row}>
-        <View style={styles.rowMain}>
-          <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-            {product.name}
-          </Text>
-          <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-            {product.sku} · {product.categoryName}
-          </Text>
-        </View>
-
-        <Text style={[theme.type.money, { color: theme.colors.text }]}>
-          {/* price is numeric(14,2) and can arrive as a string; formatCurrency
-              coerces rather than rendering NaN. */}
-          {formatCurrency(product.price, currencySymbol)}
-        </Text>
-      </View>
-    </MBCard>
-  );
-}
+/** Memoised: with a stable `onSelect`, typing in the search box re-renders no rows. */
 
 /** Module scope: a separator defined during render remounts the list each pass. */
 function ListSeparator(): React.ReactElement {
@@ -240,9 +307,18 @@ function ListSeparator(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  // ...contentColumn caps the measure on a tablet. A list row is a label at
+  // one edge and a value at the other; unconstrained on a 10" screen the two
+  // end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
   separator: { height: 8 },
-  chip: { height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowMain: { flex: 1, gap: 2 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    height: layout.chipH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rowMain: { flex: 1, gap: space.hair },
 });

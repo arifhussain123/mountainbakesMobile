@@ -1,6 +1,7 @@
 import type { UserRole } from '@/shared/types/user.types';
-import { isTabAvailable, routeForNotification } from '../linking';
-import { accessProfileFor } from '../roleConfig';
+import { buildLinking, isTabAvailable, routeForNotification } from '../linking';
+import { openNotification } from '../navigationRef';
+import { accessProfileFor, landingTabFor } from '../roleConfig';
 import { isBranchRole } from '../roleNavigation';
 
 function profileFor(role: UserRole) {
@@ -71,5 +72,84 @@ describe('notification routing', () => {
   it('ignores an unrecognised payload type', () => {
     expect(routeForNotification(profileFor('super_admin'), { type: 'promo' })).toBeNull();
     expect(routeForNotification(profileFor('super_admin'), {})).toBeNull();
+  });
+});
+
+/**
+ * Where an unpermitted link actually lands.
+ *
+ * The guard used to resolve to a literal `Home`, which is a route a
+ * `branch_user`'s navigator does not contain — the API refuses a shift account
+ * every `/api/reports` route, so it has no Home tab, so the link went nowhere at
+ * all. The fallback has to come from the same config that built the tabs.
+ */
+describe('unpermitted deep link fallback', () => {
+  function fallbackTabFor(role: UserRole, path: string): string | undefined {
+    const profile = profileFor(role);
+    const linking = buildLinking(profile);
+    const state = linking.getStateFromPath?.(path, linking.config);
+    return state?.routes[0]?.name;
+  }
+
+  /**
+   * The path has to be one that role genuinely lacks, which is not the same for
+   * everyone: `reports` is a **finance** tab too (`/api/finance/reports`, a
+   * different resource behind the same tab name), so an accountant following it
+   * is not being redirected at all.
+   */
+  const UNREACHABLE: ReadonlyArray<[UserRole, string]> = [
+    ['branch_user', 'reports'],
+    ['production_user', 'reports'],
+    ['accountant', 'products'],
+    ['branch_manager', 'products'],
+  ];
+
+  it('sends a role to its own landing tab, not to a tab it does not have', () => {
+    for (const [role, path] of UNREACHABLE) {
+      const landing = landingTabFor(profileFor(role));
+      expect({ role, to: fallbackTabFor(role, path) }).toEqual({ role, to: landing });
+    }
+  });
+
+  it('lands a shift account on Orders, since it has no Home tab at all', () => {
+    expect(isTabAvailable(profileFor('branch_user'), 'Home')).toBe(false);
+    expect(fallbackTabFor('branch_user', 'reports')).toBe('Orders');
+  });
+
+  it('leaves a permitted link alone', () => {
+    const profile = profileFor('super_admin');
+    const linking = buildLinking(profile);
+    const state = linking.getStateFromPath?.('reports', linking.config);
+    expect(state?.routes[0]?.name).toBe('Reports');
+  });
+});
+
+/**
+ * The bridge from a payload to the navigator.
+ *
+ * No navigator is mounted here, which is the cold-start case rather than a gap
+ * in the test: a push that arrives while the app is still starting must report
+ * that it could not be opened so the handler can replay it from `onReady`,
+ * never silently drop it and never crash.
+ */
+describe('opening a notification', () => {
+  it('reports not-ready rather than throwing before the tree is mounted', () => {
+    expect(openNotification(profileFor('super_admin'), { type: 'order', orderId: 'o1' })).toBe(
+      'not-ready',
+    );
+  });
+
+  /**
+   * `not-permitted` is checked BEFORE readiness, and the order matters: this
+   * outcome is final, so a handler holding payloads to replay must not queue one
+   * that will never be allowed to open.
+   */
+  it('reports not-permitted for a payload this role may not open, ready or not', () => {
+    expect(openNotification(profileFor('accountant'), { type: 'order', orderId: 'o1' })).toBe(
+      'not-permitted',
+    );
+    expect(openNotification(profileFor('super_admin'), { type: 'promo' })).toBe('not-permitted');
+    // An order push with no id would otherwise open a blank detail screen.
+    expect(openNotification(profileFor('super_admin'), { type: 'order' })).toBe('not-permitted');
   });
 });

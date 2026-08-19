@@ -1,7 +1,16 @@
 <resources>
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!--
+          The window background behind React Native's root view.
+
+          Without this the window falls back to the AppCompat default, which is
+          white in day mode: the frame between the splash tearing down and the
+          first navigator frame flashed white even in dark mode. RootNavigator
+          also paints `theme.colors.bg` on a backing View for the same gap on the
+          JS side — both are needed, because they cover different frames.
+        -->
+        <item name="android:windowBackground">@color/app_background</item>
     </style>
 
     <style name="BootTheme" parent="Theme.BootSplash">

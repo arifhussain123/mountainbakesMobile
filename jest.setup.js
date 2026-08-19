@@ -20,7 +20,11 @@ jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock
 
 // In-memory MMKV so storage round-trips behave like the real thing.
 jest.mock('react-native-mmkv', () => {
-  const stores = new Map();
+  // Hung off globalThis so the data survives `jest.resetModules()`. Tests that
+  // simulate a cold start re-require a module to watch what it reads at import
+  // time; a per-factory Map would be wiped by the reset and every such test
+  // would see an empty store no matter what it had just written.
+  const stores = global.__mmkvStores ?? (global.__mmkvStores = new Map());
   return {
     createMMKV: ({ id }) => {
       if (!stores.has(id)) stores.set(id, new Map());
@@ -49,6 +53,7 @@ jest.mock('@op-engineering/op-sqlite', () => ({
   open: jest.fn(() => ({
     executeSync: jest.fn(() => ({ rows: [] })),
     execute: jest.fn(async () => ({ rows: [] })),
+    executeBatch: jest.fn(async () => ({ rowsAffected: 0 })),
     transaction: jest.fn(async fn => fn({ execute: jest.fn(async () => ({ rows: [] })) })),
     close: jest.fn(),
     delete: jest.fn(),
@@ -64,6 +69,17 @@ jest.mock('react-native-keychain', () => ({
   setGenericPassword: jest.fn(async () => true),
   resetGenericPassword: jest.fn(async () => true),
 }));
+
+// The date picker is a native view; under Jest it only needs to be renderable
+// and to hand back a chosen date when a test fires `onChange`.
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: props => React.createElement(View, { ...props, testID: props.testID }),
+  };
+});
 
 jest.mock('react-native-bootsplash', () => ({
   hide: jest.fn(async () => {}),

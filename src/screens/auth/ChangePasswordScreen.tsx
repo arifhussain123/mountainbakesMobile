@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { MBButton, MBCard, MBInput } from '@/components';
+import { MBButton, MBCard, MBIcon, MBInput } from '@/components';
 import { StrongPasswordSchema } from '@/shared/schemas/user.schemas';
+import { useSignOut } from '@/hooks/useSignOut';
+import { NAV_LABELS } from '@/navigation/roleConfig';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Forced password change.
@@ -46,7 +49,14 @@ const RULES: ReadonlyArray<{ label: string; test: (v: string) => boolean }> = [
 export function ChangePasswordScreen(): React.ReactElement {
   const theme = useTheme();
   const changePassword = useAuthStore(s => s.changePassword);
-  const signOut = useAuthStore(s => s.signOut);
+  const { signOut, isSigningOut } = useSignOut();
+
+  // Sign-out unmounts this tree, so there is nowhere left to surface an error.
+  const onSignOut = useCallback(() => {
+    signOut().catch((err: unknown) => {
+      console.warn('[auth] sign-out failed', err);
+    });
+  }, [signOut]);
   const isOnline = useNetworkStore(s => s.isOnline);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -78,7 +88,7 @@ export function ChangePasswordScreen(): React.ReactElement {
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { padding: theme.layout.screenPad }]}
+        contentContainerStyle={[contentColumn, styles.content, { padding: theme.layout.screenPad }]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.intro}>
           <Text style={[theme.type.h1, { color: theme.colors.text }]}>Set a new password</Text>
@@ -113,16 +123,38 @@ export function ChangePasswordScreen(): React.ReactElement {
               {RULES.map(rule => {
                 const met = rule.test(newPassword);
                 return (
-                  <Text
+                  /*
+                   * A drawn icon as well as colour, so the state is readable
+                   * without separating green from grey.
+                   *
+                   * These used to be the literal characters "✓" and "○". A text
+                   * glyph is not an icon: it comes from whatever font the device
+                   * substitutes, so it changes shape and weight across Android
+                   * skins, sits on the text baseline rather than optically
+                   * centred, and cannot take a stroke width. `ruleMet` /
+                   * `rulePending` are Lucide circles — the icon map names this
+                   * exact case — and both are circular so the column keeps one
+                   * left edge instead of jogging on every line that passes.
+                   */
+                  <View
                     key={rule.label}
-                    style={[
-                      theme.type.caption,
-                      { color: met ? theme.colors.success : theme.colors.textMuted },
-                    ]}>
-                    {/* A glyph as well as colour, so the state is readable without
-                        distinguishing green from grey. */}
-                    {met ? '✓' : '○'} {rule.label}
-                  </Text>
+                    accessible
+                    accessibilityLabel={`${rule.label}: ${met ? 'met' : 'not met'}`}
+                    style={styles.rule}>
+                    <MBIcon
+                      name={met ? 'ruleMet' : 'rulePending'}
+                      size="action"
+                      color={met ? theme.colors.success : theme.colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        theme.type.caption,
+                        styles.ruleLabel,
+                        { color: met ? theme.colors.success : theme.colors.textMuted },
+                      ]}>
+                      {rule.label}
+                    </Text>
+                  </View>
                 );
               })}
             </View>
@@ -172,7 +204,18 @@ export function ChangePasswordScreen(): React.ReactElement {
             fullWidth
           />
 
-          <MBButton label="Sign out" onPress={signOut} variant="ghost" size="md" />
+          {/* The same `useSignOut()` every other sign-out uses: it names any
+              unsynced work before dropping the session. This screen is reached
+              straight after sign-in, so the current user has queued nothing —
+              but the queue outlives sessions, and on a shared branch phone the
+              rows still waiting may belong to the previous shift. */}
+          <MBButton
+            label={NAV_LABELS.logout}
+            onPress={onSignOut}
+            variant="ghost"
+            size="md"
+            disabled={isSigningOut}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -181,7 +224,10 @@ export function ChangePasswordScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', gap: 28 },
-  intro: { gap: 8 },
-  rules: { gap: 6 },
+  content: { flexGrow: 1, justifyContent: 'center', gap: space.xxxl },
+  intro: { gap: space.sm },
+  rules: { gap: space.tight },
+  rule: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // The label wraps beside the icon instead of pushing it off the row.
+  ruleLabel: { flex: 1 },
 });

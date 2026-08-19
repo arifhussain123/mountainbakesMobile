@@ -1,7 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { MBIcon } from './MBIcon';
+import { MBPressable } from './MBPressable';
+import { space } from '@/theme/spacing';
 
 export interface MBSearchBarProps {
   value: string;
@@ -28,14 +30,17 @@ export function MBSearchBar({
       style={[
         styles.bar,
         {
-          height: theme.layout.inputH,
+          // See MBInput: the token is a floor, not a fixed height, or the
+          // query clips at large type.
+          minHeight: theme.layout.inputH,
           borderRadius: theme.radius.md,
           backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          // Same rule as MBInput: a control edge, not a divider.
+          borderColor: theme.colors.borderControl,
           paddingHorizontal: theme.space.md,
         },
       ]}>
-      <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>⌕</Text>
+      <MBIcon name="search" size="action" color={theme.colors.textMuted} />
 
       <TextInput
         testID={testID}
@@ -54,21 +59,23 @@ export function MBSearchBar({
       />
 
       {searching ? (
-        <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>…</Text>
+        // A real indicator rather than a typed ellipsis: this one actually spins,
+        // so a slow query looks like work in progress instead of a stuck field.
+        <ActivityIndicator size="small" color={theme.colors.textMuted} />
       ) : value.length > 0 ? (
-        <Pressable
+        <MBPressable
           onPress={() => onChangeText('')}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Clear search">
           <MBIcon name="close" size="action" color={theme.colors.textMuted} />
-        </Pressable>
+        </MBPressable>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: 1 },
   input: { flex: 1, padding: 0 },
 });

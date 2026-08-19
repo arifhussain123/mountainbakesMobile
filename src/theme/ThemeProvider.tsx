@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
-import { themeFor, type ResolvedScheme, type Theme, type ThemeMode } from './theme';
+import { themeFor, type ResolvedScheme, type Theme, type ThemeMode } from './themes';
 
 /**
  * Theme access.

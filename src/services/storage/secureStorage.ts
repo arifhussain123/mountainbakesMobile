@@ -153,6 +153,50 @@ export const supabaseStorageAdapter = {
   },
 };
 
+/**
+ * The remembered sign-in identity.
+ *
+ * ---------------------------------------------------------------------------
+ * What "Remember me" does and does not do
+ * ---------------------------------------------------------------------------
+ * It remembers **who signed in**, never how. The e-mail is prefilled next
+ * launch; the password is not stored, here or anywhere.
+ *
+ * It deliberately does **not** gate session persistence. The Supabase session is
+ * always kept, because signing a device out on close would strand a shift that
+ * rang up sales offline and force-quit: the queue would still hold the only copy
+ * of those transactions, and the token needed to drain them would be gone. A
+ * checkbox that could do that is a checkbox that loses money.
+ *
+ * Both values live in the encrypted store, so a lifted device does not hand over
+ * a staff e-mail in plaintext.
+ */
+export function rememberIdentity(email: string): void {
+  kv.set(StorageKeys.rememberMe, true);
+  kv.set(StorageKeys.lastIdentity, email);
+}
+
+/** Clears both keys — used when the box is unticked at sign-in. */
+export function forgetIdentity(): void {
+  kv.delete(StorageKeys.rememberMe);
+  kv.delete(StorageKeys.lastIdentity);
+}
+
+/**
+ * What the sign-in form should start with.
+ *
+ * Read synchronously, which is safe because `initStorage()` completes during
+ * bootstrap, before any navigator mounts. Returning the flag separately from the
+ * e-mail matters: someone who ticked the box and then signed in with a different
+ * account should still find the box ticked.
+ */
+export function rememberedIdentity(): { remember: boolean; email: string } {
+  return {
+    remember: kv.getBoolean(StorageKeys.rememberMe) ?? false,
+    email: kv.getString(StorageKeys.lastIdentity) ?? '',
+  };
+}
+
 /** Keys used across the app. Centralised so a rename cannot silently orphan data. */
 export const StorageKeys = {
   themeMode: 'settings.themeMode',

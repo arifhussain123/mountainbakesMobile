@@ -66,7 +66,12 @@ describe('pendingMigrations', () => {
 
   it('returns only the steps after the current version, in order', () => {
     const pending = pendingMigrations(1);
-    expect(pending.map(m => m.version)).toEqual([2, 3]);
+    // Every version above the current one, ascending — derived, so a new
+    // migration does not fail a test that is really about ordering.
+    const expected = MIGRATIONS.map(m => m.version)
+      .filter(v => v > 1)
+      .sort((a, b) => a - b);
+    expect(pending.map(m => m.version)).toEqual(expected);
   });
 
   it('is a no-op for a database ahead of this build (downgrade safety)', () => {

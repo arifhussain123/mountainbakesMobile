@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react-native';
  * Icons are imported one file at a time, NOT from the package barrel.
  *
  * `import { Home } from 'lucide-react-native'` pulls the whole barrel in: a dev
- * bundle built that way contained **1769 icon modules for the 42 used here**.
+ * bundle built that way contained **1769 icon modules for the 43 used here**.
  * Metro does not tree-shake a re-export barrel of that shape, so the dead 1727
  * would ship in the release APK too. `lucide-react-native/icons/<name>` is a
  * supported public export (see the package's `exports` map) and costs one module
@@ -25,11 +25,15 @@ import type { LucideIcon } from 'lucide-react-native';
 
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import Ban from 'lucide-react-native/icons/ban';
+import Bell from 'lucide-react-native/icons/bell';
 import Boxes from 'lucide-react-native/icons/boxes';
 import Building2 from 'lucide-react-native/icons/building-2';
 import ChartColumn from 'lucide-react-native/icons/chart-column';
 import Check from 'lucide-react-native/icons/check';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Circle from 'lucide-react-native/icons/circle';
+import CircleCheck from 'lucide-react-native/icons/circle-check';
 import CircleQuestionMark from 'lucide-react-native/icons/circle-question-mark';
 import ClipboardList from 'lucide-react-native/icons/clipboard-list';
 import Coins from 'lucide-react-native/icons/coins';
@@ -115,16 +119,33 @@ export const ICONS = {
   help: CircleQuestionMark,
   support: LifeBuoy,
   sync: RefreshCw,
+  // A bell, not the alert triangle `failed` uses. A notification is something
+  // that arrived; a failure is something that went wrong. Drawing both with the
+  // same glyph taught the eye to read every triangle as "a sync has parked".
+  notifications: Bell,
   profile: User,
   logout: LogOut,
-  notifications: TriangleAlert,
   search: Search,
   filter: Funnel,
   more: Ellipsis,
   back: ArrowLeft,
   close: X,
   add: Plus,
+  // Paired with `add` on a quantity stepper. Deliberately a separate key from
+  // `trendFlat` even though both draw Minus: the two are unrelated meanings,
+  // and a later change to either must not silently move the other.
+  remove: Minus,
   chevron: ChevronRight,
+  // Disclosure. Two static glyphs rather than one rotated on a timer: the
+  // direction IS the state ("there is more below" / "it is open"), and a
+  // rotation would be motion decorating a change the glyph already carries.
+  chevronDown: ChevronDown,
+
+  // Checklist state (password rules, and anything else where an item is met or
+  // not). Both glyphs are circles so the column of them keeps one left edge —
+  // a bare Check against a Circle would jog every line that passes.
+  ruleMet: CircleCheck,
+  rulePending: Circle,
 
   // Trend direction on a stat card. Paired with a success/danger token — the
   // arrow is what carries the meaning for anyone who cannot separate the two

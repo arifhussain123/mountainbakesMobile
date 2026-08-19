@@ -32,8 +32,11 @@ npx jest -t 'names the date field per endpoint'
 ```
 
 The API has to be running alongside: `cd ../mountainbakes-server && pnpm dev` (port
-3001). Nothing starts both. On the Android emulator the host is **`10.0.2.2`**, not
-`localhost` — that is what `.env.development` already says.
+3001). Nothing starts both. Android cannot reach your machine's `localhost` on its
+own: `.env.development` points at `localhost:3001` and relies on
+**`adb reverse tcp:3001 tcp:3001`**, which works on a physical device *and* an
+emulator. `10.0.2.2` is the emulator-only alternative — unroutable on a real
+phone, which is why it is not what the file says.
 
 `react-native-config` bakes `.env.*` values into the binary at **build** time. Editing
 `.env.development` and reloading Metro changes nothing; the app must be rebuilt.
@@ -122,16 +125,27 @@ slip. A stale copy of `timezone.ts` bills sales to the wrong day.
 
 ### Screens are resolved by role, not by name
 
-`navigation/roleNavigation.ts` is the single source of truth for which tabs a role
-gets. `resolveScreen()` in `AppNavigator.tsx` maps (role, tab name) → component,
-because **the same tab name means different screens for different roles**: "Sales" at
-the production counter allows a `staff` payment method a branch sale must never offer,
-and "Dashboard" is four different screens. An unbuilt tab renders a placeholder naming
-the phase it lands in, so an unbuilt screen is never mistaken for an empty one.
+`navigation/roleConfig.ts` is the single source of truth for what a role can reach —
+its tabs, its More list and its account panel, all three inventoried in one file so
+they can be compared. `roleNavigation.ts` keeps only the role *predicates*
+(`isBranchRole`, `isFinanceRole`, `roleGroupFor`), which are domain rules used well
+outside navigation.
 
-`navigation/__tests__/screenCoverage.test.ts` mirrors that routing table by hand and
-its `gaps` assertion is the machine-checked list of what is still unbuilt. Update it
-when a screen lands; an unexpected entry means a tab quietly stopped resolving.
+`resolveTabScreen(role, route)` in `navigation/screenRegistry.tsx` maps (role, tab
+name) → component, because **the same tab name means different screens for different
+roles**: "Sales" at the production counter allows a `staff` payment method a branch
+sale must never offer, and "Home" is four different dashboards. An unbuilt tab renders
+a placeholder naming the phase it lands in, so an unbuilt screen is never mistaken for
+an empty one.
+
+**No screen is reachable from two surfaces**, and
+`navigation/__tests__/navigationSurface.test.ts` enforces that for all eight roles: no
+More route is also a tab name, none is listed twice, and nothing in the account panel
+is also a tab or a More row. The drawer is the account panel, not navigation — it holds
+identity, connection state, appearance and sign-out, and there is not one `navigate()`
+call in `AccountDrawer.tsx`. Adding a destination means adding it in exactly one place;
+`docs/navigation.md` is the full account, including why New Order is a modal on
+`OrdersStack` rather than a tab.
 
 `branch_user` is a **shift account carrying its manager's `branchId`**, not a branch of
 its own — branch-scoped code must treat it and `branch_manager` identically
@@ -173,9 +187,39 @@ bootstrap failure shows a retry, never an endless splash.
 Light and dark are two token sets behind one interface (`theme/`). Do not write
 `isDark ? a : b` in a component; add or use a token.
 
+### Motion
+
+Motion is **feedback, never decoration** — every duration and curve comes from
+`theme/motion.ts`, and nothing animates that is not reporting a state change. No
+bounce, no parallax headers, no confetti, no counters ticking up; the only two
+loops in the app (sync spinner, skeleton pulse) run solely while the work they
+describe is in flight.
+
+Every tappable surface is `MBPressable`, which scales to 0.98 with a small
+opacity shift over 120ms. Do not reach for a bare `Pressable` — press feedback
+used to be four different idioms, and `MBTabBar` is the one deliberate exception
+(the platform's ripple wins on a tab bar). Screen transitions live in
+`navigation/screenAnimations.ts`; tab switches are instant by declaration, not by
+inheriting a default.
+
+`useReducedMotion()` subscribes to the OS setting. Honouring it means suppressing
+the *movement* and keeping the change — a cross-fade instead of a slide, a jump
+instead of travel, the dim without the scale. Slowing an animation down is not
+honouring it. `docs/motion.md` is the full account, including the drawer, which
+cannot honour it at all because the library exposes no control.
+
 ## Other docs
 
 `docs/mobile-architecture-audit.md` (the backend audit this app was built from — API
-surface, roles, domain values, decisions), `docs/offline-sync.md`,
-`docs/cache-policy.md`, `docs/testing.md`, `docs/troubleshooting.md`. `README.md`
+surface, roles, domain values, decisions), `docs/navigation.md` (tabs vs More vs the
+account panel, header chrome, badges, deep links, icons), `docs/screen-patterns.md`
+(dashboard composition, stat cards, quick actions, the FAB rule, lists, sheets, and
+how the outcome of a write is reported), `docs/motion.md` (what animates, what
+deliberately does not, and what Reduce Motion suppresses), `docs/local-database.md` (what the device stores, what it deliberately does not,
+and the reference-mirror gap), `docs/offline-sync.md`,
+`docs/cache-policy.md`, `docs/performance.md` (what was optimised and why, what
+was measured versus reasoned about, and what was deliberately left alone),
+`docs/timezone.md` (the one zone, the two helper families and why picking the
+wrong one is the bug, what each layer stores, and the single display funnel),
+`docs/testing.md`, `docs/troubleshooting.md`. `README.md`
 carries the phase-by-phase status table and what is verified versus not.

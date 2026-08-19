@@ -4,6 +4,7 @@ import { claimsFromSession, type SessionClaims } from '@/services/supabase/claim
 import { canAccessFinance } from '@/shared/types/finance.types';
 import * as authApi from '@/services/api/authApi';
 import { env } from '@/config/env';
+import { clearCachedServerState } from '@/services/query/queryClient';
 
 /**
  * Authentication state.
@@ -55,6 +56,7 @@ let authListenerAttached = false;
  */
 async function abandonSession(message: string): Promise<never> {
   await supabase.auth.signOut();
+  clearCachedServerState();
   throw new Error(message);
 }
 
@@ -79,6 +81,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // connection cannot strand unsynced work behind a login screen. An
         // explicit sign-out clears claims itself, so it is unaffected.
         if (!next && !session && get().claims) return;
+        // A session that ended without the user asking — an expired refresh
+        // token — must drop cached server state too, or the next account to
+        // sign in on this handset inherits it. The guard above is what keeps a
+        // merely offline refresh failure from reaching this.
+        if (!next && get().claims) clearCachedServerState();
         set({ status: next ? 'signedIn' : 'signedOut', claims: next });
       });
     }
@@ -89,6 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data.session && !claims) {
       // Authenticated but unusable. Do not leave a half-established session behind.
       await supabase.auth.signOut();
+      clearCachedServerState();
       set({ status: 'signedOut', claims: null, lastError: NO_ROLE_MESSAGE });
       return;
     }
@@ -238,6 +246,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   signOut: async () => {
     await supabase.auth.signOut();
+    // Server state goes with the session. Local transactions do not — they stay
+    // in SQLite and resume on the next sign-in on this phone.
+    clearCachedServerState();
     set({ status: 'signedOut', claims: null, lastError: null, mfaChallenge: null });
   },
 }));

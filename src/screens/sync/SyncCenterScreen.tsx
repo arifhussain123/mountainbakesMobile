@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 
-import { MBButton, MBCard, MBEmptyState, MBHeader } from '@/components';
+import { MBButton, MBCard, MBEmptyState, MBHeader, MBPressable } from '@/components';
+import {
+  listUnresolved,
+  type ConflictRecord,
+} from '@/database/repositories/conflictRepository';
 import {
   listByStatus,
   requeue,
@@ -9,9 +14,14 @@ import {
   type SyncQueueRow,
   type SyncQueueStatus,
 } from '@/database/repositories/syncQueueRepository';
+import { applyResolution } from '@/services/sync/resolveConflict';
+import type { ConflictResolution } from '@/services/sync/conflicts';
+import { ConflictCard } from './ConflictCard';
 import { useNetworkStore } from '@/store/networkStore';
 import { useSyncStore } from '@/store/syncStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, layout, space } from '@/theme/spacing';
 
 /**
  * Sync Center.
@@ -20,10 +30,26 @@ import { useTheme } from '@/theme/ThemeProvider';
  * can be deleted: a failed or conflicted row is still the only copy of a
  * transaction the server never accepted, so the actions are Retry and Retry all,
  * never Discard.
+ *
+ * The Conflicts tab is not a list of queue rows like the others. A conflict is a
+ * disagreement with the server, so it reads from `sync_conflicts` — which keeps
+ * BOTH sides, the operator's entry and the server's answer — and offers only the
+ * resolutions `conflicts.ts` has cleared as safe for that kind of conflict. Some
+ * conflicts (a sale priced differently by the server) have no queue row left to
+ * show at all: the transaction succeeded, and the disagreement is about what it
+ * became.
  */
 
-const TABS: ReadonlyArray<{ key: string; label: string; statuses: SyncQueueStatus[] }> = [
-  { key: 'pending', label: 'Pending', statuses: ['pending', 'syncing', 'blocked'] },
+const TABS: ReadonlyArray<{
+  key: string;
+  label: string;
+  statuses: SyncQueueStatus[];
+}> = [
+  {
+    key: 'pending',
+    label: 'Pending',
+    statuses: ['pending', 'syncing', 'blocked'],
+  },
   { key: 'failed', label: 'Failed', statuses: ['failed'] },
   { key: 'conflicts', label: 'Conflicts', statuses: ['conflict'] },
   { key: 'done', label: 'Completed', statuses: ['synced'] },
@@ -39,15 +65,22 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
 
   const [tab, setTab] = useState(TABS[0]!.key);
   const [rows, setRows] = useState<SyncQueueRow[]>([]);
+  const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const active = TABS.find(t => t.key === tab) ?? TABS[0]!;
     setLoading(true);
     try {
-      setRows(await listByStatus(active.statuses));
+      if (active.key === 'conflicts') {
+        setConflicts(await listUnresolved());
+      } else {
+        setRows(await listByStatus(active.statuses));
+      }
     } catch {
       setRows([]);
+      setConflicts([]);
     } finally {
       setLoading(false);
     }
@@ -72,6 +105,56 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
     await load();
   }, [sync, load]);
 
+  // The handlers are passed whole rather than wrapped per row, so the memoised
+  // cards below can bail out when a tab switch or a reload re-renders the list.
+  const renderOperation = useCallback(
+    ({ item }: { item: SyncQueueRow }) => <OperationCard row={item} onRetry={onRetry} />,
+    [onRetry],
+  );
+
+  /**
+   * A person's decision about one conflict.
+   *
+   * `applyResolution` refuses anything the policy has not cleared rather than
+   * throwing, so an unsafe choice surfaces here as a message instead of a crash.
+   * A drain follows only the resolutions that put work back in the queue — there
+   * is nothing to send after keeping the server's version.
+   */
+  const onResolveConflict = useCallback(
+    async (
+      conflict: ConflictRecord,
+      resolution: ConflictResolution,
+      options?: { editedBusinessDate?: string },
+    ) => {
+      setResolveError(null);
+      const outcome = await applyResolution({
+        conflict,
+        resolution,
+        ...(options?.editedBusinessDate
+          ? { editedBusinessDate: options.editedBusinessDate }
+          : {}),
+      });
+
+      if (!outcome.ok) {
+        setResolveError(outcome.reason);
+        return;
+      }
+
+      if (resolution === 'retry' || resolution === 'resend_as_new') {
+        await sync();
+      }
+      await load();
+    },
+    [sync, load],
+  );
+
+  const renderConflict = useCallback(
+    ({ item }: { item: ConflictRecord }) => (
+      <ConflictCard conflict={item} onResolve={onResolveConflict} />
+    ),
+    [onResolveConflict],
+  );
+
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
@@ -88,7 +171,7 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
           {TABS.map(t => {
             const selected = t.key === tab;
             return (
-              <Pressable
+              <MBPressable
                 key={t.key}
                 onPress={() => setTab(t.key)}
                 accessibilityRole="button"
@@ -105,11 +188,13 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
                 <Text
                   style={[
                     theme.type.label,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
+                    {
+                      color: selected ? theme.colors.onPrimary : theme.colors.text,
+                    },
                   ]}>
                   {t.label}
                 </Text>
-              </Pressable>
+              </MBPressable>
             );
           })}
         </ScrollView>
@@ -128,23 +213,55 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
         </View>
       </View>
 
-      {loading ? null : rows.length === 0 ? (
+      {resolveError ? (
+        <Text
+          style={[
+            theme.type.caption,
+            {
+              color: theme.colors.danger,
+              paddingHorizontal: theme.layout.screenPad,
+              paddingBottom: theme.space.sm,
+            },
+          ]}>
+          {resolveError}
+        </Text>
+      ) : null}
+
+      {loading ? null : tab === 'conflicts' ? (
+        conflicts.length === 0 ? (
+          <MBEmptyState
+            title="No conflicts"
+            message="Nothing on this device disagrees with the server."
+          />
+        ) : (
+          <FlashList
+            data={conflicts}
+            renderItem={renderConflict}
+            keyExtractor={conflictKey}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={ListSeparator}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+          />
+        )
+      ) : rows.length === 0 ? (
         <MBEmptyState
           title={emptyTitleFor(tab)}
           message={
-            tab === 'pending'
-              ? 'Everything on this device has reached the server.'
-              : undefined
+            tab === 'pending' ? 'Everything on this device has reached the server.' : undefined
           }
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.sm }}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-          {rows.map(row => (
-            <OperationCard key={row.id} row={row} onRetry={() => onRetry(row)} />
-          ))}
-        </ScrollView>
+        /* Virtualised, not a mapped ScrollView. This is the one screen whose
+           list is longest exactly when the device is least able to cope: after
+           a shift worked offline, every transaction of that shift is a row. */
+        <FlashList
+          data={rows}
+          renderItem={renderOperation}
+          keyExtractor={operationKey}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={ListSeparator}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+        />
       )}
     </View>
   );
@@ -164,7 +281,7 @@ function statusLine({
   if (phase === 'syncing') return 'Syncing…';
   if (!isOnline) return 'Offline — waiting for a connection';
   if (needsAttention > 0) {
-    return `${needsAttention} ${needsAttention === 1 ? 'item needs' : 'items need'} attention`;
+    return `${needsAttention} ${needsAttention === 1 ? 'transaction needs' : 'transactions need'} attention`;
   }
   if (pending > 0) {
     return `${pending} ${pending === 1 ? 'transaction' : 'transactions'} waiting to sync`;
@@ -187,13 +304,20 @@ const ENTITY_LABEL: Record<string, string> = {
   production_order: 'Production order',
 };
 
-function OperationCard({
+/**
+ * Memoised. Switching tabs or reloading re-renders the list; with a stable
+ * `onRetry` none of the visible cards re-render with it. Theme changes still
+ * reach it — context bypasses `memo`.
+ */
+const OperationCard = React.memo(function OperationCardView({
   row,
   onRetry,
 }: {
   row: SyncQueueRow;
-  onRetry: () => void;
+  onRetry: (row: SyncQueueRow) => void;
 }): React.ReactElement {
+  // Bound here so the caller can pass one stable handler for the whole list.
+  const retry = useCallback(() => onRetry(row), [onRetry, row]);
   const theme = useTheme();
   const canRetry = row.status === 'failed' || row.status === 'conflict';
 
@@ -201,8 +325,8 @@ function OperationCard({
     row.status === 'failed' || row.status === 'conflict'
       ? theme.colors.danger
       : row.status === 'synced'
-        ? theme.colors.success
-        : theme.colors.warning;
+      ? theme.colors.success
+      : theme.colors.warning;
 
   return (
     <MBCard>
@@ -225,8 +349,12 @@ function OperationCard({
         {row.clientOperationId}
       </Text>
 
+      {/* Attempts alone do not say whether a row is stuck. "3 attempts" five
+          minutes ago is a queue working; the same three from Tuesday is
+          something a person has to deal with. */}
       <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
         {row.attemptCount} {row.attemptCount === 1 ? 'attempt' : 'attempts'}
+        {row.lastAttemptAt ? ` · last tried ${dataAsOfFrom(row.lastAttemptAt)}` : ''}
       </Text>
 
       {row.lastErrorMessage ? (
@@ -235,16 +363,39 @@ function OperationCard({
         </Text>
       ) : null}
 
-      {canRetry ? (
-        <MBButton label="Retry" onPress={onRetry} variant="secondary" size="sm" />
-      ) : null}
+      {canRetry ? <MBButton label="Retry" onPress={retry} variant="secondary" size="sm" /> : null}
     </MBCard>
   );
+});
+
+/** Module scope: a key or separator built during render re-keys the list each pass. */
+function operationKey(row: SyncQueueRow): string {
+  return String(row.id);
+}
+
+function conflictKey(conflict: ConflictRecord): string {
+  return String(conflict.id);
+}
+
+function ListSeparator(): React.ReactElement {
+  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  chip: { height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  actions: { flexDirection: 'row', gap: 8 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 6 },
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
+  separator: { height: space.sm },
+  chip: {
+    height: layout.chipH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  actions: { flexDirection: 'row', gap: space.sm },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginBottom: space.tight,
+  },
 });

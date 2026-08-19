@@ -1,6 +1,5 @@
 import React, { forwardRef, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -9,7 +8,9 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { MBPressable } from '@/components/common/MBPressable';
 import { useTheme } from '@/theme/ThemeProvider';
+import { space } from '@/theme/spacing';
 
 export interface MBInputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -48,16 +49,22 @@ export const MBInput = forwardRef<TextInput, MBInputProps>(function MBInputInner
   const [focused, setFocused] = useState(false);
   const [obscured, setObscured] = useState(isPassword);
 
+  // `borderControl`, not `border`: this edge is the only thing showing where
+  // the field is, so it has to clear 3:1 (WCAG 1.4.11). The decorative hairline
+  // used here before was 1.34:1 on white.
   const borderColor = error
     ? theme.colors.danger
     : focused
       ? theme.colors.focusRing
-      : theme.colors.border;
+      : theme.colors.borderControl;
 
   // Built outside JSX so the dynamic values stay in one place and the style prop
   // is a plain reference.
   const fieldStyle = {
-    height: theme.layout.inputH,
+    // minHeight, not height — a fixed field clips its own text at large
+    // dynamic-type settings, and a field you cannot read what you typed into is
+    // worse than a tall one.
+    minHeight: theme.layout.inputH,
     borderRadius: theme.radius.md,
     borderColor,
     borderWidth: focused || error ? 2 : 1,
@@ -102,7 +109,7 @@ export const MBInput = forwardRef<TextInput, MBInputProps>(function MBInputInner
         />
 
         {isPassword ? (
-          <Pressable
+          <MBPressable
             onPress={() => setObscured(v => !v)}
             hitSlop={12}
             accessibilityRole="button"
@@ -110,7 +117,7 @@ export const MBInput = forwardRef<TextInput, MBInputProps>(function MBInputInner
             <Text style={[theme.type.label, { color: theme.colors.accent }]}>
               {obscured ? 'Show' : 'Hide'}
             </Text>
-          </Pressable>
+          </MBPressable>
         ) : null}
       </View>
 
@@ -124,8 +131,8 @@ export const MBInput = forwardRef<TextInput, MBInputProps>(function MBInputInner
 });
 
 const styles = StyleSheet.create({
-  container: { gap: 6 },
-  field: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  container: { gap: space.tight },
+  field: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   input: { flex: 1, padding: 0 },
   numeric: { textAlign: 'right' },
 });

@@ -1,4 +1,4 @@
-import { LATEST_SCHEMA_VERSION, MIGRATIONS } from '../migrations';
+import { pendingMigrations, LATEST_SCHEMA_VERSION, MIGRATIONS } from '../migrations';
 import { readSchemaVersion, runMigrations, type MigrationDb } from '../runMigrations';
 
 /**
@@ -105,11 +105,17 @@ describe('runMigrations on a fresh database', () => {
 });
 
 describe('runMigrations on an existing database', () => {
+  /**
+   * Derived from `pendingMigrations` rather than a hand-written list: the
+   * behaviour under test is "applies exactly what is missing", and a literal
+   * list turns every new migration into a failing test that says nothing about
+   * whether the runner is right.
+   */
   it('applies only what is missing', async () => {
     const fake = fakeDb(1);
     const result = await runMigrations(fake.db);
 
-    expect(result.applied).toEqual(['002_sync_queue', '003_conflicts']);
+    expect(result.applied).toEqual(pendingMigrations(1).map(m => m.name));
     expect(result.to).toBe(LATEST_SCHEMA_VERSION);
   });
 
@@ -153,8 +159,10 @@ describe('failure handling', () => {
     fake.setFailOn(null);
     const result = await runMigrations(fake.db);
 
+    // The failed step rolled back, so it resumes at the version before it and
+    // reapplies from there — including anything added after it since.
     expect(result.from).toBe(2);
-    expect(result.applied).toEqual(['003_conflicts']);
+    expect(result.applied).toEqual(pendingMigrations(2).map(m => m.name));
     expect(fake.version).toBe(LATEST_SCHEMA_VERSION);
   });
 });

@@ -1,22 +1,34 @@
-import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import {
   MBCard,
+  MBDataRow,
   MBErrorState,
   MBHeader,
+  MBMoney,
+  MBPressable,
+  MBQuickActions,
+  MBShareList,
   MBSkeletonList,
   MBStatCard,
+  MBStatGrid,
   MBSyncStatus,
+  MBTrendChart,
 } from '@/components';
+import { useAccessProfile } from '@/hooks/useAccessProfile';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
+import { useStock } from '@/hooks/useCatalog';
 import { getReportSummary } from '@/services/api/reportsApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import type { ReportPeriod } from '@/shared/types/report.types';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatCurrency, formatQty, toNumber } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumnWide, layout, space } from '@/theme/spacing';
 
 /**
  * Branch dashboard.
@@ -36,27 +48,109 @@ const PERIODS: ReadonlyArray<{ key: ReportPeriod; label: string }> = [
 export function BranchDashboardScreen(): React.ReactElement {
   const theme = useTheme();
   const branchName = useAuthStore(s => s.claims?.branchName);
+  const profile = useAccessProfile();
   const { currencySymbol } = useCatalogSettings();
   const [period, setPeriod] = useState<ReportPeriod>('daily');
 
   const summary = useQuery({
-    queryKey: ['reports', 'summary', period],
+    // The same key the Reports screen uses, because it is the same request:
+    // `qk.reports.summary` keys on the filters and nothing else, so a manager
+    // moving between the two screens does not fetch the period twice.
+    queryKey: qk.reports.summary({ period }),
     queryFn: () => getReportSummary({ period }),
     staleTime: LIVE_STALE_TIME_MS,
+    /**
+     * The previous answer stays on screen while the new one loads.
+     *
+     * Without it, changing the filter unmounts the whole result and puts a
+     * skeleton in its place — the screen empties, the layout collapses, and it
+     * refills a moment later. The user did not ask for a new screen, they asked
+     * the same screen a different question, so the old answer is the honest
+     * thing to show until the new one arrives.
+     */
+    placeholderData: previous => previous,
   });
 
   const data = summary.data;
 
+  /**
+   * One trend card serves Daily / Weekly / Monthly: the chips change the range
+   * the server buckets, and `dailyData` comes back already bucketed for it.
+   * Three separate charts would be the same drawing three times over three
+   * queries, and would go stale independently.
+   */
+  const days = useMemo(() => (data?.dailyData ?? []).slice(-14), [data]);
+
+  const salesTrend = useMemo(
+    () => days.map(d => ({ label: d.date, value: toNumber(d.totalRevenue) })),
+    [days],
+  );
+
+  /**
+   * `expenses` is optional on the daily row. Absent is not zero — a day the
+   * server did not report on must not be drawn as a day that spent nothing — so
+   * the trend is only offered when at least one day actually carries a figure.
+   */
+  const expenseTrend = useMemo(
+    () =>
+      days.some(d => d.expenses !== undefined)
+        ? days.map(d => ({ label: d.date, value: toNumber(d.expenses ?? 0) }))
+        : [],
+    [days],
+  );
+
+  const productShare = useMemo(
+    () =>
+      (data?.topProducts ?? []).slice(0, 5).map(p => ({
+        label: `${p.productName} · ${formatQty(p.totalQty)}`,
+        amount: toNumber(p.totalRevenue),
+        display: formatCurrency(toNumber(p.totalRevenue), currencySymbol),
+      })),
+    [data, currencySymbol],
+  );
+
+  const paymentShare = useMemo(
+    () =>
+      (data?.paymentMethodBreakdown ?? []).map(e => ({
+        label: e.method,
+        amount: toNumber(e.total),
+        display: formatCurrency(toNumber(e.total), currencySymbol),
+      })),
+    [data, currencySymbol],
+  );
+
+  const periodLabel = PERIODS.find(p => p.key === period)?.label ?? 'This period';
+
+  /**
+   * Stock status, from the branch's own stock rather than the report summary —
+   * `/api/reports/summary` carries no stock figures, and stock is the one number
+   * on this screen that is about *now* rather than about the period. Branch roles
+   * are auto-scoped server-side, so this sends no branchId.
+   */
+  const stock = useStock();
+
+  const stockStatus = useMemo(() => {
+    const rows = stock.data?.rows ?? [];
+    if (rows.length === 0) return null;
+    const out = rows.filter(r => toNumber(r.balance) <= 0).length;
+    return { total: rows.length, out, inStock: rows.length - out };
+  }, [stock.data]);
+
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title="Dashboard" subtitle={branchName ?? undefined} right={<MBSyncStatus />} />
+      <MBHeader
+        title="Dashboard"
+        subtitle={branchName ?? undefined}
+        right={<MBSyncStatus />}
+        dataAsOf={dataAsOfFrom(summary.dataUpdatedAt)}
+      />
 
       <View style={{ padding: theme.layout.screenPad }}>
         <View style={styles.chips}>
           {PERIODS.map(option => {
             const selected = option.key === period;
             return (
-              <Pressable
+              <MBPressable
                 key={option.key}
                 onPress={() => setPeriod(option.key)}
                 accessibilityRole="button"
@@ -72,11 +166,13 @@ export function BranchDashboardScreen(): React.ReactElement {
                 <Text
                   style={[
                     theme.type.label,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
+                    {
+                      color: selected ? theme.colors.onPrimary : theme.colors.text,
+                    },
                   ]}>
                   {option.label}
                 </Text>
-              </Pressable>
+              </MBPressable>
             );
           })}
         </View>
@@ -92,7 +188,13 @@ export function BranchDashboardScreen(): React.ReactElement {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.md }}
+          /* Wide cap, not the single-column one: the stat grid is genuinely
+             several measures side by side, and capping it at 640 would leave a
+             tablet showing a phone's 2x2 block in the middle of the screen. */
+          contentContainerStyle={[
+            contentColumnWide,
+            { padding: theme.layout.screenPad, gap: theme.space.md },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={summary.isFetching && !summary.isPending}
@@ -100,82 +202,116 @@ export function BranchDashboardScreen(): React.ReactElement {
               tintColor={theme.colors.primary}
             />
           }>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Sales"
-                value={toNumber(data?.totalRevenue)}
-                currencySymbol={currencySymbol}
+          <MBStatGrid>
+            <MBStatCard
+              label="Sales"
+              icon="sales"
+              value={toNumber(data?.totalRevenue)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Expenses"
+              icon="expenses"
+              value={toNumber(data?.totalExpenses)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Profit"
+              icon="reports"
+              value={toNumber(data?.totalProfit)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Orders"
+              icon="orders"
+              value={toNumber(data?.totalOrders)}
+              currency={false}
+            />
+          </MBStatGrid>
+
+          {/* Above the breakdown, below the figures: read the day's position,
+              then get on with it. The row is the reason most people open this
+              screen at all. */}
+          {profile ? <MBQuickActions profile={profile} /> : null}
+
+          {stockStatus ? (
+            <MBCard>
+              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Stock status</Text>
+              <MBDataRow label="Products on the shelf" value={String(stockStatus.inStock)} />
+              <MBDataRow label="Out of stock" value={String(stockStatus.out)} />
+              {/* Today's balances, not the selected period: what is on the shelf
+                  right now is the only version of this number worth acting on. */}
+              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                {stockStatus.total} tracked today
+              </Text>
+            </MBCard>
+          ) : null}
+
+          {salesTrend.length > 0 ? (
+            <MBCard>
+              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Sales trend</Text>
+              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                {periodLabel}
+              </Text>
+              <MBTrendChart
+                data={salesTrend}
+                accessibilityLabel={`Sales trend, ${periodLabel.toLowerCase()}, ${salesTrend.length} days.`}
               />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Expenses"
-                value={toNumber(data?.totalExpenses)}
-                currencySymbol={currencySymbol}
+            </MBCard>
+          ) : null}
+
+          {expenseTrend.length > 0 ? (
+            <MBCard>
+              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Expense trend</Text>
+              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                {periodLabel}
+              </Text>
+              <MBTrendChart
+                data={expenseTrend}
+                accessibilityLabel={`Expense trend, ${periodLabel.toLowerCase()}, ${expenseTrend.length} days.`}
               />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Profit"
-                value={toNumber(data?.totalProfit)}
-                currencySymbol={currencySymbol}
-              />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Orders"
-                value={toNumber(data?.totalOrders)}
-                currency={false}
-              />
-            </View>
-          </View>
+            </MBCard>
+          ) : null}
 
           <MBCard>
             <Text style={[theme.type.h3, { color: theme.colors.text }]}>Breakdown</Text>
-            <DetailRow
+            <MBDataRow
               label="Average order"
-              value={formatCurrency(data?.averageOrderValue, currencySymbol)}
+              value={<MBMoney value={data?.averageOrderValue} size="sm" symbol={currencySymbol} />}
             />
-            <DetailRow
+            <MBDataRow
               label="Discount given"
-              value={formatCurrency(data?.totalDiscount, currencySymbol)}
+              value={<MBMoney value={data?.totalDiscount} size="sm" symbol={currencySymbol} />}
             />
-            <DetailRow label="Pending orders" value={String(toNumber(data?.totalPending))} />
-            <DetailRow label="Cancelled" value={String(toNumber(data?.totalCancelled))} />
+            <MBDataRow label="Pending orders" value={String(toNumber(data?.totalPending))} />
+            <MBDataRow label="Cancelled" value={String(toNumber(data?.totalCancelled))} />
             {/* Unpaid staff sales are excluded from revenue and profit by the
                 server; shown separately so the numbers reconcile. */}
             {toNumber(data?.staffTotal) > 0 ? (
-              <DetailRow
+              <MBDataRow
                 label="Staff (unpaid)"
-                value={formatCurrency(data?.staffTotal, currencySymbol)}
+                value={<MBMoney value={data?.staffTotal} size="sm" symbol={currencySymbol} />}
               />
             ) : null}
           </MBCard>
 
-          {(data?.topProducts ?? []).length > 0 ? (
+          {productShare.length > 0 ? (
             <MBCard>
               <Text style={[theme.type.h3, { color: theme.colors.text }]}>Top products</Text>
-              {(data?.topProducts ?? []).slice(0, 5).map(product => (
-                <DetailRow
-                  key={product.productId}
-                  label={`${product.productName} · ${formatQty(product.totalQty)}`}
-                  value={formatCurrency(product.totalRevenue, currencySymbol)}
-                />
-              ))}
+              <MBShareList
+                items={productShare}
+                accessibilityLabel="Top products by revenue this period"
+              />
             </MBCard>
           ) : null}
 
-          {(data?.paymentMethodBreakdown ?? []).length > 0 ? (
+          {paymentShare.length > 0 ? (
             <MBCard>
               <Text style={[theme.type.h3, { color: theme.colors.text }]}>Payment methods</Text>
-              {(data?.paymentMethodBreakdown ?? []).map(entry => (
-                <DetailRow
-                  key={entry.method}
-                  label={entry.method}
-                  value={formatCurrency(entry.total, currencySymbol)}
-                />
-              ))}
+              <MBShareList
+                items={paymentShare}
+                accessibilityLabel="Takings by payment method this period"
+              />
             </MBCard>
           ) : null}
         </ScrollView>
@@ -184,34 +320,20 @@ export function BranchDashboardScreen(): React.ReactElement {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }): React.ReactElement {
-  const theme = useTheme();
-  return (
-    <View style={styles.detailRow}>
-      <Text style={[theme.type.body, styles.flex, { color: theme.colors.textMuted }]} numberOfLines={1}>
-        {label}
-      </Text>
-      <Text style={[theme.type.mono, { color: theme.colors.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  chips: { flexDirection: 'row', gap: 8 },
+  chips: { flexDirection: 'row', gap: space.sm },
   chip: {
-    height: 36,
-    paddingHorizontal: 16,
+    height: layout.chipH,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  gridItem: { flexGrow: 1, flexBasis: '46%' },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingTop: 10,
+    gap: space.md,
+    paddingTop: space.snug,
   },
 });

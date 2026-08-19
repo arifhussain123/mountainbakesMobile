@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MBAccountButton, MBHeader, MBIcon } from '@/components';
+import { MBAccountButton, MBHeader, MBIcon, MBPressable } from '@/components';
 import { MBBadge } from '@/components/feedback/MBBadge';
 import {
+  moreItemKey,
   moreSectionsFor,
   NAV_LABELS,
   type AccessProfile,
@@ -48,6 +49,10 @@ export function MoreScreen({ profile }: { profile: AccessProfile }): React.React
     [needsAttention, pending],
   );
 
+  /**
+   * Every row is a destination now — sign-out moved to the account panel, which
+   * is the only place it lives. See `docs/navigation.md`.
+   */
   const go = useCallback(
     (item: MoreItem) => {
       // Typed against MoreStackParamList at the config layer; the navigator here
@@ -89,19 +94,21 @@ export function MoreScreen({ profile }: { profile: AccessProfile }): React.React
                 const badge = badgeFor(item.badge);
                 const label = NAV_LABELS[item.label];
                 return (
-                  <Pressable
-                    key={item.route}
+                  <MBPressable
+                    key={moreItemKey(item)}
                     onPress={() => go(item)}
                     accessibilityRole="button"
                     accessibilityLabel={label}
-                    style={({ pressed }) => [
+                    style={[
                       styles.row,
+                      // Every row but the first is separated from the one above
+                      // it; the group's own border draws the outer edge.
+                      i === 0 ? null : styles.rowDivider,
                       {
                         minHeight: theme.layout.rowMinH,
                         paddingHorizontal: theme.layout.cardPad,
                         gap: theme.space.md,
-                        backgroundColor: pressed ? theme.colors.surfaceSunken : theme.colors.surface,
-                        borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                        backgroundColor: theme.colors.surface,
                         borderTopColor: theme.colors.border,
                       },
                     ]}>
@@ -113,11 +120,13 @@ export function MoreScreen({ profile }: { profile: AccessProfile }): React.React
                       <MBBadge
                         count={badge.count}
                         tone={badge.tone}
-                        label={`${badge.count} ${badge.tone === 'danger' ? 'need attention' : 'waiting to sync'}`}
+                        label={`${badge.count} ${
+                          badge.tone === 'danger' ? 'need attention' : 'waiting to sync'
+                        }`}
                       />
                     ) : null}
                     <MBIcon name="chevron" size="action" color={theme.colors.textMuted} />
-                  </Pressable>
+                  </MBPressable>
                 );
               })}
             </View>
@@ -132,5 +141,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   group: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center' },
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth },
   rowLabel: { flex: 1 },
 });

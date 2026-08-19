@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { MBIcon } from './MBIcon';
+import { MBPressable } from './MBPressable';
 
 /**
  * The avatar that opens the account panel, for `MBHeader`'s `leading` slot.
@@ -30,7 +31,7 @@ export function MBAccountButton(): React.ReactElement {
   }, [navigation]);
 
   return (
-    <Pressable
+    <MBPressable
       onPress={open}
       hitSlop={8}
       accessibilityRole="button"
@@ -39,7 +40,10 @@ export function MBAccountButton(): React.ReactElement {
       <View
         style={[
           styles.avatar,
-          { backgroundColor: theme.colors.primary, borderRadius: theme.radius.pill },
+          {
+            backgroundColor: theme.colors.primary,
+            borderRadius: theme.radius.pill,
+          },
         ]}>
         <MBIcon name="profile" size="action" color={theme.colors.onPrimary} />
       </View>
@@ -53,12 +57,24 @@ export function MBAccountButton(): React.ReactElement {
           },
         ]}
       />
-    </Pressable>
+    </MBPressable>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', right: 6, bottom: 6, width: 10, height: 10, borderWidth: 2 },
+  avatar: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    width: 10,
+    height: 10,
+    borderWidth: 2,
+  },
 });

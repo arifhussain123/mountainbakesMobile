@@ -17,9 +17,28 @@ import { api } from './client';
  * only reads.
  */
 
-export async function getOrders(filters: { branchId?: string } = {}): Promise<Order[]> {
+export interface OrderFilters {
+  branchId?: string;
+  status?: string;
+  /** ISO instants. `to` is an INCLUSIVE upper bound on `created_at`. */
+  from?: string;
+  to?: string;
+}
+
+/**
+ * Orders and counter sales — one resource, filtered.
+ *
+ * `status`, `from` and `to` are real indexed predicates on the server, not
+ * client-side narrowing: the route pushes each into Postgres precisely so a
+ * date range never pulls the whole table. A branch role is auto-scoped to its
+ * own branch and `branchId` is ignored for it.
+ */
+export async function getOrders(filters: OrderFilters = {}): Promise<Order[]> {
   const params: Record<string, string> = {};
   if (filters.branchId) params.branchId = filters.branchId;
+  if (filters.status) params.status = filters.status;
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
 
   const data = await api.get<{ orders: Order[]; total: number }>('/api/orders', { params });
   return data.orders ?? [];

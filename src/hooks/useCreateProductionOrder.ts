@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { writeOffline } from '@/database/repositories/offlineWriteRepository';
 import { useAuthStore } from '@/store/authStore';
+import { resolveWriteOutcome, type WriteOutcome } from '@/services/sync/writeOutcome';
 import { useSyncStore } from '@/store/syncStore';
 
 /**
@@ -18,7 +19,9 @@ export interface ProductionOrderDraft {
 }
 
 export interface CreateProductionOrderResult {
-  outcome: 'synced' | 'queued';
+  outcome: WriteOutcome;
+  /** The server's reason, when it refused. */
+  reason?: string;
   clientOperationId: string;
   businessDate: string;
 }
@@ -50,17 +53,18 @@ export function useCreateProductionOrder(): {
           },
         });
 
-        let outcome: 'synced' | 'queued' = 'queued';
         try {
           await sync();
-          const state = useSyncStore.getState();
-          if (state.lastResult && state.lastResult.synced > 0) outcome = 'synced';
         } catch {
-          outcome = 'queued';
+          // Left pending, which reads as queued below.
         }
+
+        // This row's fate, not the drain's tally — see writeOutcome.ts.
+        const { outcome, reason } = await resolveWriteOutcome(written.clientOperationId);
 
         return {
           outcome,
+          ...(reason ? { reason } : {}),
           clientOperationId: written.clientOperationId,
           businessDate: written.businessDate,
         };

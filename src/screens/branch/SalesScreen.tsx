@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 
 import {
@@ -8,21 +8,34 @@ import {
   MBEmptyState,
   MBErrorState,
   MBHeader,
+  MBIcon,
   MBInput,
+  MBMoney,
+  MBPressable,
+  MBFilterChips,
   MBSearchBar,
   MBSkeletonList,
   MBSyncStatus,
+  MBWriteOutcome,
+  writeOutcomeCopy,
+  MBSelect,
+  MBModal,
 } from '@/components';
 import { useCart } from '@/hooks/useCart';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
-import { useCreateSale } from '@/hooks/useCreateSale';
+import { useCreateSale, type SaleOutcome } from '@/hooks/useCreateSale';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useProducts } from '@/hooks/useCatalog';
+import { useCategories, useProducts, useStock } from '@/hooks/useCatalog';
 import { PAYMENT_METHOD_VALUES } from '@/shared/schemas/order.schemas';
+import { stockLevel, type StockLevel } from '@/shared/utils/stock';
 import type { Product } from '@/shared/types/product.types';
 import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency, parseCurrency } from '@/utils/money';
+import type { WriteOutcomeCopy, WriteSubject } from '@/components';
+import { formatCurrency, formatQty, parseCurrency, toNumber } from '@/utils/money';
 import { cashReturned, lineGross, resolveDiscount } from '@/utils/saleTotals';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, layout, space } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
 
 /**
  * Point of sale.
@@ -34,6 +47,9 @@ import { cashReturned, lineGross, resolveDiscount } from '@/utils/saleTotals';
  * discount — the server resolves prices and returns its own snapshot, so a price
  * change mid-sale cannot print a stale rate.
  */
+/** The catalogue-wide chip. Not a category id, so it can never collide with one. */
+const ALL_CATEGORIES = 'all';
+
 export function SalesScreen(): React.ReactElement {
   const theme = useTheme();
   const settings = useCatalogSettings();
@@ -42,78 +58,141 @@ export function SalesScreen(): React.ReactElement {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim(), 300);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [banner, setBanner] = useState<{ tone: 'ok' | 'queued'; text: string } | null>(null);
+  const [banner, setBanner] = useState<WriteOutcomeCopy | null>(null);
 
-  const products = useProducts({ search: search || undefined, isActive: true });
+  const [categoryId, setCategoryId] = useState(ALL_CATEGORIES);
+
+  const products = useProducts({
+    search: search || undefined,
+    categoryId: categoryId === ALL_CATEGORIES ? undefined : categoryId,
+    isActive: true,
+  });
+
+  const categories = useCategories();
+  const categoryChips = useMemo(
+    () => [
+      { key: ALL_CATEGORIES, label: 'All' },
+      ...(categories.data ?? []).map(c => ({ key: c.id, label: c.name })),
+    ],
+    [categories.data],
+  );
+
+  /**
+   * What is actually on the shelf, for the till.
+   *
+   * A branch role is scoped server-side, so this sends no branchId, and it reads
+   * through the SQLite mirror — the balances are there for a phone that has been
+   * offline all shift.
+   *
+   * **Advisory, never a gate.** The server is the only authority on stock and
+   * refuses an overdraw with a 409; blocking the sale here would stop a cashier
+   * selling something that is physically in front of them because a balance is
+   * stale. What this buys is that the refusal is *foreseeable* at the counter
+   * rather than surfacing hours later as a parked row in Sync Center.
+   */
+  const stock = useStock();
+
+  const availability = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of stock.data?.rows ?? []) map.set(r.productId, toNumber(r.balance));
+    return map;
+  }, [stock.data]);
+
+  /**
+   * `cart.addProduct` rather than `cart`.
+   *
+   * The setter is stable for the life of the screen; the cart object changes
+   * whenever a line does. Depending on the object would make this callback new
+   * after every tap, which makes `renderProduct` new, which re-renders every
+   * visible product row — on the screen where a cashier taps fastest.
+   */
+  const addProduct = cart.addProduct;
 
   const onAdd = useCallback(
     (product: Product) => {
-      cart.addProduct(product);
+      addProduct(product);
       setBanner(null);
     },
-    [cart],
+    [addProduct],
   );
 
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => (
-      <Pressable onPress={() => onAdd(item)} accessibilityRole="button">
-        <MBCard accessibilityLabel={`Add ${item.name}`}>
-          <View style={styles.productRow}>
-            <View style={styles.productMain}>
-              <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-                {item.name}
-              </Text>
-              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-                {item.sku}
-              </Text>
-            </View>
-            <Text style={[theme.type.money, { color: theme.colors.text }]}>
-              {formatCurrency(item.price, settings.currencySymbol)}
-            </Text>
-          </View>
-        </MBCard>
-      </Pressable>
+      <SaleProductRow
+        product={item}
+        currencySymbol={settings.currencySymbol}
+        /**
+         * `undefined` means "not known", which is NOT the same as zero and must
+         * never be drawn as "out of stock" — that would stop a cashier selling
+         * something they are holding, on a device whose stock has simply never
+         * been mirrored.
+         */
+        available={availability.get(item.id)}
+        onAdd={onAdd}
+      />
     ),
-    [onAdd, theme, settings.currencySymbol],
+    [onAdd, settings.currencySymbol, availability],
   );
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title="New sale" right={<MBSyncStatus />} />
+      <MBHeader
+        title="New sale"
+        right={<MBSyncStatus />}
+        /* The POS is the screen most likely to be used offline for hours, and
+           the catalogue behind it is cached. A price that changed on another
+           device this morning is invisible here until something asks, so the
+           till says how old its prices are. */
+        dataAsOf={dataAsOfFrom(products.dataUpdatedAt)}
+      />
 
       {banner ? (
-        <Pressable onPress={() => setBanner(null)}>
-          <View
-            style={[
-              styles.banner,
-              {
-                marginHorizontal: theme.layout.screenPad,
-                borderRadius: theme.radius.md,
-                backgroundColor:
-                  banner.tone === 'ok' ? theme.colors.successBg : theme.colors.warningBg,
-              },
-            ]}>
-            <Text
-              accessibilityRole="alert"
-              style={[
-                theme.type.label,
-                { color: banner.tone === 'ok' ? theme.colors.success : theme.colors.warning },
-              ]}>
-              {banner.text}
-            </Text>
+        // Tapping the banner dismisses it. Without a role that affordance is
+        // invisible to a screen reader, which otherwise reads the message and
+        // gives no way to clear it. The label stays unset on purpose: the
+        // banner text is the announcement, and a label here would replace it.
+        <MBPressable
+          onPress={() => setBanner(null)}
+          accessibilityRole="button"
+          accessibilityHint="Dismisses this message"
+          // A full-width band pulling in at its edges reads as the message
+          // shrinking rather than as a control answering a touch.
+          feedback="opacity">
+          <View style={{ marginHorizontal: theme.layout.screenPad }}>
+            <MBWriteOutcome copy={banner} />
           </View>
-        </Pressable>
+        </MBPressable>
       ) : null}
 
-      <View style={{ padding: theme.layout.screenPad }}>
+      <View style={{ paddingHorizontal: theme.layout.screenPad, paddingTop: theme.layout.screenPad }}>
         <MBSearchBar
           value={searchInput}
           onChangeText={setSearchInput}
-          placeholder="Search product to add"
+          /* Name or code. The server searches both (`name.ilike` OR
+             `sku.ilike`), and so does the offline mirror, so a cashier reading
+             a code off a tray finds the product the same way either way. */
+          placeholder="Search name or code"
           searching={searchInput.trim() !== search}
           testID="sale-product-search"
         />
       </View>
+
+      {/*
+        The second way to narrow, for the regulars nobody types the name of.
+        A horizontal scroller rather than a wrapping block: categories are
+        unbounded, and a filter that grows to three lines pushes the products
+        themselves off a till screen that already carries a search field and a
+        cart bar.
+      */}
+      {categoryChips.length > 1 ? (
+        <MBFilterChips
+          options={categoryChips}
+          selectedKey={categoryId}
+          onSelect={setCategoryId}
+          scroll
+          testIDPrefix="sale-category"
+        />
+      ) : null}
 
       <View style={styles.flex}>
         {products.isPending ? (
@@ -130,6 +209,17 @@ export function SalesScreen(): React.ReactElement {
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={ListSeparator}
             keyboardShouldPersistTaps="handled"
+            /* The catalogue is cached and can be hours old on a phone that has
+               been offline through a shift — a price or a new product changed on
+               another device is invisible until something asks. The cart is
+               untouched by a refetch, so pulling costs nothing mid-sale. */
+            refreshControl={
+              <RefreshControl
+                refreshing={products.isFetching && !products.isPending}
+                onRefresh={() => products.refetch()}
+                tintColor={theme.colors.primary}
+              />
+            }
           />
         )}
       </View>
@@ -148,9 +238,15 @@ export function SalesScreen(): React.ReactElement {
             <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
               {cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'}
             </Text>
-            <Text style={[theme.type.money, { color: theme.colors.text }]}>
-              {formatCurrency(cart.totals.grandTotal, settings.currencySymbol)}
-            </Text>
+            {/* The server recomputes this from the line items with its own tax
+                settings; this device is working from cached AppSettings. Marked
+                as what it is until the sale comes back confirmed. */}
+            <MBMoney
+              value={cart.totals.grandTotal}
+              symbol={settings.currencySymbol}
+              estimate
+              testID="cart-total"
+            />
           </View>
           <MBButton
             label="Review & pay"
@@ -160,32 +256,103 @@ export function SalesScreen(): React.ReactElement {
         </View>
       ) : null}
 
-      <Modal
-        visible={showCheckout}
-        animationType="slide"
-        onRequestClose={() => setShowCheckout(false)}>
+      <MBModal visible={showCheckout} onRequestClose={() => setShowCheckout(false)}>
         <Checkout
           cart={cart}
           currencySymbol={settings.currencySymbol}
           onCancel={() => setShowCheckout(false)}
-          onDone={outcome => {
+          onDone={(outcome, reason) => {
             setShowCheckout(false);
             cart.clear();
             setSearchInput('');
-            setBanner(
-              outcome === 'synced'
-                ? { tone: 'ok', text: 'Sale completed.' }
-                : {
-                    tone: 'queued',
-                    text: 'Saved offline — it will sync automatically when you reconnect.',
-                  },
-            );
+            setBanner(writeOutcomeCopy(outcome, SALE, reason));
           }}
         />
-      </Modal>
+      </MBModal>
     </View>
   );
 }
+
+/**
+ * One tappable product in the till's list.
+ *
+ * Memoised, and at module scope rather than inline in `renderProduct`, because
+ * this list re-renders on every keystroke of the search box and every change to
+ * the cart. With stable props none of the visible rows re-render at all — the
+ * theme still reaches them, because context bypasses `memo`.
+ */
+/** Availability wording. A word as well as a colour — never colour alone. */
+const AVAILABILITY_LABEL: Record<StockLevel, (qty: number) => string> = {
+  out: () => 'Out of stock',
+  critical: qty => `${formatQty(qty)} left`,
+  moderate: qty => `${formatQty(qty)} left`,
+  healthy: qty => `${formatQty(qty)} in stock`,
+};
+
+const SaleProductRow = React.memo(function SaleProductRowView({
+  product,
+  currencySymbol,
+  available,
+  onAdd,
+}: {
+  product: Product;
+  currencySymbol?: string;
+  /** Balance on the shelf, or `undefined` when the device has never been told. */
+  available?: number;
+  onAdd: (product: Product) => void;
+}): React.ReactElement {
+  const theme = useTheme();
+  // Bound here so the caller can pass one stable handler for the whole list.
+  const press = useCallback(() => onAdd(product), [onAdd, product]);
+
+  const level = available === undefined ? null : stockLevel(available);
+  const availabilityColor: Record<StockLevel, string> = {
+    out: theme.colors.danger,
+    critical: theme.colors.danger,
+    moderate: theme.colors.warning,
+    healthy: theme.colors.textMuted,
+  };
+
+  return (
+    <MBPressable
+      onPress={press}
+      accessibilityRole="button"
+      /* Spoken as one thing: what it is, what it costs, and what is left. A
+         cashier using a screen reader should not have to hunt for the third. */
+      accessibilityLabel={`Add ${product.name}, ${formatCurrency(product.price, currencySymbol)}${
+        level ? `, ${AVAILABILITY_LABEL[level](available ?? 0)}` : ''
+      }`}>
+      <MBCard>
+        <View style={styles.productRow}>
+          <View style={styles.productMain}>
+            <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+              {product.name}
+            </Text>
+            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              {product.sku}
+            </Text>
+          </View>
+
+          <View style={styles.productPrice}>
+            <MBMoney value={product.price} symbol={currencySymbol} />
+            {/*
+              Nothing at all when the balance is unknown. Drawing "0" or "Out of
+              stock" for a device that has simply never mirrored stock would stop
+              a cashier selling what is physically in front of them — the one
+              failure this must not have. Stock is advisory here either way: the
+              server is the only authority and refuses an overdraw with a 409.
+            */}
+            {level ? (
+              <Text style={[theme.type.caption, { color: availabilityColor[level] }]}>
+                {AVAILABILITY_LABEL[level](available ?? 0)}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </MBCard>
+    </MBPressable>
+  );
+});
 
 function Checkout({
   cart,
@@ -196,7 +363,7 @@ function Checkout({
   cart: ReturnType<typeof useCart>;
   currencySymbol?: string;
   onCancel: () => void;
-  onDone: (outcome: 'synced' | 'queued') => void;
+  onDone: (outcome: SaleOutcome, reason?: string) => void;
 }): React.ReactElement {
   const theme = useTheme();
   const { createSale, isSaving } = useCreateSale();
@@ -231,7 +398,7 @@ function Checkout({
         ...(isCash && receivedCashText.trim() ? { receivedCash } : {}),
         notes: notes.trim(),
       });
-      onDone(result.outcome);
+      onDone(result.outcome, result.reason);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not record the sale.');
     }
@@ -241,7 +408,10 @@ function Checkout({
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader title="Review & pay" onBack={onCancel} />
       <ScrollView
-        contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.lg }}
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.lg },
+        ]}
         keyboardShouldPersistTaps="handled">
         {cart.lines.map(line => (
           <MBCard key={line.productId}>
@@ -249,28 +419,31 @@ function Checkout({
               <Text style={[theme.type.bodyStrong, styles.flex, { color: theme.colors.text }]}>
                 {line.productName}
               </Text>
-              <Text style={[theme.type.mono, { color: theme.colors.textMuted }]}>
-                {formatCurrency(line.unitPrice, currencySymbol)}
-              </Text>
+              <MBMoney
+                value={line.unitPrice}
+                size="sm"
+                color={theme.colors.textMuted}
+                symbol={currencySymbol}
+              />
             </View>
 
             <View style={styles.lineControls}>
               <View style={styles.stepper}>
-                <Pressable
+                <MBPressable
                   onPress={() => cart.setQty(line.productId, line.qty - 1)}
                   accessibilityRole="button"
                   accessibilityLabel={`Decrease ${line.productName}`}
                   style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <Text style={[theme.type.h3, { color: theme.colors.text }]}>−</Text>
-                </Pressable>
+                  <MBIcon name="remove" size="action" color={theme.colors.text} />
+                </MBPressable>
                 <Text style={[theme.type.money, { color: theme.colors.text }]}>{line.qty}</Text>
-                <Pressable
+                <MBPressable
                   onPress={() => cart.setQty(line.productId, line.qty + 1)}
                   accessibilityRole="button"
                   accessibilityLabel={`Increase ${line.productName}`}
                   style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <Text style={[theme.type.h3, { color: theme.colors.text }]}>+</Text>
-                </Pressable>
+                  <MBIcon name="add" size="action" color={theme.colors.text} />
+                </MBPressable>
               </View>
 
               <MBInput
@@ -293,53 +466,34 @@ function Checkout({
         <MBCard>
           <TotalRow label="Subtotal" value={cart.totals.grossSubtotal} symbol={currencySymbol} />
           {cart.totals.discountTotal > 0 ? (
+            <TotalRow label="Discount" value={-cart.totals.discountTotal} symbol={currencySymbol} />
+          ) : null}
+          {cart.totals.taxAmount > 0 ? (
             <TotalRow
-              label="Discount"
-              value={-cart.totals.discountTotal}
+              label="Government Tax"
+              value={cart.totals.taxAmount}
               symbol={currencySymbol}
             />
           ) : null}
-          {cart.totals.taxAmount > 0 ? (
-            <TotalRow label="Government Tax" value={cart.totals.taxAmount} symbol={currencySymbol} />
-          ) : null}
-          <TotalRow label="Grand Total" value={cart.totals.grandTotal} symbol={currencySymbol} strong />
+          <TotalRow
+            label="Grand Total"
+            value={cart.totals.grandTotal}
+            symbol={currencySymbol}
+            strong
+          />
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
             Final amounts are confirmed by the server.
           </Text>
         </MBCard>
 
-        <View style={styles.group}>
-          <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>Payment method</Text>
-          <View style={styles.chips}>
-            {/* Four branch methods. 'staff' is production-counter only. */}
-            {PAYMENT_METHOD_VALUES.map(option => {
-              const selected = option === paymentMethod;
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setPaymentMethod(option)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  style={[
-                    styles.chip,
-                    {
-                      borderRadius: theme.radius.pill,
-                      backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                      borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      theme.type.label,
-                      { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                    ]}>
-                    {option}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        {/* Four branch methods. 'staff' is production-counter only. */}
+        <MBSelect
+          label="Payment method"
+          options={PAYMENT_METHOD_VALUES}
+          value={paymentMethod}
+          onChange={setPaymentMethod}
+          testIDPrefix="payment"
+        />
 
         {isCash ? (
           <>
@@ -406,12 +560,11 @@ function TotalRow({
   const theme = useTheme();
   return (
     <View style={styles.totalRow}>
-      <Text style={[strong ? theme.type.bodyStrong : theme.type.body, { color: theme.colors.text }]}>
+      <Text
+        style={[strong ? theme.type.bodyStrong : theme.type.body, { color: theme.colors.text }]}>
         {label}
       </Text>
-      <Text style={[strong ? theme.type.money : theme.type.body, { color: theme.colors.text }]}>
-        {formatCurrency(value, symbol)}
-      </Text>
+      <MBMoney value={value} size={strong ? 'md' : 'sm'} symbol={symbol} />
     </View>
   );
 }
@@ -421,31 +574,71 @@ function ListSeparator(): React.ReactElement {
   return <View style={styles.separator} />;
 }
 
+/**
+ * Outcome → colour.
+ *
+ * `refused` is a third tone, not a variant of `queued`: the server rejected the
+ * write (a 409 for insufficient stock, say) and it will never sync by itself.
+ * Painting that amber alongside "it will sync automatically" is how a sale that
+ * never landed goes unnoticed until the till is reconciled.
+ */
+/**
+ * What the cashier is told, in the three cases that actually occur.
+ *
+ * The refusal case is the one that used to be wrong: a 409 for insufficient
+ * stock was reported as "saved offline, it will sync" — but a refused sale is
+ * parked for a person and never syncs on its own. The server's own message is
+ * shown verbatim because it names the products that were short.
+ */
+const SALE: WriteSubject = {
+  noun: 'sale',
+  confirmed: 'Sale completed.',
+  refusedNote: 'do not ring it up again',
+};
+
 const styles = StyleSheet.create({
+  productPrice: { alignItems: 'flex-end', gap: space.hair },
   flex: { flex: 1 },
-  banner: { padding: 12 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  // ...contentColumn caps the measure on a tablet. A list row is a label at
+  // one edge and a value at the other; unconstrained on a 10" screen the two
+  // end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
   separator: { height: 8 },
-  productRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  productMain: { flex: 1, gap: 2 },
-  cartBar: { borderTopWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cartSummary: { flex: 1, gap: 2 },
-  lineControls: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 12 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  productRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  productMain: { flex: 1, gap: space.hair },
+  cartBar: {
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+  },
+  cartSummary: { flex: 1, gap: space.hair },
+  lineControls: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: space.md,
+    marginTop: space.md,
+  },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   stepButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: layout.stepperSize,
+    height: layout.stepperSize,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 3 },
-  group: { gap: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    paddingVertical: space.hair,
+  },
+  group: { gap: space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
     height: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

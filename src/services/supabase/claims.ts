@@ -1,4 +1,4 @@
-import type { UserRole } from '@/shared/types/user.types';
+import { USER_ROLES, type UserRole } from '@/shared/types/user.types';
 
 /**
  * Session claim extraction — pure, with no dependency on the Supabase client.
@@ -21,20 +21,19 @@ export interface SessionClaims {
   mustChangePassword: boolean;
 }
 
-/** The eight values of the Postgres `user_role` enum. */
-const VALID_ROLES: readonly UserRole[] = [
-  'super_admin',
-  'branch_manager',
-  'branch_user',
-  'production_user',
-  'finance_admin',
-  'finance_manager',
-  'accountant',
-  'finance_auditor',
-];
-
+/**
+ * Validated against `USER_ROLES` from the **mirrored** shared types, not a copy.
+ *
+ * This file used to hand-list the same eight values. Two lists of the Postgres
+ * `user_role` enum is one too many: `src/shared/` is byte-identical to the
+ * server's, so `USER_ROLES` moves when the enum moves, while a local copy only
+ * moves when someone remembers. The failure that copy invites is quiet and
+ * specific — a ninth role ships, the server issues it, and `isValidRole` rejects
+ * a session the backend considers perfectly valid, so a real user cannot sign in
+ * and the reason is a list nobody thought to update.
+ */
 export function isValidRole(value: unknown): value is UserRole {
-  return typeof value === 'string' && (VALID_ROLES as readonly string[]).includes(value);
+  return typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value);
 }
 
 export interface ClaimSource {

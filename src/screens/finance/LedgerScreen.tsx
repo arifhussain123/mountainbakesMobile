@@ -6,6 +6,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import {
   MBCard,
   MBEmptyState,
+  MBMoney,
   MBErrorState,
   MBHeader,
   MBSkeletonList,
@@ -14,9 +15,12 @@ import {
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
 import { getLedger } from '@/services/api/financeApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import type { LedgerEntry } from '@/shared/types/finance.types';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatCurrency, toNumber } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * The daily cash book.
@@ -37,7 +41,7 @@ export function LedgerScreen(): React.ReactElement {
   const { currencySymbol } = useCatalogSettings();
 
   const ledger = useInfiniteQuery({
-    queryKey: ['finance', 'ledger'],
+    queryKey: qk.finance.ledger(),
     queryFn: ({ pageParam }) => getLedger({ limit: PAGE_SIZE, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
@@ -56,9 +60,7 @@ export function LedgerScreen(): React.ReactElement {
   const firstPage = ledger.data?.pages[0];
 
   const renderItem = useCallback(
-    ({ item }: { item: LedgerEntry }) => (
-      <EntryRow entry={item} currencySymbol={currencySymbol} />
-    ),
+    ({ item }: { item: LedgerEntry }) => <EntryRow entry={item} currencySymbol={currencySymbol} />,
     [currencySymbol],
   );
 
@@ -66,28 +68,33 @@ export function LedgerScreen(): React.ReactElement {
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Daily ledger"
+        dataAsOf={dataAsOfFrom(ledger.dataUpdatedAt)}
         subtitle={firstPage ? `${firstPage.total} entries` : undefined}
         right={<MBSyncStatus />}
       />
 
       {firstPage ? (
-        <View style={{ paddingHorizontal: theme.layout.screenPad, paddingTop: theme.space.md }}>
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenPad,
+            paddingTop: theme.space.md,
+          }}>
           <MBCard>
             <SummaryRow
               label="Opening balance"
-              value={formatCurrency(firstPage.openingBalance, currencySymbol)}
+              value={<MBMoney value={firstPage.openingBalance} size="sm" symbol={currencySymbol} />}
             />
             <SummaryRow
               label="Total in"
-              value={formatCurrency(firstPage.totalDebit, currencySymbol)}
+              value={<MBMoney value={firstPage.totalDebit} size="sm" symbol={currencySymbol} />}
             />
             <SummaryRow
               label="Total out"
-              value={formatCurrency(firstPage.totalCredit, currencySymbol)}
+              value={<MBMoney value={firstPage.totalCredit} size="sm" symbol={currencySymbol} />}
             />
             <SummaryRow
               label="Closing balance"
-              value={formatCurrency(firstPage.closingBalance, currencySymbol)}
+              value={<MBMoney value={firstPage.closingBalance} symbol={currencySymbol} />}
               strong
             />
           </MBCard>
@@ -103,7 +110,11 @@ export function LedgerScreen(): React.ReactElement {
           retrying={ledger.isFetching}
         />
       ) : entries.length === 0 ? (
-        <MBEmptyState title="No ledger entries" message="Nothing has been posted yet." />
+        <MBEmptyState
+          title="No ledger entries"
+          message="Nothing has been posted yet."
+          icon="ledger"
+        />
       ) : (
         <FlashList
           data={entries}
@@ -117,12 +128,7 @@ export function LedgerScreen(): React.ReactElement {
           }}
           ListFooterComponent={
             ledger.isFetchingNextPage ? (
-              <Text
-                style={[
-                  theme.type.caption,
-                  styles.footer,
-                  { color: theme.colors.textMuted },
-                ]}>
+              <Text style={[theme.type.caption, styles.footer, { color: theme.colors.textMuted }]}>
                 Loading more…
               </Text>
             ) : null
@@ -140,7 +146,12 @@ export function LedgerScreen(): React.ReactElement {
   );
 }
 
-function EntryRow({
+/**
+ * Memoised. This list re-renders whenever the screen does — a filter chip, a
+ * refetch, a keystroke — and with props that do not change, none of the visible
+ * rows re-render with it. Theme changes still reach it: context bypasses `memo`.
+ */
+const EntryRow = React.memo(function EntryRowView({
   entry,
   currencySymbol,
 }: {
@@ -154,7 +165,10 @@ function EntryRow({
 
   return (
     <MBCard
-      accessibilityLabel={`${entry.ledgerHeadName}, ${isMoneyIn ? 'in' : 'out'} ${formatCurrency(amount, currencySymbol)}`}>
+      accessibilityLabel={`${entry.ledgerHeadName}, ${isMoneyIn ? 'in' : 'out'} ${formatCurrency(
+        amount,
+        currencySymbol,
+      )}`}>
       <View style={styles.row}>
         <View style={styles.rowMain}>
           <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
@@ -167,15 +181,14 @@ function EntryRow({
 
         <View style={styles.amounts}>
           {/* Cash-book convention: a debit is money IN. Signed with a glyph as
-              well as colour so direction survives a monochrome reading. */}
-          <Text
-            style={[
-              theme.type.money,
-              { color: isMoneyIn ? theme.colors.success : theme.colors.danger },
-            ]}>
-            {isMoneyIn ? '+' : '−'}
-            {formatCurrency(amount, currencySymbol)}
-          </Text>
+              well as colour so direction survives a monochrome reading, and
+              spelled out again in the accessible name. */}
+          <MBMoney
+            value={amount}
+            sign={isMoneyIn ? 'in' : 'out'}
+            color={isMoneyIn ? theme.colors.success : theme.colors.danger}
+            symbol={currencySymbol}
+          />
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
             bal {formatCurrency(entry.balance, currencySymbol)}
           </Text>
@@ -197,25 +210,36 @@ function EntryRow({
       ) : null}
     </MBCard>
   );
-}
+});
 
+/**
+ * Ledger summary line. Kept local rather than folded into `MBDataRow` because
+ * of `strong`: the closing balance is the figure a bookkeeper checks first and
+ * is drawn a size up from the three that feed it.
+ *
+ * `value` takes a node so a currency amount arrives as `<MBMoney />` — that
+ * component is the only thing in the app that renders money.
+ */
 function SummaryRow({
   label,
   value,
   strong = false,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   strong?: boolean;
 }): React.ReactElement {
   const theme = useTheme();
   return (
     <View style={styles.summaryRow}>
-      <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>{label}</Text>
-      <Text
-        style={[strong ? theme.type.money : theme.type.mono, { color: theme.colors.text }]}>
-        {value}
-      </Text>
+      <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>{label}</Text>
+      {typeof value === 'string' ? (
+        <Text style={[strong ? theme.type.money : theme.type.number, { color: theme.colors.text }]}>
+          {value}
+        </Text>
+      ) : (
+        value
+      )}
     </View>
   );
 }
@@ -227,12 +251,25 @@ function ListSeparator(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingVertical: 16 },
+  // ...contentColumn caps the measure on a tablet. A list row is a label at
+  // one edge and a value at the other; unconstrained on a 10" screen the two
+  // end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingVertical: space.lg },
   separator: { height: 8 },
-  row: { flexDirection: 'row', gap: 12 },
-  rowMain: { flex: 1, gap: 2 },
-  amounts: { alignItems: 'flex-end', gap: 2 },
-  meta: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 8 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 3 },
-  footer: { textAlign: 'center', padding: 16 },
+  row: { flexDirection: 'row', gap: space.md },
+  rowMain: { flex: 1, gap: space.hair },
+  amounts: { alignItems: 'flex-end', gap: space.hair },
+  meta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    marginTop: space.sm,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    paddingVertical: space.hair,
+  },
+  footer: { textAlign: 'center', padding: space.lg },
 });

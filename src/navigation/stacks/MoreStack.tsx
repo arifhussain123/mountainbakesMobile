@@ -1,10 +1,28 @@
 import React, { useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { CategoryFormScreen } from '@/screens/admin/CategoryFormScreen';
+import { UserFormScreen } from '@/screens/admin/UserFormScreen';
 import { MoreScreen } from '@/screens/more/MoreScreen';
 import { SyncCenterScreen } from '@/screens/sync/SyncCenterScreen';
 import { moreSectionsFor, NAV_LABELS, type AccessProfile } from '../roleConfig';
+import { stackScreenOptions } from '../screenAnimations';
 import { placeholderFor, resolveMoreScreen, type ScreenComponent } from '../screenRegistry';
+import { MORE_DETAIL_SCREENS } from '../types';
+
+/**
+ * Detail screens, by the name declared in `MORE_DETAIL_SCREENS`.
+ *
+ * They are not menu destinations — `MoreRouteName` excludes them — so they are
+ * registered from the destination that owns them rather than from the menu. A
+ * role without that destination gets neither, which keeps a deep link from
+ * landing on an edit form for a resource the role cannot open.
+ */
+const DETAIL_COMPONENTS: Record<string, ScreenComponent> = {
+  UserForm: UserFormScreen as unknown as ScreenComponent,
+  CategoryForm: CategoryFormScreen as unknown as ScreenComponent,
+};
 
 const Stack = createNativeStackNavigator();
 
@@ -28,12 +46,15 @@ export function makeMoreStack(profile: AccessProfile): React.ComponentType {
   }
   Index.displayName = 'MoreIndex';
 
+  // Every More row is a destination — actions live in the account panel, so
+  // there is nothing here to filter out. See docs/navigation.md.
   const destinations = sections.flatMap(section =>
     section.items.map(item => {
+      const route = item.route;
       const label = NAV_LABELS[item.label];
       let component: ScreenComponent;
 
-      if (item.route === 'SyncCenter') {
+      if (route === 'SyncCenter') {
         // The one More destination that needs a prop rather than a placeholder.
         function SyncCenter({
           navigation,
@@ -45,18 +66,37 @@ export function makeMoreStack(profile: AccessProfile): React.ComponentType {
         SyncCenter.displayName = 'SyncCenter';
         component = SyncCenter as unknown as ScreenComponent;
       } else {
-        component = resolveMoreScreen(profile.role, item.route) ?? placeholderFor(item.route, label);
+        component = resolveMoreScreen(profile.role, route) ?? placeholderFor(route, label);
       }
 
-      return { name: item.route, component };
+      return { name: route as string, component };
+    }),
+  );
+
+  // Only for destinations this role actually has, and only when the destination
+  // resolved to a real screen — a placeholder has nothing to navigate onward to.
+  const details = sections.flatMap(section =>
+    section.items.flatMap(item => {
+      if (!resolveMoreScreen(profile.role, item.route)) return [];
+      return (MORE_DETAIL_SCREENS[item.route] ?? []).flatMap(name => {
+        const component = DETAIL_COMPONENTS[name];
+        return component ? [{ name, component }] : [];
+      });
     }),
   );
 
   function MoreStack(): React.ReactElement {
+    const reduceMotion = useReducedMotion();
+    // Memoised because a fresh options object makes React Navigation re-resolve
+    // every screen's options on each render of the stack.
+    const screenOptions = React.useMemo(() => stackScreenOptions(reduceMotion), [reduceMotion]);
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen name="MoreIndex" component={Index} />
         {destinations.map(d => (
+          <Stack.Screen key={d.name} name={d.name} component={d.component} />
+        ))}
+        {details.map(d => (
           <Stack.Screen key={d.name} name={d.name} component={d.component} />
         ))}
       </Stack.Navigator>

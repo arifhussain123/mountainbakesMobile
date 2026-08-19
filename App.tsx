@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -15,7 +15,10 @@ import { initStorage } from '@/services/storage/secureStorage';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { space } from '@/theme/spacing';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import { SplashScreen } from '@/screens/SplashScreen';
+import { withBootTimeout } from '@/utils/bootTimeout';
 
 /**
  * App root.
@@ -49,13 +52,44 @@ function useBootstrap(): { state: BootState; retry: () => void } {
     let cancelled = false;
     let unsubscribeNetwork: (() => void) | undefined;
 
+    const timer: { id?: ReturnType<typeof setTimeout> } = {};
+
     (async () => {
       try {
         assertApiReachable();
-        await initStorage();
-        hydrateSettings();
-        await initDatabase();
-        await bootstrapAuth();
+        // The whole sequence is raced, not each step: the budget is what the
+        // user is waiting through, and per-step timeouts would let four slow
+        // steps add up to a wait none of them individually exceeded.
+        await withBootTimeout(
+          (async () => {
+            /*
+             * Storage and the database are started together.
+             *
+             * The ORDER constraints are real but narrower than the old
+             * `await`-per-line sequence implied: settings and the session live
+             * in encrypted storage, and the database has to be open before the
+             * session because signing in can trigger a drain immediately.
+             * Neither of storage and the database needs anything from the
+             * other — one is Keychain plus MMKV, the other is SQLite opening a
+             * file and running migrations, and both are native I/O the JS
+             * thread only waits on.
+             *
+             * Run in sequence they added up; started together the wait is the
+             * slower of the two rather than the sum, and every constraint above
+             * still holds: settings are chained onto storage, and the session
+             * waits for both.
+             *
+             * `Promise.all` rather than two bare promises awaited in turn. The
+             * latter leaves a window where one has rejected and nothing is
+             * listening yet, which Hermes reports as an unhandled rejection —
+             * a red box on a start that was already failing, in front of the
+             * retry the user needs to see.
+             */
+            await Promise.all([initStorage().then(hydrateSettings), initDatabase()]);
+            await bootstrapAuth();
+          })(),
+          timer,
+        );
         unsubscribeNetwork = startNetwork();
         if (!cancelled) setState({ phase: 'ready' });
       } catch (error) {
@@ -78,6 +112,7 @@ function useBootstrap(): { state: BootState; retry: () => void } {
 
     return () => {
       cancelled = true;
+      if (timer.id) clearTimeout(timer.id);
       unsubscribeNetwork?.();
     };
   }, [attempt, hydrateSettings, bootstrapAuth, startNetwork]);
@@ -94,21 +129,7 @@ function BootGate(): React.ReactElement {
   const theme = useTheme();
   const { state, retry } = useBootstrap();
 
-  if (state.phase === 'loading') {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.colors.bg }]}>
-        <Text style={[theme.type.display, { color: theme.colors.primary }]}>Mountain Bakes</Text>
-        <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
-          Fresh • Quality • Every Day
-        </Text>
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={{ marginTop: theme.space.xxl }}
-        />
-      </View>
-    );
-  }
+  if (state.phase === 'loading') return <SplashScreen />;
 
   if (state.phase === 'failed') {
     return (
@@ -158,7 +179,7 @@ export default function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorPad: { padding: 24 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md },
+  errorPad: { padding: space.xxl },
   center: { textAlign: 'center' },
 });

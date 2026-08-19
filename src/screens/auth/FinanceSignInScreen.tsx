@@ -10,6 +10,7 @@ import { FinanceLoginLookupSchema } from '@/shared/schemas/finance.schemas';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { contentColumn } from '@/theme/spacing';
 
 /**
  * Finance Ledger sign-in.
@@ -93,7 +94,10 @@ export function FinanceSignInScreen({ onBack }: { onBack: () => void }): React.R
       <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
         <MBHeader title="Two-factor verification" onBack={handleCancelMfa} />
         <ScrollView
-          contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.lg }}
+          contentContainerStyle={[
+            contentColumn,
+            { padding: theme.layout.screenPad, gap: theme.space.lg },
+          ]}
           keyboardShouldPersistTaps="handled">
           <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>
             Enter the 6-digit code from your authenticator app.
@@ -148,7 +152,10 @@ export function FinanceSignInScreen({ onBack }: { onBack: () => void }): React.R
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
       <MBHeader title="Finance sign-in" onBack={onBack} />
       <ScrollView
-        contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.lg }}
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.lg },
+        ]}
         keyboardShouldPersistTaps="handled">
         <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>
           Sign in with your Finance User ID. For Branch, Production or Admin access, use the main

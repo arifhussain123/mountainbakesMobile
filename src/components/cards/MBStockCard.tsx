@@ -1,0 +1,179 @@
+import React, { useCallback } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { MBCard } from '../common/MBCard';
+import { MBIcon } from '../common/MBIcon';
+import { MBPressable } from '../common/MBPressable';
+import { useTheme } from '@/theme/ThemeProvider';
+import { space } from '@/theme/spacing';
+import { stockLevel, type StockLevel } from '@/shared/utils/stock';
+import type { StockRow } from '@/shared/types/stock.types';
+import { formatQty } from '@/utils/money';
+
+/**
+ * One product's stock for a business day, with its working foldable underneath.
+ *
+ * ---------------------------------------------------------------------------
+ * Why the breakdown is collapsed
+ * ---------------------------------------------------------------------------
+ * The headline is the whole tap target, and it is all that is drawn until
+ * asked. Product, balance and level answer the question this screen is opened
+ * for — "what have I got, and what is about to run out" — while opening /
+ * received / sold / returned / adjusted explain *how* the balance got there,
+ * which is a second question and a rarer one.
+ *
+ * Drawing the working under every row cost more than it looks: the five cells
+ * roughly double a card's height, so a phone showed about four products at a
+ * time instead of seven, and finding the one that is out of stock in a 90-line
+ * catalogue meant twice the scrolling.
+ *
+ * The level is a **word as well as a colour**, because a stock warning that can
+ * only be read by distinguishing red from green is not a warning for everyone.
+ * The disclosure chevron points right when closed and down when open: the
+ * direction is the state, so nothing has to animate to report it.
+ *
+ * `expanded` is owned by the list, not the card. One product open at a time is
+ * a list-level decision, and a card that held its own state could not be told
+ * to close when another opened.
+ */
+
+export interface MBStockCardProps {
+  row: StockRow;
+  expanded: boolean;
+  onToggle: (productId: string) => void;
+}
+
+export const MBStockCard = React.memo(function MBStockCardView({
+  row,
+  expanded,
+  onToggle,
+}: MBStockCardProps): React.ReactElement {
+  const theme = useTheme();
+  const level = stockLevel(row.balance);
+  const toggle = useCallback(() => onToggle(row.productId), [onToggle, row.productId]);
+
+  const levelColor: Record<StockLevel, string> = {
+    out: theme.colors.danger,
+    critical: theme.colors.danger,
+    moderate: theme.colors.warning,
+    healthy: theme.colors.success,
+  };
+
+  const levelLabel: Record<StockLevel, string> = {
+    out: 'Out of stock',
+    critical: 'Critical',
+    moderate: 'Low',
+    healthy: 'In stock',
+  };
+
+  return (
+    <MBCard>
+      {/*
+        The headline is the whole tap target, and it is all that is drawn until
+        asked. Product, balance and level answer the question this screen is
+        opened for — "what have I got, and what is about to run out" — while
+        opening / received / sold / returned / adjusted explain *how* the
+        balance got there, which is a second question and a rarer one.
+
+        Drawing the working under every row cost more than it looks: the five
+        cells roughly double a card's height, so a phone showed about four
+        products at a time instead of seven, and finding the one that is out of
+        stock in a 90-line catalogue meant twice the scrolling.
+      */}
+      <MBPressable
+        onPress={toggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${row.productName}, balance ${formatQty(row.balance)}, ${
+          levelLabel[level]
+        }`}
+        accessibilityHint={expanded ? 'Hides the movement breakdown' : 'Shows the movement breakdown'}
+        testID={`stock-row-${row.productId}`}>
+        <View style={styles.header}>
+          <View style={styles.headerMain}>
+            <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+              {row.productName}
+            </Text>
+            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              {row.stockCode}
+            </Text>
+          </View>
+
+          <View style={styles.balance}>
+            <Text style={[theme.type.money, { color: theme.colors.text }]}>
+              {formatQty(row.balance)}
+            </Text>
+            {/* A word as well as a colour — the level must be readable without
+                distinguishing red from green. */}
+            <Text style={[theme.type.caption, { color: levelColor[level] }]}>
+              {levelLabel[level]}
+            </Text>
+          </View>
+
+          {/* Right when closed, down when open. The direction is the state, so
+              nothing has to animate to report it. Hidden from the screen reader
+              — the pressable around it already announces both the action and
+              whether it is expanded. */}
+          <View style={styles.disclosure}>
+            <MBIcon
+              name={expanded ? 'chevronDown' : 'chevron'}
+              size="action"
+              color={theme.colors.textMuted}
+            />
+          </View>
+        </View>
+      </MBPressable>
+
+      {/* opening + newQty − sold − returned + adjustment = balance */}
+      {expanded ? (
+        <View style={[styles.movements, { borderTopColor: theme.colors.border }]}>
+          <Movement label="Opening" value={row.opening} />
+          <Movement label="Received" value={row.newQty} />
+          <Movement label="Sold" value={row.sold} />
+          <Movement label="Returned" value={row.returned} />
+          <Movement label="Adjusted" value={row.adjustment} signed />
+        </View>
+      ) : null}
+    </MBCard>
+  );
+});
+
+function Movement({
+  label,
+  value,
+  signed = false,
+}: {
+  label: string;
+  value: number;
+  signed?: boolean;
+}): React.ReactElement {
+  const theme = useTheme();
+  // `adjustment` is deliberately signed — the direction is the point, and it is
+  // what makes the row reconcile.
+  const display = signed && value > 0 ? `+${formatQty(value)}` : formatQty(value);
+
+  return (
+    <View style={styles.movement}>
+      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>{label}</Text>
+      <Text style={[theme.type.mono, { color: theme.colors.text }]}>{display}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  headerMain: { flex: 1, gap: space.hair },
+  balance: { alignItems: 'flex-end', gap: space.hair },
+  // Centred against the balance rather than pinned to the top of the row.
+  disclosure: { alignSelf: 'center' },
+  movements: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    marginTop: space.md,
+    paddingTop: space.md,
+    borderTopWidth: 1,
+  },
+  movement: { alignItems: 'center', gap: space.hair, minWidth: 56 },
+});

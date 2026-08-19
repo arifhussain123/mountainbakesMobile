@@ -36,7 +36,16 @@ const PRODUCT = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  getCategories.mockResolvedValue([{ id: 'c1', name: 'Rusks', slug: 'rusks', sortOrder: 0, isActive: true, createdAt: '' }]);
+  getCategories.mockResolvedValue([
+    {
+      id: 'c1',
+      name: 'Rusks',
+      slug: 'rusks',
+      sortOrder: 0,
+      isActive: true,
+      createdAt: '',
+    },
+  ]);
   getSettings.mockResolvedValue({ currencySymbol: 'Rs.' });
 });
 
@@ -77,7 +86,11 @@ describe('ProductsScreen', () => {
 
   it('shows a friendly error, not the raw server text', async () => {
     getProducts.mockRejectedValue(
-      new ApiError({ kind: 'authorization', message: 'Forbidden: requires one of [x]', status: 403 }),
+      new ApiError({
+        kind: 'authorization',
+        message: 'Forbidden: requires one of [x]',
+        status: 403,
+      }),
     );
     const screen = await renderProducts();
 
@@ -91,6 +104,9 @@ describe('ProductsScreen', () => {
     const screen = await renderProducts();
     await waitFor(() => expect(getProducts).toHaveBeenCalledTimes(1));
 
+    // Search collapses into the header, so it has to be opened before it can be
+    // typed into — the button is the affordance staff actually tap.
+    await fireEvent.press(screen.getByTestId('product-search-open'));
     const field = screen.getByTestId('product-search');
     await fireEvent.changeText(field, 'r');
     await fireEvent.changeText(field, 'ru');

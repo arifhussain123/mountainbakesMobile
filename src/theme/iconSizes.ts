@@ -10,15 +10,28 @@
 export const iconSize = {
   /** Bottom tab bar. Meaning-bearing, so full grid size. */
   tab: 24,
-  /** Account drawer rows. One step down: the label is always present. */
+  /**
+   * Secondary list rows — the More list, and account-panel rows if any ever
+   * grow an icon. One step down from `tab` because the label is always present
+   * beside it, so the glyph is orientation rather than the meaning itself.
+   */
   drawer: 22,
   /** Header leading/trailing actions. */
   header: 24,
   /** Inline actions inside rows, chips, and buttons. */
   action: 20,
-  /** The icon on a stat card, which is decorative next to the number. */
+  /**
+   * A stat card's leading glyph — decorative next to the number, so it can be
+   * large without competing with it. **Nothing renders at this size yet:**
+   * `MBStatCard`'s only icon is the trend arrow, which sits inline against a
+   * caption and is therefore `action`. The token is the agreed size for the
+   * leading glyph when a card gains one, not a description of today's card.
+   */
   statCard: 32,
-  /** Empty-state illustration glyph. */
+  /**
+   * The glyph above an empty state's title. `MBEmptyState` takes an `IconKey`
+   * and draws it at this size itself, so a screen cannot pick its own.
+   */
   emptyState: 56,
 } as const;
 

@@ -3,6 +3,7 @@ import type {
   BranchProductionOrderStatus,
 } from '@/shared/types/production-order.types';
 import type { StockRow } from '@/shared/types/stock.types';
+import type { CancelProductionOrderInput } from '@/shared/schemas/production-order.schemas';
 import { api } from './client';
 
 /**
@@ -33,6 +34,37 @@ export interface ProductionOverview {
   demandByMonth: Array<{ month: string; qty: number }>;
   branchDemand: Array<{ branchId: string; branchName: string; qty: number }>;
   topProducts: Array<{ productId: string; productName: string; qty: number }>;
+}
+
+/**
+ * Live counts for the preparation station.
+ *
+ * These are **customer orders** (`orders.status`), not branch demands. The two
+ * are separate resources and separate pipelines, and the production role has a
+ * tab for each — see `roleConfig.ts`. Conflating them is easy and expensive: a
+ * demand that is `approved` and an order that is `ready` are different objects
+ * at different stages of different journeys.
+ */
+export interface ProductionQueueStats {
+  /** Orders at `pending` — accepted, not started. */
+  waitingCount: number;
+  /** Orders at `preparing` — on the bench now. */
+  preparingCount: number;
+  /** Orders at `ready` — made, waiting to go out. */
+  readyCount: number;
+  totalActive: number;
+}
+
+/**
+ * `GET /api/production/queue`.
+ *
+ * The response also carries the full queue grouped by branch; the dashboard
+ * wants only `stats`, so the rest is typed loosely and ignored here rather than
+ * mirrored into a shape nothing reads.
+ */
+export async function getProductionQueueStats(): Promise<ProductionQueueStats> {
+  const data = await api.get<{ stats: ProductionQueueStats }>('/api/production/queue');
+  return data.stats;
 }
 
 export function getProductionOverview(): Promise<ProductionOverview> {
@@ -95,6 +127,24 @@ export function reviewProductionOrder(orderId: string, input: ReviewInput): Prom
 }
 
 /** Mark a demand as printed, so Production can see what has been issued. */
+/**
+ * The branch withdraws a demand it raised.
+ *
+ * A **soft delete**, and the reason is mandatory (migration 73): Production is
+ * planning against these demands, so one vanishing off the summary without
+ * explanation is worse than one that stays visible as `cancelled` with a note.
+ *
+ * Only a `pending` demand can be withdrawn — once Production has reviewed it and
+ * sent it out, units are in motion and the way back is a return, not a deletion.
+ * The server enforces that; this only decides what is offered.
+ */
+export function cancelProductionOrder(
+  orderId: string,
+  input: CancelProductionOrderInput,
+): Promise<unknown> {
+  return api.put(`/api/production-orders/${orderId}/cancel`, input);
+}
+
 export function markPrinted(orderId: string): Promise<unknown> {
   return api.put(`/api/production-orders/${orderId}/printed`, {});
 }
@@ -114,6 +164,30 @@ export interface PreviousBalance {
  * track whether that previous order was actually settled, so a reprint shows the
  * same figure every time.
  */
+/** One row per active product, carrying its balance in every active branch. */
+export interface BranchStockMatrix {
+  branches: { branchId: string; branchName: string }[];
+  rows: { productId: string; productName: string; byBranch: Record<string, number> }[];
+}
+
+/**
+ * `GET /api/production/branch-stock` — the whole branch × product balance matrix.
+ *
+ * This is the **only single request** that can answer "how many products are low
+ * across the company". `GET /api/stock` is one branch at a time (it answers 400
+ * without a `branchId` for a role that has no branch of its own), so the
+ * alternative is one request per branch — a fan-out that grows with the
+ * business, to fill one tile.
+ *
+ * It is more data than a tile needs, which is why the dashboard gives it the
+ * longer `STALE_TIME_MS` window rather than the live one: balances move on every
+ * sale, but a *count of products under five units* does not meaningfully change
+ * inside a minute.
+ */
+export function getBranchStock(): Promise<BranchStockMatrix> {
+  return api.get<BranchStockMatrix>('/api/production/branch-stock');
+}
+
 export function getPreviousBalance(orderId: string): Promise<PreviousBalance> {
   return api.get<PreviousBalance>(`/api/production-orders/${orderId}/previous-balance`);
 }

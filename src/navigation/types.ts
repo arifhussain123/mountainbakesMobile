@@ -27,6 +27,8 @@ export type AppTabName =
   | 'Reports'
   | 'Sales'
   | 'Stock'
+  | 'Preparation'
+  | 'Delivery'
   | 'Ledger'
   | 'Income'
   | 'Expenses'
@@ -39,6 +41,8 @@ export type AppTabParamList = {
   Reports: NavigatorScreenParams<ReportsStackParamList> | undefined;
   Sales: NavigatorScreenParams<SalesStackParamList> | undefined;
   Stock: NavigatorScreenParams<StockStackParamList> | undefined;
+  Preparation: NavigatorScreenParams<PreparationStackParamList> | undefined;
+  Delivery: NavigatorScreenParams<DeliveryStackParamList> | undefined;
   Ledger: NavigatorScreenParams<LedgerStackParamList> | undefined;
   Income: NavigatorScreenParams<IncomeStackParamList> | undefined;
   Expenses: NavigatorScreenParams<ExpensesStackParamList> | undefined;
@@ -72,10 +76,47 @@ export type SalesStackParamList = {
 
 export type StockStackParamList = {
   StockList: undefined;
+  /**
+   * Returning stock to production. A modal: it is a short act that ends by
+   * returning to the balances it was reconciled against.
+   */
+  StockReturn: undefined;
+};
+
+/**
+ * The two production-floor stages, and why they are tabs rather than filters on
+ * Orders.
+ *
+ * They are different resources, not two views of one. Preparation is the
+ * `production` resource — `GET /api/production/queue` and `PUT
+ * /api/production/:id/status`, whose statuses are `pending | preparing | ready`.
+ * Delivery is the `production_orders` resource — the branch demands central
+ * production dispatches, whose statuses are `pending | awaiting_verification |
+ * verified | approved | rejected | cancelled`. Two enums, two endpoints, two
+ * jobs on the floor; folding them into one list means a filter chip that
+ * silently changes which API is being written to.
+ */
+export type PreparationStackParamList = {
+  PreparationQueue: undefined;
+};
+
+export type DeliveryStackParamList = {
+  DeliveryList: undefined;
 };
 
 export type ProductsStackParamList = {
   ProductsList: undefined;
+  ProductDetail: { productId: string };
+  /**
+   * Create when `productId` is absent, edit when it is present.
+   *
+   * One screen rather than two: the fields are identical except that price is
+   * settable only at creation — after that a price moves through PriceChange,
+   * which records history. Two screens would be two places to forget that.
+   */
+  ProductForm: { productId?: string } | undefined;
+  PriceChange: { productId: string };
+  PriceHistory: { productId: string };
 };
 
 export type ReportsStackParamList = {
@@ -106,16 +147,47 @@ export type MoreStackParamList = {
   Categories: undefined;
   Vendors: undefined;
   Branches: undefined;
-  Expenses: undefined;
-  Closing: undefined;
   Sales: undefined;
+  Stock: undefined;
+  Reports: undefined;
+  Expenses: undefined;
+  Production: undefined;
+  Closing: undefined;
   PartnerExpenses: undefined;
   SyncCenter: undefined;
+  Notifications: undefined;
   Settings: undefined;
   Help: undefined;
+  Profile: undefined;
+  /**
+   * Detail screens, NOT menu destinations.
+   *
+   * They live in this stack because the resource they edit is reached from More,
+   * but nothing in `roleConfig` may point at them — a More row is a top-level
+   * place to go, and "the edit form for the thing you just tapped" is not one.
+   * `MoreRouteName` excludes them below so that stays a compile error rather
+   * than a convention.
+   */
+  UserForm: { userId?: string } | undefined;
+  CategoryForm: { categoryId?: string } | undefined;
 };
 
-export type MoreRouteName = Exclude<keyof MoreStackParamList, 'MoreIndex'>;
+export type MoreRouteName = Exclude<
+  keyof MoreStackParamList,
+  'MoreIndex' | 'UserForm' | 'CategoryForm'
+>;
+
+/**
+ * Detail screens registered alongside a More destination.
+ *
+ * Keyed by the destination that owns them, so a role that cannot reach Users
+ * does not get `UserForm` registered either — an unreachable screen in the
+ * navigator is a route a deep link could still land on.
+ */
+export const MORE_DETAIL_SCREENS: Partial<Record<MoreRouteName, readonly string[]>> = {
+  Users: ['UserForm'],
+  Categories: ['CategoryForm'],
+};
 
 /**
  * The root screen name inside each tab's stack.
@@ -132,6 +204,8 @@ export const TAB_ROOT_ROUTE = {
   Reports: 'ReportsIndex',
   Sales: 'SalesList',
   Stock: 'StockList',
+  Preparation: 'PreparationQueue',
+  Delivery: 'DeliveryList',
   Ledger: 'LedgerIndex',
   Income: 'IncomeIndex',
   Expenses: 'ExpensesList',

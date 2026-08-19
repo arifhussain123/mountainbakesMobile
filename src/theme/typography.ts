@@ -15,6 +15,22 @@ export const fontFamily = {
   mono: 'IBMPlexMono',
 } as const;
 
+/**
+ * The four weights the type scale uses, named rather than numbered.
+ *
+ * A `type` token carries its own weight, so this exists only for the handful of
+ * places that must vary weight *on top of* a token — the tab bar's active label
+ * sitting over `type.caption`, and the badge, whose digits are bolder than any
+ * caption. Those were `fontWeight: '600'` literals, which is how a fifth weight
+ * eventually appears in the app without anyone deciding on it.
+ */
+export const weight = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+} as const satisfies Record<string, TextStyle['fontWeight']>;
+
 type TypeToken = TextStyle & { tabular?: boolean };
 
 const tabularVariant: TextStyle = {
@@ -90,6 +106,26 @@ export const type = {
     fontSize: 32,
     lineHeight: 36,
     fontWeight: '700',
+    tabular: true,
+  }),
+  /**
+   * A figure in a row: quantities, counts, and the secondary money amounts
+   * `MBMoney size="sm"` draws.
+   *
+   * Tabular and one weight heavier than `body`, because a financial value has to
+   * outrank the label beside it — a breakdown row used to put a 15px label
+   * against a 13px number, which reads as the label being the point.
+   *
+   * Distinct from `mono`, and the split is what each is for: `mono` is a
+   * **monospace** face for identifiers a person reads character by character
+   * (order numbers, voucher numbers, operation ids). `number` is the body face
+   * with tabular figures, for quantities that sit in a column and must align.
+   */
+  number: token({
+    fontFamily: fontFamily.body,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
     tabular: true,
   }),
   mono: token({

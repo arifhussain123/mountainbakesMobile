@@ -8,11 +8,17 @@ import { ExpensesScreen } from '@/screens/branch/ExpensesScreen';
 import { NewOrderScreen } from '@/screens/branch/NewOrderScreen';
 import { SalesScreen } from '@/screens/branch/SalesScreen';
 import { AdminDashboardScreen } from '@/screens/admin/AdminDashboardScreen';
+import { AdminExpensesScreen } from '@/screens/admin/AdminExpensesScreen';
+import { AdminSalesScreen } from '@/screens/admin/AdminSalesScreen';
+import { CategoriesScreen } from '@/screens/admin/CategoriesScreen';
 import { OrdersScreen } from '@/screens/admin/OrdersScreen';
 import { ReportsScreen } from '@/screens/admin/ReportsScreen';
+import { SettingsScreen } from '@/screens/admin/SettingsScreen';
+import { UsersScreen } from '@/screens/admin/UsersScreen';
 import { FinanceDashboardScreen } from '@/screens/finance/FinanceDashboardScreen';
 import { LedgerScreen } from '@/screens/finance/LedgerScreen';
 import { ProductionDashboardScreen } from '@/screens/production/ProductionDashboardScreen';
+import { BranchDemandsScreen } from '@/screens/branch/BranchDemandsScreen';
 import { ProductionOrdersScreen } from '@/screens/production/ProductionOrdersScreen';
 import { ProductionStockScreen } from '@/screens/production/ProductionStockScreen';
 import { isBranchRole, isFinanceRole } from './roleNavigation';
@@ -51,12 +57,38 @@ const SCREEN_PLAN: Partial<Record<string, { phase: string; endpoint?: string }>>
   // /api/finance/expenses resource.
   Expenses: { phase: 'Phase 8', endpoint: 'GET /api/finance/income/entries' },
   Sales: { phase: 'Phase 9', endpoint: 'POST /api/production-sales' },
-  Users: { phase: 'Phase 9', endpoint: 'GET /api/users' },
-  Categories: { phase: 'Phase 9', endpoint: 'GET /api/categories' },
-  Vendors: { phase: 'Phase 9', endpoint: 'GET /api/vendors' },
+  // The two production-floor stages. Separate resources, separate status enums
+  // — see PreparationStackParamList in types.ts.
+  Preparation: { phase: 'Phase 7', endpoint: 'GET /api/production/queue' },
+  Delivery: { phase: 'Phase 7', endpoint: 'GET /api/production-orders' },
+  // Only ever rendered for the production account now: the admin reaches
+  // Reports as a tab and the branch manager as a More row, and both resolve to
+  // the real screen. So this names the PRODUCTION report resource, not
+  // `/api/reports` — which is `requireRole('super_admin', 'branch_manager')`
+  // and would 403 the account reading this placeholder.
+  Reports: { phase: 'Phase 9', endpoint: 'GET /api/production-reports' },
+  /**
+   * NO SERVER RESOURCE EXISTS.
+   *
+   * This entry used to promise `GET /api/vendors`. There is no vendors router,
+   * no service, no table and no migration — `grep -ri vendor` across the server
+   * returns nothing at all. Naming an endpoint that does not exist sends the
+   * next person to look for a bug in the client.
+   *
+   * The row stays visible because the feature is a real gap worth seeing, but
+   * building the screen means building the resource on the server first: this
+   * app is a third client of that API and never reaches Supabase directly.
+   */
+  Vendors: { phase: 'a server resource that does not exist yet' },
   Branches: { phase: 'Phase 9', endpoint: 'GET /api/branches' },
+  Production: { phase: 'Phase 9', endpoint: 'GET /api/production-orders' },
+  Profile: { phase: 'Phase 9' },
   PartnerExpenses: { phase: 'Phase 9', endpoint: 'GET /api/finance/partner-expenses' },
   Settings: { phase: 'Phase 9' },
+  // No endpoint named on purpose: there is no inbox resource on the server and
+  // no notification library in the app. The placeholder should not print an API
+  // path that does not exist — see docs/navigation.md.
+  Notifications: { phase: 'Phase 9' },
   Help: { phase: 'Phase 9' },
 };
 
@@ -78,7 +110,10 @@ export function resolveTabScreen(role: UserRole, route: AppTabName): ScreenCompo
     case 'Orders':
       if (production) return ProductionOrdersScreen;
       if (admin) return OrdersScreen;
-      // Branch order list is not built; New Order (the create half) is.
+      // A branch's "Orders" are its demands on central production — the other
+      // side of the same workflow the production counter reviews, not a second
+      // one. Customer orders are the admin's list above.
+      if (branch) return BranchDemandsScreen;
       return null;
     case 'Products':
       return ProductsScreen;
@@ -87,7 +122,17 @@ export function resolveTabScreen(role: UserRole, route: AppTabName): ScreenCompo
       return StockScreen;
     case 'Sales':
       return branch ? SalesScreen : null;
+    case 'Preparation':
+    case 'Delivery':
+      // Production's two floor stages. Neither is built; both render a
+      // placeholder naming the endpoint they are waiting on, so an unbuilt
+      // stage is never mistaken for an empty queue.
+      return null;
     case 'Reports':
+      // Admin only. Finance shares the tab NAME but not the resource —
+      // `/api/finance/reports` is a different endpoint behind a different gate,
+      // so it falls through to its own placeholder rather than borrowing this
+      // screen and 403ing on first load.
       return admin ? ReportsScreen : null;
     case 'Ledger':
       return finance ? LedgerScreen : null;
@@ -106,9 +151,48 @@ export function resolveTabScreen(role: UserRole, route: AppTabName): ScreenCompo
 
 export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenComponent | null {
   const branch = isBranchRole(role);
+  const admin = role === 'super_admin';
   switch (route) {
+    case 'Users':
+    case 'Categories':
+      // Every route behind both is `requireRole('super_admin')`, and only the
+      // admin More list carries them. Gated here as well so a deep link cannot
+      // land another role on a screen that would 403 on first load.
+      if (!admin) return null;
+      return route === 'Users' ? UsersScreen : CategoriesScreen;
+    case 'Settings':
+      // `GET /api/settings` is open to any signed-in account, but `PUT` is
+      // super_admin only — and this screen exists to edit. Other roles keep the
+      // placeholder rather than a form whose save button always fails.
+      return admin ? SettingsScreen : null;
+    case 'Sales':
+      // The admin's Sales is a money view across every branch. A branch reaches
+      // its own Sales as a TAB (the POS), never from More, so this case is only
+      // ever asked for the admin.
+      return admin ? AdminSalesScreen : null;
     case 'Expenses':
-      return branch ? ExpensesScreen : null;
+      // Two different screens behind one word. A branch RECORDS an expense —
+      // `POST /api/expenses` takes the branch from the caller's own JWT. An
+      // admin carries no branchId, so there is nothing for an admin-entered
+      // expense to belong to; the admin screen is the audit across branches.
+      if (branch) return ExpensesScreen;
+      return admin ? AdminExpensesScreen : null;
+    case 'Stock':
+      // Production reaches Stock from More rather than a tab, and it must land
+      // on its own screen: `ProductionStockScreen` reads the central pool,
+      // `StockScreen` reads a branch's shelf. Same word, different balance.
+      return role === 'production_user' ? ProductionStockScreen : StockScreen;
+    case 'Reports':
+      // `/api/reports` is mounted behind
+      // `requireRole('super_admin', 'branch_manager')`, and a branch manager is
+      // auto-scoped to their own branch server-side without sending a
+      // `branchId` — so the admin's screen shows one shop unmodified. A
+      // `branch_user` would get a 403 from every route under it, which is why
+      // `roleConfig` gates the row and this call never sees that role.
+      //
+      // Production's reports are a narrower resource that is not built, so it
+      // stays a placeholder rather than being handed an admin screen.
+      return role === 'branch_manager' ? ReportsScreen : null;
     default:
       return null;
   }

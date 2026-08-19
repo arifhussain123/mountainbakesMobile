@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -9,8 +10,11 @@ import {
   MBErrorState,
   MBHeader,
   MBInput,
+  MBPressable,
   MBSkeletonList,
   MBSyncStatus,
+  MBModal,
+  MBOrderCard,
 } from '@/components';
 import { OrderPrintPreview } from '@/screens/production/OrderPrintPreview';
 import {
@@ -25,6 +29,10 @@ import type {
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatQty } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, layout, space } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { qk } from '@/services/query/queryKeys';
 
 /**
  * Production orders — the branch demand queue.
@@ -43,7 +51,10 @@ import { formatQty } from '@/utils/money';
  * approval would authorise quantities nobody agreed to.
  */
 
-const FILTERS: ReadonlyArray<{ key: BranchProductionOrderStatus | 'all'; label: string }> = [
+const FILTERS: ReadonlyArray<{
+  key: BranchProductionOrderStatus | 'all';
+  label: string;
+}> = [
   { key: 'pending', label: 'Waiting' },
   { key: 'awaiting_verification', label: 'Sent' },
   { key: 'verified', label: 'Verified' },
@@ -57,14 +68,46 @@ export function ProductionOrdersScreen(): React.ReactElement {
   const [reviewing, setReviewing] = useState<BranchProductionOrder | null>(null);
   const [printing, setPrinting] = useState<BranchProductionOrder | null>(null);
 
+  /**
+   * One handler for the whole queue, not one per card.
+   *
+   * `setReviewing` and `setPrinting` are already stable, so `renderOrder`
+   * depends on nothing that changes and `MBOrderCard`'s `memo` can finally do
+   * its job: a status-chip tap re-renders the chips, not thirty demands.
+   */
+  const renderOrder = useCallback(
+    ({ item }: { item: BranchProductionOrder }) => (
+      <MBOrderCard order={item} onReview={setReviewing} onPrint={setPrinting} />
+    ),
+    [],
+  );
+
   const orders = useQuery({
-    queryKey: ['production', 'orders', status],
+    // `qk.productionOrders`, not `['production', ...]`: this is the same
+    // `GET /api/production-orders` a branch's Demands list and the admin
+    // dashboard's pending count read, and one resource gets one key.
+    queryKey: qk.productionOrders.list({ status: status === 'all' ? undefined : status }),
     queryFn: () => getProductionOrders(status === 'all' ? {} : { status }),
+    /**
+     * The previous answer stays on screen while the new one loads.
+     *
+     * Without it, changing the filter unmounts the whole result and puts a
+     * skeleton in its place — the screen empties, the layout collapses, and it
+     * refills a moment later. The user did not ask for a new screen, they asked
+     * the same screen a different question, so the old answer is the honest
+     * thing to show until the new one arrives.
+     */
+    placeholderData: previous => previous,
   });
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title="Orders" subtitle="Branch demands" right={<MBSyncStatus />} />
+      <MBHeader
+        title="Orders"
+        subtitle="Branch demands"
+        right={<MBSyncStatus />}
+        dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
+      />
 
       <View style={{ padding: theme.layout.screenPad }}>
         <ScrollView
@@ -74,7 +117,7 @@ export function ProductionOrdersScreen(): React.ReactElement {
           {FILTERS.map(filter => {
             const selected = filter.key === status;
             return (
-              <Pressable
+              <MBPressable
                 key={filter.key}
                 onPress={() => setStatus(filter.key)}
                 accessibilityRole="button"
@@ -90,11 +133,13 @@ export function ProductionOrdersScreen(): React.ReactElement {
                 <Text
                   style={[
                     theme.type.label,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
+                    {
+                      color: selected ? theme.colors.onPrimary : theme.colors.text,
+                    },
                   ]}>
                   {filter.label}
                 </Text>
-              </Pressable>
+              </MBPressable>
             );
           })}
         </ScrollView>
@@ -112,32 +157,36 @@ export function ProductionOrdersScreen(): React.ReactElement {
         <MBEmptyState
           title="Nothing here"
           message="No demands with this status right now."
+          illustration="empty-orders"
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.sm }}
+        /*
+         * The production queue, virtualised.
+         *
+         * This was a mapped `ScrollView`: every demand from every branch mounted
+         * before the first one was on screen, and the counter's busiest morning
+         * is exactly when the list is longest. `MBOrderCard` is already
+         * `React.memo`, but it could never bail out — `onReview` and `onPrint`
+         * were rebuilt for every card on every render, so a single filter tap
+         * or refetch re-rendered the whole queue.
+         */
+        <FlashList
+          data={orders.data ?? []}
+          renderItem={renderOrder}
+          keyExtractor={keyOfOrder}
+          contentContainerStyle={{ ...contentColumn, padding: theme.layout.screenPad }}
+          ItemSeparatorComponent={CardSeparator}
           refreshControl={
             <RefreshControl
               refreshing={orders.isFetching && !orders.isPending}
               onRefresh={() => orders.refetch()}
               tintColor={theme.colors.primary}
             />
-          }>
-          {(orders.data ?? []).map(order => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onReview={() => setReviewing(order)}
-              onPrint={() => setPrinting(order)}
-            />
-          ))}
-        </ScrollView>
+          }
+        />
       )}
 
-      <Modal
-        visible={reviewing !== null}
-        animationType="slide"
-        onRequestClose={() => setReviewing(null)}>
+      <MBModal visible={reviewing !== null} onRequestClose={() => setReviewing(null)}>
         {reviewing ? (
           <ReviewSheet
             order={reviewing}
@@ -148,82 +197,15 @@ export function ProductionOrdersScreen(): React.ReactElement {
             }}
           />
         ) : null}
-      </Modal>
+      </MBModal>
 
-      <Modal
-        visible={printing !== null}
-        animationType="slide"
-        onRequestClose={() => setPrinting(null)}>
-        {printing ? (
-          <OrderPrintPreview order={printing} onClose={() => setPrinting(null)} />
-        ) : null}
-      </Modal>
+      <MBModal visible={printing !== null} onRequestClose={() => setPrinting(null)}>
+        {printing ? <OrderPrintPreview order={printing} onClose={() => setPrinting(null)} /> : null}
+      </MBModal>
     </View>
   );
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Waiting',
-  awaiting_verification: 'Sent to branch',
-  verified: 'Verified by branch',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled',
-};
-
-function OrderCard({
-  order,
-  onReview,
-  onPrint,
-}: {
-  order: BranchProductionOrder;
-  onReview: () => void;
-  onPrint: () => void;
-}): React.ReactElement {
-  const theme = useTheme();
-  const statusColor =
-    theme.statusColors[order.status as keyof typeof theme.statusColors] ?? theme.colors.textMuted;
-  const totalQty = (order.items ?? []).reduce((sum, item) => sum + Number(item.qty ?? 0), 0);
-
-  return (
-    <MBCard>
-      <View style={styles.cardTop}>
-        <View style={styles.cardMain}>
-          <Text style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-            {order.branchName}
-          </Text>
-          <Text style={[theme.type.mono, { color: theme.colors.textMuted }]}>
-            {order.demandNumber}
-          </Text>
-        </View>
-        <View style={styles.statusPill}>
-          <View style={[styles.dot, { backgroundColor: statusColor }]} />
-          <Text style={[theme.type.caption, { color: theme.colors.text }]}>
-            {STATUS_LABEL[order.status] ?? order.status}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-        {order.date} · {(order.items ?? []).length} products · {formatQty(totalQty)} units
-        {order.requiredDate ? ` · needed ${order.requiredDate}` : ''}
-      </Text>
-
-      {order.wasChanged ? (
-        <Text style={[theme.type.caption, { color: theme.colors.warning }]}>
-          Changed{order.changeReason ? `: ${order.changeReason}` : ''}
-        </Text>
-      ) : null}
-
-      <View style={styles.actions}>
-        {order.status === 'pending' ? (
-          <MBButton label="Review" onPress={onReview} size="sm" testID={`review-${order.id}`} />
-        ) : null}
-        <MBButton label="Print" onPress={onPrint} variant="secondary" size="sm" />
-      </View>
-    </MBCard>
-  );
-}
 
 function ReviewSheet({
   order,
@@ -248,7 +230,12 @@ function ReviewSheet({
     mutationFn: (input: Parameters<typeof reviewProductionOrder>[1]) =>
       reviewProductionOrder(order.id, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['production'] });
+      // Both namespaces. Reviewing a demand changes the demand list
+      // (`productionOrders`) AND the counter's own overview and queue stats
+      // (`production`) — they are different resources and a single prefix
+      // cannot reach both.
+      queryClient.invalidateQueries({ queryKey: qk.productionOrders.all() });
+      queryClient.invalidateQueries({ queryKey: qk.production.all() });
       onReviewed();
     },
     onError: (err: unknown) => {
@@ -280,11 +267,14 @@ function ReviewSheet({
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader title="Review demand" subtitle={order.branchName} onBack={onClose} />
       <ScrollView
-        contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.lg }}
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.lg },
+        ]}
         keyboardShouldPersistTaps="handled">
         <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-          Approving sends this to the branch to verify. Stock moves when the branch
-          confirms what actually arrived — not now.
+          Approving sends this to the branch to verify. Stock moves when the branch confirms what
+          actually arrived — not now.
         </Text>
 
         {(order.items ?? []).map(item => (
@@ -329,8 +319,8 @@ function ReviewSheet({
 
         {!isOnline ? (
           <Text style={[theme.type.caption, { color: theme.colors.offline }]}>
-            You're offline. Reviewing a demand needs a connection — the demand may have
-            changed since you last synced.
+            You're offline. Reviewing a demand needs a connection — the demand may have changed
+            since you last synced.
           </Text>
         ) : null}
 
@@ -357,18 +347,26 @@ function ReviewSheet({
 
 export { markPrinted };
 
+/** Module scope: a separator defined during render remounts the list each pass. */
+function CardSeparator(): React.ReactElement {
+  return <View style={styles.cardGap} />;
+}
+
+const keyOfOrder = (order: BranchProductionOrder): string => order.id;
+
 const styles = StyleSheet.create({
+  cardGap: { height: 8 },
   flex: { flex: 1 },
   chip: {
-    height: 36,
-    paddingHorizontal: 16,
+    height: layout.chipH,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
-  cardTop: { flexDirection: 'row', gap: 12, marginBottom: 6 },
-  cardMain: { flex: 1, gap: 2 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  cardTop: { flexDirection: 'row', gap: space.md, marginBottom: space.tight },
+  cardMain: { flex: 1, gap: space.hair },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
+  dot: { width: layout.dotSize, height: layout.dotSize, borderRadius: radius.pill },
+  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
 });

@@ -7,11 +7,17 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { MBButton, MBInput } from '@/components';
+import { MBButton, MBCheckbox, MBInput } from '@/components';
 import type { AuthStackParamList } from '@/navigation/AuthNavigator';
+import {
+  forgetIdentity,
+  rememberedIdentity,
+  rememberIdentity,
+} from '@/services/storage/secureStorage';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Sign-in.
@@ -23,11 +29,7 @@ import { useTheme } from '@/theme/ThemeProvider';
  */
 
 const SignInSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Enter your email')
-    .email('Enter a valid email address'),
+  email: z.string().trim().min(1, 'Enter your email').email('Enter a valid email address'),
   password: z.string().min(1, 'Enter your password'),
 });
 
@@ -42,20 +44,33 @@ export function SignInScreen(): React.ReactElement {
   const isOnline = useNetworkStore(s => s.isOnline);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  /**
+   * Read once, at first render. `initStorage()` has already completed during
+   * bootstrap, so this is a synchronous read and the field is prefilled on the
+   * first frame rather than appearing a beat later.
+   */
+  const [remembered] = useState(rememberedIdentity);
+  const [remember, setRemember] = useState(remembered.remember);
+
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<SignInValues>({
     resolver: zodResolver(SignInSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: remembered.email, password: '' },
   });
 
   const onSubmit = async (values: SignInValues) => {
     Keyboard.dismiss();
     setSubmitError(null);
     try {
-      await signIn(values.email.trim(), values.password);
+      const email = values.email.trim();
+      await signIn(email, values.password);
+      // Only after the credentials are known good — remembering an address that
+      // failed to sign in would prefill a typo forever.
+      if (remember) rememberIdentity(email);
+      else forgetIdentity();
       // On success the auth store flips to 'signedIn' and RootNavigator swaps
       // the stack — there is nothing to navigate to from here.
     } catch (error) {
@@ -68,10 +83,10 @@ export function SignInScreen(): React.ReactElement {
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { padding: theme.layout.screenPad }]}
+        contentContainerStyle={[contentColumn, styles.content, { padding: theme.layout.screenPad }]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
-          <Text style={[theme.type.display, { color: theme.colors.primary }]}>Mountain Bakes</Text>
+          <Text style={[theme.type.display, { color: theme.colors.accent }]}>Mountain Bakes</Text>
           <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
             Fresh • Quality • Every Day
           </Text>
@@ -124,6 +139,15 @@ export function SignInScreen(): React.ReactElement {
             )}
           />
 
+          <MBCheckbox
+            checked={remember}
+            onChange={setRemember}
+            label="Remember me on this device"
+            hint="Fills in your email next time. Your password is never saved."
+            disabled={isSubmitting}
+            testID="remember-me"
+          />
+
           {submitError ? (
             <Text
               accessibilityRole="alert"
@@ -169,8 +193,8 @@ export function SignInScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', gap: 40 },
-  brand: { alignItems: 'center', gap: 6 },
+  content: { flexGrow: 1, justifyContent: 'center', gap: space.xxxl },
+  brand: { alignItems: 'center', gap: space.tight },
   footer: { width: '100%' },
   form: { width: '100%' },
 });

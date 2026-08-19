@@ -34,6 +34,17 @@ export class ApiError extends Error {
   readonly code: string | undefined;
   readonly fieldErrors: FieldError[];
   readonly details: unknown;
+  /**
+   * The whole response body, verbatim.
+   *
+   * `details` alone is not enough to decide what a conflict means. `POST
+   * /api/stock/return` answers a mid-loop race with a top-level `committed`
+   * array naming the products that ALREADY moved — the difference between an
+   * operation that can be safely re-sent and one that must never be. Dropping
+   * the body loses that, and it is also what `sync_conflicts.server_state`
+   * stores so a person can compare the two sides.
+   */
+  readonly body: unknown;
 
   constructor(init: {
     kind: ApiErrorKind;
@@ -42,6 +53,7 @@ export class ApiError extends Error {
     code?: string;
     fieldErrors?: FieldError[];
     details?: unknown;
+    body?: unknown;
   }) {
     super(init.message);
     this.name = 'ApiError';
@@ -50,6 +62,7 @@ export class ApiError extends Error {
     this.code = init.code;
     this.fieldErrors = init.fieldErrors ?? [];
     this.details = init.details;
+    this.body = init.body;
   }
 
   /**
@@ -156,6 +169,7 @@ export function normalizeError(error: unknown): ApiError {
       code: body.code,
       fieldErrors,
       details: body.details,
+      body: data,
     });
   }
 

@@ -39,7 +39,7 @@ cp .env.example .env.development     # then fill it in
 | Variable | Notes |
 |---|---|
 | `ENVIRONMENT` | `development` / `staging` / `production` |
-| `API_URL` | Express origin, no trailing slash. **Android emulator reaches your host at `10.0.2.2`, not `localhost`.** |
+| `API_URL` | Express origin, no trailing slash. `localhost` works on Android only with **`adb reverse tcp:3001 tcp:3001`** (device *and* emulator); `10.0.2.2` is the emulator-only alternative. |
 | `SUPABASE_URL` | Same project the web app uses |
 | `SUPABASE_ANON_KEY` | Public key. Safe to ship. |
 | `WEB_URL` | Web app origin. Password-recovery emails link to `<WEB_URL>/reset-password`. |
@@ -90,6 +90,7 @@ rm -rf src/shared && cp -r ../mountainbakes-server/src/shared src/shared
 
 ```
 src/
+├── assets/       logo (raster), illustrations + product placeholder (vector)
 ├── components/   MB* component set (common, cards, feedback)
 ├── config/       env.ts — build-time config, fails loud when misconfigured
 ├── database/     SQLite: versioned migrations + runner
@@ -106,6 +107,42 @@ src/
 ├── types/        ambient declarations
 └── utils/        money, business date, operation ids
 ```
+
+### Assets
+
+```
+src/assets/
+├── logo/          the OFFICIAL mark, @1x/@2x/@3x — do not redraw
+├── icons/         intentionally empty; icons are Lucide (see its README)
+├── illustrations/ empty-orders · empty-sales · empty-stock · error · offline
+└── images/        product-placeholder
+```
+
+**The logo is the real brand asset**, not a placeholder — the same artwork the
+web client serves from `public/assets/images/logo/logo.png`. There is no TODO to
+replace it. Choose a variant with `logoFor(scheme)`; `-light`/`-dark` name the
+**background** they sit on, not the colour of the art, which reads backwards at a
+glance and is why picking a file by hand is discouraged.
+
+One trap if you go looking: the web client also has a `logo.svg` beside that PNG
+which is a completely different orange-gradient mountain glyph. It is a stale
+placeholder that has diverged from the brand — match the PNG.
+
+**Illustrations and the product placeholder are vector components, not files.**
+They read `useTheme()`, so one drawing works on `bg` in both schemes instead of
+needing a light and a dark raster each (ten files to keep in sync by hand). They
+are decorative and hidden from screen readers — the heading and message beside
+them already carry the meaning. Add one only through
+`src/assets/illustrations/index.tsx`, whose shared frame, stroke weight and token
+list are the style guide.
+
+**Motion is feedback, never decoration** — durations and curves come from
+`theme/motion.ts`, every tappable surface is `MBPressable` (0.98 scale plus a
+small opacity shift, 120ms), tab switches are instant, and Reduce Motion is
+honoured by suppressing the movement while keeping the change. Nothing bounces,
+no header collapses on scroll, and the two loops in the app run only while the
+work they report is in flight. [`docs/motion.md`](docs/motion.md) is the full
+account.
 
 ### Testing notes
 
@@ -133,14 +170,33 @@ Reanimated 4 needs `resolver: 'react-native-worklets/jest/resolver.js'` in `jest
 | 2 — Foundation | **Done** — stack, theme, config, storage, API + auth clients, local DB + migrations, network detection, component set, navigation shell |
 | 3 — Auth | **Done** — native splash, sign-in, Finance sign-in + TOTP, forgot password, forced change-password, protected sign-out |
 | 4 — Read-only slice | **Done** — Products + Stock on real endpoints, six screen states, server-side debounced search, FlashList |
-| 5 — Offline engine | **Done** — queue, drain, backoff, dependency ordering, idempotency keys (server-honoured as of migration 84), failure classification, Sync Center. Conflict *resolution* UI and reference-data mirroring remain |
+| 5 — Offline engine | **Done** — queue, drain, backoff, dependency ordering, idempotency keys (server-honoured as of migration 84), failure classification, Sync Center, reference-data mirroring with read-through fallback, conflict detection + storage + resolution (safe resolutions gated on whether the operation may already have landed). Editing a payload to clear a stock conflict still needs the original entry form |
 | 6 — Branch | **Done** — Dashboard, Sales (POS), New Order, Stock, Expenses. All three writes are offline-first |
 | 7 — Production | **Mostly** — Dashboard, Orders (review), Stock, print preview. Production Sales, preparation and returns remain |
 | 8 — Admin / Finance | **Partial** — Admin Dashboard, Orders, Products, Reports (+export); Finance Dashboard and Ledger. Finance Income/Expenses remain |
-| 9 — Performance | **Partial** — every unbounded list virtualised (FlashList), per-resource cache policy, debounced server-side search, memoised totals. No on-device profiling |
-| 10 — QA | **Partial** — typecheck, lint, 231 tests, debug + release builds, secret scan, console-strip verified. No device or live-API testing |
+| 9 — Performance | **Done** — lists virtualised (FlashList) with memoised rows and stable row callbacks; one app-wide Reduce Motion subscription instead of one per tappable surface; `lazy` + `freezeOnBlur` on tabs and stacks; every query key through `qk` (the branch dashboard and Reports no longer fetch one answer twice); previous data kept while a filter switches; the reference mirror replaced in one `executeBatch` instead of one call per row; the unsynced badge one statement instead of two; a drain clears the whole backlog and prunes settled rows. **No on-device profiling** — see [`docs/performance.md`](docs/performance.md) for what was measured versus reasoned about |
+| 9b — Responsive | **Done** — one 600dp breakpoint (`useBreakpoint`), content-width caps on every screen, responsive dashboard stat grid. List+detail two-column not built |
+| 9c — Charts | **Partial** — `MBTrendChart` (SVG bars) on the daily revenue card. `victory-native` + `@shopify/react-native-skia` were **removed**: `librnskia.so` was ~52 MB across four ABIs (~34% of the release APK) for a library nothing imported. Only the daily card is charted; `topProducts` / `branchData` / `paymentMethodBreakdown` are still rows |
+| 10 — QA | **Partial** — typecheck, lint, 722 tests, release build, secret scan, console-strip verified. The suite is silent: the standing `act(...)`, overlapping-`act`, "Query data cannot be undefined" and worker-exit warnings were each traced to a cause and fixed rather than muted (see [`docs/testing.md`](docs/testing.md)). No device or live-API testing |
 
-Verified: `tsc --noEmit` clean · eslint clean (0 problems) · **231 tests passing** · Metro bundle builds · Android debug **and release** APKs build · release bundle scanned for secrets · `console.log` stripping proven by a probe build.
+Verified: `tsc --noEmit` clean · eslint clean (0 problems) · **722 tests passing, no warnings** · production JS bundle builds (3.94 MB, 0 surviving `console.log`) · Android release APK builds clean at **102 MB** · release bundle scanned for secrets.
+
+**"A worker process has failed to exit gracefully" is fixed, and it was a real
+leaked timer.** An earlier note here called it a worker-pool artifact because
+`--detectOpenHandles` reported nothing; that was wrong. `renderScreen` set
+`gcTime: 0` on queries but not on mutations, and query-core defaults an unset
+mutation `gcTime` to **five minutes** — a settled mutation calls
+`scheduleGc()`, i.e. `setTimeout(remove, 300000)`. So the two
+`ProductionOrdersScreen` cases that actually approve a demand each left a
+five-minute timer in the worker. One option in `src/test-utils/render.tsx` fixes
+it; `src/test-utils/__tests__/render.test.tsx` pins it and fails without it,
+printing the `"gcTime": 300000` that proves the diagnosis.
+
+The release APK is 102 MB, not the 152 MB an older build produced — that one
+still carried `librnskia.so` in stale `android/app/build/` intermediates. Run
+`npm run clean:android` after the dependency set changes, or when
+`processReleaseManifest` fails on a merged manifest that "doesn't exist"; see
+[`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ### Authentication
 
@@ -166,17 +222,23 @@ but routing runs off the claim in the JWT already held, so without the refresh
 the gate loops forever.
 
 **Password recovery** is Administrator-only, enforced server-side. The reset link
-opens the **web** app's `/reset-password`, since no deep-link scheme is
-registered here; set `WEB_URL` accordingly.
+opens the **web** app's `/reset-password`. The app does register
+`mountainbakes://` (see `docs/navigation.md`), but there is no reset screen behind
+it — `AuthNavigator` has SignIn, FinanceSignIn and ForgotPassword only, and
+`linking.ts` maps no reset path. Set `WEB_URL` accordingly.
 
 ### Which screens are built
 
-`src/navigation/__tests__/screenCoverage.test.ts` records exactly which tabs each
-role can reach and which are still placeholders. It fails if a built screen is
-wired to a tab the role does not have, and its `gaps` assertion is the honest,
-machine-checked list of what remains.
+`src/navigation/__tests__/navigationSurface.test.ts` records exactly what each of
+the eight roles can reach — its tabs, in order, and its More list. It is also
+where the single-path rule is enforced: no destination appears in two surfaces,
+no More row is listed twice, and nothing in the account panel is also a tab or a
+More row. A tab with no screen yet renders a placeholder naming the phase it
+lands in, so an unbuilt screen is never mistaken for an empty one.
+`docs/navigation.md` is the full account of the structure and why it is shaped
+this way.
 
-**Sign-out** never deletes local data. When unsynced transactions exist it says
+**Sign-out** clears cached server state and never deletes local data. When unsynced transactions exist it says
 how many and asks for confirmation — they stay on the device and resume on the
 next sign-in *on that phone*, which matters on a shared branch handset.
 
@@ -203,6 +265,15 @@ returns its own snapshot, which is what a receipt must be printed from. A price
 change between opening the form and saving therefore cannot print a stale rate.
 `src/utils/saleTotals.ts` is a *preview* for the cashier and reproduces the web
 client's arithmetic exactly; tax applies to the net subtotal, after discount.
+
+Picking a product carries all six of search, product code, name, category,
+price and **availability**. The search box matches name *or* code, on the server
+and in the offline mirror alike. Availability is advisory — the server is the
+only authority on stock and refuses an overdraw with a 409 — so an out-of-stock
+product is still tappable, and a balance the device has never been told is drawn
+as **nothing at all** rather than as zero. A tap adds one line; there is no
+quantity prompt between the product and the cart. There is no barcode scanning
+and no field to scan: see [`docs/screen-patterns.md`](docs/screen-patterns.md).
 
 **Offline** is documented in [`docs/offline-sync.md`](docs/offline-sync.md).
 

@@ -6,18 +6,21 @@ import { useQuery } from '@tanstack/react-query';
 import {
   MBCard,
   MBEmptyState,
+  MBMoney,
   MBErrorState,
   MBHeader,
-  MBSearchBar,
   MBSkeletonList,
   MBSyncStatus,
 } from '@/components';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
 import { getOrders } from '@/services/api/financeApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import type { Order } from '@/shared/types/order.types';
 import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, layout, space } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
 
 /**
  * Customer orders across all branches.
@@ -34,7 +37,9 @@ export function OrdersScreen(): React.ReactElement {
   const [search, setSearch] = useState('');
 
   const orders = useQuery({
-    queryKey: ['orders', 'list'],
+    // Through `qk`, so this shares an entry with the sales list rather than
+    // sitting beside it as a second unfiltered copy of `GET /api/orders`.
+    queryKey: qk.orders.list({}),
     queryFn: () => getOrders(),
     staleTime: LIVE_STALE_TIME_MS,
   });
@@ -60,18 +65,16 @@ export function OrdersScreen(): React.ReactElement {
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Orders"
+        dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
         subtitle={orders.data ? `${orders.data.length} orders` : undefined}
+        search={{
+          value: search,
+          onChangeText: setSearch,
+          placeholder: 'Search order, customer or branch',
+          testID: 'orders-search',
+        }}
         right={<MBSyncStatus />}
       />
-
-      <View style={{ padding: theme.layout.screenPad }}>
-        <MBSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search order, customer or branch"
-          testID="orders-search"
-        />
-      </View>
 
       {orders.isPending ? (
         <MBSkeletonList rows={8} />
@@ -84,9 +87,12 @@ export function OrdersScreen(): React.ReactElement {
       ) : rows.length === 0 ? (
         <MBEmptyState
           title={search ? 'No orders match' : 'No orders found'}
-          message={search ? `Nothing found for "${search}".` : undefined}
+          message={
+            search ? `Nothing found for "${search}".` : 'Orders placed today will appear here.'
+          }
           actionLabel={search ? 'Clear search' : undefined}
           onAction={search ? () => setSearch('') : undefined}
+          illustration={search ? undefined : 'empty-orders'}
         />
       ) : (
         <FlashList
@@ -108,7 +114,12 @@ export function OrdersScreen(): React.ReactElement {
   );
 }
 
-function OrderRow({
+/**
+ * Memoised. This list re-renders whenever the screen does — a filter chip, a
+ * refetch, a keystroke — and with props that do not change, none of the visible
+ * rows re-render with it. Theme changes still reach it: context bypasses `memo`.
+ */
+const OrderRow = React.memo(function OrderRowView({
   order,
   currencySymbol,
 }: {
@@ -130,9 +141,7 @@ function OrderRow({
             {order.orderNumber}
           </Text>
         </View>
-        <Text style={[theme.type.money, { color: theme.colors.text }]}>
-          {formatCurrency(order.grandTotal, currencySymbol)}
-        </Text>
+        <MBMoney value={order.grandTotal} symbol={currencySymbol} />
       </View>
 
       <View style={styles.meta}>
@@ -146,7 +155,7 @@ function OrderRow({
       </View>
     </MBCard>
   );
-}
+});
 
 /** Module scope: a separator defined during render remounts the list each pass. */
 function ListSeparator(): React.ReactElement {
@@ -155,11 +164,19 @@ function ListSeparator(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  // ...contentColumn caps the measure on a tablet. A list row is a label at
+  // one edge and a value at the other; unconstrained on a 10" screen the two
+  // end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
   separator: { height: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowMain: { flex: 1, gap: 2 },
-  meta: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 8 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rowMain: { flex: 1, gap: space.hair },
+  meta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    marginTop: space.sm,
+  },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
+  dot: { width: layout.dotSize, height: layout.dotSize, borderRadius: radius.pill },
 });

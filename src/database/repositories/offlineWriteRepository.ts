@@ -40,6 +40,7 @@ const DOMAIN_TABLE: Partial<Record<SyncEntity, string>> = {
   sale: 'local_sales',
   expense: 'local_expenses',
   production_order: 'local_production_orders',
+  stock_movement: 'local_stock_movements',
 };
 
 function numericText(value: unknown): string {
@@ -108,9 +109,21 @@ export async function writeOffline(input: OfflineWriteInput): Promise<OfflineWri
          VALUES (?, ?, ?, 'pending', ?, 'pending', ?, ?)`,
         [clientOperationId, input.branchId, businessDate, payloadJson, now, now],
       );
+    } else if (table === 'local_stock_movements') {
+      await tx.execute(
+        `INSERT INTO local_stock_movements
+           (client_operation_id, branch_id, business_date, movement_type, payload,
+            sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, 'return', ?, 'pending', ?, ?)`,
+        [clientOperationId, input.branchId, businessDate, payloadJson, now, now],
+      );
     }
-    // Entities with no local mirror (stock_movement) are queue-only: the server
-    // owns the balance and there is nothing meaningful to show locally.
+    /**
+     * `order` is the one entity with no local mirror, and it has no producer in
+     * this app either: a branch's "orders" are production demands, and customer
+     * orders are raised on the web. A table for it would be a schema commitment
+     * to a shape nothing has been designed against yet.
+     */
 
     await tx.execute(
       `INSERT INTO sync_queue

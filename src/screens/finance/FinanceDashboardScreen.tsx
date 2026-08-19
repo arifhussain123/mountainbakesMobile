@@ -4,18 +4,24 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
   MBCard,
+  MBMoney,
+  MBDataRow,
   MBErrorState,
   MBHeader,
   MBSkeletonList,
   MBStatCard,
+  MBStatGrid,
   MBSyncStatus,
 } from '@/components';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
 import { getFinanceDashboard } from '@/services/api/financeApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency, toNumber } from '@/utils/money';
+import { toNumber } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumnWide, space } from '@/theme/spacing';
 
 /**
  * Finance Ledger dashboard.
@@ -34,7 +40,7 @@ export function FinanceDashboardScreen(): React.ReactElement {
   const { currencySymbol } = useCatalogSettings();
 
   const dashboard = useQuery({
-    queryKey: ['finance', 'dashboard'],
+    queryKey: qk.finance.dashboard(),
     queryFn: () => getFinanceDashboard(),
     staleTime: LIVE_STALE_TIME_MS,
   });
@@ -45,6 +51,7 @@ export function FinanceDashboardScreen(): React.ReactElement {
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Finance"
+        dataAsOf={dataAsOfFrom(dashboard.dataUpdatedAt)}
         subtitle={data?.businessDate ? `Business day ${data.businessDate}` : role}
         right={<MBSyncStatus />}
       />
@@ -59,7 +66,13 @@ export function FinanceDashboardScreen(): React.ReactElement {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.md }}
+          /* Wide cap, not the single-column one: the stat grid is genuinely
+             several measures side by side, and capping it at 640 would leave a
+             tablet showing a phone's 2x2 block in the middle of the screen. */
+          contentContainerStyle={[
+            contentColumnWide,
+            { padding: theme.layout.screenPad, gap: theme.space.md },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={dashboard.isFetching && !dashboard.isPending}
@@ -67,64 +80,60 @@ export function FinanceDashboardScreen(): React.ReactElement {
               tintColor={theme.colors.primary}
             />
           }>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Income today"
-                value={toNumber(data?.todayIncome)}
-                currencySymbol={currencySymbol}
-              />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Expenses today"
-                value={toNumber(data?.todayExpenses)}
-                currencySymbol={currencySymbol}
-              />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Cash in hand"
-                value={toNumber(data?.cashInHand)}
-                currencySymbol={currencySymbol}
-              />
-            </View>
-            <View style={styles.gridItem}>
-              <MBStatCard
-                label="Bank"
-                value={toNumber(data?.bankBalance)}
-                currencySymbol={currencySymbol}
-              />
-            </View>
-          </View>
+          <MBStatGrid>
+            <MBStatCard
+              label="Income today"
+              value={toNumber(data?.todayIncome)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Expenses today"
+              value={toNumber(data?.todayExpenses)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Cash in hand"
+              value={toNumber(data?.cashInHand)}
+              currencySymbol={currencySymbol}
+            />
+            <MBStatCard
+              label="Bank"
+              value={toNumber(data?.bankBalance)}
+              currencySymbol={currencySymbol}
+            />
+          </MBStatGrid>
 
           <MBCard>
             <Text style={[theme.type.h3, { color: theme.colors.text }]}>Position</Text>
-            <DetailRow
+            <MBDataRow
               label="Net cash balance"
-              value={formatCurrency(data?.netCashBalance, currencySymbol)}
+              value={<MBMoney value={data?.netCashBalance} size="sm" symbol={currencySymbol} />}
             />
             {/* Company/branch split resolves per-branch first, then the global
                 setting — never read the raw field. */}
-            <DetailRow
+            <MBDataRow
               label="Company share"
-              value={formatCurrency(data?.companyShare, currencySymbol)}
+              value={<MBMoney value={data?.companyShare} size="sm" symbol={currencySymbol} />}
             />
-            <DetailRow
+            <MBDataRow
               label="Branch share"
-              value={formatCurrency(data?.branchShare, currencySymbol)}
+              value={<MBMoney value={data?.branchShare} size="sm" symbol={currencySymbol} />}
             />
           </MBCard>
 
           <MBCard>
             <Text style={[theme.type.h3, { color: theme.colors.text }]}>Awaiting approval</Text>
-            <DetailRow
+            <MBDataRow
               label={`Income (${toNumber(data?.pendingIncomeApprovals)})`}
-              value={formatCurrency(data?.pendingIncomeAmount, currencySymbol)}
+              value={
+                <MBMoney value={data?.pendingIncomeAmount} size="sm" symbol={currencySymbol} />
+              }
             />
-            <DetailRow
+            <MBDataRow
               label={`Expenses (${toNumber(data?.pendingExpenseApprovals)})`}
-              value={formatCurrency(data?.pendingExpenseAmount, currencySymbol)}
+              value={
+                <MBMoney value={data?.pendingExpenseAmount} size="sm" symbol={currencySymbol} />
+              }
             />
             <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
               Approvals are made on the web — this app is read-only for Finance.
@@ -136,10 +145,10 @@ export function FinanceDashboardScreen(): React.ReactElement {
               <Text style={[theme.type.h3, { color: theme.colors.text }]}>Recent days</Text>
               {/* Oldest first from the server, so no reversing here. */}
               {(data?.trend ?? []).slice(-7).map(day => (
-                <DetailRow
+                <MBDataRow
                   key={day.businessDate}
                   label={day.businessDate}
-                  value={formatCurrency(day.net, currencySymbol)}
+                  value={<MBMoney value={day.net} size="sm" symbol={currencySymbol} />}
                 />
               ))}
             </MBCard>
@@ -150,23 +159,12 @@ export function FinanceDashboardScreen(): React.ReactElement {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }): React.ReactElement {
-  const theme = useTheme();
-  return (
-    <View style={styles.detailRow}>
-      <Text
-        style={[theme.type.body, styles.flex, { color: theme.colors.textMuted }]}
-        numberOfLines={1}>
-        {label}
-      </Text>
-      <Text style={[theme.type.mono, { color: theme.colors.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  gridItem: { flexGrow: 1, flexBasis: '46%' },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingTop: 10 },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    paddingTop: space.snug,
+  },
 });

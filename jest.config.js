@@ -6,6 +6,9 @@ module.exports = {
     '^lucide-react-native/icons/.*$': '<rootDir>/jest/lucideIconStub.js',
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
+  // Native mocks must be registered before the framework loads; anything needing
+  // a live test runtime (React act environment, timers) goes in the after-env file.
+  setupFilesAfterEnv: ['<rootDir>/jest.after-env.js'],
   // Reanimated 4 loads worklets through `.native` entrypoints that call into a
   // native module and throw under Jest. This resolver, shipped by
   // react-native-worklets, strips the `.native` extension so the plain
@@ -17,7 +20,7 @@ module.exports = {
     // `lucide-react-native` is listed explicitly: it ships ESM, and the
     // `react-native-.*` alternative above does not match it — the package name
     // starts with `lucide-`, not `react-native-`.
-    'node_modules/(?!(?:@react-native|react-native|@react-navigation|react-native-.*|lucide-react-native|@shopify/.*|@gorhom/.*|victory-native|uuid)/)',
+    'node_modules/(?!(?:@react-native|react-native|@react-navigation|react-native-.*|lucide-react-native|@shopify/.*|@gorhom/.*|uuid)/)',
   ],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/shared/**', '!src/**/*.d.ts'],
 };

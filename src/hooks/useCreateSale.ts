@@ -4,6 +4,7 @@ import { writeOffline } from '@/database/repositories/offlineWriteRepository';
 import { qk } from '@/services/query/queryKeys';
 import type { CreatePosSaleInput } from '@/shared/schemas/order.schemas';
 import { useAuthStore } from '@/store/authStore';
+import { resolveWriteOutcome, type WriteOutcome } from '@/services/sync/writeOutcome';
 import { useSyncStore } from '@/store/syncStore';
 
 /**
@@ -17,12 +18,19 @@ import { useSyncStore } from '@/store/syncStore';
  * stock, rejects an overdraw with a 409 plus per-product shortfalls, and is the
  * only place two branches selling the last unit can be adjudicated. A local
  * decrement would show a balance the server never agreed to.
+ *
+ * The outcome has three values, not two. A 409 for insufficient stock is a
+ * **refusal**, not a queue — it never syncs by itself — and reporting it as
+ * "saved offline" is how a sale that never landed goes unnoticed until someone
+ * reconciles the till. See `services/sync/writeOutcome.ts`.
  */
 
-export type SaleOutcome = 'synced' | 'queued';
+export type SaleOutcome = WriteOutcome;
 
 export interface CreateSaleResult {
   outcome: SaleOutcome;
+  /** The server's reason, when it refused. Names the products that were short. */
+  reason?: string;
   clientOperationId: string;
   businessDate: string;
 }
@@ -50,14 +58,16 @@ export function useCreateSale(): {
           payload: { ...input, branchId },
         });
 
-        let outcome: SaleOutcome = 'queued';
         try {
           await sync();
-          const state = useSyncStore.getState();
-          if (state.lastResult && state.lastResult.synced > 0) outcome = 'synced';
         } catch {
-          outcome = 'queued';
+          // A drain that could not start leaves the row pending, which
+          // `resolveWriteOutcome` reads as queued — the honest answer.
         }
+
+        // This row's fate, not the drain's tally: a busy queue routinely syncs
+        // other operations in the same pass.
+        const { outcome, reason } = await resolveWriteOutcome(written.clientOperationId);
 
         if (outcome === 'synced') {
           // Stock moved server-side, so the cached balances are now wrong.
@@ -66,6 +76,7 @@ export function useCreateSale(): {
 
         return {
           outcome,
+          ...(reason ? { reason } : {}),
           clientOperationId: written.clientOperationId,
           businessDate: written.businessDate,
         };

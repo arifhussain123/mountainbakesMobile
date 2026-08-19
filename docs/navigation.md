@@ -25,8 +25,60 @@ account panel ever needs to push a screen, that screen belongs in **More**.
 
 **The rule, enforced by a test:** no screen is reachable from two surfaces.
 `src/navigation/__tests__/navigationSurface.test.ts` asserts, for all eight
-roles, that no More route is also a tab name and that no More route is listed
-twice. If you add a destination, that test is what stops it becoming a duplicate.
+roles, that no More route is also a tab name, that no More route is listed twice,
+and that nothing in the account panel is also a tab or a More row. If you add a
+destination, that test is what stops it becoming a duplicate.
+
+The panel's contents are declared as `ACCOUNT_PANEL` in `roleConfig.ts` — beside
+`ROLE_TABS` and `MORE_SECTIONS`, so all three surfaces are inventoried in one
+file and can be compared. It is a list of names, not components: the point is
+that the test can read it.
+
+## What `roleConfig.ts` exports, and what it deliberately does not
+
+```ts
+export const ROLE_TABS: Record<UserRole, readonly TabConfig[]>
+export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]>
+export const ACCOUNT_PANEL: readonly AccountPanelEntry[]
+```
+
+Three deviations from the original brief's `TabConfig`, all deliberate:
+
+**No `stack: React.ComponentType` on a tab.** A tab name does not identify a
+screen in this app — see "Route names are shared; screens are not" below. A
+`stack` field would have to name the same component once per role, which is the
+duplication this file exists to prevent. Keeping components out also keeps this
+module **pure data**: it imports no React and no screen, so the surface tests
+resolve every role's whole tree without mounting anything, and screens can import
+these types without a cycle back into the registry. `screenRegistry.tsx` owns the
+(role, tab) → component map and is the only place that imports screens.
+
+**`requires` holds `Capability`, not backend permission strings.** There are no
+backend permission strings; see "Permissions: what is real" below. It is also
+optional rather than required — most tabs are gated by nothing, and `requires:
+[]` on every one of them reads as though a gate were intended.
+
+**`label` is a `LabelKey`, not a free string.** Every user-visible navigation
+string in the app is a value in `NAV_LABELS`. There is no i18n runtime yet and
+adding one is its own task, so this is not `t('nav.orders')` — it is the
+indirection that makes that change a single edit instead of a sweep.
+
+### Notifications is a More row behind a placeholder
+
+It is in the universal App group, for every role, and it opens the standard
+"Not built yet — Phase 9" placeholder rather than an empty list. That is the
+project's standing rule for an unbuilt screen: an empty Notifications screen and
+an unbuilt one must not look the same to anyone testing this build.
+
+What is still missing is the whole transport, not just the UI. There is no
+notification library — no Firebase, no notifee — and no inbox endpoint on the
+server. `routeForNotification` in `linking.ts` is the resolver, written and
+tested ahead of that transport. Its `SCREEN_PLAN` entry names **no endpoint** on
+purpose, because there is no API path the placeholder could honestly print.
+
+The row carries **no badge**, and that is the same call as the `ordersWaiting`
+badge below: there is no unread count to read, and a badge fed by nothing teaches
+staff to ignore every badge in the app. Add the badge with the transport.
 
 ### Two contradictions in the brief, and how they were resolved
 
@@ -35,8 +87,50 @@ twice. If you add a destination, that test is what stops it becoming a duplicate
    in **More** — §4 enumerates them there beside Settings, and More is the
    general secondary surface.
 
-2. **`requires: Permission[]` from the server.** §4 assumed the backend returns
+2. **Sign-out.** §2 put it in the account panel; §4 listed it as a More row. It
+   was implemented as **both**, and that is the duplication this document exists
+   to prevent — caught only after the fact. See the section below.
+
+3. **`requires: Permission[]` from the server.** §4 assumed the backend returns
    permission strings at login. It does not. See below.
+
+## Sign-out lives in the account panel, and only there
+
+This is the one place the duplicate rule was actually broken in shipped code, so
+it is worth stating what went wrong rather than just the outcome.
+
+Sign-out existed on **four** paths at once, with three different behaviours:
+
+| Path | Unsynced count read from | Confirms? |
+|---|---|---|
+| `useSignOut()` — the hook, with tests | `getUnsyncedSummary()`, i.e. the queue table | yes |
+| `MoreScreen`'s own `confirmSignOut` | `useSyncStore` counters | yes |
+| The account panel's `onSignOut` | nothing | **no** |
+| `ChangePasswordScreen`, calling the store directly | nothing | **no** |
+
+The third one is why this mattered more than tidiness. Signing out from the panel
+dropped the local session **without saying anything about unsynced work** — and in
+this app a queued row is frequently the only copy of a transaction the server has
+never accepted. Two menus to keep in sync is an annoyance; two menus that disagree
+about whether to warn you before stranding a shift's takings is a defect.
+
+Resolved:
+
+- Sign-out is in the **account panel only** as far as navigation is concerned. It
+  is an action on the session, not a secondary feature, and the panel is where
+  identity and session live. The two auth screens that also offer it —
+  `ChangePasswordScreen` and `PlaceholderScreen` — are escape hatches from a
+  screen you cannot otherwise leave, not menu entries, and they call the same
+  hook.
+- It goes through **`useSignOut()`**, the single implementation. It reads the real
+  count from the database rather than a store counter that may not have been
+  refreshed, and it states plainly that the work stays on the device and syncs on
+  next sign-in — the copy deliberately does not imply the data is at risk, because
+  overstating it pushes staff into never signing out at all.
+- `MoreItem` **no longer has an action variant.** A More row carries a
+  `MoreRouteName` or it does not compile. The single-path rule is now structural
+  for this class of mistake instead of remembered — you cannot put an action back
+  in the More list without deliberately reopening the union.
 
 ## Permissions: what is real
 
@@ -83,15 +177,54 @@ a padding fix lands in the branch copy, an accessibility label in the admin copy
 Everything role-specific is data in `roleConfig.ts`; there is no role name in
 `RoleTabs.tsx` at all.
 
+### A tab is mounted when opened, and frozen when left
+
+Both are stated in `screenOptions` rather than inherited, for the reason the tab
+animation is: a default is not a decision, and a minor version that changed one
+would change how the app behaves with nothing in the diff to say so.
+
+- **`lazy`** — a tab mounts the first time it is opened. A role has four tabs
+  plus More, each a stack whose root fires its own queries on mount; mounting all
+  five at sign-in turns opening the app into five parallel requests on a shop's
+  connection, four of which nobody asked for.
+- **`freezeOnBlur`** — a tab that is not on screen stops re-rendering, and so
+  does a screen covered by another in the same stack. Every tab root subscribes
+  to something that moves without the user: the network store, the sync store's
+  pending count, a query refetching on reconnect. Without it, a drain finishing
+  re-renders the dashboard, the catalogue and the stock list as well as the
+  screen actually being looked at — work whose only visible effect is that the
+  foreground screen dropped frames while it happened.
+
+Freezing defers rendering, not state. Scroll position, form contents and
+in-flight requests all survive, which is the same guarantee that keeps a list
+underneath a pushed detail screen intact.
+
 ## Tabs per role
 
-| Role | Tabs |
-|---|---|
-| `super_admin` | Home · Orders · Products · Reports · More |
-| `branch_manager` | Home · Sales · Orders · Stock · More |
-| `branch_user` | Sales · Orders · Stock · More |
-| `production_user` | Home · Orders · Stock · More |
-| `finance_*` (4 roles) | Home · Ledger · Income · Expenses · More |
+| Role | Tabs | More |
+|---|---|---|
+| `super_admin` | Home · Orders · Products · Reports · More | Users · Categories · Vendors · Branches · Sales · Stock · Expenses · Production |
+| `branch_manager` | Home · Orders · Sales · Stock · More | Expenses · Reports |
+| `branch_user` | Orders · Sales · Stock · More | Expenses |
+| `production_user` | Home · Orders · Preparation · Delivery · More | Stock · Reports |
+| `finance_*` (4 roles) | Home · Income · Expenses · Reports · More | Partner Expenses |
+
+Every role's More list then ends with the same App group — Sync Center,
+Notifications, Profile, Help, Settings — appended once from `MORE_COMMON` rather
+than repeated per role.
+
+Two entries in that table are easy to get wrong from memory:
+
+- **`branch_user` has no Home tab.** The branch dashboard's only source is
+  `GET /api/reports/summary`, and the server mounts every `/api/reports` route
+  behind `requireRole('super_admin', 'branch_manager')`. A shift account would
+  land on a 403 as the first thing it sees, so the tab is filtered by the
+  `reports` capability and the shift opens on Orders. Same reason Reports is not
+  in its More list.
+- **Finance has no Ledger tab.** The ledger is reached through Income, Expenses
+  and Reports. And finance's "Reports" is `/api/finance/reports`, *not* the
+  admin's `/api/reports` — same tab name, different resource, which is exactly
+  why `resolveTabScreen` keys on the role too.
 
 An unknown role gets **Home + More** and a `console.warn`, never a crash and
 never the admin set. Failing open would advertise capabilities that are not
@@ -140,12 +273,150 @@ a badge fed by a stale or absent query is exactly the badge that teaches staff t
 ignore every badge in the app. `BadgeSource` has the slot; add `ordersWaiting`
 when a real counter exists.
 
+## Chrome
+
+### The header owns the offline strip
+
+`MBOfflineBanner` renders **inside `MBHeader`**, below the header row. It used to
+sit above the whole navigator in `RootNavigator`, outside `NavigationContainer`,
+which meant losing signal pushed the header, the tab bar and every screen down by
+the height of the strip: a connectivity blip moved the entire app. Below the
+header, only content moves, and no screen has to remember to add it.
+
+The two sign-in screens do not carry it. There, offline is not routine — it
+blocks the one thing the screen exists to do — so each says so beside its
+disabled button (`"You're offline. Signing in needs a connection."`). A strip
+saying work will sync later would be wrong: nothing is being saved.
+
+Copy is one line: **"Offline — transactions are saved here and sync
+automatically."** Both halves matter. *Saved here* is what stops a staff member
+assuming the sale was lost and ringing it up twice; *sync automatically* is what
+stops them hunting for a button that does not exist. It is `warningBg`, not
+`danger` — branch staff are offline routinely, and an alarm that fires every day
+is an alarm nobody reads.
+
+### Search collapses into the header
+
+`MBHeader` takes a `search` prop and renders a button that expands the field in
+place. Search never pushes a screen: a search screen takes the list away at the
+moment the user is trying to look at it, and returning has to restore scroll
+position and filters or the user loses their place.
+
+**Closing the field clears the query.** A filter that survives out of sight is
+how a list ends up looking empty for no visible reason — the control that would
+explain it is collapsed. `components.test.tsx` holds that behaviour.
+
+Adopted on the browse screens — Orders, Products, Stock, Production stock —
+where search is one way to narrow a list. **Not** on Sales and New Order, which
+keep a permanent inline `MBSearchBar`: there the field is the primary input, and
+a rung-up sale is a search, a tap, a search, a tap. Hiding it behind a button
+would charge a tap per line item.
+
+Stock passes `search={undefined}` until a branch is chosen. The list at that
+point is a "choose a branch" message, and a control that filters nothing is
+worse than no control.
+
+### Trailing actions cap at two
+
+Counting the search button the header adds for itself. The title is what has to
+survive a narrow phone at a large font size, and it is the first thing a third
+icon squeezes out. Today every screen passes exactly one — `<MBSyncStatus />` —
+so the cap is documented on the `right` prop rather than enforced by a typed
+action list and an overflow sheet with no caller. A screen that needs more opens
+a sheet from one trailing button.
+
+### The sync indicator is a glyph per state, and it stops
+
+| State | Shown |
+|---|---|
+| syncing | `sync` glyph, rotating, "Syncing…" |
+| failed | `failed` glyph + "*n* transactions need attention" |
+| just synced | `synced` check + "*n* transactions synchronized", for 4s |
+| offline | `offline` glyph + "*n* waiting", or "Offline" |
+| pending | dot + "*n* waiting" |
+| idle and empty | nothing |
+
+Four states, four glyphs rather than one shape in four colours: a colourblind
+user cannot separate "syncing" from "needs attention" by hue. Pending keeps the
+plain dot, because a queue is a quantity rather than an event.
+
+**There is no *permanent* green check.** The brief lists one; rendering nothing
+at rest carries the same information better. A permanent "all good" tick is on
+screen so constantly that nobody sees it, and once it is furniture its absence
+stops registering either — the same reasoning as `MBBadge` rendering nothing at
+zero.
+
+A drain that actually moved work is a different thing: it is an **event**, and
+the one moment the pill has something worth confirming. So `✓ n transactions
+synchronized` appears for four seconds and the pill then goes back to nothing.
+It is bounded three ways so it never becomes that furniture:
+
+- **a drain that synced nothing says nothing.** Reconnecting and foregrounding
+  both drain, and most find an empty queue; a "0 synchronized" on every
+  connectivity blip is exactly the notice staff learn to dismiss unread.
+- **the same result is never announced twice**, however often the pill
+  re-renders — `lastResult` is compared by reference, and the store replaces the
+  object per drain. A result already in the store when the pill mounts is not
+  announced either: returning to a screen is not a sync event.
+- **it outranks nothing.** A parked row still wins the pill, because
+  "5 synchronized" over the top of "2 need attention" reads as all-clear.
+
+It is inline chrome rather than a toast, a modal or an OS notification: it
+interrupts nothing, needs no dismissal, and cannot stack. Four seconds is a
+reading time, not an animation, so it is a local constant rather than a
+`motion.ts` token. `MBSyncStatus.test.tsx` pins all four properties, including
+that it clears itself.
+
+The spinner turns only while a drain is actually running: it starts when the
+phase becomes `syncing` and is cancelled the moment it leaves, including on
+unmount. Reduce Motion swaps it for the static glyph — the label still says
+"Syncing…", so only the movement is lost. `motion.spin` is the one token in
+`motion.ts` that describes a loop rather than a transition, and it says so.
+
+### The account panel header shows no identifiers
+
+The real Mountain Bakes mark (`MBLogo`, which picks the variant for the scheme
+through `logoFor()`), an avatar, the role, the branch and a connection dot. No
+e-mail, no phone, no user ID, no token — a shared branch handset is read over
+shoulders, and none of those is needed to answer "who am I signed in as".
+
+Neither the mark nor the avatar is announced. Both are `accessibilityElementsHidden`:
+the role and branch directly beneath them are the answer, and hearing "Mountain
+Bakes, image" first only delays it.
+
+There is **no name**, and that is not an omission: the JWT's `app_metadata`
+carries `role`, `branchId` and `branchName` and nothing else
+(`services/supabase/claims.ts`). Showing "Branch Manager · Gilgit" is the true
+statement available; a name would have to come from a profile endpoint that this
+screen does not call.
+
 ## Deep links
 
-`linking.ts` maps URLs to routes and guards them: a link naming a tab the role
-does not have resolves to Home rather than pushing a screen with no tab behind
-it. `routeForNotification` returns the **tab as well as the screen**, so an order
-push opens inside the Orders stack with a working back path.
+`linking.ts` maps URLs to routes and guards them. It is a pure function of
+(profile, path) with no navigation state in it, which is what makes the whole
+decision table testable without mounting a navigator.
+
+**An unpermitted link resolves to the role's own landing tab — not to `Home`.**
+It used to resolve to a literal `Home`, and for one role that meant nowhere at
+all: a `branch_user` has no Home tab (the API refuses a shift account every
+`/api/reports` route, and the branch dashboard has no other source), so the
+redirect named a route that role's navigator does not contain. The fallback is
+`landingTabFor(profile)` — computed from the same config that built the tabs, so
+it cannot name a tab the role lacks. `navigationRef.resetToTab` takes the tab for
+the same reason, rather than assuming one.
+
+`routeForNotification` returns the **tab as well as the screen**, and
+`openNotification` in `navigationRef.ts` is what drives it:
+`navigate(tab, { screen, params })` puts the order detail inside the Orders
+stack, so back goes to the order list rather than dismissing onto whatever was
+underneath. It returns three outcomes, and the caller has to tell them apart —
+`not-ready` is the cold-start case and the payload should be held and replayed
+from `onReady`, while `not-permitted` is final and replaying it would not help.
+
+An unpermitted **push** lands nowhere at all, unlike an unpermitted deep link.
+A URL is something a person followed and it owes them an answer; a push that
+should not have been delivered to this account does not, and yanking someone off
+their screen for it would be the wrong answer twice.
 
 State of the transport:
 
@@ -156,9 +427,16 @@ State of the transport:
   disambiguation dialog on every tap.
 - **iOS** — nothing registered. The iOS project has never been built. `Info.plist`
   needs `CFBundleURLTypes` first.
-- **Push notifications** — no notification library is installed. The resolver is
-  written and tested ahead of the transport; that is not the same as notifications
-  working.
+- **Push notifications** — no notification library is installed: no Firebase, no
+  notifee. The resolver and the bridge are written and tested ahead of the
+  transport; that is not the same as notifications working. Wiring one up is a
+  call site — hand the payload to `openNotification(profile, payload)` — not a
+  design.
+- **Imperative navigation** — `navigationRef` is attached to
+  `NavigationContainer` and nothing calls the helpers yet. The sync engine's
+  intended use (a parked conflict offering "review it") is not built; today a
+  conflict is recorded and reached by tapping the sync pill, which is ordinary
+  declarative navigation.
 
 ## Icons
 
@@ -172,3 +450,21 @@ second icon family to get a filled glyph would be worse than not having one.
 
 No emoji. An emoji is a font glyph: it ignores `color`, renders differently on
 every Android skin, and carries no accessibility label.
+
+The rule is structural rather than remembered, in three places:
+
+- **`MBIcon` is the only component that renders a Lucide glyph.** It takes an
+  `IconKey` and a size *token*; nothing outside `navigationIcons.ts` imports from
+  `lucide-react-native` at all.
+- **`theme.iconSize` / `theme.iconStroke` sit on the theme** beside `space` and
+  `radius`, because that is where a reader looks. Neither varies by scheme, so
+  `theme/iconSizes.ts` still exports both directly — which is what a module-scope
+  `StyleSheet.create` needs, since a hook cannot run there.
+- **Components that own a glyph take a key, not a node.** `MBEmptyState`'s `icon`
+  is an `IconKey`; it was a `ReactNode`, which let a caller hand it a raw Lucide
+  component at any pixel size it liked and quietly route around all of the above.
+
+Icons are decorative by default — `MBIcon` hides itself from the screen reader,
+because a meaningful icon is always inside a control that carries its own
+`accessibilityLabel` and `accessibilityRole`. An icon that announces itself next
+to a label saying the same thing reads everything twice.

@@ -17,13 +17,14 @@ jest.mock('@/services/api/catalogApi', () => ({
   getStock: jest.fn(),
 }));
 jest.mock('@/database/repositories/syncQueueRepository', () => ({
-  getUnsyncedSummary: jest.fn(async () => ({ total: 0, pending: 0, needsAttention: 0 })),
+  getUnsyncedSummary: jest.fn(async () => ({
+    total: 0,
+    pending: 0,
+    needsAttention: 0,
+  })),
 }));
 
-import {
-  getProductionOrders,
-  reviewProductionOrder,
-} from '@/services/api/productionApi';
+import { getProductionOrders, reviewProductionOrder } from '@/services/api/productionApi';
 import { useNetworkStore } from '@/store/networkStore';
 import { renderScreen } from '@/test-utils/render';
 import { ProductionOrdersScreen } from '../ProductionOrdersScreen';

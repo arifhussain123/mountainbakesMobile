@@ -1,14 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
-import { MBButton, MBCard, MBHeader } from '@/components';
+import { MBButton, MBCard, MBHeader, MBMoney } from '@/components';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
-import { getPreviousBalance, markPrinted } from '@/services/api/productionApi';
+import {
+  getPreviousBalance,
+  markPrinted,
+  type PreviousBalance,
+} from '@/services/api/productionApi';
 import type { BranchProductionOrder } from '@/shared/types/production-order.types';
 import { karachiDateStr, karachiTimeStr } from '@/shared/utils/timezone';
-import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency, formatQty, toNumber } from '@/utils/money';
+import { useTheme, useThemeContext } from '@/theme/ThemeProvider';
+import { formatQty, toNumber } from '@/utils/money';
+import { contentColumn, space } from '@/theme/spacing';
+import { logoFor } from '@/assets/logo';
+import { qk } from '@/services/query/queryKeys';
 
 /**
  * Production slip preview — customer copy and company copy.
@@ -38,7 +45,7 @@ export function OrderPrintPreview({
   // and not a running total. It does not track whether that order was settled,
   // so a reprint shows the same figure every time.
   const previousBalance = useQuery({
-    queryKey: ['production', 'previous-balance', order.id],
+    queryKey: qk.production.previousBalance(order.id),
     queryFn: () => getPreviousBalance(order.id),
     // A missing previous balance is normal for a branch's first order.
     retry: false,
@@ -58,11 +65,18 @@ export function OrderPrintPreview({
   );
 
   const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
-  const amountToCollect = toNumber(previousBalance.data?.amountToCollect);
 
   const onShare = async () => {
     try {
-      await Share.share({ message: asPlainText({ order, items, printedAt, reference }) });
+      await Share.share({
+        message: asPlainText({
+          order,
+          items,
+          printedAt,
+          reference,
+          balance: previousBalance.isSuccess ? previousBalance.data : undefined,
+        }),
+      });
       setShared(true);
       // Best-effort: the slip has left the device either way.
       markPrinted(order.id).catch(() => {});
@@ -75,28 +89,34 @@ export function OrderPrintPreview({
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader title="Print preview" subtitle={order.demandNumber} onBack={onClose} />
 
-      <ScrollView contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.md }}>
-        <Copy
-          title="CUSTOMER COPY"
-          order={order}
-          items={items}
-          totalQty={totalQty}
-          printedAt={printedAt}
-          reference={reference}
-        />
-
-        <Copy
-          title="COMPANY COPY"
-          order={order}
-          items={items}
-          totalQty={totalQty}
-          printedAt={printedAt}
-          reference={reference}
-          // Internal reconciliation — company copy only.
-          amountToCollect={previousBalance.isSuccess ? amountToCollect : undefined}
-          currencySymbol={currencySymbol}
-          showSignatures
-        />
+      <ScrollView
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.md },
+        ]}>
+        {/*
+          Two identical copies, one per party.
+          The balance and the signature block used to be on the company copy
+          only, as internal reconciliation. They are on both now: this slip is
+          signed by the person handing over and the person receiving, and a
+          receipt where only one side's copy carries the amount is not evidence
+          of anything — the branch cannot check what it is being billed, and the
+          two halves of a signed document disagree.
+        */}
+        {(['CUSTOMER COPY', 'COMPANY COPY'] as const).map(title => (
+          <Copy
+            key={title}
+            title={title}
+            order={order}
+            items={items}
+            totalQty={totalQty}
+            printedAt={printedAt}
+            reference={reference}
+            balance={previousBalance.isSuccess ? previousBalance.data : undefined}
+            currencySymbol={currencySymbol}
+            showSignatures
+          />
+        ))}
 
         <MBButton
           label={shared ? 'Shared' : 'Share slip'}
@@ -119,7 +139,7 @@ function Copy({
   totalQty,
   printedAt,
   reference,
-  amountToCollect,
+  balance,
   currencySymbol,
   showSignatures = false,
 }: {
@@ -129,16 +149,33 @@ function Copy({
   totalQty: number;
   printedAt: string;
   reference: string;
-  amountToCollect?: number;
+  balance?: PreviousBalance;
   currencySymbol?: string;
   showSignatures?: boolean;
 }): React.ReactElement {
   const theme = useTheme();
+  const { scheme } = useThemeContext();
 
   return (
     <MBCard>
       <View style={styles.docketHeader}>
-        <Text style={[theme.type.h3, { color: theme.colors.primary }]}>Mountain Bakes</Text>
+        {/*
+          The real mark, not a typeset name. This slip is shared and printed, and
+          on paper a wordmark in the app's font is whatever font the printer
+          substitutes. `logoFor` picks the variant for the background it sits on.
+          The name below stays: at slip size the badge is legible as a mark but
+          not as words.
+        */}
+        <Image
+          source={logoFor(scheme)}
+          style={styles.docketLogo}
+          resizeMode="contain"
+          // Bundled raster, nothing to wait for — see MBLogo.
+          fadeDuration={0}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+        <Text style={[theme.type.h3, { color: theme.colors.accent }]}>Mountain Bakes</Text>
         <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
           Production Department
         </Text>
@@ -173,7 +210,10 @@ function Copy({
             {/* Surfaced because a branch expecting 20 and receiving 15 needs to
                 see it on the slip, not discover it at the counter. */}
             {item.qty !== item.requested ? (
-              <Text style={{ color: theme.colors.warning }}> (asked {formatQty(item.requested)})</Text>
+              <Text style={{ color: theme.colors.warning }}>
+                {' '}
+                (asked {formatQty(item.requested)})
+              </Text>
             ) : null}
           </Text>
           <Text style={[theme.type.mono, styles.itemQty, { color: theme.colors.text }]}>
@@ -193,12 +233,47 @@ function Copy({
         </Text>
       </View>
 
-      {amountToCollect !== undefined ? (
+      {balance ? (
         <>
           <Divider />
+          {/*
+            Payment information — the working, not just the answer.
+            The slip used to print "collect X" alone, which nobody receiving it
+            could check. Delivered value less returns, at the company's share,
+            is how X is reached, so the branch can verify the figure it is
+            signing for. Each line is optional on the response and is rendered
+            only when the server actually sent it: a blank "Returns —" invites
+            the reader to treat a missing number as a zero.
+
+            There is no per-item price on this document. A production demand is
+            an internal transfer — `BranchProductionOrderItem` carries qty and
+            approvedQty and no money at all — so the only figures that exist are
+            these settlement ones. Do not add a Price column by multiplying
+            something out; it would be invented money on a document people sign.
+          */}
+          <Text style={[theme.type.label, styles.sectionLabel, { color: theme.colors.textMuted }]}>
+            Payment information
+          </Text>
+          {balance.deliveredValue !== undefined ? (
+            <MetaRow
+              label="Previous delivery"
+              value={<MBMoney value={balance.deliveredValue} size="sm" symbol={currencySymbol} />}
+            />
+          ) : null}
+          {balance.returnsValue !== undefined ? (
+            <MetaRow
+              label="Less returns"
+              value={<MBMoney value={balance.returnsValue} size="sm" symbol={currencySymbol} />}
+            />
+          ) : null}
+          {balance.companySharePct !== undefined ? (
+            <MetaRow label="Company share" value={`${balance.companySharePct}%`} />
+          ) : null}
           <MetaRow
             label="Previous balance to collect"
-            value={formatCurrency(amountToCollect, currencySymbol)}
+            value={
+              <MBMoney value={toNumber(balance.amountToCollect)} size="sm" symbol={currencySymbol} />
+            }
           />
         </>
       ) : null}
@@ -216,12 +291,23 @@ function Copy({
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }): React.ReactElement {
+/**
+ * A line on the printed slip. Deliberately not `MBDataRow`: this is receipt
+ * chrome at caption size, sized to a thermal print-out rather than to a card in
+ * the app, and the two should be free to move independently.
+ *
+ * `value` takes a node so an amount can arrive as `<MBMoney />`.
+ */
+function MetaRow({ label, value }: { label: string; value: React.ReactNode }): React.ReactElement {
   const theme = useTheme();
   return (
     <View style={styles.metaRow}>
       <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>{label}</Text>
-      <Text style={[theme.type.mono, { color: theme.colors.text }]}>{value}</Text>
+      {typeof value === 'string' ? (
+        <Text style={[theme.type.mono, { color: theme.colors.text }]}>{value}</Text>
+      ) : (
+        value
+      )}
     </View>
   );
 }
@@ -253,11 +339,13 @@ function asPlainText({
   items,
   printedAt,
   reference,
+  balance,
 }: {
   order: BranchProductionOrder;
   items: Array<{ name: string; qty: number }>;
   printedAt: string;
   reference: string;
+  balance?: PreviousBalance;
 }): string {
   const lines = [
     'MOUNTAIN BAKES — Production',
@@ -265,23 +353,49 @@ function asPlainText({
     `Reference: ${reference}`,
     `Branch:    ${order.branchName}`,
     `Date:      ${order.date}`,
+    `Status:    ${order.status}`,
     `Printed:   ${printedAt}`,
     '',
     ...items.map(item => `${item.qty} × ${item.name}`),
   ];
+
+  // The shared text IS the slip for anyone who receives it by message rather
+  // than on paper. Leaving the money off would make the two versions of the
+  // same document disagree about what is owed.
+  if (balance) {
+    lines.push('', 'PAYMENT');
+    if (balance.deliveredValue !== undefined) {
+      lines.push(`Previous delivery: ${balance.deliveredValue}`);
+    }
+    if (balance.returnsValue !== undefined) {
+      lines.push(`Less returns:      ${balance.returnsValue}`);
+    }
+    if (balance.companySharePct !== undefined) {
+      lines.push(`Company share:     ${balance.companySharePct}%`);
+    }
+    lines.push(`To collect:        ${balance.amountToCollect}`);
+  }
+
   return lines.join('\n');
 }
 
 const styles = StyleSheet.create({
+  docketLogo: { width: 48, height: 48 },
+  sectionLabel: { marginTop: space.tight },
   flex: { flex: 1 },
-  docketHeader: { alignItems: 'center', gap: 2 },
-  divider: { borderBottomWidth: 1, borderStyle: 'dashed', marginVertical: 10 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 2 },
-  itemHeader: { flexDirection: 'row', gap: 12, paddingBottom: 4 },
-  itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 3 },
+  docketHeader: { alignItems: 'center', gap: space.hair },
+  divider: { borderBottomWidth: 1, borderStyle: 'dashed', marginVertical: space.snug },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: space.md,
+    paddingVertical: space.hair,
+  },
+  itemHeader: { flexDirection: 'row', gap: space.md, paddingBottom: space.xs },
+  itemRow: { flexDirection: 'row', gap: space.md, paddingVertical: space.hair },
   itemName: { flex: 1 },
   itemQty: { minWidth: 64, textAlign: 'right' },
-  signatures: { flexDirection: 'row', gap: 16, marginTop: 20 },
-  signature: { flex: 1, gap: 4 },
+  signatures: { flexDirection: 'row', gap: space.lg, marginTop: space.xl },
+  signature: { flex: 1, gap: space.xs },
   signatureRule: { borderBottomWidth: 1, height: 28 },
 });

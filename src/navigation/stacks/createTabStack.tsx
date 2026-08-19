@@ -1,6 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { ScreenComponent } from '../screenRegistry';
+import { screenAnimation, stackScreenOptions } from '../screenAnimations';
 
 /**
  * Builds the native stack that a tab owns.
@@ -28,6 +30,8 @@ import type { ScreenComponent } from '../screenRegistry';
  * Screens own their own chrome (`MBHeader`), so `headerShown` is off: React
  * Navigation's header cannot express the leading-avatar / collapsing-search
  * slots the design needs, and running both would double the safe-area padding.
+ * Transitions come from `screenAnimations.ts` — see there for why a modal rises
+ * and a card slides, and what Reduce Motion turns them into.
  */
 
 export interface TabStackScreen {
@@ -45,15 +49,22 @@ export function createTabStack(
   extra: readonly TabStackScreen[] = [],
 ): React.ComponentType {
   function TabStack(): React.ReactElement {
+    // Read inside the component, not in the factory: the factory runs once per
+    // role, and the setting can be toggled at any point after that.
+    const reduceMotion = useReducedMotion();
+    // Memoised because a fresh options object makes React Navigation re-resolve
+    // every screen's options on each render of the stack.
+    const screenOptions = React.useMemo(() => stackScreenOptions(reduceMotion), [reduceMotion]);
+
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen name={rootName} component={root} />
         {extra.map(s => (
           <Stack.Screen
             key={s.name}
             name={s.name}
             component={s.component}
-            options={{ presentation: s.presentation ?? 'card' }}
+            options={screenAnimation(s.presentation ?? 'card', reduceMotion)}
           />
         ))}
       </Stack.Navigator>

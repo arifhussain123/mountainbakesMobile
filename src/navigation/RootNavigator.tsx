@@ -7,7 +7,6 @@ import {
   type Theme as NavTheme,
 } from '@react-navigation/native';
 
-import { MBOfflineBanner } from '@/components';
 import { AppNavigator } from '@/navigation/AppNavigator';
 import { AuthNavigator } from '@/navigation/AuthNavigator';
 import { navigationRef } from '@/navigation/navigationRef';
@@ -66,9 +65,6 @@ export function RootNavigator(): React.ReactElement {
     // between the native splash tearing down and the first navigator frame
     // shows through as white — jarring in dark mode.
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      {/* Outside NavigationContainer so it stays visible across every screen,
-          including during a stack swap. */}
-      <MBOfflineBanner />
       {mustChangePassword ? (
         <ChangePasswordScreen />
       ) : (

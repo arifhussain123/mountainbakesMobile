@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { weight } from '@/theme/typography';
 
 export interface MBBadgeProps {
   count: number;
@@ -18,6 +19,15 @@ export interface MBBadgeProps {
 const CAP = 99;
 
 /**
+ * The pill's fixed height, and the digit's line height.
+ *
+ * Fixed rather than derived, because `allowFontScaling` is off on the number:
+ * at the largest dynamic-type setting a scaling badge grows taller than the tab
+ * bar it sits in. It is a constant here rather than three literal `18`s.
+ */
+const BADGE_H = 18;
+
+/**
  * A count badge.
  *
  * Renders nothing at zero. That is the contract that makes badges trustworthy:
@@ -26,7 +36,11 @@ const CAP = 99;
  * shows a number nobody can reconcile, teaches people to ignore every badge in
  * the app — including the one that matters.
  */
-export function MBBadge({ count, tone = 'accent', label }: MBBadgeProps): React.ReactElement | null {
+export function MBBadge({
+  count,
+  tone = 'accent',
+  label,
+}: MBBadgeProps): React.ReactElement | null {
   const theme = useTheme();
   if (count <= 0) return null;
 
@@ -61,6 +75,13 @@ const styles = StyleSheet.create({
   // Fixed height with allowFontScaling off on the number: at the largest
   // dynamic-type setting a scaling badge grows taller than the tab bar itself.
   // The label the screen reader announces carries the meaning instead.
-  pill: { minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
-  text: { fontWeight: '700', lineHeight: 18 },
+  pill: {
+    minWidth: BADGE_H,
+    height: BADGE_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // `lineHeight` matches the pill's fixed height above — it is centring the
+  // digit in a box that cannot grow, not a type decision.
+  text: { fontWeight: weight.bold, lineHeight: BADGE_H },
 });

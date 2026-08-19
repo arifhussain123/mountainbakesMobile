@@ -1,0 +1,5 @@
+<resources>
+    <!-- Dark pair of values/colors.xml. `bg` in dark = palette.brown900. -->
+    <color name="app_background">#160400</color>
+    <color name="bootsplash_background">#160400</color>
+</resources>

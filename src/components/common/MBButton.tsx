@@ -1,14 +1,15 @@
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { MBPressable } from '@/components/common/MBPressable';
 import { useTheme } from '@/theme/ThemeProvider';
+import { space } from '@/theme/spacing';
 
 export type MBButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type MBButtonSize = 'lg' | 'md' | 'sm';
@@ -85,10 +86,14 @@ export function MBButton({
   }, [variant, theme]);
 
   return (
-    <Pressable
+    <MBPressable
       testID={testID}
       onPress={onPress}
       disabled={isInactive}
+      // Dimming a disabled control belongs to the press layer, not to `style`:
+      // the two are the same property, and whichever were applied last would
+      // silently win over the other.
+      restOpacity={isInactive ? 0.5 : 1}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
@@ -96,13 +101,16 @@ export function MBButton({
       style={({ pressed }) => [
         styles.base,
         {
-          height: theme.layout.btnH[size],
+          // minHeight, not height: at the largest dynamic-type setting a fixed
+          // 52dp box clips its own label. The token stays the *floor*, which is
+          // what makes it a tap target, and the button grows instead.
+          minHeight: theme.layout.btnH[size],
+          paddingVertical: theme.space.xs,
           minWidth: theme.layout.tapMin,
           borderRadius: theme.radius.md,
           backgroundColor: pressed ? palette.pressedBg : palette.bg,
           borderColor: palette.border,
           borderWidth: variant === 'secondary' ? 1 : 0,
-          opacity: isInactive ? 0.5 : 1,
           paddingHorizontal: size === 'sm' ? theme.space.md : theme.space.xl,
         },
         fullWidth && styles.fullWidth,
@@ -120,7 +128,7 @@ export function MBButton({
           </Text>
         </View>
       )}
-    </Pressable>
+    </MBPressable>
   );
 }
 
@@ -131,5 +139,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   fullWidth: { alignSelf: 'stretch' },
-  content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  content: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
 });

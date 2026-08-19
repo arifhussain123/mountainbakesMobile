@@ -30,7 +30,30 @@ import { ApiError, normalizeError } from './errors';
  * regenerated across attempts — see services/sync/syncManager.ts.
  */
 
+/**
+ * Two deadlines, because a read and a write are not waiting for the same thing.
+ *
+ * A **write** gets the long one. It is a sale, an expense or a demand, it is
+ * already queued locally, and every extra second is another chance it lands now
+ * rather than on the next drain — nothing is lost either way, so patience is
+ * free.
+ *
+ * A **read** gets the short one, because there is usually a better answer
+ * already on the device. `readThrough` falls back to the SQLite mirror the
+ * moment the request fails, so a long timeout does not buy fresher data — it
+ * buys a longer skeleton in front of data the phone is already holding. On a
+ * 2G-ish signal in a basement shop that is the difference between a screen that
+ * feels slow and one that feels broken.
+ *
+ * Eight seconds is well past a healthy round trip on a bad connection and well
+ * short of a user deciding the app has hung. A read that is merely slow still
+ * completes; one that is not going to complete stops pretending sooner.
+ */
 const REQUEST_TIMEOUT_MS = 20_000;
+const READ_TIMEOUT_MS = 8_000;
+
+/** Methods with no side effect, and therefore a mirror to fall back to. */
+const READ_METHODS = new Set(['get', 'head']);
 
 export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
 
@@ -46,6 +69,12 @@ export const apiClient: AxiosInstance = axios.create({
 });
 
 apiClient.interceptors.request.use(async config => {
+  // Only when the call site has not asked for something specific — the report
+  // export and any future long poll must keep their own budget.
+  if (config.timeout === REQUEST_TIMEOUT_MS && READ_METHODS.has((config.method ?? 'get').toLowerCase())) {
+    config.timeout = READ_TIMEOUT_MS;
+  }
+
   const token = await getAccessToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);

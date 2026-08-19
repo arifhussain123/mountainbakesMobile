@@ -8,16 +8,18 @@ import {
   MBEmptyState,
   MBErrorState,
   MBHeader,
-  MBSearchBar,
   MBSkeletonList,
   MBSyncStatus,
 } from '@/components';
 import { getProductionStock } from '@/services/api/productionApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import type { StockRow } from '@/shared/types/stock.types';
 import { stockLevel, type StockLevel } from '@/shared/utils/stock';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatQty } from '@/utils/money';
+import { dataAsOfFrom } from '@/utils/dataAsOf';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Central production stock — the pool branches draw from.
@@ -32,7 +34,7 @@ export function ProductionStockScreen(): React.ReactElement {
   const [search, setSearch] = useState('');
 
   const stock = useQuery({
-    queryKey: ['production', 'stock'],
+    queryKey: qk.production.stock(),
     queryFn: () => getProductionStock(),
     staleTime: LIVE_STALE_TIME_MS,
   });
@@ -43,8 +45,7 @@ export function ProductionStockScreen(): React.ReactElement {
     if (!term) return all;
     return all.filter(
       row =>
-        row.productName.toLowerCase().includes(term) ||
-        row.stockCode.toLowerCase().includes(term),
+        row.productName.toLowerCase().includes(term) || row.stockCode.toLowerCase().includes(term),
     );
   }, [stock.data, search]);
 
@@ -54,18 +55,16 @@ export function ProductionStockScreen(): React.ReactElement {
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Production stock"
+        dataAsOf={dataAsOfFrom(stock.dataUpdatedAt)}
         subtitle={stock.data?.date ? `Business day ${stock.data.date}` : undefined}
+        search={{
+          value: search,
+          onChangeText: setSearch,
+          placeholder: 'Search product or stock code',
+          testID: 'production-stock-search',
+        }}
         right={<MBSyncStatus />}
       />
-
-      <View style={{ padding: theme.layout.screenPad }}>
-        <MBSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search product or stock code"
-          testID="production-stock-search"
-        />
-      </View>
 
       {stock.isPending ? (
         <MBSkeletonList rows={8} />
@@ -81,6 +80,7 @@ export function ProductionStockScreen(): React.ReactElement {
           message={search ? `Nothing found for "${search}".` : 'Nothing recorded for today yet.'}
           actionLabel={search ? 'Clear search' : undefined}
           onAction={search ? () => setSearch('') : undefined}
+          illustration={search ? undefined : 'empty-stock'}
         />
       ) : (
         <FlashList
@@ -102,7 +102,12 @@ export function ProductionStockScreen(): React.ReactElement {
   );
 }
 
-function Row({ row }: { row: StockRow }): React.ReactElement {
+/**
+ * Memoised. This list re-renders whenever the screen does — a filter chip, a
+ * refetch, a keystroke — and with props that do not change, none of the visible
+ * rows re-render with it. Theme changes still reach it: context bypasses `memo`.
+ */
+const Row = React.memo(function RowView({ row }: { row: StockRow }): React.ReactElement {
   const theme = useTheme();
   const level = stockLevel(row.balance);
 
@@ -142,7 +147,7 @@ function Row({ row }: { row: StockRow }): React.ReactElement {
       </View>
     </MBCard>
   );
-}
+});
 
 /** Module scope: a separator defined during render remounts the list each pass. */
 function ListSeparator(): React.ReactElement {
@@ -151,9 +156,12 @@ function ListSeparator(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  // ...contentColumn caps the measure on a tablet. A list row is a label at
+  // one edge and a value at the other; unconstrained on a 10" screen the two
+  // end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
   separator: { height: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowMain: { flex: 1, gap: 2 },
-  balance: { alignItems: 'flex-end', gap: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rowMain: { flex: 1, gap: space.hair },
+  balance: { alignItems: 'flex-end', gap: space.hair },
 });

@@ -51,8 +51,16 @@ export function useSignOut(): {
             'It stays saved on this device and will sync when you sign back in on this phone. ' +
             'It will not sync while someone else is signed in.',
           [
-            { text: 'Stay signed in', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Sign out', style: 'destructive', onPress: () => resolve(true) },
+            {
+              text: 'Stay signed in',
+              style: 'cancel',
+              onPress: () => resolve(false),
+            },
+            {
+              text: 'Sign out',
+              style: 'destructive',
+              onPress: () => resolve(true),
+            },
           ],
           { cancelable: true, onDismiss: () => resolve(false) },
         );

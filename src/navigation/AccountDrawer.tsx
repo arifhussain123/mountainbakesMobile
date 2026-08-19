@@ -1,20 +1,23 @@
 import React, { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
+  useDrawerStatus,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 
-import { MBButton, MBIcon } from '@/components';
+import { MBButton, MBIcon, MBLogo, MBPressable } from '@/components';
 import { roleLabel } from '@/constants/roleLabels';
+import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import type { ThemeMode } from '@/theme/theme';
+import type { ThemeMode } from '@/theme/themes';
+import { layout } from '@/theme/spacing';
 import { useTheme, useThemeContext } from '@/theme/ThemeProvider';
 import { RoleTabs } from './RoleTabs';
-import type { AccessProfile } from './roleConfig';
+import { NAV_LABELS, type AccessProfile } from './roleConfig';
 
 const Drawer = createDrawerNavigator();
 
@@ -30,13 +33,22 @@ const Drawer = createDrawerNavigator();
  * That is why there is not a single `navigate()` in this file. If a row here
  * ever needs to push a screen, that screen belongs in More instead.
  *
+ * What this panel owns is declared as `ACCOUNT_PANEL` in `roleConfig.ts`, beside
+ * the tabs and the More list, and `navigationSurface.test.ts` asserts that none
+ * of it is also a tab or a More row. The inventory is checked, not trusted.
+ *
  * ---------------------------------------------------------------------------
- * One contradiction in the brief, resolved
+ * Two contradictions in the brief, resolved
  * ---------------------------------------------------------------------------
  * §2 puts Sync Center and Help in this panel; §4 puts them in More. They cannot
  * be in both — that is the exact duplication non-negotiable #1 forbids. They are
  * in **More**, because §4 enumerates them there alongside Settings and because
  * More is the general secondary surface. This panel keeps only non-destinations.
+ *
+ * §2 and §4 both claim sign-out. It is **here, only here**. That duplication was
+ * real and shipped: two sign-out paths with two separately-written confirms, and
+ * the one in this panel had no confirm at all — it dropped the session without
+ * ever mentioning unsynced work. See `docs/navigation.md`.
  *
  * Identity shows role and branch. It does **not** show the e-mail address: §7
  * rules out e-mail, phone, token and ID, and the JWT carries no display name
@@ -54,14 +66,23 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
   const theme = useTheme();
   const { mode } = useThemeContext();
   const claims = useAuthStore(s => s.claims);
-  const signOut = useAuthStore(s => s.signOut);
+  const { signOut, isSigningOut } = useSignOut();
   const isOnline = useNetworkStore(s => s.isOnline);
   const setThemeMode = useSettingsStore(s => s.setThemeMode);
 
+  /**
+   * The one sign-out in the app.
+   *
+   * `useSignOut()` reads the real unsynced count out of the queue table and
+   * confirms before dropping the session; this panel deliberately does not write
+   * its own confirm. It had one path and More had another, and only More's
+   * warned about unsynced work — a sign-out from here silently stranded whatever
+   * the queue was still holding. One hook, one behaviour.
+   *
+   * Sign-out unmounts this whole tree, so there is no component left to show an
+   * error in: a failure is logged and the local session is dropped either way.
+   */
   const onSignOut = useCallback(() => {
-    // Sign-out clears auth state, which unmounts this whole tree — there is no
-    // component left to show an error in, so a failure is logged and nothing
-    // more. The local session is dropped either way.
     signOut().catch((err: unknown) => {
       console.warn('[auth] sign-out failed', err);
     });
@@ -74,10 +95,14 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
       contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.xxl }}>
       {/* Identity */}
       <View style={{ gap: theme.space.md }}>
+        {/* The mark says which app; the avatar below says who is signed in.
+            Neither is announced — the role and branch beneath them are the
+            answer a screen reader user is after. */}
+        <MBLogo />
+
         <View
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel="Mountain Bakes"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
           style={[
             styles.avatar,
             { backgroundColor: theme.colors.primary, borderRadius: theme.radius.pill },
@@ -122,7 +147,7 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
           {MODES.map(m => {
             const selected = mode === m.value;
             return (
-              <Pressable
+              <MBPressable
                 key={m.value}
                 onPress={() => setThemeMode(m.value)}
                 accessibilityRole="radio"
@@ -145,14 +170,42 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
                   ]}>
                   {m.label}
                 </Text>
-              </Pressable>
+              </MBPressable>
             );
           })}
         </View>
       </View>
 
-      <MBButton label="Sign out" variant="secondary" onPress={onSignOut} />
+      <MBButton
+        label={NAV_LABELS.logout}
+        variant="secondary"
+        onPress={onSignOut}
+        disabled={isSigningOut}
+      />
     </DrawerContentScrollView>
+  );
+}
+
+/**
+ * The tabs, hidden from the accessibility tree while the panel is open.
+ *
+ * Without this, the panel is drawn over the tabs but the tabs are still what a
+ * screen reader walks: TalkBack reads the More list underneath and never reaches
+ * the appearance controls or Sign out, so the panel is unusable without sight.
+ * It is a visual overlay, not an accessibility one, until it is told otherwise.
+ *
+ * Both props are needed — `accessibilityElementsHidden` is the iOS half,
+ * `importantForAccessibility` the Android half.
+ */
+function DrawerScreenContent({ profile }: { profile: AccessProfile }): React.ReactElement {
+  const isOpen = useDrawerStatus() === 'open';
+  return (
+    <View
+      style={styles.flex}
+      accessibilityElementsHidden={isOpen}
+      importantForAccessibility={isOpen ? 'no-hide-descendants' : 'auto'}>
+      <RoleTabs profile={profile} />
+    </View>
   );
 }
 
@@ -166,7 +219,7 @@ export function AccountDrawer({ profile }: { profile: AccessProfile }): React.Re
     (props: DrawerContentComponentProps) => <AccountPanel {...props} />,
     [],
   );
-  const renderTabs = useCallback(() => <RoleTabs profile={profile} />, [profile]);
+  const renderTabs = useCallback(() => <DrawerScreenContent profile={profile} />, [profile]);
 
   return (
     <Drawer.Navigator
@@ -182,8 +235,9 @@ export function AccountDrawer({ profile }: { profile: AccessProfile }): React.Re
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   avatar: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 8, height: 8 },
+  dot: { width: layout.dotSize, height: layout.dotSize },
   chip: { alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 });

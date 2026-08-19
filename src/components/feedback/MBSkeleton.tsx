@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AccessibilityInfo, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,7 +7,9 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/theme/ThemeProvider';
+import { space } from '@/theme/spacing';
 
 export interface MBSkeletonProps {
   width?: number | `${number}%`;
@@ -21,7 +23,9 @@ export interface MBSkeletonProps {
  *
  * Honours Reduce Motion: the pulse is replaced by a static block rather than
  * being merely slowed, since a repeating animation is exactly what that setting
- * exists to suppress.
+ * exists to suppress. The setting is read through `useReducedMotion`, which
+ * subscribes rather than sampling once — turning it on used to require killing
+ * the app before the shimmer stopped.
  */
 export function MBSkeleton({
   width = '100%',
@@ -30,21 +34,25 @@ export function MBSkeleton({
   style,
 }: MBSkeletonProps): React.ReactElement {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
   const opacity = useSharedValue(0.55);
 
   useEffect(() => {
-    let cancelled = false;
-
-    AccessibilityInfo.isReduceMotionEnabled().then(reduceMotion => {
-      if (cancelled || reduceMotion) return;
-      opacity.value = withRepeat(withTiming(1, { duration: 800 }), -1, true);
-    });
-
-    return () => {
-      cancelled = true;
+    if (reduceMotion) {
       cancelAnimation(opacity);
-    };
-  }, [opacity]);
+      // Left at the resting value rather than 1, so a suppressed skeleton still
+      // reads as a placeholder and not as a filled block.
+      opacity.value = 0.55;
+      return;
+    }
+
+    opacity.value = withRepeat(
+      withTiming(1, { duration: theme.motion.pulse }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(opacity);
+  }, [opacity, reduceMotion, theme.motion.pulse]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -84,5 +92,5 @@ export function MBSkeletonList({ rows = 6 }: { rows?: number }): React.ReactElem
 
 const styles = StyleSheet.create({
   block: { overflow: 'hidden' },
-  row: { gap: 8 },
+  row: { gap: space.sm },
 });

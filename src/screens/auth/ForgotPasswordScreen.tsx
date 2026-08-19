@@ -10,6 +10,7 @@ import { ApiError } from '@/services/api/errors';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Password recovery request.
@@ -73,7 +74,10 @@ export function ForgotPasswordScreen({ onBack }: { onBack: () => void }): React.
       <MBHeader title="Reset password" onBack={onBack} />
 
       <ScrollView
-        contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.lg }}
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.lg },
+        ]}
         keyboardShouldPersistTaps="handled">
         {sentTo ? (
           <MBCard>
@@ -149,5 +153,5 @@ export function ForgotPasswordScreen({ onBack }: { onBack: () => void }): React.
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  body: { gap: 10 },
+  body: { gap: space.snug },
 });

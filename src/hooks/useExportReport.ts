@@ -31,8 +31,28 @@ const MIME: Record<ExportType, string> = {
   csv: 'text/csv',
 };
 
+/**
+ * The window and scope to export, which must be the ones on screen.
+ *
+ * `from`/`to` are not optional decoration: the server's `getDateRange()` ignores
+ * them for its four named periods and uses them for everything else, so a custom
+ * range that does not forward them exports **the current month** while the
+ * screen shows the fortnight the user picked. The file is what gets mailed to
+ * head office; a filename that says `custom` over month-to-date figures is a
+ * wrong number with a paper trail.
+ */
+export interface ExportScope {
+  type: ExportType;
+  period: ReportPeriod;
+  /** ISO bounds, for a custom period. Ignored by the server for named periods. */
+  from?: string;
+  to?: string;
+  /** Admin scoping only — a branch manager is scoped by their token and must not send it. */
+  branchId?: string;
+}
+
 export function useExportReport(): {
-  exportReport: (options: { type: ExportType; period: ReportPeriod }) => Promise<void>;
+  exportReport: (scope: ExportScope) => Promise<void>;
   isExporting: boolean;
   error: string | null;
 } {
@@ -40,22 +60,34 @@ export function useExportReport(): {
   const [error, setError] = useState<string | null>(null);
 
   const exportReport = useCallback(
-    async ({ type, period }: { type: ExportType; period: ReportPeriod }) => {
+    async ({ type, period, from, to, branchId }: ExportScope) => {
       setIsExporting(true);
       setError(null);
 
-      const filename = `mountain-bakes-report-${period}.${EXTENSION[type]}`;
+      // A custom export is named for the window it covers, not for the word
+      // "custom" — three of those in a downloads folder are indistinguishable.
+      const stamp = period === 'custom' && from && to ? `${day(from)}_${day(to)}` : period;
+      const filename = `mountain-bakes-report-${stamp}.${EXTENSION[type]}`;
       const path = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/${filename}`;
+
+      // Built rather than interpolated: `from`/`to` are ISO timestamps whose `+`
+      // and `:` are not safe raw in a query string.
+      const params = new URLSearchParams({ type, period });
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      if (branchId) params.set('branchId', branchId);
+      const query = params.toString();
 
       try {
         const token = await getAccessToken();
         if (!token) throw new Error('Your session has expired. Sign in again.');
 
-        const response = await ReactNativeBlobUtil.config({ path, fileCache: true }).fetch(
-          'GET',
-          `${env.apiUrl}/api/reports/export?type=${type}&period=${period}`,
-          { Authorization: `Bearer ${token}` },
-        );
+        const response = await ReactNativeBlobUtil.config({
+          path,
+          fileCache: true,
+        }).fetch('GET', `${env.apiUrl}/api/reports/export?${query}`, {
+          Authorization: `Bearer ${token}`,
+        });
 
         const status = response.info().status;
         if (status >= 400) {
@@ -88,4 +120,9 @@ export function useExportReport(): {
   );
 
   return { exportReport, isExporting, error };
+}
+
+/** `2026-08-19T…` → `2026-08-19`, for a filename. */
+function day(iso: string): string {
+  return iso.slice(0, 10);
 }

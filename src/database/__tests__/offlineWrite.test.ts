@@ -132,16 +132,24 @@ describe('writeOffline', () => {
     expect(fake.inTransaction[0]!.params).toContain('easypaisa');
   });
 
-  it('queues a stock movement with no local mirror', async () => {
-    // The server owns the balance; there is nothing meaningful to show locally.
+  /**
+   * A stock movement used to be queue-only, on the reasoning that the server
+   * owns the balance. That left a branch return with no domain row: nothing to
+   * list "what did we hand back today" from while offline, and no record at all
+   * once the queue row was pruned after syncing. Migration 4 gave it a table,
+   * and the pairing below is the same invariant every other transaction has.
+   */
+  it('pairs a stock movement domain row with its queue row', async () => {
     await writeOffline({
       entity: 'stock_movement',
       branchId: 'b-1',
       payload: { productId: 'p-1', qty: 3, reason: 'Damaged' },
     });
 
-    expect(fake.inTransaction).toHaveLength(1);
-    expect(fake.inTransaction[0]!.sql).toContain('INSERT INTO sync_queue');
+    // Both, in ONE transaction — either alone is a lost or a phantom movement.
+    expect(fake.inTransaction).toHaveLength(2);
+    expect(fake.inTransaction[0]!.sql).toContain('INSERT INTO local_stock_movements');
+    expect(fake.inTransaction[1]!.sql).toContain('INSERT INTO sync_queue');
   });
 
   it('records a dependency so ordering is preserved', async () => {

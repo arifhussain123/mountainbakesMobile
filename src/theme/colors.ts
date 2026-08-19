@@ -76,6 +76,27 @@ export const palette = {
   creamMutedFgDark: '#978E7B',
 
   /**
+   * Honey gold — the third brand warm, between the orange and the cream.
+   *
+   * The web has no gold token: every warm highlight there is either --primary or
+   * a raw Tailwind amber. This ramp is mobile-first, sitting on the same warm
+   * axis as the rest (hue ~80 in oklch, between orange's 41.5 and cream's 88) so
+   * it reads as the same family rather than as a second brand. It is what a
+   * premium/celebratory affordance uses — a highlighted total, an award ribbon,
+   * a "best seller" mark — where orange would read as a call to action.
+   *
+   * gold700 is the light-mode text step (4.98:1 on cream50); gold300 is the
+   * dark-mode one (12.6:1 on brown900).
+   */
+  gold50: '#FDF6E4',
+  gold100: '#FBEBC8',
+  gold300: '#F0C868',
+  gold500: '#D99A16',
+  gold600: '#B87B0D',
+  gold700: '#93600A',
+  gold900: '#3A2503',
+
+  /**
    * Semantic hues.
    *
    * The web has no --success / --warning / --info tokens; those states are raw
@@ -114,6 +135,21 @@ export type SemanticColors = {
   surfaceDocket: string;
   border: string;
   borderStrong: string;
+  /**
+   * The edge of an **interactive control** — a text field, a search bar.
+   *
+   * Separate from `border` because the two have different jobs and different
+   * bars to clear. `border` divides a card from a card and is decorative, so a
+   * hairline is right. A field's edge is the only thing telling you where the
+   * control begins: WCAG 1.4.11 asks for 3:1 against the adjacent surface, and
+   * `border` is 1.34:1 on white — invisible to anyone with low vision, and the
+   * field's own background (`surface` on `bg`) is a further 1.07:1, so there was
+   * nothing else marking it either.
+   *
+   * Both values clear 3:1 against `surface` **and** `bg`, since a field can sit
+   * on either.
+   */
+  borderControl: string;
   text: string;
   textMuted: string;
   textInverse: string;
@@ -127,7 +163,20 @@ export type SemanticColors = {
    * suffix is exactly the kind of value that must not appear in a component.
    */
   primarySoft: string;
+  /**
+   * Crust brown as a *fill* — the dark chrome half of the brand, opposite the
+   * orange. Headers, the account drawer, a secondary button. Distinct from
+   * `text`, which is brown because it is ink, not because it is chrome.
+   */
+  secondary: string;
+  secondaryPressed: string;
+  onSecondary: string;
   accent: string;
+  /** Tint behind `accent`, mirroring `primarySoft`. */
+  accentSoft: string;
+  /** Honey gold. Premium/celebratory highlight, never a call to action. */
+  honey: string;
+  honeySoft: string;
   focusRing: string;
   success: string;
   successBg: string;
@@ -141,6 +190,15 @@ export type SemanticColors = {
   offline: string;
   syncing: string;
   syncFailed: string;
+  /**
+   * Scrim behind a modal, drawer or bottom sheet. An rgba() string rather than
+   * eight-digit hex, which is unreliable on older Android — and a token rather
+   * than an inline alpha, so the one place that decides how dark a dismissable
+   * surface goes is this file.
+   */
+  overlay: string;
+  /** So a component never needs a bare 'transparent' colour literal. */
+  transparent: string;
 };
 
 export const lightColors: SemanticColors = {
@@ -150,6 +208,8 @@ export const lightColors: SemanticColors = {
   surfaceDocket: palette.cream25,
   border: palette.cream200,
   borderStrong: palette.cream300,
+  // 3.38:1 on surface, 3.17:1 on bg.
+  borderControl: '#948B75',
   text: palette.ink,
   textMuted: palette.creamMutedFg,
   textInverse: palette.cream0,
@@ -171,9 +231,23 @@ export const lightColors: SemanticColors = {
    * here, but orange500 on cream is 2.67:1 — invisible as body text. Same hue,
    * two steps down, 5.52:1.
    */
+  secondary: palette.brown600,
+  secondaryPressed: palette.brown700,
+  onSecondary: palette.cream50, // 10.9:1
   accent: palette.orange700,
+  accentSoft: palette.orange50,
+  honey: palette.gold700,
+  honeySoft: palette.gold100,
   /** A ring is a UI affordance, not text, so it can be the brand orange exactly. */
-  focusRing: palette.orange500,
+  /**
+   * The readable orange, not the fill orange.
+   *
+   * A focus ring is the only thing showing which field the keyboard is in,
+   * so it takes the 3:1 non-text bar (WCAG 1.4.11). `orange500` is 2.85:1
+   * on white and missed it; `orange700` is 5.89:1 and is the same brand
+   * hue. Dark keeps `orange500`, which is 6.42:1 against a dark card.
+   */
+  focusRing: palette.orange700,
   success: palette.emerald700,
   successBg: palette.emerald100,
   warning: palette.amber700,
@@ -185,6 +259,8 @@ export const lightColors: SemanticColors = {
   offline: palette.amber700,
   syncing: palette.blue700,
   syncFailed: palette.red700,
+  overlay: 'rgba(31, 11, 3, 0.45)', // ink at 45%
+  transparent: 'transparent',
 };
 
 export const darkColors: SemanticColors = {
@@ -197,6 +273,8 @@ export const darkColors: SemanticColors = {
   // already composited over --card.
   border: '#3E251B',
   borderStrong: '#533D35',
+  // 3.12:1 on surface, 3.41:1 on bg.
+  borderControl: '#7A5F53',
   text: palette.creamFgDark,
   textMuted: palette.creamMutedFgDark,
   textInverse: palette.brown900,
@@ -205,7 +283,14 @@ export const darkColors: SemanticColors = {
   primaryPressed: palette.orange400,
   primarySoft: '#4E1E0A',
   onPrimary: palette.brown900,
+  // Dark follows the web, which uses brown700 for --secondary and --accent.
+  secondary: palette.brown700,
+  secondaryPressed: palette.brown600,
+  onSecondary: palette.creamFgDark, // 12.8:1
   accent: palette.orange300,
+  accentSoft: '#4E1E0A',
+  honey: palette.gold300,
+  honeySoft: palette.gold900,
   focusRing: palette.orange500,
   // Semantic hues lighten to the -400 step in dark, matching the web's
   // `dark:text-emerald-400` convention, over the -950 tint.
@@ -220,6 +305,8 @@ export const darkColors: SemanticColors = {
   offline: palette.amber400,
   syncing: palette.blue400,
   syncFailed: palette.red400,
+  overlay: 'rgba(0, 0, 0, 0.62)',
+  transparent: 'transparent',
 };
 
 /**

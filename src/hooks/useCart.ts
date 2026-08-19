@@ -18,9 +18,7 @@ export function useCart(settings: TaxSettings = {}) {
     setLines(current => {
       const existing = current.find(l => l.productId === product.id);
       if (existing) {
-        return current.map(l =>
-          l.productId === product.id ? { ...l, qty: l.qty + qty } : l,
-        );
+        return current.map(l => (l.productId === product.id ? { ...l, qty: l.qty + qty } : l));
       }
       return [
         ...current,
@@ -45,9 +43,7 @@ export function useCart(settings: TaxSettings = {}) {
   }, []);
 
   const setDiscount = useCallback((productId: string, discount: number) => {
-    setLines(current =>
-      current.map(l => (l.productId === productId ? { ...l, discount } : l)),
-    );
+    setLines(current => current.map(l => (l.productId === productId ? { ...l, discount } : l)));
   }, []);
 
   const remove = useCallback((productId: string) => {
@@ -67,20 +63,38 @@ export function useCart(settings: TaxSettings = {}) {
    * price change between opening the form and saving impossible to misprint.
    */
   const toOrderItems = useCallback(
-    () => lines.map(l => ({ productId: l.productId, qty: l.qty, discount: l.discount })),
+    () =>
+      lines.map(l => ({
+        productId: l.productId,
+        qty: l.qty,
+        discount: l.discount,
+      })),
     [lines],
   );
 
-  return {
-    lines,
-    itemCount,
-    totals,
-    addProduct,
-    setQty,
-    setDiscount,
-    remove,
-    clear,
-    toOrderItems,
-    isEmpty: lines.length === 0,
-  };
+  /**
+   * Memoised, and that is load-bearing rather than tidy.
+   *
+   * The POS builds its product `renderItem` from a callback that closes over the
+   * cart. A fresh object here made that callback new on every render, which made
+   * FlashList's `renderItem` new on every render, which re-rendered every visible
+   * product row on every keystroke and every tap — on the one screen staff use
+   * dozens of times a day, holding a cheap handset. The rows below are memoised;
+   * this is what makes that memoisation reachable.
+   */
+  return useMemo(
+    () => ({
+      lines,
+      itemCount,
+      totals,
+      addProduct,
+      setQty,
+      setDiscount,
+      remove,
+      clear,
+      toOrderItems,
+      isEmpty: lines.length === 0,
+    }),
+    [lines, itemCount, totals, addProduct, setQty, setDiscount, remove, clear, toOrderItems],
+  );
 }

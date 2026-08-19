@@ -37,6 +37,8 @@ jest.mock('@/services/api/authApi', () => ({
 
 import * as authApi from '@/services/api/authApi';
 import { supabase } from '@/services/supabase/client';
+import { queryClient } from '@/services/query/queryClient';
+import { qk } from '@/services/query/queryKeys';
 import { useAuthStore } from '../authStore';
 
 const mockAuth = (supabase as any).auth as {
@@ -314,5 +316,46 @@ describe('signOut', () => {
 
     expect(useAuthStore.getState().status).toBe('signedOut');
     expect(useAuthStore.getState().claims).toBeNull();
+  });
+});
+
+/**
+ * Signing out drops cached server state.
+ *
+ * A branch handset is shared. The `queryClient` is a module singleton mounted
+ * above the auth tree, so it outlives every sign-out in the process, and
+ * `gcTime` is 24 hours — while several keys carry **no identity at all**,
+ * because the server scopes those responses from the JWT:
+ *
+ *   qk.reports.summary({period})       branch figures, keyed only by period
+ *   qk.productionOrders.list({status}) "the caller's own branch"
+ *   qk.stock.byBranch(null, date)      literally keyed 'self'
+ *
+ * So without this, a manager signing out and a shift user signing in on the same
+ * phone could be shown the previous account's takings, demands and balances —
+ * and with staleTime up to ten minutes on settings, branches and categories,
+ * possibly without a refetch to correct it.
+ *
+ * This clears **server state only**. Unsynced transactions and the SQLite
+ * reference mirror are untouched, which is the documented invariant: sign-out
+ * never deletes local data, and clearing the mirror would break offline
+ * sign-in.
+ */
+describe('signOut and cached server state', () => {
+  it('empties the query cache so the next account cannot be shown this one', async () => {
+    queryClient.setQueryData(qk.reports.summary({ period: 'daily' }), { totalRevenue: '9999' });
+    queryClient.setQueryData(qk.stock.byBranch(null, 'today'), { date: 'today', rows: [] });
+    expect(queryClient.getQueryCache().getAll().length).toBeGreaterThan(0);
+
+    await useAuthStore.getState().signOut();
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it('still ends the session', async () => {
+    await useAuthStore.getState().signOut();
+    expect(supabase.auth.signOut).toHaveBeenCalled();
+    expect(useAuthStore.getState().claims).toBeNull();
+    expect(useAuthStore.getState().status).toBe('signedOut');
   });
 });

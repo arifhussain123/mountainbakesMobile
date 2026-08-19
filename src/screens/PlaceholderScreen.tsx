@@ -4,6 +4,7 @@ import { MBButton, MBCard, MBHeader } from '@/components';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Temporary screen body used by the Phase 2 navigation shell.
@@ -18,10 +19,22 @@ export function PlaceholderScreen({
   title,
   phase,
   endpoint,
+  action,
 }: {
   title: string;
   phase: string;
   endpoint?: string;
+  /**
+   * A working action this unbuilt screen can still offer.
+   *
+   * This exists for one real case. The branch order **list** is not built, but
+   * the branch order **form** is — and when New Order stopped being a tab and
+   * became a modal on OrdersStack, the form lost its only entry point: the list
+   * that would have launched it does not exist yet. Rather than leave a built
+   * screen unreachable, the placeholder carries the action until the list lands,
+   * at which point this prop goes away with it.
+   */
+  action?: { label: string; onPress: () => void };
 }): React.ReactElement {
   const theme = useTheme();
   const claims = useAuthStore(s => s.claims);
@@ -30,17 +43,22 @@ export function PlaceholderScreen({
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader title={title} subtitle={claims?.branchName ?? undefined} />
-      <ScrollView contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.md }}>
+      <ScrollView
+        contentContainerStyle={[
+          contentColumn,
+          { padding: theme.layout.screenPad, gap: theme.space.md },
+        ]}>
         <MBCard>
           <View style={styles.body}>
             <Text style={[theme.type.h3, { color: theme.colors.text }]}>Not built yet</Text>
             <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>
-              {title} arrives in {phase}. The navigation shell, theme, API client and local
-              database are in place; this screen has no UI yet.
+              {title} arrives in {phase}. The navigation shell, theme, API client and local database
+              are in place; this screen has no UI yet.
             </Text>
             {endpoint ? (
               <Text style={[theme.type.mono, { color: theme.colors.textMuted }]}>{endpoint}</Text>
             ) : null}
+            {action ? <MBButton label={action.label} onPress={action.onPress} size="md" /> : null}
           </View>
         </MBCard>
 
@@ -72,5 +90,5 @@ export function PlaceholderScreen({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  body: { gap: 8 },
+  body: { gap: space.sm },
 });
