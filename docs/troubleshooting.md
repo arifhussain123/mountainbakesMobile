@@ -65,6 +65,42 @@ Use `renderScreen` from `src/test-utils/render` rather than RTL's `render`.
 `SafeAreaProvider` needs `initialMetrics` under Jest; without it, it waits for a
 native measurement that never arrives.
 
+## The release build warns that it is signed with the debug key
+
+```
+  ⚠  RELEASE BUILD IS SIGNED WITH THE DEBUG KEY — NOT DISTRIBUTABLE.
+```
+
+Expected on any machine that has not been given the upload key, and the build
+still finishes so a local size or smoke check works. **The artefact cannot be
+distributed.** The React Native template signs `release` with
+`signingConfigs.debug`, whose keystore is committed, whose password is the
+literal string `android`, and which is the same key on every RN install on
+earth — anyone can re-sign that APK and it will install over the real one. Play
+rejects it outright.
+
+To produce a distributable build, generate the key once:
+
+```bash
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore ~/keys/mountainbakes-upload.keystore \
+  -alias mountainbakes -keyalg RSA -keysize 2048 -validity 10000
+```
+
+and put the four properties in **`~/.gradle/gradle.properties`** — outside every
+repository, so the signing identity is never in a clone or a CI log:
+
+```properties
+MB_RELEASE_STORE_FILE=/home/you/keys/mountainbakes-upload.keystore
+MB_RELEASE_STORE_PASSWORD=…
+MB_RELEASE_KEY_ALIAS=mountainbakes
+MB_RELEASE_KEY_PASSWORD=…
+```
+
+`npm run build:android` then picks up `signingConfigs.release` and the warning
+stops. **Back the keystore up.** Losing it means the app can never be updated in
+place again — every installed copy has to be uninstalled first.
+
 ## Release build fails on a manifest that "doesn't exist"
 
 ```

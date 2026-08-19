@@ -14,6 +14,24 @@ import type { ResolvedScheme } from '@/theme/themes';
  * stale placeholder, not the brand — match the PNG.)
  *
  * ---------------------------------------------------------------------------
+ * The native boot splash draws this same mark, from its own copies
+ * ---------------------------------------------------------------------------
+ * `react-native-bootsplash` cannot `require` a JS module, so it has a second set:
+ * the Android drawables under `res/drawable-<density>/bootsplash_logo.png`, and
+ * the `assets/bootsplash/` rasters. Both are downscaled from
+ * `assets/bootsplash_logo.png`, which is the `dark` artwork — pale rim and all —
+ * because the drawable is one file shown over both `bootsplash_background`
+ * colours, and the rim is what carries the badge edge on the dark one while
+ * staying invisible on cream.
+ *
+ * It is drawn at **112dp**, centred on the 288dp Android 12 splash canvas. That
+ * number is not arbitrary: it is the width `SplashScreen.tsx` renders, so the
+ * hand-off from the native splash to the JS one does not resize the logo.
+ *
+ * Changing the brand mark means regenerating those files too, not just dropping
+ * new PNGs in here.
+ *
+ * ---------------------------------------------------------------------------
  * `-light` / `-dark` name the THEME, not the artwork
  * ---------------------------------------------------------------------------
  * `-light` is the mark to draw **on a light background**, `-dark` the one to
@@ -41,3 +59,4 @@ export const LOGO = {
 export function logoFor(scheme: ResolvedScheme): ImageSourcePropType {
   return scheme === 'dark' ? LOGO.dark : LOGO.light;
 }
+

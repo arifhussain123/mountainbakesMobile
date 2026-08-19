@@ -100,15 +100,57 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        /**
+         * The upload key, supplied from OUTSIDE the repository.
+         *
+         * Put the four properties in `~/.gradle/gradle.properties` (which is not
+         * in any repo) or pass them as `-P` flags on the build command. A
+         * keystore or its password committed here would be a signing identity in
+         * every clone and every CI log, and rotating it means every installed
+         * app has to be uninstalled before it can update.
+         *
+         * The block stays empty when the properties are absent — an unreferenced
+         * signing config is legal, and `buildTypes.release` below decides
+         * whether to use it.
+         */
+        release {
+            if (project.hasProperty('MB_RELEASE_STORE_FILE')) {
+                storeFile file(project.property('MB_RELEASE_STORE_FILE'))
+                storePassword project.property('MB_RELEASE_STORE_PASSWORD')
+                keyAlias project.property('MB_RELEASE_KEY_ALIAS')
+                keyPassword project.property('MB_RELEASE_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig = signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig = signingConfigs.debug
+            /*
+             * The template shipped `signingConfig = signingConfigs.debug` here,
+             * which silently produces a "release" APK signed with the PUBLIC
+             * debug key — its password is the literal string "android" and it is
+             * the same key on every React Native install on earth. Anyone can
+             * re-sign that artefact and it will install over the real one. Play
+             * rejects it outright.
+             *
+             * It still falls back, because failing the build would strand
+             * anyone doing a local size or smoke check. What it does not do is
+             * fall back QUIETLY: an unsigned-for-production build now says so
+             * every time, so the state cannot survive to a store upload
+             * unnoticed.
+             */
+            if (project.hasProperty('MB_RELEASE_STORE_FILE')) {
+                signingConfig = signingConfigs.release
+            } else {
+                logger.warn("")
+                logger.warn("  ⚠  RELEASE BUILD IS SIGNED WITH THE DEBUG KEY — NOT DISTRIBUTABLE.")
+                logger.warn("     Set MB_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD")
+                logger.warn("     in ~/.gradle/gradle.properties. See docs/troubleshooting.md.")
+                logger.warn("")
+                signingConfig = signingConfigs.debug
+            }
             minifyEnabled = enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
