@@ -15,7 +15,8 @@ npm run typecheck        # tsc --noEmit
 npm run lint             # eslint (clean — keep it that way)
 npm test                 # jest
 npm run shared:check     # src/shared must equal the server's, byte for byte
-npm run verify           # typecheck + shared:check + test — run this before calling anything done
+npm run theme:check      # no hard-coded colour anywhere in src/components
+npm run verify           # typecheck + shared:check + theme:check + test — run this before calling anything done
 npm run build:android    # release APK
 npm run clean:android    # gradlew clean
 ```
@@ -84,9 +85,15 @@ shop actually rely on. A write always goes:
 form → writeOffline() → SQLite row + sync_queue row (one transaction) → drain attempt
 ```
 
-The user is told **"Saved offline"** unless the server confirmed within that drain, in
-which case it is "saved". Never report a queued transaction as saved — that is how the
-same expense gets entered twice.
+There are **three** outcomes to report, not two (`services/sync/writeOutcome.ts`):
+saved, queued ("Saved offline"), and **refused** — a write the server rejected with a
+409, which is parked in `sync_conflicts` and will never sync on its own. The rule runs
+both directions: never report a queued transaction as saved (that is how the same
+expense gets entered twice), and never report a refused one as queued (that is how a
+sale nobody looks at goes missing until the till is reconciled). Read the outcome by
+`client_operation_id`, never off the `DrainResult` tally — `{synced: 3, conflicts: 1}`
+says nothing about which one was *this* write, and on a busy queue that is the normal
+case rather than the edge.
 
 `src/services/sync/syncManager.ts` drains the queue. Its failure classification is the
 whole design: network/timeout/5xx back off and retry; **401 pauses the entire drain**
@@ -104,6 +111,45 @@ the domain row's primary key, `sync_queue.client_operation_id`, and the
 exactly how a request the server already processed becomes a second sale. The server
 honours the header (its migration 84) on the five offline-capable writes and returns
 the original response on a repeat.
+
+That yields the one invariant the conflict UI is built on: **re-sending with the same
+key is always safe** (the server replays its answer); **re-sending with a new key
+bypasses the dedupe and executes**. So `resend_as_new` — the one resolution that mints
+a fresh id, because the payload or business date changed — is offered only where the
+operation certainly never landed. `mayHaveLanded` on the policy in
+`services/sync/conflicts.ts` is that gate, and every conflict type declares it
+alongside the resolutions it permits. Getting it backwards is how a stock return that
+already moved half its products moves them again. `keep_server` closes the local row as
+`superseded` rather than deleting it — it is still the only record of what the operator
+actually entered.
+
+### Reads fall back to the mirror — but only on a transport failure
+
+The read half lives in `services/query/readThrough.ts` over
+`database/repositories/referenceRepository.ts`: fetch, mirror what came back, and on
+failure serve the mirror instead. Three rules carry the design, and each is a bug if
+inverted:
+
+- **Only transport failures fall back.** A 403 is an *answer* — the server considered
+  the request and refused it. Serving cache over a refusal shows a branch data it is no
+  longer allowed to see and hides a role change from the person it happened to. Falling
+  back is limited to network / offline / timeout, plus 5xx where the server failed
+  rather than decided.
+- **A known-offline read does not wait to find out.** When NetInfo is *sure* there is no
+  connection, the mirror is read first and the network is never touched — otherwise
+  every screen hangs for the client timeout before showing data that was on the phone
+  all along. `isOnline` is deliberately optimistic (null reachability counts as online),
+  so a captive portal still goes through the request path.
+- **Empty is not absent.** A mirror that was never written rethrows rather than
+  returning `[]`. "No products" and "we could not reach the server" are different
+  screens.
+
+`store/mirrorStore.ts` publishes which resources are currently mirror-served and how
+old they are. It exists because TanStack Query's `dataUpdatedAt` is when the *query*
+resolved, and a mirror-served read resolves successfully **now** — that clock would
+stamp the current time on hours-old data, the one reading that makes stale data look
+fresh. The mirror's own `synced_at` is the truth. It clears the moment a live fetch
+succeeds, so the mark cannot outlive its cause.
 
 ### Business date is captured on the device
 
@@ -207,6 +253,30 @@ the *movement* and keeping the change — a cross-fade instead of a slide, a jum
 instead of travel, the dim without the scale. Slowing an animation down is not
 honouring it. `docs/motion.md` is the full account, including the drawer, which
 cannot honour it at all because the library exposes no control.
+
+### Test harness
+
+Two setup files, and the split is load-order, not taste. `jest.setup.js` holds native
+module mocks, which must register **before** the framework loads; `jest.after-env.js`
+holds anything needing a live runtime (`expect`, fake timers, a React act
+environment). Putting one in the other's file fails in ways that read as a broken
+component.
+
+`jest.after-env.js` also reschedules React Query's `notifyManager` onto a microtask.
+The default `setTimeout(…, 0)` flushes subscribers on a later tick — outside the
+test's `act()` scope, producing standing "not wrapped in act(...)" noise plus
+"worker process failed to exit gracefully". Deferral itself is kept deliberately:
+calling inline also silences the warnings but drops the coalescing hop, which slowed
+the screen suites ~10x. Defer, just not as far.
+
+`src/test-utils/sqliteTestDb.ts` runs migrations and repository SQL against a **real**
+database via `node:sqlite` (built into the pinned Node, no native module, no new
+dependency), behind the four things the repositories use from op-sqlite — `execute`,
+`executeBatch`, `transaction`, and the `{rows, rowsAffected}` shape. Prefer it for
+anything where the SQL's *meaning* matters. The older database tests fake `getDb()`
+and assert on SQL text, which catches a malformed statement but not a wrong one: a
+`markSynced` that updates the queue row and not the domain row passes a string
+comparison and fails in a shop.
 
 ## Other docs
 
