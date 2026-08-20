@@ -261,7 +261,7 @@ export function MBTabBar({
             // navigator's own key stops the action escaping to a parent when the
             // bar is rendered inside the drawer.
             navigation.dispatch({
-              ...CommonActions.navigate({ name: route.name, merge: true }),
+              ...CommonActions.navigate(route.name, undefined, { merge: true }),
               target: state.key,
             });
           };
