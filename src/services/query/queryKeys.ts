@@ -86,6 +86,20 @@ export const qk = {
      */
     byBranch: (branchId: string | null, date: string) =>
       ['stock', branchId ?? 'self', date] as const,
+    /**
+     * The branch **ledger** — every product folded together, one row per
+     * business day. A different resource from `byBranch` above and it has to be
+     * a different key: that one is per-product for one day, this one is
+     * per-day for the whole shop, and they come from different routes.
+     *
+     * `'self'` for a branch role, which sends no `branchId` because the server
+     * scopes by JWT — the same substitution `byBranch` makes, so a branch
+     * session cannot end up with two keys for one shop.
+     */
+    history: (branchId: string | null, days: number) =>
+      ['stock', 'history', branchId ?? 'self', days] as const,
+    day: (branchId: string | null, date: string) =>
+      ['stock', 'history', 'day', branchId ?? 'self', date] as const,
   },
 
   /**
@@ -128,6 +142,39 @@ export const qk = {
     /** Branch balances as the production counter sees them. */
     branchStock: () => ['production', 'branchStock'] as const,
     previousBalance: (orderId: string) => ['production', 'previousBalance', orderId] as const,
+  },
+
+  /**
+   * Returns waiting on the production counter.
+   *
+   * A **different resource** from a branch's own returns, which have no list
+   * endpoint at all — those are applied immediately by `POST /api/stock/return`
+   * and read off the branch stock ledger. Nesting this under `stock` would
+   * suggest one invalidation covered both.
+   */
+  productionReturns: {
+    all: () => ['productionReturns'] as const,
+    list: () => ['productionReturns', 'list'] as const,
+  },
+
+  /**
+   * Special events. The month grid and the year list are two different reads of
+   * one resource and they must not share a key: `/calendar` range-filters on
+   * both ends of an event so a span crossing a month boundary appears in both
+   * months, which is precisely what the year list, filtered by date prefix,
+   * would not do.
+   */
+  events: {
+    all: () => ['events'] as const,
+    list: (year: number) => ['events', 'list', year] as const,
+    calendar: (year: number, month: number) => ['events', 'calendar', year, month] as const,
+  },
+
+  /** Support queries — the caller's own unless they are the super admin. */
+  support: {
+    all: () => ['support'] as const,
+    tickets: () => ['support', 'tickets'] as const,
+    lookup: (ref: string) => ['support', 'lookup', ref] as const,
   },
 
   /** The Finance product surface. Its own endpoints, its own permission model. */

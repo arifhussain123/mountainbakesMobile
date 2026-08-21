@@ -39,6 +39,21 @@ const REQUIRED = [
   'MBOrderCard',
   'MBStockCard',
   'MBExpenseCard',
+  // The v4 set: the hero block, the ruled list card and its row, the ledger
+  // table, the meter, the status pill, and the two charts v4 adds to the one
+  // that was already here.
+  'MBHeroCard',
+  'MBListCard',
+  'MBListRow',
+  'MBLedgerTable',
+  'MBMeter',
+  'MBStatusTag',
+  'MBColumnChart',
+  'MBStackedBar',
+  'MBShareList',
+  'MBTrendChart',
+  'MBFilterChips',
+  'MBSectionHeader',
 ] as const;
 
 describe('component surface', () => {

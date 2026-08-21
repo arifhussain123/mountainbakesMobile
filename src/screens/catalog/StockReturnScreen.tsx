@@ -148,6 +148,7 @@ export function StockReturnScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        tone="brand"
         title="Return stock"
         subtitle="Back to production"
         onBack={() => navigation.goBack()}

@@ -298,7 +298,7 @@ const UserRow = React.memo(function UserRowView({
             onPress={toggle}
             accessibilityRole="button"
             testID={`toggle-${user.id}`}>
-            <Text style={[theme.type.label, { color: theme.colors.primary }]}>
+            <Text style={[theme.type.label, { color: theme.colors.accent }]}>
               {inactive ? 'Reactivate' : 'Deactivate'}
             </Text>
           </MBPressable>

@@ -122,21 +122,105 @@ length of the array it ships. Paging is a server change first
 `onEndReached` against an endpoint that returns everything would re-render the
 same rows and look like it worked.
 
+### The ruled list card
+
+The shape v4 draws more than any other, and now one component:
+`MBListCard` + `MBListRow`. Recent orders, the day's transactions, the expense
+ledger, the payment breakdown, top sellers, the report index, the settings
+groups, the FAQ list — eight screens, one object.
+
+What makes it a component rather than an `MBCard` with children is a **one-step
+weight difference**: the rule between two rows is `divider`, which is a shade
+lighter than the card's own `border`. Rule the rows with the card's edge colour
+and each row reads as its own card — the screen becomes a stack of boxes and the
+grouping the card was drawing disappears. `divider` exists for this and is used
+nowhere else.
+
+The card also gives up its vertical padding to the rows, so a rule runs the full
+width of the *content* and each row owns its own 48dp touch height. The last row
+is not ruled; a trailing rule draws a line under the card's bottom padding and
+reads as a row that failed to render.
+
+A row is **one accessibility node**, not four. Read out cell by cell a
+transaction becomes "#4821, Cash, 4 items, 18,400" as four unrelated
+announcements, and the relationship between them — which is the whole row — is
+lost. `MBListRow` joins every visible part in reading order.
+
 ### Tables
 
 No horizontally scrolling desktop tables anywhere, and none is planned. Every
 horizontal `ScrollView` in the app is a chip row — a filter, a period, a business
 day — never data.
 
-A desktop table becomes one of four things here, chosen by what the data is:
+A desktop table becomes one of five things here, chosen by what the data is:
 
 | Desktop shape | Mobile shape | Where |
 |---|---|---|
 | Row of columns | **Card** with a flexing label and a right-aligned figure | every list |
-| Multi-measure row | **Compact data row** (`MBDetailRow`), or a wrapping cell strip | Reports, Breakdown |
+| Rows of one object | **Ruled list card** (`MBListCard` / `MBListRow`) | transactions, expenses, the report index |
+| Multi-measure row | **Compact data row** (`MBDataRow`), or a wrapping cell strip | Reports, Breakdown |
 | Ranked table | **Share list** — label, inline secondary, amount, proportion bar | `MBShareList`: top products, branches, payment methods |
 | Headline + working | **Expandable row** — headline always, detail on tap | Stock |
+| Reconciling columns | **Ledger table** (`MBLedgerTable`) | the stock ledger, and nothing else yet |
 | Full record | **Detail screen** | Product detail, price history, the print docket |
+
+**`MBLedgerTable` is the one genuine table, and the stock ledger is why.**
+Everywhere else a repeated record is a card, because the reader is looking for
+*one* of them. There they are reading **down a column** — previous balance, what
+came in, what sold, what is left — and the only question is whether those
+reconcile. Cards put each row's numbers wherever their labels happen to leave
+them, which is exactly the layout that makes four numbers impossible to add up by
+eye. Every figure is `type.number`, which is tabular, so a column of them does
+not jitter as values change.
+
+Two things keep it off a horizontal scroller, which would hide the last column —
+and the last column is the balance:
+
+- **The date is a row heading, not a column.** On a table whose rows are days the
+  date is not a fifth number competing for width, it is what the row *is*.
+  Stacking it buys back a whole column.
+- **The money figure sits under its quantity**, not beside it. Ten numbers per
+  row on a 360dp screen is not a table anyone reads across.
+
+A missing cell prints an em dash rather than staying blank: "nothing happened"
+and "we have no figure" look identical when both are empty, and only one of them
+reconciles.
+
+### The hero block
+
+`MBHeroCard` — a deep-brown inverse surface carrying the one figure a screen
+exists to produce, with two or three qualifiers under it. v4 draws it on Sales,
+Reports, Daily Sales and Sales vs Expenses.
+
+A white tile cannot do that job on a page of white tiles: it would be the same
+object as the four cards below it, only larger. Inverting the surface is what
+makes it read as *the answer* rather than as the first of several. It is
+`secondary` rather than `primary` for the reason in `theme/colors.ts` — the ember
+is a fill for things you press, and a full-width block painted with it reads as
+an enormous button.
+
+Its `stats` are **qualifiers of the headline** — how it splits, how many
+transactions made it — capped at four by the layout. Four unrelated numbers that
+happen to fit is what `MBStatGrid` is for. The whole block is one accessibility
+node, for the same reason a list row is.
+
+### Meters
+
+`MBMeter` — stock against its reorder level, on the stock card.
+
+The **track** matters as much as the fill: a bar drawn as a fill alone tells you
+a length, not a proportion, and 8 units is a sliver whether the shelf holds 20 or
+200. Three rules, each of which is a wrong statement if inverted:
+
+- **Zero draws nothing**, and one unit draws a visible stub. "Out" and "nearly
+  out" must not look the same, and they do if a small fill rounds to sub-pixel.
+- **No reorder level draws nothing either.** A bar is a proportion, and with no
+  denominator the proportion is unknown rather than small — a stub there says
+  "nearly out" about a product nobody has set a level for, which is the one
+  reading that would send someone to reorder it.
+- **The tone is the caller's and the word is always printed.** The meter has no
+  opinion about whether a number is good: 8 units is a crisis for bread and a
+  full shelf for wedding cakes. Colour is never the only signal.
 
 The Finance ledger is the clearest case: seven desktop columns (head,
 description, voucher, date, debit, credit, balance) become one card — the head
@@ -248,21 +332,36 @@ and the queued case has something honest to put in the reference slot.
 
 ### The scale
 
-`display · h1 · h2 · h3 · body · bodyStrong · label · caption · number · mono ·
-money · moneyLg`
+`display · h1 · h2 · h3 · body · bodyStrong · cardTitle · label · caption ·
+number · mono · money · moneyLg`
 
-Three notes where it departs from the brief's list:
+Set to the v4 design. Two faces — Playfair Display for the brand (`display`
+only) and Plus Jakarta Sans for everything else — and **neither ships yet**, so
+on device the whole scale currently falls back to the platform sans. Adding the
+font files changes metrics but not layout.
 
-- **`number` is the tabular figure token** — the body face at 15/600 with
+Four notes where it departs from the brief's list:
+
+- **`number` is the tabular figure token** — the body face at 15/700 with
   `tabular-nums`. `mono` is a different thing and the split is deliberate: `mono`
   is a **monospace** face for identifiers a person reads character by character
   (order numbers, voucher numbers, operation ids); `number` is for quantities
   that sit in a column and must align.
-- **No `bodySm`.** `label` (13/500) and `caption` (12/400) already cover the two
+- **`cardTitle` is 15/800 — the same size as `bodyStrong`, two weights heavier.**
+  That pairing is what the list rows are built on: an order number outranks the
+  branch and timestamp beside it by weight rather than by size, so the row stays
+  one line tall. v4 uses it on every card it draws.
+- **No `bodySm`.** `label` (13/700) and `caption` (12/400) already cover the two
   sizes below `body`, and a third would be picked at random.
 - **No `button`.** `MBButton` draws `label` at `sm` and `bodyStrong` at `md`; a
   `button` token would have to be two tokens to say the same thing, and an alias
   is the kind of second name that drifts.
+
+**Five weights, not four.** v4 added `extrabold` (800) and sets every heading,
+KPI figure and card title there while dropping body copy to 400–600; the gap
+between those two is what gives a dense screen its hierarchy. Rendering the
+headings at 700 collapses it. The rule that no single *screen* uses more than
+three weights still stands.
 
 **A financial value outranks its label.** `MBDetailRow` used to be five
 byte-identical local copies, each drawing a 15px label against a 13px figure —
@@ -795,10 +894,26 @@ between this app and completing the production-order workflow end to end.
 
 ## Not built, and what it needs
 
-- **The rest of the charts.** `MBTrendChart` (Reports → Daily) is built, on
-  `react-native-svg`. `paymentMethodBreakdown`, `topProducts` and `branchData`
-  from `GET /api/reports/summary` are still rows — the data is real and already
-  on screen, so each is a rendering task, not a data one.
+- **Four v4 screens have no endpoint behind them, and are deliberately absent.**
+  Each was checked against the server rather than deferred on feel:
+
+  | v4 screen | Why not |
+  |---|---|
+  | Settings → notifications / auto-sync / auto-print toggles | None of the three features exists. There is no notification library, no Wi-Fi-only sync policy and no printer integration, so all three would be switches that control nothing. `SettingsScreen` stays the tenant-settings editor it is; appearance lives in the account panel. |
+  | Settings → theme colour and font pickers | Inventing two product features. The palette is contrast-checked per token pair (`contrast.test.ts`) and a user-chosen hue cannot be; the three fonts v4 offers are not shipped. |
+  | Login → Google / Apple / Sign Up | Accounts are created by an administrator. Sign-in is `supabase.auth.signInWithPassword` and there is no social provider configured, no self-registration route, and no server-side handler for either. |
+  | Help → live chat, call support | No chat backend, and no support number on `AppSettings` to dial. The query queue is the real channel and it is built. |
+
+  Each is a dead control if drawn. The standing rule is the one an unbuilt tab
+  already follows: never show something that cannot answer.
+
+- **The rest of the charts.** `MBTrendChart` (Reports → Daily), `MBColumnChart`
+  (Daily Sales → by hour, Sales vs Expenses → by week) and `MBStackedBar`
+  (Top Products → share) are built, all on `react-native-svg` or plain flexbox.
+
+  The standing caveat still holds and now covers three components rather than
+  one: they are unit-tested and were checked by reading their computed geometry,
+  but **no chart in this app has been seen on a device**.
 
   `victory-native` and `@shopify/react-native-skia` **were removed**, not left
   waiting to be used: `librnskia.so` was ~52 MB across four ABIs, roughly a

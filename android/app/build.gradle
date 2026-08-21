@@ -103,7 +103,9 @@ android {
         /**
          * The upload key, supplied from OUTSIDE the repository.
          *
-         * Put the four properties in `~/.gradle/gradle.properties` (which is not
+         * Put the four properties in `$GRADLE_USER_HOME/gradle.properties`
+         * (`~/.gradle/gradle.properties` unless the Gradle home is relocated),
+         * which is not
          * in any repo) or pass them as `-P` flags on the build command. A
          * keystore or its password committed here would be a signing identity in
          * every clone and every CI log, and rotating it means every installed
@@ -147,12 +149,45 @@ android {
                 logger.warn("")
                 logger.warn("  ⚠  RELEASE BUILD IS SIGNED WITH THE DEBUG KEY — NOT DISTRIBUTABLE.")
                 logger.warn("     Set MB_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD")
-                logger.warn("     in ~/.gradle/gradle.properties. See docs/troubleshooting.md.")
+                logger.warn("     in \$GRADLE_USER_HOME/gradle.properties (usually ~/.gradle/).")
+                logger.warn("     See docs/troubleshooting.md.")
                 logger.warn("")
                 signingConfig = signingConfigs.debug
             }
             minifyEnabled = enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    /**
+     * `libworklets.so` arrives twice and the merge refuses to guess.
+     *
+     * react-native-gesture-handler 3.x links the worklets runtime through the
+     * CMake IMPORTED target `react-native-worklets::worklets` (its
+     * `android/src/main/jni/CMakeLists.txt`, guarded by `RNGH_USE_WORKLETS`).
+     * AGP copies an imported shared library into the *consuming* module's
+     * `library_jni` output, so `libworklets.so` is emitted by
+     * react-native-gesture-handler AND by react-native-worklets itself, and
+     * `:app:mergeDebugNativeLibs` fails with "2 files found with path
+     * 'lib/arm64-v8a/libworklets.so'".
+     *
+     * RNGH's own `packagingOptions` already excludes the same class of
+     * duplicate for `libreactnative.so`, `libjsi.so`, `libfbjni.so` and
+     * `libc++_shared.so` — worklets is simply missing from that list, so the
+     * exclusion has to happen here instead. Do not "fix" it in
+     * `node_modules/`: the next `npm install` undoes it.
+     *
+     * `pickFirst`, not `exclude`: `exclude` drops the library from the APK
+     * entirely and every Reanimated/RNGH worklet then dies at runtime with an
+     * UnsatisfiedLinkError. Picking either copy is safe because both come out
+     * of the same react-native-worklets CMake build — verified identical
+     * `.text` and identical dynamic symbol tables; they differ only by a few KB
+     * of non-code bytes, react-native-gesture-handler carrying the raw prefab
+     * and react-native-worklets its own post-processed copy.
+     */
+    packaging {
+        jniLibs {
+            pickFirsts += ["**/libworklets.so"]
         }
     }
 }

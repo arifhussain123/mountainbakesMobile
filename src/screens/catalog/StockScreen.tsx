@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBAccountButton,
   MBEmptyState,
   MBFilterChips,
   MBErrorState,
@@ -125,10 +126,24 @@ export function StockScreen(): React.ReactElement {
 
   const filterChips = useMemo(
     () => [
-      { id: ALL_CATEGORIES, name: 'All' },
-      ...(categories.data ?? []).map(c => ({ id: c.id, name: c.name })),
+      { key: ALL_CATEGORIES, label: 'All' },
+      ...(categories.data ?? []).map(c => ({ key: c.id, label: c.name })),
     ],
     [categories.data],
+  );
+
+  /**
+   * "08-19" on its own tells a screen reader nothing, so each day chip carries
+   * the sentence it is short for.
+   */
+  const dayOptions = useMemo(
+    () =>
+      DAY_OPTIONS.map(offset => ({
+        key: String(offset),
+        label: dayLabel(offset),
+        accessibilityLabel: `Stock for ${dayLabel(offset)}`,
+      })),
+    [],
   );
 
   const rows = useMemo(() => {
@@ -191,6 +206,7 @@ export function StockScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Stock"
         dataAsOf={dataAsOfFrom(stock.dataUpdatedAt)}
         subtitle={
@@ -245,73 +261,49 @@ export function StockScreen(): React.ReactElement {
             {/* Business day. `Today` is sent as no date at all so the server
                 picks it — its idea of the current business day is the one that
                 counts, and after 02:00 the two can differ. */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: theme.space.sm }}>
-              {DAY_OPTIONS.map(offset => {
-                const selected = offset === dayOffset;
-                return (
-                  <MBPressable
-                    key={offset}
-                    onPress={() => setDayOffset(offset)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Stock for ${dayLabel(offset)}`}
-                    testID={`stock-day-${offset}`}
-                    style={[
-                      styles.chip,
-                      {
-                        borderRadius: theme.radius.pill,
-                        paddingHorizontal: theme.space.lg,
-                        backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                        borderColor: selected ? theme.colors.primary : theme.colors.border,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        theme.type.label,
-                        { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                      ]}>
-                      {dayLabel(offset)}
-                    </Text>
-                  </MBPressable>
-                );
-              })}
-            </ScrollView>
+            <MBFilterChips
+              scroll
+              options={dayOptions}
+              selectedKey={String(dayOffset)}
+              onSelect={key => setDayOffset(Number(key))}
+              testIDPrefix="stock-day"
+            />
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: theme.space.sm }}>
-              {filterChips.map(chip => {
-                const selected = chip.id === categoryId;
-                return (
-                  <MBPressable
-                    key={chip.id}
-                    onPress={() => setCategoryId(chip.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={[
-                      styles.chip,
-                      {
-                        borderRadius: theme.radius.pill,
-                        paddingHorizontal: theme.space.lg,
-                        backgroundColor: selected ? theme.colors.accent : theme.colors.surface,
-                        borderColor: selected ? theme.colors.accent : theme.colors.border,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        theme.type.label,
-                        { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                      ]}>
-                      {chip.name}
-                    </Text>
-                  </MBPressable>
-                );
-              })}
-            </ScrollView>
+            {/* Category, in the `accent` tone so the two stacked scrollers are
+                not both painted as the screen's primary choice. */}
+            <MBFilterChips
+              scroll
+              tone="accent"
+              options={filterChips}
+              selectedKey={categoryId}
+              onSelect={setCategoryId}
+              testIDPrefix="stock-category"
+            />
+
+            {/* The one way into the ledger, and it is a link rather than a chip
+                because it is not a filter on this list — it is a different
+                resource. The chips above narrow *what is on the shelf today*;
+                this opens *what moved, day by day*, which is the other question
+                a manager asks about stock and the only place the money value of
+                it is reported.
+
+                Branch roles only. `GET /api/stock/history` refuses production
+                and finance outright, and answers 400 to a super admin who has
+                not named a branch — which this screen's picker does not do. */}
+            {role && isBranchRole(role) ? (
+              <MBPressable
+                onPress={() => navigation.navigate('StockHistory')}
+                accessibilityRole="button"
+                accessibilityLabel="Stock history, day by day"
+                feedback="opacity"
+                hitSlop={8}
+                testID="open-stock-history"
+                style={styles.ledgerLink}>
+                <Text style={[theme.type.label, { color: theme.colors.accent }]}>
+                  Stock history →
+                </Text>
+              </MBPressable>
+            ) : null}
           </View>
 
           {stock.isPending ? (
@@ -383,8 +375,8 @@ const styles = StyleSheet.create({
   // one edge and a value at the other; unconstrained on a 10" screen the two
   // end up a hand-span apart with nothing between them.
   listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
-  chip: { height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   separator: { height: 8 },
+  ledgerLink: { alignSelf: 'flex-start' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   headerMain: { flex: 1, gap: space.hair },
   balance: { alignItems: 'flex-end', gap: space.hair },

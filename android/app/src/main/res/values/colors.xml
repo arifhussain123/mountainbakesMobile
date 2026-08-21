@@ -1,9 +1,18 @@
 <resources>
     <!--
-      The native half of the theme. These must track src/theme/colors.ts:
-      app_background is `bg` (palette.cream50) and bootsplash_background is the
-      same value, so the splash and the first React frame are one colour and the
-      handoff has no seam.
+      The native half of the theme. These must track src/theme/colors.ts.
+
+      `app_background` is `bg` — the colour of the window behind React, so it is
+      what shows during an activity transition. `bootsplash_background` is
+      `splashTop`, which the JS splash paints over.
+
+      **The two are not the same value in light mode.** The v4 design draws its
+      splash on a warmer cream (#FDF7EA) than the screens behind it (#FBF8F3),
+      so `splashTop` is `palette.cream75` and `bg` is `palette.cream50`. Keep
+      them apart: setting bootsplash_background back to the field colour
+      reintroduces the seam at the top of the screen that
+      scripts/check-splash-colour.sh exists to catch. In dark they still
+      coincide, at palette.brown950.
 
       values-night/ carries the dark pair. Note what that can and cannot do: the
       OS night setting is the only signal available before React starts, so these
@@ -13,6 +22,6 @@
       one frame at the handoff; the alternative was a cream flash on every dark
       cold start, which is worse and was the previous behaviour.
     -->
-    <color name="app_background">#FDF7EA</color>
+    <color name="app_background">#FBF8F3</color>
     <color name="bootsplash_background">#FDF7EA</color>
 </resources>

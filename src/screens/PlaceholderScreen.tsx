@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { MBButton, MBCard, MBHeader } from '@/components';
+import { MBAccountButton, MBButton, MBCard, MBHeader } from '@/components';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -42,7 +42,11 @@ export function PlaceholderScreen({
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title={title} subtitle={claims?.branchName ?? undefined} />
+      <MBHeader
+        leading={<MBAccountButton />}
+        title={title}
+        subtitle={claims?.branchName ?? undefined}
+      />
       <ScrollView
         contentContainerStyle={[
           contentColumn,

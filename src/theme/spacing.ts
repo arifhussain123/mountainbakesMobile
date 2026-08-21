@@ -41,15 +41,26 @@ export const space = {
  * staff use this one-handed, at speed, often with flour on their hands.
  */
 export const layout = {
-  screenPad: 16,
+  /**
+   * The gutter down both sides of a screen. v4 draws every one of its nineteen
+   * screens at 20, not the 16 this scale used to carry — the extra 4 on each
+   * side is what keeps a two-up grid of stat tiles from touching the bezel.
+   */
+  screenPad: 20,
   cardPad: 16,
+  /**
+   * A stat tile's padding, which v4 sets tighter than a list card's — the tile
+   * holds a glyph, a caption and a figure and would otherwise be mostly air.
+   */
+  tilePad: 14,
   rowMinH: 64,
   tapMin: 48,
   headerH: 56,
   tabH: 56,
   railH: 72,
-  inputH: 52,
-  btnH: { lg: 52, md: 44, sm: 36 },
+  /** v4's field and its primary button are both 56 tall. */
+  inputH: 56,
+  btnH: { lg: 56, md: 44, sm: 36 },
   /**
    * The status dot — connection, sync state, order status. Four components drew
    * it as `{ width: 8, height: 8, borderRadius: 4 }`, which is both a repeated
@@ -77,9 +88,26 @@ export const layout = {
   /**
    * Floating action button. 56 is the size a thumb finds without looking, and
    * `fabInset` keeps it clear of the screen edge on a curved display.
+   *
+   * v4 draws the same 56 twice over: once as a corner FAB, and once as the
+   * **centre action button notched into the navigation bar** on the screens
+   * whose dominant action is "create one of these". `navFabRing` is the cream
+   * band it wears there, which is what separates it from the bar behind it.
    */
   fabSize: 56,
   fabInset: 16,
+  navFabRing: 4,
+  /**
+   * The floating navigation bar: a rounded card inset from all three edges
+   * rather than a full-width strip pinned to the bottom.
+   *
+   * `navInset` is the gap to the screen edge on the left, right and bottom;
+   * `navPillH` is the bar's own height, and `tabH` above is retained for the
+   * row inside it. The bar floats, so content beneath it must be padded by
+   * `navPillH + navInset` and not merely by `tabH`.
+   */
+  navInset: 16,
+  navPillH: 66,
   /**
    * The one breakpoint, in **logical dp**, not pixels.
    *

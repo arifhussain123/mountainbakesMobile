@@ -87,7 +87,9 @@ keytool -genkeypair -v -storetype PKCS12 \
   -alias mountainbakes -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-and put the four properties in **`~/.gradle/gradle.properties`** — outside every
+and put the four properties in **`$GRADLE_USER_HOME/gradle.properties`** — which
+is `~/.gradle/gradle.properties` unless you have relocated the Gradle home (see
+"Hard link … failed. Doing a slower copy instead" below) — outside every
 repository, so the signing identity is never in a clone or a CI log:
 
 ```properties

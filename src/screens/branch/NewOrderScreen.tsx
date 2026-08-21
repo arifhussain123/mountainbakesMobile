@@ -207,6 +207,7 @@ export function NewOrderScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        tone="brand"
         title="New order"
         subtitle="Demand on production"
         right={<MBSyncStatus />}

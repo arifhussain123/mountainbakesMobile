@@ -19,6 +19,9 @@ import { FinanceDashboardScreen } from '@/screens/finance/FinanceDashboardScreen
 import { LedgerScreen } from '@/screens/finance/LedgerScreen';
 import { ProductionDashboardScreen } from '@/screens/production/ProductionDashboardScreen';
 import { BranchDemandsScreen } from '@/screens/branch/BranchDemandsScreen';
+import { EventsScreen } from '@/screens/events/EventsScreen';
+import { ProductionReturnsScreen } from '@/screens/production/ProductionReturnsScreen';
+import { HelpScreen } from '@/screens/support/HelpScreen';
 import { ProductionOrdersScreen } from '@/screens/production/ProductionOrdersScreen';
 import { ProductionStockScreen } from '@/screens/production/ProductionStockScreen';
 import { isBranchRole, isFinanceRole } from './roleNavigation';
@@ -182,6 +185,25 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       // on its own screen: `ProductionStockScreen` reads the central pool,
       // `StockScreen` reads a branch's shelf. Same word, different balance.
       return role === 'production_user' ? ProductionStockScreen : StockScreen;
+    case 'Returns':
+      // `/api/production-returns` is `requireRole('super_admin',
+      // 'production_user')` on the router itself, so a branch is refused the
+      // read as well as the review. Gated here too, so a deep link cannot land
+      // one on a screen that 403s on first load.
+      return role === 'production_user' || admin ? ProductionReturnsScreen : null;
+    case 'Events':
+      // Every role, deliberately. The endpoint is authenticated-only and scopes
+      // its own rows, so there is nothing here for the client to gate — and
+      // gating it would hide from a branch the events it is being asked to bake
+      // for. Read-only: creating and confirming an event is `super_admin` and
+      // lives in the web client.
+      return EventsScreen;
+    case 'Help':
+      // Also every role, and for the same reason: `GET /api/support` returns
+      // the caller's OWN tickets whoever they are. Raising one is narrower —
+      // `requireRole('branch_manager', 'production_user')` — and the screen
+      // asks before it offers the button rather than letting a submit 403.
+      return HelpScreen;
     case 'Reports':
       // `/api/reports` is mounted behind
       // `requireRole('super_admin', 'branch_manager')`, and a branch manager is

@@ -10,6 +10,7 @@ import { moreSectionsFor, NAV_LABELS, type AccessProfile } from '../roleConfig';
 import { stackScreenOptions } from '../screenAnimations';
 import { placeholderFor, resolveMoreScreen, type ScreenComponent } from '../screenRegistry';
 import { MORE_DETAIL_SCREENS } from '../types';
+import { REPORT_DETAIL_COMPONENTS } from './ReportsStack';
 
 /**
  * Detail screens, by the name declared in `MORE_DETAIL_SCREENS`.
@@ -22,6 +23,11 @@ import { MORE_DETAIL_SCREENS } from '../types';
 const DETAIL_COMPONENTS: Record<string, ScreenComponent> = {
   UserForm: UserFormScreen as unknown as ScreenComponent,
   CategoryForm: CategoryFormScreen as unknown as ScreenComponent,
+  // Reports is a tab for the admin and a More row for a branch manager, so its
+  // three statements are registered in two navigators. Spread from the same
+  // record `ReportsStack` uses, or the two roles would drift into being offered
+  // different statements from the same index.
+  ...REPORT_DETAIL_COMPONENTS,
 };
 
 const Stack = createNativeStackNavigator();

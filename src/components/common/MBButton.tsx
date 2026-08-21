@@ -11,7 +11,14 @@ import { MBPressable } from '@/components/common/MBPressable';
 import { useTheme } from '@/theme/ThemeProvider';
 import { space } from '@/theme/spacing';
 
-export type MBButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+/**
+ * `dangerSoft` is the destructive action drawn as a tint rather than a fill —
+ * v4's Logout tile, `dangerBg` behind `danger`. It exists because a solid red
+ * bar is the loudest thing on a panel that is otherwise identity and settings,
+ * and Sign out is not the most important control there; it is simply the last
+ * one. Use `danger` where the action really is the point of the screen.
+ */
+export type MBButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerSoft';
 export type MBButtonSize = 'lg' | 'md' | 'sm';
 
 export interface MBButtonProps {
@@ -73,6 +80,13 @@ export function MBButton({
           bg: theme.colors.danger,
           pressedBg: theme.colors.danger,
           fg: theme.colors.onPrimary,
+          border: 'transparent',
+        };
+      case 'dangerSoft':
+        return {
+          bg: theme.colors.dangerBg,
+          pressedBg: theme.colors.dangerBg,
+          fg: theme.colors.danger,
           border: 'transparent',
         };
       default:

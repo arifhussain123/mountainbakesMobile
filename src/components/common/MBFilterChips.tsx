@@ -28,16 +28,38 @@ import { layout, space } from '@/theme/spacing';
 export interface FilterChip {
   key: string;
   label: string;
+  /**
+   * Overrides the chip's accessible name.
+   *
+   * For a row whose labels only make sense next to each other — "Today",
+   * "Yesterday", "−2 days" — where a reader lands on one chip with none of that
+   * context and hears a bare date offset.
+   */
+  accessibilityLabel?: string;
 }
 
 export interface MBFilterChipsProps {
   options: readonly FilterChip[];
   selectedKey: string;
   onSelect: (key: string) => void;
-  /** `primary` for the dominant filter, `accent` for a secondary row beneath it. */
+  /**
+   * `primary` fills the selected chip with the ember, `accent` fills it with
+   * the deep brown — for a second filter row sitting under a first, where two
+   * ember rows would compete for the same "this is the choice" reading.
+   */
   tone?: 'primary' | 'accent';
   /** Horizontal scroller, for an unbounded set. */
   scroll?: boolean;
+  /**
+   * Horizontal padding **inside** a scrolling row, in dp.
+   *
+   * A row that scrolls full-bleed needs its gutter here rather than on a parent
+   * view: padding the parent stops the row at the gutter, so the last chip
+   * cannot be dragged clear of the screen edge and always looks clipped.
+   * Ignored when `scroll` is false, where the wrapping row is laid out by its
+   * parent like anything else.
+   */
+  gutter?: number;
   testIDPrefix?: string;
 }
 
@@ -47,10 +69,23 @@ export function MBFilterChips({
   onSelect,
   tone = 'primary',
   scroll = false,
+  gutter,
   testIDPrefix,
 }: MBFilterChipsProps): React.ReactElement {
   const theme = useTheme();
-  const active = tone === 'accent' ? theme.colors.accent : theme.colors.primary;
+  /**
+   * Fill and label move together.
+   *
+   * They used to be picked apart — the fill from `tone`, the label always
+   * `onPrimary` — which was survivable while the brand fill and the brand mark
+   * were both browns. Under v4 they are an ember and an ink, so an `accent`
+   * chip filled with `accent` and labelled with `onPrimary` is ink on ink: a
+   * selected chip with no visible label. A tone names a **pair**.
+   */
+  const [fill, label] =
+    tone === 'accent'
+      ? [theme.colors.secondary, theme.colors.onSecondary]
+      : [theme.colors.primary, theme.colors.onPrimary];
 
   const chips = options.map(option => {
     const selected = option.key === selectedKey;
@@ -60,20 +95,26 @@ export function MBFilterChips({
         onPress={() => onSelect(option.key)}
         accessibilityRole="button"
         accessibilityState={{ selected }}
+        {...(option.accessibilityLabel ? { accessibilityLabel: option.accessibilityLabel } : {})}
         {...(testIDPrefix ? { testID: `${testIDPrefix}-${option.key}` } : {})}
         style={[
           styles.chip,
           {
-            borderRadius: theme.radius.pill,
+            // v4 draws a filter chip as a rounded rectangle, not a pill. The
+            // distinction is doing work: the pill shape is reserved there for
+            // *status* — a badge, an "Online" marker, a "Pending" tag, all of
+            // which are read rather than tapped. A chip you choose between and
+            // a tag that reports state should not be the same shape.
+            borderRadius: theme.radius.sm,
             paddingHorizontal: theme.space.lg,
-            backgroundColor: selected ? active : theme.colors.surface,
-            borderColor: selected ? active : theme.colors.border,
+            backgroundColor: selected ? fill : theme.colors.surface,
+            borderColor: selected ? fill : theme.colors.borderStrong,
           },
         ]}>
         <Text
           style={[
             theme.type.label,
-            { color: selected ? theme.colors.onPrimary : theme.colors.text },
+            { color: selected ? label : theme.colors.textSubtle },
           ]}>
           {option.label}
         </Text>
@@ -86,7 +127,7 @@ export function MBFilterChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}>
+        contentContainerStyle={[styles.row, gutter ? { paddingHorizontal: gutter } : null]}>
         {chips}
       </ScrollView>
     );

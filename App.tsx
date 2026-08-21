@@ -99,9 +99,15 @@ function useBootstrap(): { state: BootState; retry: () => void } {
           message: error instanceof Error ? error.message : 'Startup failed.',
         });
       } finally {
-        // Hide on BOTH outcomes. Hiding only on success would leave a failed
-        // start stuck behind the native splash with its retry button invisible
-        // underneath — the one case where the user most needs to see the screen.
+        // A backstop, not the main path. `SplashScreen` hides the native splash
+        // as soon as it mounts, which is far earlier than this and is what lets
+        // it be seen at all — hiding here instead meant the app became ready and
+        // the splash lifted in the same tick, revealing the dashboard.
+        //
+        // Still called on BOTH outcomes, and still unconditional: if the splash
+        // never mounted, a failed start would otherwise sit behind the native
+        // splash with its retry button invisible underneath — the one case where
+        // the user most needs to see the screen. Calling it twice is free.
         if (!cancelled) {
           RNBootSplash.hide({ fade: true }).catch(() => {
             // Already hidden, or no splash installed. Not worth surfacing.

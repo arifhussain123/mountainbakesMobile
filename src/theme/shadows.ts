@@ -8,28 +8,55 @@ import { palette } from './colors';
  * elevation alone gives a shadow on one platform only. In dark mode a shadow on
  * a dark surface is invisible, so `darkShadows` drops them entirely and layers
  * are separated with `borderStrong` / `surfaceSunken` instead.
+ *
+ * ---------------------------------------------------------------------------
+ * Three levels, and v4 uses exactly three things
+ * ---------------------------------------------------------------------------
+ * A previous revision of v4 separated with borders alone and this file said so.
+ * The current one puts a soft lift on **every** card — `0 2px 8px
+ * rgba(62,27,0,0.07)`, seventy-odd times — while keeping the `#F0E7D9`
+ * hairline underneath it. The border still does the separating; the shadow only
+ * stops a white card from looking pasted onto the cream.
+ *
+ * So the three levels map one-to-one onto what v4 draws:
+ *
+ *   e1  every card                 0 2px 8px  rgba(62,27,0,0.07)
+ *   e2  the floating nav bar       0 10px 24px -16px rgba(62,27,0,0.5)
+ *   e3  the centre action button   0 12px 24px -12px rgba(251,109,52,0.9)
+ *
+ * `e1` is deliberately far below the other two: it is a lift, not a float.
+ * Reaching for `e2` on a card is still how the cream field turns grey.
+ *
+ * On Android these become `elevation`, which has no separate blur or opacity —
+ * the platform derives both from the value. The numbers below are the closest
+ * the two models get: 1 for the card lift, 8 and 12 for the two floating
+ * things. `elevation: level * 2` used to compute them, which gave the card the
+ * same 2 that a raised dialog gets.
  */
 
 type Elevation = 1 | 2 | 3;
 
-const spec: Record<Elevation, { opacity: number; y: number; blur: number }> = {
-  1: { opacity: 0.06, y: 1, blur: 3 },
-  2: { opacity: 0.1, y: 4, blur: 10 },
-  3: { opacity: 0.16, y: 10, blur: 24 },
+const spec: Record<Elevation, { opacity: number; y: number; blur: number; android: number }> = {
+  /** Every card. v4: 0 2px 8px rgba(62,27,0,0.07). */
+  1: { opacity: 0.07, y: 2, blur: 8, android: 1 },
+  /** The floating navigation bar. */
+  2: { opacity: 0.12, y: 10, blur: 24, android: 8 },
+  /** The centre action button, which sits proud of the bar itself. */
+  3: { opacity: 0.2, y: 12, blur: 24, android: 12 },
 };
 
 function build(level: Elevation): ViewStyle {
-  const { opacity, y, blur } = spec[level];
+  const { opacity, y, blur, android } = spec[level];
   return Platform.select<ViewStyle>({
     ios: {
-      shadowColor: palette.brown900,
+      shadowColor: palette.ink,
       shadowOpacity: opacity,
       shadowOffset: { width: 0, height: y },
       shadowRadius: blur / 2,
     },
     android: {
-      shadowColor: palette.brown900,
-      elevation: level * 2,
+      shadowColor: palette.ink,
+      elevation: android,
     },
     default: {},
   }) as ViewStyle;

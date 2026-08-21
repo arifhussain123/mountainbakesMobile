@@ -24,12 +24,52 @@ import type { ResolvedScheme } from '@/theme/themes';
  * colours, and the rim is what carries the badge edge on the dark one while
  * staying invisible on cream.
  *
- * It is drawn at **112dp**, centred on the 288dp Android 12 splash canvas. That
- * number is not arbitrary: it is the width `SplashScreen.tsx` renders, so the
- * hand-off from the native splash to the JS one does not resize the logo.
+ * ---------------------------------------------------------------------------
+ * The two splashes now draw the badge at the same size. They did not.
+ * ---------------------------------------------------------------------------
+ * This paragraph used to say the drawable was 112dp and that 112 "is the width
+ * `SplashScreen.tsx` renders, so the hand-off does not resize the logo". The
+ * second half was **wrong**: `SplashScreen.tsx` rendered 196, so the badge grew
+ * about 84% the instant the JS splash mounted and called `RNBootSplash.hide()`.
+ * Nothing caught it — `scripts/check-splash-colour.sh` checks the background
+ * colour, and there is no equivalent for the logo's size.
+ *
+ * Measured, at every density (the canvas is 288dp in all five buckets):
+ *
+ *   drawable canvas        288dp        (Android 12's splash icon canvas)
+ *   drawable `logoWidth`   192dp        the platform ceiling — see below
+ *   visible badge          170.8dp      the hard disc, ignoring the pale rim
+ *   SplashScreen.tsx       171dp        rounded to meet it
+ *
+ * **192dp is a hard ceiling, not a preference.** The generator refuses a
+ * `--logo-width` above 192 outright ("Logo exceeds 192x192dp and will be cropped
+ * by Android"), because Android masks the icon to a 192dp circle on the 288dp
+ * canvas. It additionally warns above 134dp — that is 192/√2, the largest
+ * *square* inscribed in that circle, and it is a false positive here: this badge
+ * is a disc, and the corners the mask would take are transparent. Verified
+ * rather than assumed — zero opaque pixels fall outside the 192dp circle, the
+ * furthest sitting at 183.6dp.
+ *
+ * The badge is 170.8dp rather than 192 because the source spends ~11% of its
+ * width on the pale rim. So **v4's 196dp is unreachable natively**: it would
+ * need a 220dp image, and the cap is 192. The JS side comes down to meet the
+ * native one instead, which is the only direction that closes the gap.
+ *
+ * Regenerate with, from the project root:
+ *
+ *     npx react-native-bootsplash generate assets/bootsplash_logo.png \
+ *       --platforms android --logo-width 192 --background '#FDF7EA'
+ *
+ * **It rewrites more than the drawables, and it strips comments.** It rewrote
+ * `AndroidManifest.xml` (deleting the deep-link block explaining why the
+ * `https://` prefix is deliberately not claimed) and `values/colors.xml`
+ * (deleting the block explaining why `app_background` and
+ * `bootsplash_background` differ). Both had to be restored by hand afterwards.
+ * Check `git diff` on those two files after every run.
  *
  * Changing the brand mark means regenerating those files too, not just dropping
- * new PNGs in here.
+ * new PNGs in here — and changing `logo` in `SplashScreen.tsx` to whatever the
+ * new badge measures.
  *
  * ---------------------------------------------------------------------------
  * `-light` / `-dark` name the THEME, not the artwork

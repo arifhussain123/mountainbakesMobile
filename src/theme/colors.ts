@@ -1,131 +1,186 @@
 /**
- * Mountain Bakes palette — shared with the web app.
+ * Mountain Bakes palette — the mobile brand, set to the v4 design.
  *
- * These values are the mobile half of ONE brand. `mountainbakes-frontend`
- * defines the same palette as CSS custom properties in `src/app/globals.css`
- * (Tailwind v4 keeps its theme in CSS, so there is no tailwind.config to read),
- * written in oklch. React Native has no oklch, so every token below is the sRGB
- * hex conversion of the web's oklch value — not an approximation by eye.
+ * ---------------------------------------------------------------------------
+ * This file was retuned when v4 was revised. Read this before "fixing" it.
+ * ---------------------------------------------------------------------------
+ * An earlier pass read a draft of `Mountain Bakes Mobile v4.dc.html` in which
+ * warm brown `#6B4226` was the primary — the button fill, the active tab, the
+ * money figure. **That revision is gone.** The file now contains that hex zero
+ * times. What it draws instead is a two-colour system:
  *
- * The three anchors, and the web token each one IS:
+ *   `#FB6D34`  ember orange — every **fill**: buttons, the active chip, the
+ *              centre action button, the meter, the chart line. 47 uses.
+ *   `#3E1B00`  deep brown — every **mark**: type, icons, links, and the hero
+ *              blocks a KPI sits on. 225 uses.
  *
- *   orange500  #FB6E31   --primary     oklch(0.702 0.187 41.5)
- *   brown600   #5F2807   --secondary   oklch(0.35  0.09  47)
- *   cream50    #FDF7EA   --background  oklch(0.978 0.018 88)
+ * The split is the design: v4 never sets a link or a figure in orange, and it
+ * never paints a surface in the brown except when that surface is meant to
+ * outrank the whole page. Carrying that split honestly is what `primary` and
+ * `accent` are for below, and it is why `accent` is the ink rather than a
+ * brand-tinted brown — see the comment on the token.
  *
- * The ramps around them are generated along the web's own oklch axes — same
- * hue, chroma tapering at the ends — so an intermediate step is on-brand rather
- * than an invented tint. Where a ramp entry coincides with a web token it is
- * marked, and those entries are exact: change one and the two apps drift.
+ * Going orange also **re-aligns the phone with the web app**, which the brown
+ * draft had deliberately broken: `--primary` in
+ * `mountainbakes-frontend/src/app/globals.css` is toasted orange `#FB6E31`, a
+ * shade off the value here for the reason in the next paragraph. This file is
+ * still not a mirror of the web's and no script diffs the two — but a button on
+ * the phone and the same button in the browser now read as the same brand.
  *
- * Note the web's `globals.css` comment block lists the brand as #F97316 /
- * #6B3B1E / #FDF5E6. Those are the *intended* values and are a shade off what
- * the oklch actually renders; the hex here matches what a browser paints.
+ * The one thing v4 does NOT change is the discipline: every value below is
+ * contrast-checked against the surface it actually sits on, and
+ * `__tests__/contrast.test.ts` is what holds that. v4's own hexes are used
+ * verbatim wherever they clear the bar and adjusted along their own hue where
+ * they do not — each adjustment is marked with the ratio it was failing at.
+ *
+ * ---------------------------------------------------------------------------
+ * Dark mode is derived, not designed
+ * ---------------------------------------------------------------------------
+ * v4 draws twenty-one light screens and no dark ones. The dark map below keeps
+ * v4's *relationships* rather than inventing a second design: the same warm hue
+ * axis, the same three-level text hierarchy.
+ *
+ * One thing got simpler when the primary went orange. The brown draft had to
+ * **invert** its primary in dark — `#6B4226` on near-black is 1.6:1, a button
+ * you cannot find — so light and dark had different brand fills. A mid-orange
+ * works on cream *and* on near-black, so `primary` is now one value in both
+ * schemes and a screenshot of a button is the same button either way.
  *
  * Raw palette values are referenced ONLY by the semantic token maps below.
  * Screens and components must never import `palette` directly — they read
- * `colors.surface`, `colors.textMuted`, etc. from the active theme, so light and
- * dark stay two token sets behind one interface with no `isDark ? a : b` in
+ * `colors.surface`, `colors.textMuted`, etc. from the active theme, so light
+ * and dark stay two token sets behind one interface with no `isDark ? a : b` in
  * component code.
  */
 
 export const palette = {
-  // Toasted orange — brand, primary actions. Hue 41.5, the web's --primary hue.
-  orange50: '#FFF2EC',
-  orange100: '#FFDFD1',
-  orange200: '#FFBEA3',
-  orange300: '#FF9C74',
-  orange400: '#FF8554',
-  orange500: '#FB6E31', // = web --primary / --ring / --chart-1
-  orange600: '#D9581D',
-  orange700: '#AC4310',
-  orange800: '#782C08',
-  orange900: '#481703',
-
-  // Crust brown — headings, chrome, the dark end of the app. Hue 47.
-  brown50: '#FAEFEA',
-  brown100: '#F0D9CE',
-  brown200: '#D6AD9A',
-  brown300: '#B27E65',
-  brown400: '#8C5235',
-  brown500: '#743C1D',
-  brown600: '#5F2807', // = web --secondary
-  brown700: '#401E0C', // = web dark --secondary / --accent
-  brown750: '#35190B', // = web dark --muted
-  brown800: '#280D02', // = web dark --card / --popover
-  brown900: '#160400', // = web dark --background
-  /** Web light --foreground. Warmer and lighter than brown900 — body text, not a surface. */
-  ink: '#1F0B03',
-  /** Web light --sidebar. The one mid-brown chrome fill. */
-  sidebar: '#3B1400',
-
-  // Cream neutrals — page, cards, borders, muted text. Hue 88.
-  cream0: '#FFFFFF', // = web --card / --popover (light)
-  cream25: '#FDFAF1',
-  cream50: '#FDF7EA', // = web --background (light)
-  cream100: '#F8F3E8', // = web --muted (light)
-  cream200: '#E3DECF', // = web --border (light)
-  cream300: '#CAC4B4',
-  cream400: '#9F9885',
-  cream500: '#79715D',
-  cream600: '#5A523D',
-  /** Web light --muted-foreground. */
-  creamMutedFg: '#775D50',
-  /** Web dark --foreground and --muted-foreground. */
-  creamFgDark: '#F3EEE1',
-  creamMutedFgDark: '#978E7B',
+  /**
+   * Ember orange — the v4 fill axis. Buttons, the active filter chip, the
+   * centre action button, the meter fill, the chart line.
+   *
+   * `ember500` is **not** v4's `#FB6D34` verbatim, and this is the one
+   * adjustment in the file that changes a colour anybody will look at. v4's
+   * orange is 2.73:1 against its own field and 2.86:1 against a card, which is
+   * under the 3:1 that WCAG 1.4.11 asks of a graphical object carrying
+   * information. That bar is not academic here: the same value paints the meter
+   * fill on the stock card and the trend line on the dashboard, and both are
+   * pure graphics with no label to fall back on. `ember500` is that hue walked
+   * down 6% until it clears — 3.04:1 on the field, 3.22:1 on a card — and it is
+   * indistinguishable from v4's at a glance.
+   */
+  ember100: '#FCE0D2', // v4 — the pale column, the remainder of a share bar
+  ember300: '#FFA477', // dark-mode brand-as-text. No v4 counterpart.
+  ember500: '#EC6631', // v4's #FB6D34 at 3.04:1 on the field rather than 2.73:1
+  ember600: '#D65A28', // pressed
+  ember950: '#3A1608',
 
   /**
-   * Honey gold — the third brand warm, between the orange and the cream.
+   * Crust brown — the v4 mark axis, and the warm ramp its charts run on.
    *
-   * The web has no gold token: every warm highlight there is either --primary or
-   * a raw Tailwind amber. This ramp is mobile-first, sitting on the same warm
-   * axis as the rest (hue ~80 in oklch, between orange's 41.5 and cream's 88) so
-   * it reads as the same family rather than as a second brand. It is what a
-   * premium/celebratory affordance uses — a highlighted total, an award ribbon,
-   * a "best seller" mark — where orange would read as a call to action.
-   *
-   * gold700 is the light-mode text step (4.98:1 on cream50); gold300 is the
-   * dark-mode one (12.6:1 on brown900).
+   * `brown800` is v4's `#3E1B00` exactly: the ink for every piece of type, the
+   * fill of a hero block, and the **label on an ember button** (4.78:1). The
+   * 300–500 steps are the series colours v4 draws a share bar with; they are
+   * decorative fills, so they are carried verbatim.
    */
-  gold50: '#FDF6E4',
-  gold100: '#FBEBC8',
+  brown300: '#C29A63', // v4 — share ramp, 4th series
+  brown400: '#A8763F', // v4 — share ramp, 3rd series
+  brown500: '#8A5A33', // v4 — share ramp, 2nd series
+  brown700: '#4A2C18', // v4 — its link-hover brown
+  brown800: '#3E1B00', // v4 — THE ink, and the hero block
+  brown900: '#261A11', // dark-mode card. No v4 counterpart.
+  brown950: '#1C120B', // dark-mode field. No v4 counterpart.
+
+  /**
+   * Cream neutrals — the field, cards, borders, and the text hierarchy.
+   *
+   * v4 runs four text levels: `#3E1B00` → `#5C4B3C` → `#8A7866` → `#A99884`.
+   * Only the first two clear 4.5:1 on the cream field. `creamMutedFg` below is
+   * v4's `#8A7866` walked down its own hue until it did (4.05:1 → 5.22:1), and
+   * v4's faintest level is not carried as text at all — see `textMuted` in the
+   * light map for why.
+   *
+   * The three border steps are three different jobs and v4 keeps them apart:
+   * `cream100` divides two rows **inside** one card, `cream200` is the card's
+   * own edge against the field, `cream300` is the edge of a chip or a field.
+   * Collapsing them is how a list of rows starts looking like a list of cards.
+   */
+  cream0: '#FFFFFF', // v4 — every card
+  cream25: '#FDFAF3',
+  cream50: '#FBF8F3', // v4 — the screen field
+  cream75: '#FDF7EA', // v4 — the splash, the active-tab pill, a soft brand tint
+  cream100: '#F5EEE2', // v4 — the divider between rows inside one card
+  cream150: '#F3EBDD', // v4 — a meter track, a chart gridline
+  cream200: '#F0E7D9', // v4 — the card hairline
+  cream300: '#EADFCD', // v4 — a chip or input edge (1.32:1; see borderControl)
+  cream400: '#C6B7A4', // v4 — a chevron, a disabled stepper
+  cream500: '#A99884', // v4 — its faintest level; dark-mode muted here
+  cream600: '#8A7866', // v4 — its muted level; 4.05:1 on the field, see below
+  /** v4's `#8A7866` at 5.22:1 instead of 4.05:1. Same hue, three steps down. */
+  creamMutedFg: '#756657',
+  /** v4's second text level, used as-is. 7.85:1 on the field. */
+  creamSubtleFg: '#5C4B3C',
+  /** v4's ink. 14.56:1 on the field, 15.42:1 on a card. */
+  ink: '#3E1B00',
+  /**
+   * The caption level **on a hero block**, where v4 writes
+   * `rgba(255,255,255,0.78)`. Flattened against `#3E1B00` rather than left as
+   * an alpha: eight-digit hex is unreliable on older Android, and a hero card
+   * is often stacked over another surface where a translucent caption would
+   * pick up whatever is behind it. 9.83:1 on the block.
+   */
+  heroMutedFg: '#D5CDC7',
+  creamFgDark: '#F5EEE2',
+  creamMutedFgDark: '#A99884',
+  creamSubtleFgDark: '#C6B7A4',
+
+  /**
+   * Honey gold. v4 uses `#B4820D` for its amber affordances and `#D69C2F` for
+   * the profit glyph; neither clears 4.5:1 on the `#FDF0DC` tint it sits on
+   * (3.04:1). `gold600` is that hue at 5.37:1. `gold200` is v4's `#FFD9A0`,
+   * which it uses once — the margin figure on a hero block — and which is
+   * 11.52:1 there.
+   */
+  gold100: '#FDF0DC', // v4 — the amber tint
+  gold200: '#FFD9A0', // v4 — the highlight on a hero block
   gold300: '#F0C868',
-  gold500: '#D99A16',
-  gold600: '#B87B0D',
-  gold700: '#93600A',
-  gold900: '#3A2503',
+  gold500: '#D69C2F', // v4
+  gold600: '#8A6410',
+  gold900: '#33260A',
 
   /**
-   * Semantic hues.
+   * Semantic hues, from v4's own status palette.
    *
-   * The web has no --success / --warning / --info tokens; those states are raw
-   * Tailwind classes applied per component. The recurring vocabulary there is
-   * emerald / amber / blue / red (NOT green / yellow), at `-700` for light text,
-   * `-400` for dark text, and `-100` / `-950` for the tint behind them. These
-   * are the exact Tailwind v4 values for those shades, so a badge here matches
-   * the same badge on the web.
+   * v4 draws each status as dark text on a pastel tint. Three of the four pairs
+   * clear 4.5:1 as drawn; amber does not (`#B4820D` on `#FDF0DC` is 3.04:1) and
+   * red only just does, so both are walked down their own hue. The `-400`
+   * entries are the dark-mode steps and have no v4 counterpart.
    */
-  emerald100: '#D0FAE5',
-  emerald400: '#00D492',
-  emerald700: '#007A55',
-  emerald950: '#002C22',
+  emerald100: '#E7F6EC', // v4
+  emerald400: '#5FD08D',
+  emerald500: '#2E9E5B', // v4 — its success glyph
+  emerald700: '#1F7A47', // v4 — 4.78:1 on its tint
+  emerald950: '#12301E',
 
-  amber100: '#FEF3C6',
-  amber400: '#FFB900',
-  amber700: '#BB4D00',
-  amber950: '#461901',
+  amber100: '#FDF0DC', // v4
+  amber400: '#F0BE4A',
+  amber700: '#87620A', // v4's #B4820D at 4.94:1 rather than 3.04:1
+  amber950: '#33260A',
 
-  blue100: '#DBEAFE',
-  blue400: '#51A2FF',
-  blue700: '#1447E6',
-  blue950: '#162456',
+  blue100: '#E8EEFB', // v4
+  blue400: '#8FAEF5',
+  blue700: '#3D63C4', // v4 — 4.78:1 on its tint
+  blue950: '#16233F',
 
-  red100: '#FFE2E2',
-  red400: '#FF6467', // = web dark --destructive
-  red600: '#E7000B', // = web light --destructive
-  red700: '#C10007',
-  red950: '#460809',
+  red100: '#FDEAEA', // v4
+  red400: '#F08585',
+  red500: '#D94A4A', // v4 — its notification dot
+  red700: '#B83535', // v4's #C33B3B at 5.04:1 rather than 4.52:1
+  red950: '#3A1616',
+
+  violet100: '#EFEAFB', // v4
+  violet400: '#B49BE8',
+  violet700: '#6B4FBB', // v4 — 5.15:1 on its tint
+  violet950: '#241A3D',
 } as const;
 
 export type SemanticColors = {
@@ -133,7 +188,23 @@ export type SemanticColors = {
   surface: string;
   surfaceSunken: string;
   surfaceDocket: string;
+  /**
+   * The card's own edge against the field. Decorative — it separates a card
+   * from a card, so it takes no contrast bar.
+   */
   border: string;
+  /**
+   * The hairline between two rows **inside** one card — a transaction list, a
+   * settings group, an expense ledger.
+   *
+   * Separate from `border` because v4 draws them at different weights and the
+   * difference is what makes a list of rows read as one object: its card edge
+   * is `#F0E7D9` and its internal rule is `#F5EEE2`, a step lighter. Using
+   * `border` for both makes every row look like its own card, which is the
+   * single most common way a dense operations screen turns into a stack of
+   * boxes.
+   */
+  divider: string;
   borderStrong: string;
   /**
    * The edge of an **interactive control** — a text field, a search bar.
@@ -141,36 +212,77 @@ export type SemanticColors = {
    * Separate from `border` because the two have different jobs and different
    * bars to clear. `border` divides a card from a card and is decorative, so a
    * hairline is right. A field's edge is the only thing telling you where the
-   * control begins: WCAG 1.4.11 asks for 3:1 against the adjacent surface, and
-   * `border` is 1.34:1 on white — invisible to anyone with low vision, and the
-   * field's own background (`surface` on `bg`) is a further 1.07:1, so there was
-   * nothing else marking it either.
+   * control begins: WCAG 1.4.11 asks for 3:1 against the adjacent surface.
    *
-   * Both values clear 3:1 against `surface` **and** `bg`, since a field can sit
-   * on either.
+   * **v4 draws this edge as `#EADFCD`, which is 1.32:1 and invisible to anyone
+   * with low vision.** The value below is that edge at 3.31:1. This is one of
+   * two places the implementation visibly departs from the mockup, and it is
+   * the departure to keep: v4's own field is marked by nothing else — its fill
+   * is white on a `#FBF8F3` field, a further 1.05:1.
    */
   borderControl: string;
   text: string;
+  /**
+   * The second of three text levels — v4's `#5C4B3C`. Drawer rows, chip labels,
+   * the value in a labelled field, "Remember me". Sits between `text` (a
+   * heading or a figure) and `textMuted` (a timestamp or a caption).
+   */
+  textSubtle: string;
   textMuted: string;
   textInverse: string;
+  /**
+   * The brand **fill**: a button, the active filter chip, the centre action
+   * button, a meter, a chart line. Never type — see `accent`.
+   */
   primary: string;
   primaryPressed: string;
+  /**
+   * The label on a `primary` fill. v4's deep brown, not white — 4.78:1 on the
+   * ember, where white would be 2.90:1 and fail.
+   */
   onPrimary: string;
   /**
-   * A tint of `primary` for the surface behind an active affordance — the pill
-   * under the selected tab icon. A real token rather than `primary + '1F'`:
-   * eight-digit hex alpha is unreliable on older Android, and a literal alpha
-   * suffix is exactly the kind of value that must not appear in a component.
+   * A tint for the surface behind an active affordance — the pill under the
+   * selected tab, the totals box on the sale sheet, the date badge on an event.
+   * v4 draws it as `#FDF7EA`.
+   *
+   * A real token rather than `primary + '1F'`: eight-digit hex alpha is
+   * unreliable on older Android, and a literal alpha suffix is exactly the kind
+   * of value that must not appear in a component. Note it is a **cream**, not a
+   * tint of the ember — v4's soft brand surface is warm neutral, and washing it
+   * orange is what makes an operations screen look like a promotion.
    */
   primarySoft: string;
   /**
-   * Crust brown as a *fill* — the dark chrome half of the brand, opposite the
-   * orange. Headers, the account drawer, a secondary button. Distinct from
-   * `text`, which is brown because it is ink, not because it is chrome.
+   * The deep brown **block**: a brand header, and the hero card a screen's
+   * dominant KPI sits on. One step past a primary button in the hierarchy,
+   * which is why a primary button can sit inside it and still read as the
+   * action.
    */
   secondary: string;
   secondaryPressed: string;
   onSecondary: string;
+  /** The caption level on a `secondary` block — v4's 78%-white. */
+  onSecondaryMuted: string;
+  /** The one highlight v4 allows on a `secondary` block: a margin, a delta. */
+  onSecondaryAccent: string;
+  /**
+   * The brand as **text or an icon**, as opposed to `primary`, which is what a
+   * surface is painted with.
+   *
+   * **In light this is the ink, and that is v4's design rather than an
+   * oversight.** v4 sets "View all", "All reports", "Forgot Password?", "42
+   * today" and every money figure in `#3E1B00` — the same colour as body copy —
+   * and carries their link-ness with **weight** instead, 700 against 400. It
+   * never sets type in the ember, and it cannot: `#FB6D34` is 2.86:1 on a card.
+   *
+   * So the token is not redundant even though it currently equals `text`. It is
+   * the answer to "what colour is a brand-coloured thing that has to be read",
+   * and it is the one a component must reach for instead of `primary` when the
+   * thing is a word rather than a shape. In dark it separates from `text`
+   * outright. `contrast.test.ts` asserts it is strictly more readable than
+   * `primary`, which is the property that matters.
+   */
   accent: string;
   /** Tint behind `accent`, mirroring `primarySoft`. */
   accentSoft: string;
@@ -194,60 +306,107 @@ export type SemanticColors = {
    * Scrim behind a modal, drawer or bottom sheet. An rgba() string rather than
    * eight-digit hex, which is unreliable on older Android — and a token rather
    * than an inline alpha, so the one place that decides how dark a dismissable
-   * surface goes is this file.
+   * surface goes is this file. v4 draws it as `rgba(28,18,11,0.5)`.
    */
   overlay: string;
   /** So a component never needs a bare 'transparent' colour literal. */
   transparent: string;
+
+  /**
+   * The four-step warm ramp v4 draws a share-of-total bar with, plus the pale
+   * remainder that closes it.
+   *
+   * A ramp rather than four tokens because the only thing that reads it is a
+   * chart, which needs "the nth series" and not "the wages colour" — a series
+   * has no semantics, it is just distinguishable from its neighbour. Ordered
+   * darkest-brand-first, which is the order v4 draws them in and therefore the
+   * order that puts the largest slice in the strongest colour.
+   */
+  series: readonly [string, string, string, string, string];
+
+  /**
+   * The splash background wash — a vertical gradient with a warm bloom behind
+   * the mark. Only `screens/SplashScreen.tsx` reads these.
+   *
+   * **`splashTop` is not free.** Android draws the native boot splash before a
+   * line of JavaScript runs, and its background can only be a flat colour
+   * (`android:windowSplashScreenBackground` on API 31+ takes a colour, not a
+   * drawable — so the gradient cannot live there). The JS splash then replaces
+   * it mid-boot. If `splashTop` and the native colour differ, that swap is a
+   * visible step change in the background at the top of the screen.
+   *
+   * So `splashTop` MUST equal `bootsplash_background` in
+   * `android/app/src/main/res/values{,-night}/colors.xml`. v4 draws its splash
+   * on `#FDF7EA` rather than on the `#FBF8F3` field, so this is `cream75` and
+   * not `bg` — change one and you have to change the other.
+   * `scripts/check-splash-colour.sh` is what enforces the pair, and it resolves
+   * `splashTop: palette.<name>` by name, so this must stay a palette reference
+   * and not become a literal.
+   */
+  splashTop: string;
+  /** The far end of the wash. Carries the wordmark, so it is contrast-checked. */
+  splashBottom: string;
+  /** Centre of the radial bloom behind the logo. Drawn at low opacity. */
+  splashGlow: string;
 };
 
 export const lightColors: SemanticColors = {
   bg: palette.cream50,
   surface: palette.cream0,
-  surfaceSunken: palette.cream100,
+  /**
+   * A recessed control on a card — the quantity stepper's tray, a meter's
+   * track, a read-only field inside the sale sheet.
+   *
+   * v4 draws this two ways, `#FBF8F3` for a tray and `#F3EBDD` for a track, and
+   * this takes the darker of the two. A tray one step warmer than the field is
+   * imperceptible; a track the same colour as the field is a meter with no
+   * empty half.
+   */
+  surfaceSunken: palette.cream150,
   surfaceDocket: palette.cream25,
   border: palette.cream200,
+  divider: palette.cream100,
   borderStrong: palette.cream300,
-  // 3.38:1 on surface, 3.17:1 on bg.
-  borderControl: '#948B75',
-  text: palette.ink,
+  // v4's #EADFCD field edge is 1.32:1. This is 3.31:1 on a card, 3.12:1 on the
+  // page. See `borderControl` on the type.
+  borderControl: '#9C8B72',
+  text: palette.ink, // 14.56:1 on bg
+  textSubtle: palette.creamSubtleFg, // 7.85:1 on bg
+  /**
+   * v4's third text level, made readable — and its fourth level folded into
+   * this one.
+   *
+   * v4 runs `#8A7866` for captions and `#A99884` for placeholders, chart axis
+   * labels and **inactive tab labels**. `#A99884` is 2.62:1 on the field: fine
+   * for a mockup viewed on a desktop monitor, unreadable on a phone in a shop.
+   * Rather than ship a token nothing may legally use, the two levels collapse
+   * here at 5.22:1. The visible cost is that v4's faintest tier is gone and the
+   * hierarchy is three deep instead of four; the alternative was an inactive
+   * tab label nobody can read.
+   */
   textMuted: palette.creamMutedFg,
   textInverse: palette.cream0,
-  primary: palette.orange500,
-  primaryPressed: palette.orange600,
-  primarySoft: palette.orange50,
-  /**
-   * Dark brown on orange, not white.
-   *
-   * The web pairs --primary with --primary-foreground: white, which is 2.85:1 —
-   * under the 4.5:1 AA floor. That is survivable on a desktop monitor and is not
-   * on a phone held under a shop light. The fill is the web's orange to the
-   * byte; only the label differs, and it uses the web's own --foreground, so the
-   * pairing stays inside the brand. 7.02:1.
-   */
-  onPrimary: palette.brown900,
-  /**
-   * Links, selection, and anything orange-as-text. The web uses --primary itself
-   * here, but orange500 on cream is 2.67:1 — invisible as body text. Same hue,
-   * two steps down, 5.52:1.
-   */
-  secondary: palette.brown600,
+  primary: palette.ember500, // v4's ember, at 3.04:1 on the field
+  primaryPressed: palette.ember600,
+  primarySoft: palette.cream75, // v4's active-tab pill
+  /** v4 pairs its ember with the deep brown, not white: 4.78:1 against 2.90:1. */
+  onPrimary: palette.ink,
+  secondary: palette.ink, // v4's hero block and brand header are the ink itself
   secondaryPressed: palette.brown700,
-  onSecondary: palette.cream50, // 10.9:1
-  accent: palette.orange700,
-  accentSoft: palette.orange50,
-  honey: palette.gold700,
+  onSecondary: palette.cream0, // 15.42:1
+  onSecondaryMuted: palette.heroMutedFg, // 9.83:1
+  onSecondaryAccent: palette.gold200, // 11.52:1
+  /** The ink. See the long note on `accent` in the type — this is deliberate. */
+  accent: palette.ink,
+  accentSoft: palette.cream75,
+  honey: palette.gold600,
   honeySoft: palette.gold100,
-  /** A ring is a UI affordance, not text, so it can be the brand orange exactly. */
   /**
-   * The readable orange, not the fill orange.
-   *
-   * A focus ring is the only thing showing which field the keyboard is in,
-   * so it takes the 3:1 non-text bar (WCAG 1.4.11). `orange500` is 2.85:1
-   * on white and missed it; `orange700` is 5.89:1 and is the same brand
-   * hue. Dark keeps `orange500`, which is 6.42:1 against a dark card.
+   * A focus ring is the only thing showing which field the keyboard is in, so
+   * it takes the 3:1 non-text bar (WCAG 1.4.11). The ember clears it at 3.22:1
+   * on a card — which is the whole reason `ember500` is not v4's own orange.
    */
-  focusRing: palette.orange700,
+  focusRing: palette.ember500,
   success: palette.emerald700,
   successBg: palette.emerald100,
   warning: palette.amber700,
@@ -259,41 +418,71 @@ export const lightColors: SemanticColors = {
   offline: palette.amber700,
   syncing: palette.blue700,
   syncFailed: palette.red700,
-  overlay: 'rgba(31, 11, 3, 0.45)', // ink at 45%
+  overlay: 'rgba(28, 18, 11, 0.5)', // v4 exactly
   transparent: 'transparent',
+  series: [
+    palette.ember500,
+    palette.brown500,
+    palette.brown400,
+    palette.brown300,
+    palette.ember100,
+  ],
+  // = bootsplash_background in values/colors.xml, and NOT = bg. See the type.
+  splashTop: palette.cream75,
+  // The wash ends on itself: v4's splash is one flat cream, and deepening the
+  // far end to warm it takes the tagline under 4.5:1.
+  splashBottom: palette.cream75,
+  // The bloom. Gold rather than a cream step, so it reads as warmth coming off
+  // the mark rather than as the screen dimming. Drawn at low opacity.
+  splashGlow: palette.gold300,
 };
 
 export const darkColors: SemanticColors = {
-  bg: palette.brown900,
-  surface: palette.brown800,
-  surfaceSunken: palette.brown750,
-  surfaceDocket: palette.brown700,
-  // The web uses white at 10% / 12% alpha for --border / --input in dark. RN
-  // borders sit on cards more often than on the page, so these are those alphas
-  // already composited over --card.
-  border: '#3E251B',
-  borderStrong: '#533D35',
-  // 3.12:1 on surface, 3.41:1 on bg.
-  borderControl: '#7A5F53',
-  text: palette.creamFgDark,
+  bg: palette.brown950,
+  surface: palette.brown900,
+  surfaceSunken: '#20150D',
+  surfaceDocket: '#2E2016',
+  border: '#3A2A1C',
+  divider: '#332417',
+  borderStrong: '#4A3728',
+  // 3.08:1 on a card, 3.34:1 on the page.
+  borderControl: '#7A6553',
+  text: palette.creamFgDark, // 14.71:1 on a card
+  textSubtle: palette.creamSubtleFgDark, // 8.65:1
+  // v4's faintest light-mode value, which on a dark card is 6.07:1 — the one
+  // place it is genuinely readable.
   textMuted: palette.creamMutedFgDark,
-  textInverse: palette.brown900,
-  // The web keeps --primary identical in dark. So does this.
-  primary: palette.orange500,
-  primaryPressed: palette.orange400,
-  primarySoft: '#4E1E0A',
-  onPrimary: palette.brown900,
-  // Dark follows the web, which uses brown700 for --secondary and --accent.
-  secondary: palette.brown700,
-  secondaryPressed: palette.brown600,
-  onSecondary: palette.creamFgDark, // 12.8:1
-  accent: palette.orange300,
-  accentSoft: '#4E1E0A',
+  textInverse: palette.brown950,
+  /**
+   * The primary **holds** across schemes, where the brown draft had to invert.
+   *
+   * A mid-orange is legible on cream and on near-black alike — 3.22:1 on a
+   * white card, 5.26:1 on a dark one — so light and dark share one brand fill
+   * and a button screenshots the same either way. `onPrimary` holds with it:
+   * the deep brown is the label in both.
+   */
+  primary: palette.ember500,
+  primaryPressed: palette.ember600,
+  primarySoft: palette.ember950,
+  onPrimary: palette.ink,
+  /**
+   * The hero block cannot be the ink in dark — `#3E1B00` on a `#1C120B` field
+   * is 1.5:1, a card you cannot see the edge of. It steps up to the warm
+   * neutral that separates a raised surface from the page everywhere else in
+   * this map, and the three text levels on it are re-checked against that.
+   */
+  secondary: '#3A2A1C',
+  secondaryPressed: '#4A3728',
+  onSecondary: palette.creamFgDark, // 11.92:1
+  onSecondaryMuted: palette.creamSubtleFgDark, // 7.01:1
+  onSecondaryAccent: palette.gold200, // 10.27:1
+  /** Brand-as-text separates from `text` here, where in light the two coincide. */
+  accent: palette.ember300, // 8.74:1 on a card, against primary's 5.26:1
+  accentSoft: palette.ember950,
   honey: palette.gold300,
   honeySoft: palette.gold900,
-  focusRing: palette.orange500,
-  // Semantic hues lighten to the -400 step in dark, matching the web's
-  // `dark:text-emerald-400` convention, over the -950 tint.
+  focusRing: palette.ember500,
+  // Semantic hues lighten to the -400 step in dark, over the -950 tint.
   success: palette.emerald400,
   successBg: palette.emerald950,
   warning: palette.amber400,
@@ -307,6 +496,28 @@ export const darkColors: SemanticColors = {
   syncFailed: palette.red400,
   overlay: 'rgba(0, 0, 0, 0.62)',
   transparent: 'transparent',
+  /**
+   * The light ramp's browns go muddy on a near-black card, so dark keeps the
+   * ember at the head and runs *up* into the warm light steps rather than down
+   * into the brown ones.
+   *
+   * The order alternates light and dark rather than descending, which is what
+   * keeps adjacent segments of a stacked bar apart: a monotone ramp on a dark
+   * card puts its two brightest steps side by side at 1.2:1.
+   */
+  series: [
+    palette.ember500,
+    palette.gold300,
+    palette.brown300,
+    palette.ember300,
+    palette.brown700,
+  ],
+  // = bg, and = bootsplash_background in values-night/colors.xml. See the type.
+  splashTop: palette.brown950,
+  // One step up from the field, warm.
+  splashBottom: '#2E2016',
+  // The ember, so the bloom reads as warmth off the mark rather than a backlight.
+  splashGlow: palette.ember500,
 };
 
 /**
@@ -316,15 +527,13 @@ export const darkColors: SemanticColors = {
  * @/shared/types that happen to share the `pending`/`cancelled` members, so both
  * are covered here. Never add a key that is not an actual server status value.
  *
- * Hues follow the web's status badges: amber = waiting on somebody, blue = in
- * flight, violet = verified but not yet approved, emerald = done, red =
- * refused, neutral = settled. The web spells these across three competing
- * vocabularies (legacy orders use yellow/green/gray; production demands use
- * amber/violet/emerald/neutral); this map follows the production one, which is
- * the most current and is duplicated verbatim in three web components.
+ * Hues follow v4's order list, which is the same vocabulary the web uses on its
+ * production demands: amber = waiting on somebody, blue = in flight, violet =
+ * verified but not yet approved, emerald = done, red = refused, neutral =
+ * settled.
  *
  * Unlike the maps above, `statusColors` is shared by BOTH themes — it lives in
- * `base` in theme.ts, so one value has to carry on cream AND on near-black.
+ * `base` in themes.ts, so one value has to carry on cream AND on near-black.
  * Each is the lightness that maximises the worse of those two contrasts, which
  * lands them all at ~4.3:1 either way. That is the ceiling for a single value
  * serving both; a per-theme split is what it would take to clear 4.5:1.

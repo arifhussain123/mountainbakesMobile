@@ -7,7 +7,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { MBButton, MBCheckbox, MBInput } from '@/components';
+import { MBButton, MBCheckbox, MBInput, MBLogo, MBPressable } from '@/components';
 import type { AuthStackParamList } from '@/navigation/AuthNavigator';
 import {
   forgetIdentity,
@@ -85,10 +85,16 @@ export function SignInScreen(): React.ReactElement {
       <ScrollView
         contentContainerStyle={[contentColumn, styles.content, { padding: theme.layout.screenPad }]}
         keyboardShouldPersistTaps="handled">
+        {/* v4 leads with the mark, not the wordmark: the logo carries the brand
+            and the two lines under it say what this screen is for. A 30pt
+            wordmark plus a heading was the same information twice. */}
         <View style={styles.brand}>
-          <Text style={[theme.type.display, { color: theme.colors.accent }]}>Mountain Bakes</Text>
-          <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
-            Fresh • Quality • Every Day
+          <MBLogo size={150} />
+          <Text style={[theme.type.h1, styles.center, { color: theme.colors.text }]}>
+            Welcome back
+          </Text>
+          <Text style={[theme.type.body, styles.center, { color: theme.colors.textMuted }]}>
+            Sign in to continue
           </Text>
         </View>
 
@@ -139,14 +145,31 @@ export function SignInScreen(): React.ReactElement {
             )}
           />
 
-          <MBCheckbox
-            checked={remember}
-            onChange={setRemember}
-            label="Remember me on this device"
-            hint="Fills in your email next time. Your password is never saved."
-            disabled={isSubmitting}
-            testID="remember-me"
-          />
+          {/* v4 puts these on one line. They belong together: both are about
+              *not* typing this again, and stacking them as a checkbox and then
+              a full-width ghost button made "Forgot password?" look like a
+              second submit. */}
+          <View style={[styles.assist, { gap: theme.space.lg }]}>
+            <View style={styles.flex}>
+              <MBCheckbox
+                checked={remember}
+                onChange={setRemember}
+                label="Remember me"
+                hint="Fills in your email next time. Your password is never saved."
+                disabled={isSubmitting}
+                testID="remember-me"
+              />
+            </View>
+            <MBPressable
+              onPress={() => navigation.navigate('ForgotPassword')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password?">
+              <Text style={[theme.type.label, { color: theme.colors.accent }]}>
+                Forgot password?
+              </Text>
+            </MBPressable>
+          </View>
 
           {submitError ? (
             <Text
@@ -169,13 +192,6 @@ export function SignInScreen(): React.ReactElement {
             disabled={!isOnline}
             fullWidth
           />
-
-          <MBButton
-            label="Forgot password?"
-            onPress={() => navigation.navigate('ForgotPassword')}
-            variant="ghost"
-            size="md"
-          />
         </View>
 
         <View style={styles.footer}>
@@ -193,8 +209,10 @@ export function SignInScreen(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', gap: space.xxxl },
-  brand: { alignItems: 'center', gap: space.tight },
+  content: { flexGrow: 1, justifyContent: 'center', gap: space.xxl },
+  brand: { alignItems: 'center', gap: space.hair },
+  center: { textAlign: 'center' },
+  assist: { flexDirection: 'row', alignItems: 'flex-start' },
   footer: { width: '100%' },
   form: { width: '100%' },
 });

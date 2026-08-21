@@ -18,9 +18,11 @@ shop, often on a poor connection, frequently offline for hours.
 
 | | |
 |---|---|
-| Production JS bundle | **3.94 MB** (`react-native bundle --dev false`, Metro 0.84.4, 32 assets) |
+| Production JS bundle | **3.8 MB** (`react-native bundle --dev false`, Metro 0.84.4, 32 assets) |
 | `console.log` calls surviving into it | **0** — `babel-plugin-transform-remove-console` confirmed on a real production bundle, not inferred from config |
 | Native libraries in the release APK | see the Sentry finding below; sizes read from `android/app/build/intermediates/stripped_native_libs/release` |
+| Android **debug** APK | `BUILD SUCCESSFUL in 11m 59s`, 246 MB across four ABIs (unstripped debug symbols; the release APK is 102 MB) |
+| Live API reachability | 19/19 GET endpoints the app calls answer `401` on both the local dev server and the production dyno — **zero 404s**, so nothing is wired to a route that does not exist |
 | Unused dependencies reaching the bundle | **none** — `drizzle-orm`, `axios-retry`, `date-fns`, `date-fns-tz`, `@gorhom/bottom-sheet`, `@tanstack/react-query-persist-client` and `@react-native/new-app-screen` all return zero hits in the bundle, which is what settles the question below about removing them |
 
 ---

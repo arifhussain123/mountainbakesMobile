@@ -81,6 +81,21 @@ export type StockStackParamList = {
    * returning to the balances it was reconciled against.
    */
   StockReturn: undefined;
+  /**
+   * The branch **ledger**, day by day — a different resource from `StockList`,
+   * which is per product for one day.
+   *
+   * Pushed rather than presented modally: it is somewhere you go and read, and
+   * `StockDay` opens on top of it, which a modal cannot host without stacking
+   * two sheets.
+   */
+  StockHistory: undefined;
+  /**
+   * One business day of that ledger as a statement. `date` is optional because
+   * the screen opens on today and steps from there; it is a param so a
+   * notification or a deep link can land on the day it is about.
+   */
+  StockDay: { date?: string } | undefined;
 };
 
 /**
@@ -119,9 +134,31 @@ export type ProductsStackParamList = {
   PriceHistory: { productId: string };
 };
 
+/**
+ * Reports and the three statements reached from it.
+ *
+ * They are **detail screens, not destinations**: nothing in `roleConfig` points
+ * at them, and the only way in is the index. That keeps the single-path rule
+ * intact while giving each of the three the whole screen it needs — a day's
+ * takings, a ranking and a period comparison do not fit as three more cards on
+ * an index that already carries a range filter and four breakdowns.
+ */
 export type ReportsStackParamList = {
   ReportsIndex: undefined;
+  /** One business day of takings, reconciled: tender split, by hour, top sellers. */
+  DailySales: undefined;
+  /** What sold, ranked by units or by revenue, with a share bar. */
+  TopProducts: undefined;
+  /** Money in against money out, with the expense split under it. */
+  SalesVsExpenses: undefined;
 };
+
+/** The three, named once so the tab stack and the More stack cannot disagree. */
+export const REPORT_DETAIL_SCREENS = [
+  'DailySales',
+  'TopProducts',
+  'SalesVsExpenses',
+] as const satisfies readonly (keyof ReportsStackParamList)[];
 
 export type LedgerStackParamList = {
   LedgerIndex: undefined;
@@ -152,11 +189,26 @@ export type MoreStackParamList = {
   Reports: undefined;
   Expenses: undefined;
   Production: undefined;
+  /**
+   * Returns waiting on the production counter.
+   *
+   * Production and admin only — `/api/production-returns` is behind
+   * `requireRole('super_admin', 'production_user')` and 403s a branch outright.
+   * A branch's own returns are a different path with no list endpoint; they are
+   * read off the stock ledger.
+   */
+  Returns: undefined;
   Closing: undefined;
   PartnerExpenses: undefined;
   SyncCenter: undefined;
   Notifications: undefined;
   Settings: undefined;
+  /**
+   * Special events. A More row for **every** role, not an admin screen:
+   * `GET /api/special-events` is behind `authenticate` alone and scopes its rows
+   * server-side, so a branch sees the events it takes part in and nothing else.
+   */
+  Events: undefined;
   Help: undefined;
   Profile: undefined;
   /**
@@ -187,6 +239,13 @@ export type MoreRouteName = Exclude<
 export const MORE_DETAIL_SCREENS: Partial<Record<MoreRouteName, readonly string[]>> = {
   Users: ['UserForm'],
   Categories: ['CategoryForm'],
+  /**
+   * Reports is a **More row** for the branch roles and a **tab** for the admin,
+   * so its three statements have to be registered in two navigators. Both read
+   * `REPORT_DETAIL_SCREENS` rather than listing them, or the branch would
+   * eventually be able to reach a statement the admin could not.
+   */
+  Reports: REPORT_DETAIL_SCREENS,
 };
 
 /**

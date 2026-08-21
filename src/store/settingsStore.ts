@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import NativeAppTheme from '@/specs/NativeAppTheme';
 import { PreferenceKeys, prefs } from '@/services/storage/preferences';
 import { StorageKeys, kv } from '@/services/storage/secureStorage';
 import type { ThemeMode } from '@/theme/themes';
@@ -20,7 +21,8 @@ interface SettingsState {
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
   /**
-   * One-time migration of `themeMode` out of the encrypted store.
+   * One-time migration of `themeMode` out of the encrypted store, plus the
+   * native mirror.
    *
    * It used to live there, which is what forced the read to be async. Anyone
    * upgrading has their choice sitting in the old location, so this moves it
@@ -42,6 +44,23 @@ function isThemeMode(value: unknown): value is ThemeMode {
  * A corrupt or absent value falls back to `system` rather than throwing: a
  * preference is never worth failing a cold start over.
  */
+/**
+ * Mirror the mode to the native side, which reads it at the next cold start to
+ * decide the boot splash and window background. See `specs/NativeAppTheme.ts`.
+ *
+ * Failure is swallowed on purpose. The mirror is an appearance detail on a
+ * launch that has not happened yet; there is no version of "the theme could not
+ * be copied to SharedPreferences" worth failing a boot or a settings tap over,
+ * and the module is absent by design on iOS and under Jest.
+ */
+function mirrorToNative(mode: ThemeMode): void {
+  try {
+    NativeAppTheme?.setThemeMode(mode);
+  } catch {
+    // Next launch uses whatever was mirrored last, or follows the OS.
+  }
+}
+
 function initialThemeMode(): ThemeMode {
   try {
     const stored = prefs.getString(PreferenceKeys.themeMode);
@@ -51,17 +70,25 @@ function initialThemeMode(): ThemeMode {
   }
 }
 
-export const useSettingsStore = create<SettingsState>(set => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeMode: initialThemeMode(),
 
   setThemeMode: mode => {
     prefs.set(PreferenceKeys.themeMode, mode);
     set({ themeMode: mode });
+    mirrorToNative(mode);
   },
 
   hydrate: () => {
     // Already migrated, or set on this install: the new location wins.
-    if (isThemeMode(prefs.getString(PreferenceKeys.themeMode))) return;
+    if (isThemeMode(prefs.getString(PreferenceKeys.themeMode))) {
+      // Still mirror it. Anyone upgrading into this build chose their mode
+      // before the native side existed, so their first launch after the update
+      // is the only chance to copy it across — and without this it would be a
+      // launch that splashes in the wrong scheme.
+      mirrorToNative(get().themeMode);
+      return;
+    }
 
     try {
       const legacy = kv.getString(StorageKeys.themeMode);
@@ -73,5 +100,6 @@ export const useSettingsStore = create<SettingsState>(set => ({
       // Encrypted storage unavailable. The preference is not worth a boot
       // failure — `system` stands until the user picks again.
     }
+    mirrorToNative(get().themeMode);
   },
 }));

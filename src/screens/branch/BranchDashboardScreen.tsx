@@ -3,13 +3,15 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBCard,
   MBDataRow,
   MBErrorState,
+  MBFilterChips,
   MBHeader,
   MBMoney,
-  MBPressable,
   MBQuickActions,
+  MBSectionHeader,
   MBShareList,
   MBSkeletonList,
   MBStatCard,
@@ -139,43 +141,24 @@ export function BranchDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Dashboard"
         subtitle={branchName ?? undefined}
         right={<MBSyncStatus />}
         dataAsOf={dataAsOfFrom(summary.dataUpdatedAt)}
       />
 
-      <View style={{ padding: theme.layout.screenPad }}>
-        <View style={styles.chips}>
-          {PERIODS.map(option => {
-            const selected = option.key === period;
-            return (
-              <MBPressable
-                key={option.key}
-                onPress={() => setPeriod(option.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.chip,
-                  {
-                    borderRadius: theme.radius.pill,
-                    backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                    borderColor: selected ? theme.colors.primary : theme.colors.border,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    theme.type.label,
-                    {
-                      color: selected ? theme.colors.onPrimary : theme.colors.text,
-                    },
-                  ]}>
-                  {option.label}
-                </Text>
-              </MBPressable>
-            );
-          })}
-        </View>
+      <View style={{ paddingHorizontal: theme.layout.screenPad, paddingBottom: theme.space.md }}>
+        {/* Was twenty hand-rolled lines of `MBPressable` in a pill — the exact
+            copy `MBFilterChips` exists to stop. It also gets the v4 chip shape
+            for free: a rounded rectangle, not a pill, because a pill here means
+            status. */}
+        <MBFilterChips
+          options={PERIODS.map(p => ({ key: p.key, label: p.label }))}
+          selectedKey={period}
+          onSelect={key => setPeriod(key as ReportPeriod)}
+          testIDPrefix="dashboard-period"
+        />
       </View>
 
       {summary.isPending ? (
@@ -203,27 +186,34 @@ export function BranchDashboardScreen(): React.ReactElement {
             />
           }>
           <MBStatGrid>
+            {/* The tones mark *which tile is which*, not whether its number is
+                good news — see `tone` on MBStatCard. Expenses are red on a day
+                they fell, exactly as v4 draws them. */}
             <MBStatCard
               label="Sales"
               icon="sales"
+              tone="success"
               value={toNumber(data?.totalRevenue)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Expenses"
               icon="expenses"
+              tone="danger"
               value={toNumber(data?.totalExpenses)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Profit"
               icon="reports"
+              tone="warning"
               value={toNumber(data?.totalProfit)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Orders"
               icon="orders"
+              tone="info"
               value={toNumber(data?.totalOrders)}
               currency={false}
             />
@@ -235,8 +225,9 @@ export function BranchDashboardScreen(): React.ReactElement {
           {profile ? <MBQuickActions profile={profile} /> : null}
 
           {stockStatus ? (
+            <>
+            <MBSectionHeader title="Stock status" />
             <MBCard>
-              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Stock status</Text>
               <MBDataRow label="Products on the shelf" value={String(stockStatus.inStock)} />
               <MBDataRow label="Out of stock" value={String(stockStatus.out)} />
               {/* Today's balances, not the selected period: what is on the shelf
@@ -245,36 +236,35 @@ export function BranchDashboardScreen(): React.ReactElement {
                 {stockStatus.total} tracked today
               </Text>
             </MBCard>
+            </>
           ) : null}
 
           {salesTrend.length > 0 ? (
+            <>
+            <MBSectionHeader title="Sales trend" subtitle={periodLabel} />
             <MBCard>
-              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Sales trend</Text>
-              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-                {periodLabel}
-              </Text>
               <MBTrendChart
                 data={salesTrend}
                 accessibilityLabel={`Sales trend, ${periodLabel.toLowerCase()}, ${salesTrend.length} days.`}
               />
             </MBCard>
+            </>
           ) : null}
 
           {expenseTrend.length > 0 ? (
+            <>
+            <MBSectionHeader title="Expense trend" subtitle={periodLabel} />
             <MBCard>
-              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Expense trend</Text>
-              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-                {periodLabel}
-              </Text>
               <MBTrendChart
                 data={expenseTrend}
                 accessibilityLabel={`Expense trend, ${periodLabel.toLowerCase()}, ${expenseTrend.length} days.`}
               />
             </MBCard>
+            </>
           ) : null}
 
+          <MBSectionHeader title="Breakdown" />
           <MBCard>
-            <Text style={[theme.type.h3, { color: theme.colors.text }]}>Breakdown</Text>
             <MBDataRow
               label="Average order"
               value={<MBMoney value={data?.averageOrderValue} size="sm" symbol={currencySymbol} />}
@@ -296,23 +286,27 @@ export function BranchDashboardScreen(): React.ReactElement {
           </MBCard>
 
           {productShare.length > 0 ? (
+            <>
+            <MBSectionHeader title="Top products" />
             <MBCard>
-              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Top products</Text>
               <MBShareList
                 items={productShare}
                 accessibilityLabel="Top products by revenue this period"
               />
             </MBCard>
+            </>
           ) : null}
 
           {paymentShare.length > 0 ? (
+            <>
+            <MBSectionHeader title="Payment methods" />
             <MBCard>
-              <Text style={[theme.type.h3, { color: theme.colors.text }]}>Payment methods</Text>
               <MBShareList
                 items={paymentShare}
                 accessibilityLabel="Takings by payment method this period"
               />
             </MBCard>
+            </>
           ) : null}
         </ScrollView>
       )}

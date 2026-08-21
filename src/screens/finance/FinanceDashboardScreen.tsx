@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBCard,
   MBMoney,
   MBDataRow,
@@ -50,6 +51,7 @@ export function FinanceDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Finance"
         dataAsOf={dataAsOfFrom(dashboard.dataUpdatedAt)}
         subtitle={data?.businessDate ? `Business day ${data.businessDate}` : role}
@@ -83,21 +85,25 @@ export function FinanceDashboardScreen(): React.ReactElement {
           <MBStatGrid>
             <MBStatCard
               label="Income today"
+              tone="success"
               value={toNumber(data?.todayIncome)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Expenses today"
+              tone="danger"
               value={toNumber(data?.todayExpenses)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Cash in hand"
+              tone="brand"
               value={toNumber(data?.cashInHand)}
               currencySymbol={currencySymbol}
             />
             <MBStatCard
               label="Bank"
+              tone="info"
               value={toNumber(data?.bankBalance)}
               currencySymbol={currencySymbol}
             />

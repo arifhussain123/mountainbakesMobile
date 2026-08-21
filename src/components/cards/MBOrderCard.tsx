@@ -3,9 +3,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { MBButton } from '../common/MBButton';
 import { MBCard } from '../common/MBCard';
+import { MBStatusTag } from '../feedback/MBStatusTag';
+import type { StatusColorKey } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { layout, space } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
+import { space } from '@/theme/spacing';
 import type { BranchProductionOrder } from '@/shared/types/production-order.types';
 import { formatQty } from '@/utils/money';
 
@@ -68,27 +69,27 @@ export const MBOrderCard = React.memo(function MBOrderCardView({
   const theme = useTheme();
   const review = React.useCallback(() => onReview(order), [onReview, order]);
   const print = React.useCallback(() => onPrint(order), [onPrint, order]);
-  const statusColor =
-    theme.statusColors[order.status as keyof typeof theme.statusColors] ?? theme.colors.textMuted;
   const totalQty = (order.items ?? []).reduce((sum, item) => sum + Number(item.qty ?? 0), 0);
 
   return (
     <MBCard>
       <View style={styles.cardTop}>
         <View style={styles.cardMain}>
-          <Text style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+          <Text style={[theme.type.cardTitle, { color: theme.colors.text }]}>
             {order.branchName}
           </Text>
           <Text style={[theme.type.mono, { color: theme.colors.textMuted }]}>
             {order.demandNumber}
           </Text>
         </View>
-        <View style={styles.statusPill}>
-          <View style={[styles.dot, { backgroundColor: statusColor }]} />
-          <Text style={[theme.type.caption, { color: theme.colors.text }]}>
-            {STATUS_LABEL[order.status] ?? order.status}
-          </Text>
-        </View>
+        {/* `MBStatusTag`, not a pill drawn here. It was inline until the two
+            new stock screens and the returns queue needed the same object; the
+            reasoning about why the fill is neutral and only the dot carries the
+            hue now lives on the component. */}
+        <MBStatusTag
+          label={STATUS_LABEL[order.status] ?? order.status}
+          status={order.status as StatusColorKey}
+        />
       </View>
 
       <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
@@ -115,7 +116,5 @@ export const MBOrderCard = React.memo(function MBOrderCardView({
 const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', gap: space.md, marginBottom: space.tight },
   cardMain: { flex: 1, gap: space.hair },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
-  dot: { width: layout.dotSize, height: layout.dotSize, borderRadius: radius.pill },
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
 });

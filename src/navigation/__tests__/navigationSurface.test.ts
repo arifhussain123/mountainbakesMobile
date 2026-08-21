@@ -3,6 +3,7 @@ import { USER_ROLES, type UserRole } from '@/shared/types/user.types';
 import {
   ACCOUNT_PANEL,
   accessProfileFor,
+  centreActionFor,
   isKnownRole,
   landingTabFor,
   moreItemKey,
@@ -185,7 +186,15 @@ describe('navigation surface', () => {
       const keys = moreSectionsFor(profileFor(role)).flatMap(s => s.items.map(moreItemKey));
       expect({ role, keys }).toEqual({
         role,
-        keys: ['PartnerExpenses', 'SyncCenter', 'Notifications', 'Profile', 'Help', 'Settings'],
+        keys: [
+          'PartnerExpenses',
+          'SyncCenter',
+          'Notifications',
+          'Events',
+          'Profile',
+          'Help',
+          'Settings',
+        ],
       });
     }
   });
@@ -254,6 +263,10 @@ describe('navigation surface', () => {
       'Reports',
       'SyncCenter',
       'Notifications',
+      // Universal, and gated by nothing: `/api/special-events` is behind
+      // `authenticate` alone and scopes its rows server-side, so a branch sees
+      // the events it is being asked to bake for.
+      'Events',
       'Profile',
       'Help',
       'Settings',
@@ -544,13 +557,46 @@ describe('quick actions', () => {
     }
   });
 
-  it('gives a branch the four jobs of a shift, in the order they are done', () => {
+  /**
+   * Three cards, not four — New Order moved to the bar's centre action.
+   *
+   * The row is what a shift does *from the dashboard*; the fourth job is on
+   * screen everywhere as the ember button in the middle of the navigation bar,
+   * and repeating it here would be two controls for one action. The assertion
+   * below is what stops it drifting back in as a fifth card.
+   */
+  it('gives a branch the jobs of a shift that the bar does not already carry', () => {
     for (const role of ['branch_manager', 'branch_user'] as const) {
       const labels = quickActionsFor(profileFor(role)).map(a => a.label);
       expect({ role, labels }).toEqual({
         role,
-        labels: ['newSale', 'newOrder', 'addExpense', 'stock'],
+        labels: ['newSale', 'addExpense', 'stock'],
       });
+    }
+  });
+
+  /**
+   * The centre action adds no destination — it is a shorter path to one the
+   * role already has — so it is held to the same reachability rule as a quick
+   * action, and it must never duplicate one.
+   */
+  it('carries a reachable centre action that no quick action repeats', () => {
+    for (const role of USER_ROLES) {
+      const profile = profileFor(role);
+      const centre = centreActionFor(profile);
+      if (!centre) continue;
+
+      const tabs = new Set(tabsFor(profile).map(t => t.name));
+      expect({ role, tab: centre.tab, reachable: tabs.has(centre.tab) }).toEqual({
+        role,
+        tab: centre.tab,
+        reachable: true,
+      });
+
+      const clash = quickActionsFor(profile).some(
+        a => a.tab === centre.tab && a.screen === centre.screen,
+      );
+      expect({ role, duplicated: clash }).toEqual({ role, duplicated: false });
     }
   });
 

@@ -130,6 +130,7 @@ export function ProductFormScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        tone="brand"
         title={isEdit ? 'Edit product' : 'New product'}
         subtitle={isEdit ? existing.data?.sku : undefined}
         onBack={() => navigation.goBack()}
@@ -188,7 +189,7 @@ export function ProductFormScreen(): React.ReactElement {
                   style={[
                     styles.chip,
                     {
-                      borderRadius: theme.radius.pill,
+                      borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
                       paddingHorizontal: theme.space.lg,
                       backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
                       borderColor: selected ? theme.colors.primary : theme.colors.border,

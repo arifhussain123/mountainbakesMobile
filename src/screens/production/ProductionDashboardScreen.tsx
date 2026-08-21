@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBCard,
   MBDataRow,
   MBErrorState,
@@ -79,6 +80,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Production"
         right={<MBSyncStatus />}
         dataAsOf={dataAsOfFrom(overview.dataUpdatedAt)}
@@ -115,6 +117,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
           <MBStatGrid>
             <MBStatCard
               label="Waiting orders"
+              tone="warning"
               value={toNumber(stats?.waitingCount)}
               currency={false}
               icon="orders"
@@ -123,6 +126,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="In production"
+              tone="info"
               value={toNumber(stats?.preparingCount)}
               currency={false}
               icon="preparation"
@@ -131,6 +135,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="Prepared"
+              tone="success"
               value={toNumber(stats?.readyCount)}
               currency={false}
               icon="production"
@@ -143,6 +148,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
           <MBStatGrid>
             <MBStatCard
               label="Delivered"
+              tone="success"
               value={toNumber(cards?.deliveredOrders)}
               currency={false}
               icon="delivery"
@@ -151,6 +157,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="Returned"
+              tone="danger"
               value={toNumber(cards?.returnedProducts)}
               currency={false}
               icon="stock"
@@ -158,6 +165,7 @@ export function ProductionDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="Changed orders"
+              tone="warning"
               value={toNumber(cards?.changedOrders)}
               currency={false}
               icon="filter"

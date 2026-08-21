@@ -10,10 +10,13 @@ import {
   MBEmptyState,
   MBErrorState,
   MBFab,
+  MBFilterChips,
   MBHeader,
   MBInput,
   MBPressable,
   MBSkeletonList,
+  MBStatCard,
+  MBStatGrid,
   MBSyncStatus,
   MBWriteOutcome,
   writeOutcomeCopy,
@@ -26,6 +29,7 @@ import {
   MBDataRow,
   MBMoney,
 } from '@/components';
+import { useCatalogSettings } from '@/hooks/useCatalogSettings';
 import { useCreateExpense, type SaveOutcome } from '@/hooks/useCreateExpense';
 import { getExpenses } from '@/services/api/expensesApi';
 import { qk } from '@/services/query/queryKeys';
@@ -39,7 +43,7 @@ import {
 import type { Expense } from '@/shared/types/expense.types';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { DateFilterKey, WriteOutcomeCopy, WriteSubject } from '@/components';
-import { parseCurrency } from '@/utils/money';
+import { parseCurrency, toNumber } from '@/utils/money';
 import { dataAsOfFrom } from '@/utils/dataAsOf';
 import { contentColumn, layout, space } from '@/theme/spacing';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -65,11 +69,25 @@ const ALL_CATEGORIES = '__all__';
 
 export function ExpensesScreen(): React.ReactElement {
   const theme = useTheme();
+  const { currencySymbol } = useCatalogSettings();
   const [showForm, setShowForm] = useState(false);
   const [banner, setBanner] = useState<WriteOutcomeCopy | null>(null);
 
   const [range, setRange] = useState<DateFilterKey>('today');
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
+
+  /**
+   * "Transport" alone is ambiguous to a reader that has just landed on the
+   * chip, so each carries the dimension it filters.
+   */
+  const categoryOptions = useMemo(
+    () =>
+      [ALL_CATEGORIES, ...EXPENSE_CATEGORIES].map(option => {
+        const label = option === ALL_CATEGORIES ? 'All' : option;
+        return { key: option, label, accessibilityLabel: `Category: ${label}` };
+      }),
+    [],
+  );
   const [searchInput, setSearchInput] = useState('');
   // Debounced only to keep the filter cheap while typing; the search itself is
   // local, so there is no request behind it.
@@ -109,6 +127,23 @@ export function ExpensesScreen(): React.ReactElement {
         .includes(search),
     );
   }, [expenses.data, search]);
+
+  /**
+   * Two figures for **what is on screen**, not for two fixed periods.
+   *
+   * v4 heads this screen with "This month" and "Today", which is two more
+   * requests for two ranges nobody chose — and the second of them contradicts
+   * the range chip sitting directly under it whenever that chip is not "Today".
+   * These summarise the rows the filters actually loaded, so the tiles and the
+   * list are always describing the same set. `search` narrows them too: a
+   * subtotal that ignored the search box would be a number the visible rows do
+   * not add up to.
+   */
+  const totals = useMemo(() => {
+    let amount = 0;
+    for (const row of rows) amount += toNumber(row.amount);
+    return { amount, count: rows.length };
+  }, [rows]);
 
   const renderItem = useCallback(
     ({ item }: { item: Expense }) => <MBExpenseCard expense={item} />,
@@ -178,40 +213,44 @@ export function ExpensesScreen(): React.ReactElement {
       <View style={styles.filters}>
         <MBDateFilter value={range} onChange={setRange} testIDPrefix="range" />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: theme.space.sm, paddingHorizontal: theme.layout.screenPad }}>
-          {[ALL_CATEGORIES, ...EXPENSE_CATEGORIES].map(option => {
-            const selected = option === category;
-            const label = option === ALL_CATEGORIES ? 'All' : option;
-            return (
-              <MBPressable
-                key={option}
-                onPress={() => setCategory(option)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`Category: ${label}`}
-                style={[
-                  styles.chip,
-                  {
-                    borderRadius: theme.radius.pill,
-                    borderColor: selected ? theme.colors.accent : theme.colors.border,
-                    backgroundColor: selected ? theme.colors.accentSoft : theme.colors.surface,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    theme.type.caption,
-                    { color: selected ? theme.colors.accent : theme.colors.text },
-                  ]}>
-                  {label}
-                </Text>
-              </MBPressable>
-            );
-          })}
-        </ScrollView>
+        {/* The category rail takes the `accent` tone so it does not compete
+            with the date rail above it for "this is the choice". */}
+        <MBFilterChips
+          scroll
+          tone="accent"
+          gutter={theme.layout.screenPad}
+          options={categoryOptions}
+          selectedKey={category}
+          onSelect={setCategory}
+          testIDPrefix="category"
+        />
       </View>
+
+      {/* Under the filters rather than over them: they describe the filtered
+          set, so they have to read as its consequence and not as a fixed
+          header the chips happen to sit below. */}
+      {!expenses.isPending && !expenses.isError && rows.length > 0 ? (
+        <View style={{ paddingHorizontal: theme.layout.screenPad, paddingBottom: theme.space.md }}>
+          <MBStatGrid>
+            <MBStatCard
+              label={dateFilterLabel(range)}
+              value={totals.amount}
+              currencySymbol={currencySymbol}
+              icon="expenses"
+              tone="danger"
+              subtitle={category === ALL_CATEGORIES ? 'all categories' : category}
+            />
+            <MBStatCard
+              label="Entries"
+              value={totals.count}
+              currency={false}
+              icon="orders"
+              tone="info"
+              subtitle={search ? 'matching your search' : 'in this range'}
+            />
+          </MBStatGrid>
+        </View>
+      ) : null}
 
       {expenses.isPending ? (
         <MBSkeletonList rows={6} />

@@ -45,7 +45,13 @@ export function MBBadge({
   if (count <= 0) return null;
 
   const text = count > CAP ? `${CAP}+` : String(count);
-  const bg = tone === 'danger' ? theme.colors.danger : theme.colors.accent;
+  /* Fill and number move together. `accent` is the ink under v4, and the
+     number used to be painted with `onPrimary` — which is *also* the ink, so an
+     accent badge was a brown pill with a brown number in it. */
+  const [bg, fg] =
+    tone === 'danger'
+      ? [theme.colors.danger, theme.colors.textInverse]
+      : [theme.colors.secondary, theme.colors.onSecondary];
 
   return (
     <View
@@ -64,7 +70,7 @@ export function MBBadge({
       ]}>
       <Text
         allowFontScaling={false}
-        style={[theme.type.caption, styles.text, { color: theme.colors.onPrimary }]}>
+        style={[theme.type.caption, styles.text, { color: fg }]}>
         {text}
       </Text>
     </View>

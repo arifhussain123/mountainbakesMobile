@@ -179,7 +179,7 @@ export function SyncCenterScreen({ onBack }: { onBack?: () => void }): React.Rea
                 style={[
                   styles.chip,
                   {
-                    borderRadius: theme.radius.pill,
+                    borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
                     paddingHorizontal: theme.space.lg,
                     backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
                     borderColor: selected ? theme.colors.primary : theme.colors.border,

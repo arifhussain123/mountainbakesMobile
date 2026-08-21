@@ -4,23 +4,42 @@ import { FlashList } from '@shopify/flash-list';
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBCard,
   MBEmptyState,
+  MBFilterChips,
   MBMoney,
   MBErrorState,
   MBHeader,
   MBSkeletonList,
   MBSyncStatus,
+  type FilterChip,
 } from '@/components';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
 import { getOrders } from '@/services/api/financeApi';
 import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
 import { qk } from '@/services/query/queryKeys';
-import type { Order } from '@/shared/types/order.types';
+import type { Order, OrderStatus } from '@/shared/types/order.types';
 import { useTheme } from '@/theme/ThemeProvider';
 import { dataAsOfFrom } from '@/utils/dataAsOf';
 import { contentColumn, layout, space } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
+
+/**
+ * The status filters, in lifecycle order.
+ *
+ * `cancelled` is last and is not folded into any other bucket: an order that
+ * was called off is not an order that finished, and a filter that says
+ * otherwise is how a cancelled sale gets counted as takings.
+ */
+const STATUS_FILTERS: readonly FilterChip[] = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'preparing', label: 'Preparing' },
+  { key: 'ready', label: 'Ready' },
+  { key: 'delivered', label: 'Delivered' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
 
 /**
  * Customer orders across all branches.
@@ -35,6 +54,14 @@ export function OrdersScreen(): React.ReactElement {
   const theme = useTheme();
   const { currencySymbol } = useCatalogSettings();
   const [search, setSearch] = useState('');
+  /**
+   * v4 draws four filters — All / Pending / In Production / Done. Those last
+   * two are not statuses this backend has: `OrderStatus` is
+   * pending · preparing · ready · delivered · cancelled, and collapsing five
+   * into three would make "Done" mean something no query can express and hide
+   * cancellations inside it. The real five are offered instead.
+   */
+  const [status, setStatus] = useState<'all' | OrderStatus>('all');
 
   const orders = useQuery({
     // Through `qk`, so this shares an entry with the sales list rather than
@@ -56,6 +83,18 @@ export function OrdersScreen(): React.ReactElement {
     );
   }, [orders.data, search]);
 
+  /**
+   * Filtered on the client, over the list already fetched.
+   *
+   * The endpoint takes no status parameter, so this narrows what is on the
+   * device rather than asking for less — which also means the counts in the
+   * subtitle describe the filtered view and not the day.
+   */
+  const visible = useMemo(
+    () => (status === 'all' ? rows : rows.filter(o => o.status === status)),
+    [rows, status],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Order }) => <OrderRow order={item} currencySymbol={currencySymbol} />,
     [currencySymbol],
@@ -64,6 +103,7 @@ export function OrdersScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Orders"
         dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
         subtitle={orders.data ? `${orders.data.length} orders` : undefined}
@@ -76,6 +116,16 @@ export function OrdersScreen(): React.ReactElement {
         right={<MBSyncStatus />}
       />
 
+      <View style={{ paddingHorizontal: theme.layout.screenPad, paddingBottom: theme.space.md }}>
+        <MBFilterChips
+          options={STATUS_FILTERS}
+          selectedKey={status}
+          onSelect={key => setStatus(key as 'all' | OrderStatus)}
+          scroll
+          testIDPrefix="orders-status"
+        />
+      </View>
+
       {orders.isPending ? (
         <MBSkeletonList rows={8} />
       ) : orders.isError ? (
@@ -84,19 +134,25 @@ export function OrdersScreen(): React.ReactElement {
           onRetry={() => orders.refetch()}
           retrying={orders.isFetching}
         />
-      ) : rows.length === 0 ? (
+      ) : visible.length === 0 ? (
         <MBEmptyState
-          title={search ? 'No orders match' : 'No orders found'}
+          title={search || status !== 'all' ? 'No orders match' : 'No orders found'}
           message={
-            search ? `Nothing found for "${search}".` : 'Orders placed today will appear here.'
+            search
+              ? `Nothing found for "${search}".`
+              : status !== 'all'
+                ? 'No orders in this state right now.'
+                : 'Orders placed today will appear here.'
           }
-          actionLabel={search ? 'Clear search' : undefined}
-          onAction={search ? () => setSearch('') : undefined}
-          illustration={search ? undefined : 'empty-orders'}
+          actionLabel={search ? 'Clear search' : status !== 'all' ? 'Show all' : undefined}
+          onAction={
+            search ? () => setSearch('') : status !== 'all' ? () => setStatus('all') : undefined
+          }
+          illustration={search || status !== 'all' ? undefined : 'empty-orders'}
         />
       ) : (
         <FlashList
-          data={rows}
+          data={visible}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -134,7 +190,7 @@ const OrderRow = React.memo(function OrderRowView({
     <MBCard>
       <View style={styles.row}>
         <View style={styles.rowMain}>
-          <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+          <Text numberOfLines={1} style={[theme.type.cardTitle, { color: theme.colors.text }]}>
             {order.customerName || 'Walk-in'}
           </Text>
           <Text style={[theme.type.mono, { color: theme.colors.textMuted }]}>
@@ -145,7 +201,18 @@ const OrderRow = React.memo(function OrderRowView({
       </View>
 
       <View style={styles.meta}>
-        <View style={styles.statusPill}>
+        {/* Filled pill, hue on the dot — see the note on `MBOrderCard` for why
+            the fill is `surfaceSunken` and not a per-status tint. */}
+        <View
+          style={[
+            styles.statusPill,
+            {
+              backgroundColor: theme.colors.surfaceSunken,
+              borderRadius: theme.radius.pill,
+              paddingHorizontal: theme.space.snug,
+              paddingVertical: theme.space.xs,
+            },
+          ]}>
           <View style={[styles.dot, { backgroundColor: statusColor }]} />
           <Text style={[theme.type.caption, { color: theme.colors.text }]}>{order.status}</Text>
         </View>
@@ -167,7 +234,7 @@ const styles = StyleSheet.create({
   // ...contentColumn caps the measure on a tablet. A list row is a label at
   // one edge and a value at the other; unconstrained on a 10" screen the two
   // end up a hand-span apart with nothing between them.
-  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
+  listContent: { ...contentColumn, paddingHorizontal: layout.screenPad, paddingBottom: space.xxl },
   separator: { height: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   rowMain: { flex: 1, gap: space.hair },

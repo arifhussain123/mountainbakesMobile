@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { FlashList } from '@shopify/flash-list';
 
 import {
+  MBAccountButton,
   MBButton,
   MBCard,
   MBEmptyState,
@@ -137,6 +138,7 @@ export function SalesScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="New sale"
         right={<MBSyncStatus />}
         /* The POS is the screen most likely to be used offline for hours, and

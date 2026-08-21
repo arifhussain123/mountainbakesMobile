@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBCard,
   MBRangeFilter,
   MBErrorState,
@@ -136,6 +137,7 @@ export function AdminDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Dashboard"
         subtitle="All branches"
         right={<MBSyncStatus />}
@@ -183,30 +185,35 @@ export function AdminDashboardScreen(): React.ReactElement {
           <MBStatGrid>
             <MBStatCard
               label="Sales"
+              tone="success"
               value={toNumber(data?.totalRevenue)}
               currencySymbol={currencySymbol}
               icon="sales"
             />
             <MBStatCard
               label="Expenses"
+              tone="danger"
               value={toNumber(data?.totalExpenses)}
               currencySymbol={currencySymbol}
               icon="expenses"
             />
             <MBStatCard
               label="Profit"
+              tone="warning"
               value={toNumber(data?.totalProfit)}
               currencySymbol={currencySymbol}
               icon="reports"
             />
             <MBStatCard
               label="Pending orders"
+              tone="info"
               value={toNumber(data?.totalPending)}
               currency={false}
               icon="orders"
             />
             <MBStatCard
               label="Pending demand"
+              tone="info"
               value={pendingDemand.data?.length ?? 0}
               currency={false}
               icon="production"
@@ -215,6 +222,7 @@ export function AdminDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="Low stock"
+              tone="danger"
               value={lowStockCount}
               currency={false}
               icon="stock"
@@ -223,6 +231,7 @@ export function AdminDashboardScreen(): React.ReactElement {
             />
             <MBStatCard
               label="Branches"
+              tone="brand"
               value={branchStock.data?.branches.length ?? 0}
               currency={false}
               icon="branches"

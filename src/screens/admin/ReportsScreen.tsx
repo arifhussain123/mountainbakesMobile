@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBAccountButton,
   MBButton,
   MBCard,
   MBDataRow,
@@ -10,9 +12,13 @@ import {
   MBErrorState,
   MBFilterChips,
   MBHeader,
+  MBHeroCard,
+  MBListCard,
+  MBListRow,
   MBMoney,
   MBRangeFilter,
   MBShareList,
+  MBSectionHeader,
   MBSkeletonList,
   MBSyncStatus,
   MBTrendChart,
@@ -28,7 +34,7 @@ import { businessDateStr, businessDaysAgoStr } from '@/shared/utils/timezone';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { formatCurrency, formatQty, toNumber } from '@/utils/money';
+import { formatAmount, formatCurrency, formatQty, toNumber } from '@/utils/money';
 import { dataAsOfFrom } from '@/utils/dataAsOf';
 import {
   resolveRange,
@@ -102,6 +108,7 @@ const DIMENSIONS: ReadonlyArray<FilterChip & { key: Dimension }> = [
 
 export function ReportsScreen(): React.ReactElement {
   const theme = useTheme();
+  const navigation = useNavigation<{ navigate: (screen: string) => void }>();
   const { currencySymbol } = useCatalogSettings();
   const isOnline = useNetworkStore(s => s.isOnline);
   const { exportReport, isExporting, error: exportError } = useExportReport();
@@ -198,6 +205,7 @@ export function ReportsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Reports"
         {...(canScopeBranch ? {} : { subtitle: 'Your branch' })}
         right={<MBSyncStatus />}
@@ -251,32 +259,74 @@ export function ReportsScreen(): React.ReactElement {
               tintColor={theme.colors.primary}
             />
           }>
+          {/* The period's answer, on the inverse block rather than as the first
+              of five white cards. It is the one figure the screen exists to
+              produce and everything under it is a way of taking it apart; a
+              card identical to the ones below made it the first item in a list
+              instead of the conclusion at the top. */}
+          <MBHeroCard
+            caption={`${data?.from} → ${data?.to}`}
+            value={data?.totalRevenue ?? 0}
+            currencySymbol={currencySymbol}
+            stats={[
+              { label: 'Profit', value: formatAmount(toNumber(data?.totalProfit)) },
+              { label: 'Orders', value: formatQty(toNumber(data?.totalOrders)) },
+              {
+                label: 'Average',
+                value: formatAmount(toNumber(data?.averageOrderValue)),
+              },
+            ]}
+            testID="reports-hero"
+          />
+
           <MBCard>
-            <Text style={[theme.type.h3, { color: theme.colors.text }]}>
-              {data?.from} → {data?.to}
-            </Text>
-            <MBDataRow
-              label="Revenue"
-              value={<MBMoney value={data?.totalRevenue} size="sm" symbol={currencySymbol} />}
-            />
+            <Text style={[theme.type.h3, { color: theme.colors.text }]}>Detail</Text>
             <MBDataRow
               label="Expenses"
               value={<MBMoney value={data?.totalExpenses} size="sm" symbol={currencySymbol} />}
             />
             <MBDataRow
-              label="Profit"
-              value={<MBMoney value={data?.totalProfit} size="sm" symbol={currencySymbol} />}
-            />
-            <MBDataRow
               label="Discount"
               value={<MBMoney value={data?.totalDiscount} size="sm" symbol={currencySymbol} />}
             />
-            <MBDataRow label="Orders" value={formatQty(toNumber(data?.totalOrders))} />
             <MBDataRow
-              label="Average order"
-              value={<MBMoney value={data?.averageOrderValue} size="sm" symbol={currencySymbol} />}
+              label="Staff sales"
+              value={<MBMoney value={data?.staffTotal} size="sm" symbol={currencySymbol} />}
             />
+            <MBDataRow label="Cancelled" value={formatQty(toNumber(data?.totalCancelled))} />
           </MBCard>
+
+          {/* The three statements. They are the only way in — nothing in
+              `roleConfig` points at them — which is what keeps each of them
+              reachable from exactly one surface while still getting a whole
+              screen to itself. */}
+          <MBSectionHeader title="Statements" />
+          <MBListCard testID="report-statements">
+            <MBListRow
+              title="Daily sales"
+              subtitle="One day, reconciled: tender, by hour, top sellers"
+              icon="sales"
+              iconTone="success"
+              onPress={() => navigation.navigate('DailySales')}
+              testID="open-daily-sales"
+            />
+            <MBListRow
+              title="Top products"
+              subtitle="What sold, by units or by revenue"
+              icon="products"
+              iconTone="warning"
+              onPress={() => navigation.navigate('TopProducts')}
+              testID="open-top-products"
+            />
+            <MBListRow
+              title="Sales vs expenses"
+              subtitle="Money in against money out, week by week"
+              icon="reports"
+              iconTone="info"
+              onPress={() => navigation.navigate('SalesVsExpenses')}
+              testID="open-sales-vs-expenses"
+            />
+          </MBListCard>
 
           <MBCard>
             <Text style={[theme.type.h3, { color: theme.colors.text }]}>Breakdown</Text>

@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
@@ -7,7 +8,7 @@ import {
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 
-import { MBButton, MBIcon, MBLogo, MBPressable } from '@/components';
+import { MBButton, MBFilterChips, MBLogo } from '@/components';
 import { roleLabel } from '@/constants/roleLabels';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
@@ -56,14 +57,15 @@ const Drawer = createDrawerNavigator();
  * is nothing else to show without a new API call.
  */
 
-const MODES: readonly { value: ThemeMode; label: string }[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
+const MODE_OPTIONS: readonly { key: ThemeMode; label: string; accessibilityLabel: string }[] = [
+  { key: 'light', label: 'Light', accessibilityLabel: 'Light theme' },
+  { key: 'dark', label: 'Dark', accessibilityLabel: 'Dark theme' },
+  { key: 'system', label: 'System', accessibilityLabel: 'Follow the device theme' },
 ];
 
 function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { mode } = useThemeContext();
   const claims = useAuthStore(s => s.claims);
   const { signOut, isSigningOut } = useSignOut();
@@ -91,97 +93,111 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
   const connection = isOnline ? 'Online' : 'Offline';
 
   return (
+    /* `paddingTop: 0` overrides the safe-area inset DrawerContentScrollView
+       applies for us. The identity block is full-bleed brown and has to run
+       under the status bar — with the inset left in place there would be a
+       cream strip above it. The block pays the inset back itself, below. */
     <DrawerContentScrollView
-      contentContainerStyle={{ padding: theme.layout.screenPad, gap: theme.space.xxl }}>
-      {/* Identity */}
-      <View style={{ gap: theme.space.md }}>
-        {/* The mark says which app; the avatar below says who is signed in.
-            Neither is announced — the role and branch beneath them are the
-            answer a screen reader user is after. */}
-        <MBLogo />
+      contentContainerStyle={[
+        styles.scroll,
+        { paddingBottom: theme.space.xxl, gap: theme.space.xxl },
+      ]}>
+      {/* Identity.
 
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[
-            styles.avatar,
-            { backgroundColor: theme.colors.primary, borderRadius: theme.radius.pill },
-          ]}>
-          <MBIcon name="profile" size="header" color={theme.colors.onPrimary} />
-        </View>
+          v4 draws this as a deep-brown block bled to all three edges rather
+          than as a card on the field: it is the only thing in the panel that is
+          neither a control nor a destination, and giving it the chrome colour
+          is what separates "who you are" from "what you can change" without
+          needing a divider. The mark says which app; the block below it says
+          who is signed in.
 
-        <View style={{ gap: theme.space.xs }}>
-          <Text style={[theme.type.h2, { color: theme.colors.text }]}>
-            {claims ? roleLabel(claims.role) : 'Signed out'}
-          </Text>
-          {claims?.branchName ? (
-            <Text style={[theme.type.body, { color: theme.colors.textMuted }]}>
-              {claims.branchName}
-            </Text>
-          ) : null}
-
+          `secondary`, not `primary`. The block is chrome that has to outrank
+          everything under it, which is the ink's job in v4 — the ember is a
+          fill for things you press, and a whole panel header painted with it
+          reads as one enormous button. */}
+      <View
+        style={[
+          {
+            backgroundColor: theme.colors.secondary,
+            paddingTop: insets.top + theme.space.lg,
+            paddingBottom: theme.space.xl,
+            paddingHorizontal: theme.layout.screenPad,
+            gap: theme.space.md,
+          },
+        ]}>
+        <View style={[styles.row, { gap: theme.space.md }]}>
           <View
-            accessible
-            accessibilityLabel={`Connection: ${connection}`}
-            style={[styles.row, { gap: theme.space.sm }]}>
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[
+              styles.avatar,
+              { backgroundColor: theme.colors.surface, borderRadius: theme.radius.pill },
+            ]}>
+            <MBLogo size={44} />
+          </View>
+
+          <View style={[styles.flex, { gap: theme.space.hair }]}>
+            <Text style={[theme.type.h2, { color: theme.colors.onSecondary }]}>
+              {claims ? roleLabel(claims.role) : 'Signed out'}
+            </Text>
+            {claims?.branchName ? (
+              <Text style={[theme.type.body, { color: theme.colors.onSecondaryMuted }]}>
+                {claims.branchName}
+              </Text>
+            ) : null}
+
             <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor: isOnline ? theme.colors.success : theme.colors.offline,
-                  borderRadius: theme.radius.pill,
-                },
-              ]}
-            />
-            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>{connection}</Text>
+              accessible
+              accessibilityLabel={`Connection: ${connection}`}
+              style={[styles.row, styles.connection, { gap: theme.space.tight }]}>
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    /* On the brown block the status hues stop being legible —
+                       `success` is 1.5:1 there. The dot keeps its meaning from
+                       the word beside it, and takes a tint that can actually be
+                       seen against the chrome. */
+                    backgroundColor: isOnline
+                      ? theme.colors.successBg
+                      : theme.colors.warningBg,
+                    borderRadius: theme.radius.pill,
+                  },
+                ]}
+              />
+              <Text style={[theme.type.caption, { color: theme.colors.onSecondaryMuted }]}>
+                {connection}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
       {/* Appearance — a control, not a destination. */}
-      <View style={{ gap: theme.space.sm }}>
+      <View style={{ gap: theme.space.sm, paddingHorizontal: theme.layout.screenPad }}>
         <Text accessibilityRole="header" style={[theme.type.label, { color: theme.colors.textMuted }]}>
           Appearance
         </Text>
-        <View style={[styles.row, { gap: theme.space.sm }]}>
-          {MODES.map(m => {
-            const selected = mode === m.value;
-            return (
-              <MBPressable
-                key={m.value}
-                onPress={() => setThemeMode(m.value)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`${m.label} theme`}
-                style={[
-                  styles.chip,
-                  {
-                    minHeight: theme.layout.tapMin,
-                    paddingHorizontal: theme.space.md,
-                    borderRadius: theme.radius.pill,
-                    borderColor: selected ? theme.colors.primary : theme.colors.border,
-                    backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    theme.type.caption,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                  ]}>
-                  {m.label}
-                </Text>
-              </MBPressable>
-            );
-          })}
-        </View>
+        {/* The fifth copy of the chip row, now the shared one. It used to draw
+            itself as a pill, which v4 reserves for status — and a theme you are
+            choosing between is not a state being reported. */}
+        <MBFilterChips
+          options={MODE_OPTIONS}
+          selectedKey={mode}
+          onSelect={key => setThemeMode(key as ThemeMode)}
+          testIDPrefix="theme-mode"
+        />
       </View>
 
-      <MBButton
-        label={NAV_LABELS.logout}
-        variant="secondary"
-        onPress={onSignOut}
-        disabled={isSigningOut}
-      />
+      <View style={{ paddingHorizontal: theme.layout.screenPad }}>
+        <MBButton
+          label={NAV_LABELS.logout}
+          variant="dangerSoft"
+          onPress={onSignOut}
+          disabled={isSigningOut}
+          fullWidth
+        />
+      </View>
     </DrawerContentScrollView>
   );
 }
@@ -236,8 +252,11 @@ export function AccountDrawer({ profile }: { profile: AccessProfile }): React.Re
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  avatar: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  /** See the comment at the render site — this defeats the inset the scroll
+      view applies, so the identity block can run under the status bar. */
+  scroll: { paddingTop: 0 },
+  avatar: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center' },
+  connection: { marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: layout.dotSize, height: layout.dotSize },
-  chip: { alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 });

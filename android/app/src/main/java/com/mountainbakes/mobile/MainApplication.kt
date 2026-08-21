@@ -14,8 +14,10 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+          // Packages that cannot be autolinked yet can be added manually here.
+          // AppThemePackage lives in this app rather than a node module, so it
+          // has nothing to autolink from.
+          add(AppThemePackage())
         },
     )
   }

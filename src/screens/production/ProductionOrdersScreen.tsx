@@ -4,6 +4,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  MBAccountButton,
   MBButton,
   MBCard,
   MBEmptyState,
@@ -103,6 +104,7 @@ export function ProductionOrdersScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Orders"
         subtitle="Branch demands"
         right={<MBSyncStatus />}
@@ -125,7 +127,7 @@ export function ProductionOrdersScreen(): React.ReactElement {
                 style={[
                   styles.chip,
                   {
-                    borderRadius: theme.radius.pill,
+                    borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
                     backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
                     borderColor: selected ? theme.colors.primary : theme.colors.border,
                   },

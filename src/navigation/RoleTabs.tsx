@@ -3,12 +3,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
 import { MBTabBar } from './MBTabBar';
-import { NAV_LABELS, tabsFor, type AccessProfile } from './roleConfig';
+import { centreActionFor, NAV_LABELS, tabsFor, type AccessProfile } from './roleConfig';
 import { placeholderFor, resolveTabScreen } from './screenRegistry';
 import { createTabStack } from './stacks/createTabStack';
 import { makeMoreStack } from './stacks/MoreStack';
 import { makeOrdersStack } from './stacks/OrdersStack';
 import { makeProductsStack } from './stacks/ProductsStack';
+import { makeReportsStack } from './stacks/ReportsStack';
 import { makeStockStack } from './stacks/StockStack';
 import { TAB_ROOT_ROUTE } from './types';
 
@@ -34,6 +35,12 @@ const Tab = createBottomTabNavigator();
  */
 export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactElement {
   const tabs = useMemo(() => tabsFor(profile), [profile]);
+  /**
+   * The one create action the bar carries in its centre, or nothing. Resolved
+   * here rather than in `MBTabBar` so the bar keeps no role knowledge — the
+   * same split as `tabs`.
+   */
+  const centre = useMemo(() => centreActionFor(profile), [profile]);
 
   /**
    * Screens are assembled here rather than in the JSX below, so the stack
@@ -54,6 +61,13 @@ export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactEl
         component = makeProductsStack(profile.role);
       } else if (tab.name === 'Stock') {
         component = makeStockStack(profile.role);
+      } else if (tab.name === 'Reports') {
+        /* Not the shared factory: Reports pushes three statements. Note the
+           finance roles also have a tab called "Reports" — a different resource
+           behind the same name — and `resolveTabScreen` keys on the role, so
+           this factory hands a finance account its own index and registers the
+           admin statements only when that index resolved. */
+        component = makeReportsStack(profile.role);
       } else {
         const root = resolveTabScreen(profile.role, tab.name) ?? placeholderFor(tab.name, label);
         component = createTabStack(TAB_ROOT_ROUTE[tab.name], root);
@@ -76,8 +90,30 @@ export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactEl
    * this arrow is new each time.
    */
   const renderTabBar = useCallback(
-    (props: BottomTabBarProps) => <MBTabBar {...props} tabs={tabs} />,
-    [tabs],
+    (props: BottomTabBarProps) => (
+      <MBTabBar
+        {...props}
+        tabs={tabs}
+        centreAction={
+          centre
+            ? {
+                label: NAV_LABELS[centre.label],
+                icon: centre.icon,
+                /* `navigate` on the tab navigator's own navigation object, with
+                   `screen` passed through so the create form lands on top of
+                   the list it belongs to rather than beside it — the same hop
+                   a quick action makes. */
+                onPress: () =>
+                  props.navigation.navigate(
+                    centre.tab,
+                    centre.screen ? { screen: centre.screen } : undefined,
+                  ),
+              }
+            : undefined
+        }
+      />
+    ),
+    [tabs, centre],
   );
 
   return (

@@ -63,6 +63,20 @@ export interface MBHeaderProps {
    * cached to be stale about — a form, or a list that is local-only.
    */
   dataAsOf?: string;
+  /**
+   * Which of v4's two header treatments this screen wears.
+   *
+   * `field` — the default, and what every list and dashboard uses. The header
+   * sits on the page colour with **no divider under it**: the cards below are
+   * white on cream and already draw their own edges, so a rule between the
+   * title and the first card is a second boundary describing the same gap.
+   *
+   * `brand` — a solid brown block, for a screen that has taken over the whole
+   * device: New Order, a full-screen form, anything reached modally. The colour
+   * is the signal that back is the only way out, which is why it is not offered
+   * as decoration on a tab root — a tab root has no back.
+   */
+  tone?: 'field' | 'brand';
 }
 
 export function MBHeader({
@@ -73,6 +87,7 @@ export function MBHeader({
   right,
   search,
   dataAsOf,
+  tone = 'field',
 }: MBHeaderProps): React.ReactElement {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -92,6 +107,18 @@ export function MBHeader({
 
   const expanded = searchOpen && search;
 
+  const brand = tone === 'brand';
+  /* The brand block is `secondary`, not `primary`.
+     v4 paints a taken-over screen — New Order, Stock Detail, Branch Stock
+     History — in the deep ink and writes on it in white. An ember block would
+     be a header shouting louder than the button inside it, and `onPrimary` is
+     itself the ink, so an ember block with an ink title is a header you cannot
+     read. The subtitle takes the block's own muted level rather than the
+     field's, which is a cream and vanishes on brown. */
+  const fg = brand ? theme.colors.onSecondary : theme.colors.text;
+  const glyph = brand ? theme.colors.onSecondary : theme.colors.accent;
+  const subFg = brand ? theme.colors.onSecondaryMuted : theme.colors.textMuted;
+
   return (
     <>
       <View
@@ -100,8 +127,7 @@ export function MBHeader({
           {
             paddingTop: insets.top,
             minHeight: theme.layout.headerH + insets.top,
-            backgroundColor: theme.colors.surface,
-            borderBottomColor: theme.colors.border,
+            backgroundColor: brand ? theme.colors.secondary : theme.colors.bg,
             paddingHorizontal: theme.layout.screenPad,
           },
         ]}>
@@ -125,7 +151,7 @@ export function MBHeader({
               accessibilityRole="button"
               accessibilityLabel="Close search"
               style={[styles.back, { minWidth: theme.layout.tapMin }]}>
-              <MBIcon name="close" size="header" color={theme.colors.accent} />
+              <MBIcon name="close" size="header" color={glyph} />
             </MBPressable>
           </>
         ) : (
@@ -137,7 +163,7 @@ export function MBHeader({
                 accessibilityRole="button"
                 accessibilityLabel="Go back"
                 style={[styles.back, { minWidth: theme.layout.tapMin }]}>
-                <MBIcon name="back" size="header" color={theme.colors.accent} />
+                <MBIcon name="back" size="header" color={glyph} />
               </MBPressable>
             ) : (
               leading ?? null
@@ -147,13 +173,16 @@ export function MBHeader({
               <Text
                 accessibilityRole="header"
                 numberOfLines={1}
-                style={[theme.type.h2, { color: theme.colors.text }]}>
+                /* A screen title is `h1` on the field and `h2` inside the brown
+                   block: the block is a narrower space and already announces
+                   itself with colour, so the type does not have to. */
+                style={[brand ? theme.type.h2 : theme.type.h1, { color: fg }]}>
                 {title}
               </Text>
               {subtitle ? (
                 <Text
                   numberOfLines={1}
-                  style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                  style={[theme.type.caption, { color: subFg }]}>
                   {subtitle}
                 </Text>
               ) : null}
@@ -168,7 +197,7 @@ export function MBHeader({
                     accessibilityRole="button"
                     accessibilityLabel={search.placeholder ?? 'Search'}
                     testID={search.testID ? `${search.testID}-open` : undefined}>
-                    <MBIcon name="search" size="header" color={theme.colors.accent} />
+                    <MBIcon name="search" size="header" color={glyph} />
                   </MBPressable>
                 ) : null}
                 {right}
@@ -186,12 +215,17 @@ export function MBHeader({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * No bottom border in either tone. v4 draws none: on the field the cards
+   * below supply the edge, and on the brown block the colour change is the
+   * edge. It was a 1px rule under a white header, which is the treatment that
+   * made every screen read as a settings page.
+   */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderBottomWidth: 1,
-    paddingBottom: space.sm,
+    paddingBottom: space.md,
   },
   back: { justifyContent: 'center' },
   titles: { flex: 1, justifyContent: 'center' },

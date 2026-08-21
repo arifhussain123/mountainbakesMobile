@@ -101,6 +101,7 @@ export function PriceChangeScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        tone="brand"
         title="Change price"
         subtitle={product.data?.name}
         onBack={() => navigation.goBack()}

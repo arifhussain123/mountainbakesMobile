@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "shared:check": "bash scripts/check-shared-mirror.sh",
     "theme:check": "bash scripts/check-theme-tokens.sh",
-    "verify": "npm run typecheck && npm run shared:check && npm run theme:check && npm test",
+    "verify": "npm run typecheck && npm run shared:check && npm run theme:check && npm run splash:check && npm test",
     "build:android": "cd android && ./gradlew assembleRelease",
-    "clean:android": "cd android && ./gradlew clean"
+    "clean:android": "cd android && ./gradlew clean",
+    "splash:check": "bash scripts/check-splash-colour.sh"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
@@ -88,5 +89,13 @@
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "codegenConfig": {
+    "name": "AppThemeSpec",
+    "type": "modules",
+    "jsSrcsDir": "src/specs",
+    "android": {
+      "javaPackageName": "com.mountainbakes.mobile"
+    }
   }
 }

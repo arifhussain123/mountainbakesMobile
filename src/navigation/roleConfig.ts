@@ -136,6 +136,7 @@ export const NAV_LABELS = {
   income: 'Income',
   closing: 'Closing',
   production: 'Production',
+  returns: 'Returns',
   newOrder: 'New Order',
   newSale: 'New Sale',
   addExpense: 'Add Expense',
@@ -146,6 +147,7 @@ export const NAV_LABELS = {
   partnerExpenses: 'Partner Expenses',
   syncCenter: 'Sync Center',
   notifications: 'Notifications',
+  events: 'Events',
   help: 'Help & Support',
   settings: 'Settings',
   profile: 'Profile',
@@ -395,6 +397,9 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
         { route: 'Stock', icon: 'stock', label: 'stock' },
         { route: 'Expenses', icon: 'expenses', label: 'expenses' },
         { route: 'Production', icon: 'production', label: 'production' },
+        // The same queue the production counter works, which an admin may also
+        // review — both roles are named on the route's `requireRole`.
+        { route: 'Returns', icon: 'delivery', label: 'returns', requires: ['admin'] },
       ],
     },
   ],
@@ -405,6 +410,17 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
       title: 'Operations',
       items: [
         { route: 'Stock', icon: 'stock', label: 'stock' },
+        /**
+         * Returns branches have handed back, waiting to be accepted or refused.
+         *
+         * A More row rather than a fifth tab: the queue is worked through once
+         * or twice a day at the end of a delivery round, not stood in front of
+         * like Preparation. It is gated by `production` rather than left open
+         * because `/api/production-returns` is
+         * `requireRole('super_admin', 'production_user')` — a branch gets 403
+         * from the read itself.
+         */
+        { route: 'Returns', icon: 'delivery', label: 'returns', requires: ['production'] },
         { route: 'Reports', icon: 'reports', label: 'reports' },
       ],
     },
@@ -499,6 +515,14 @@ const MORE_COMMON: readonly MoreSection[] = [
        * fed by nothing teaches staff to ignore every badge in the app.
        */
       { route: 'Notifications', icon: 'notifications', label: 'notifications' },
+      /**
+       * Universal, and gated by nothing. `/api/special-events` is behind
+       * `authenticate` with no `requireRole`, and `scopedEventRows` narrows a
+       * branch account to events that apply to all branches or name its own —
+       * so every role has something real to see here, which is the test a row
+       * in this common section has to pass.
+       */
+      { route: 'Events', icon: 'events', label: 'events' },
       { route: 'Profile', icon: 'profile', label: 'profile' },
       { route: 'Help', icon: 'help', label: 'help' },
       { route: 'Settings', icon: 'settings', label: 'settings' },
@@ -579,7 +603,21 @@ export interface QuickAction {
 export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
   branch: [
     { tab: 'Sales', icon: 'sales', label: 'newSale' },
-    { tab: 'Orders', screen: 'CreateOrder', icon: 'orders', label: 'newOrder' },
+    /**
+     * New Order is **not** here, and its absence is a decision rather than an
+     * omission: it is what the navigation bar carries in its centre (see
+     * `CENTRE_ACTIONS`), on screen for the whole shift on every tab. A card
+     * repeating it would be a second control for one action, which is the thing
+     * `MBFab`'s doc calls out — two ways to do one job and staff learning
+     * neither.
+     *
+     * It is dropped here rather than filtered out at runtime because
+     * `quickActionsFor` drops nothing by design: a dropped action means the
+     * config named a place the role cannot go, and
+     * `navigationSurface.test.ts` asserts that never happens. Giving that
+     * filter a second, legitimate reason to remove a card would make the
+     * assertion unable to tell a bug from a decision.
+     */
     { tab: 'More', screen: 'Expenses', icon: 'expenses', label: 'addExpense' },
     { tab: 'Stock', icon: 'stock', label: 'stock' },
   ],
@@ -587,6 +625,59 @@ export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
   production: [],
   finance: [],
 };
+
+/**
+ * The one action the floating navigation bar carries in its centre, per role
+ * group — v4's ember circle sitting proud of the pill.
+ *
+ * ------------------------------------------------------------------------
+ * Why one per role and not one per screen
+ * ------------------------------------------------------------------------
+ * v4 draws the centre button on Orders, Sales, Expenses, Returns and Events,
+ * and a different create action on each. It also draws a **different tab set**
+ * on those screens than on Dashboard, Stock and Reports — four tabs plus the
+ * notch against five without it. A real tab bar cannot do that: the set is a
+ * property of the navigator, not of the screen inside it, and a bar whose cells
+ * move when you switch tabs is worse than any button it could gain.
+ *
+ * So the mockup's per-screen variation is read as what it is — a drawing
+ * dropping a tab to make room — and the button becomes one fixed action for the
+ * whole shift. The slot is reserved for the life of the session or not at all,
+ * and nothing in the row ever moves.
+ *
+ * Branch gets New Order. It is the role's one unambiguous *create* that is not
+ * already a whole screen: Sales **is** the POS (a FAB on it would open the
+ * screen you are already on, which `docs/screen-patterns.md` forbids), Stock is
+ * read-and-adjust, and Home is a dashboard. The other three groups get none,
+ * for the same reason `QUICK_ACTIONS` leaves them empty — nobody who works
+ * those roles has said what their one action is, and guessing puts a 56dp
+ * target in the middle of the bar that people learn to avoid.
+ *
+ * It adds no destination: `CreateOrder` is already on `OrdersStack`, reachable
+ * from the Orders list. This is a shorter path to it, exactly as a quick action
+ * is, which is why it is not in the single-path inventory. The corner `MBFab`
+ * that used to open it from the Orders list is gone — one action, one control.
+ */
+export const CENTRE_ACTIONS: Record<RoleGroup, QuickAction | null> = {
+  branch: { tab: 'Orders', screen: 'CreateOrder', icon: 'add', label: 'newOrder' },
+  admin: null,
+  production: null,
+  finance: null,
+};
+
+/**
+ * The centre action this profile can actually reach, or `null`.
+ *
+ * Same reachability test as `quickActionsFor`: the tab has to survive
+ * `tabsFor`, or the bar would draw a button that navigates nowhere.
+ */
+export function centreActionFor(profile: AccessProfile): QuickAction | null {
+  const action = CENTRE_ACTIONS[profile.group] ?? null;
+  if (!action) return null;
+  if (!satisfies(profile, action.requires)) return null;
+  const tabs = new Set(tabsFor(profile).map(t => t.name));
+  return tabs.has(action.tab) ? action : null;
+}
 
 /**
  * The actions this profile can actually reach, in config order.

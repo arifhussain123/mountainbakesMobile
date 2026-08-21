@@ -101,7 +101,7 @@ export function MBDateFilter({
             style={[
               styles.chip,
               {
-                borderRadius: theme.radius.pill,
+                borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
                 borderColor: selected ? theme.colors.primary : theme.colors.border,
                 backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
               },

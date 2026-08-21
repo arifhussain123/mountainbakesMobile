@@ -69,7 +69,7 @@ export const MBInput = forwardRef<TextInput, MBInputProps>(function MBInputInner
     borderColor,
     borderWidth: focused || error ? 2 : 1,
     backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.space.md,
+    paddingHorizontal: theme.space.lg,
   } as const;
 
   const requiredMark = { color: theme.colors.danger } as const;

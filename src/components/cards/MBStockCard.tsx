@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { MBCard } from '../common/MBCard';
 import { MBIcon } from '../common/MBIcon';
+import { MBMeter, type MeterTone } from '../common/MBMeter';
 import { MBPressable } from '../common/MBPressable';
 import { useTheme } from '@/theme/ThemeProvider';
 import { space } from '@/theme/spacing';
@@ -37,6 +38,17 @@ import { formatQty } from '@/utils/money';
  * to close when another opened.
  */
 
+/**
+ * Where the meter reads full.
+ *
+ * `stockLevel` puts the boundary between `moderate` and `healthy` at 20, so a
+ * bar that fills at 20 means "clear of every warning band". Anything above it
+ * clamps rather than shrinking the rest of the list's bars — the question this
+ * card answers is how close a product is to running out, not how large the
+ * largest pile in the shop is.
+ */
+const FULL_BAR = 20;
+
 export interface MBStockCardProps {
   row: StockRow;
   expanded: boolean;
@@ -64,6 +76,13 @@ export const MBStockCard = React.memo(function MBStockCardView({
     critical: 'Critical',
     moderate: 'Low',
     healthy: 'In stock',
+  };
+
+  const levelTone: Record<StockLevel, MeterTone> = {
+    out: 'danger',
+    critical: 'danger',
+    moderate: 'warning',
+    healthy: 'success',
   };
 
   return (
@@ -122,6 +141,24 @@ export const MBStockCard = React.memo(function MBStockCardView({
             />
           </View>
         </View>
+
+        {/*
+          The band, as a picture.
+
+          A balance of 8 is a crisis for bread and a full shelf for wedding
+          cakes, and the figure alone cannot say which — the word beside it can,
+          and the bar is what makes the *distance* to the next band visible at a
+          glance down a ninety-line catalogue. `FULL_BAR` is `stockLevel`'s own
+          healthy boundary, so a full bar means exactly "out of the warning
+          bands" rather than a number picked to look right.
+
+          Decorative, and hidden from the reader: the pressable above already
+          announces the balance and the level in words. Colour is never the only
+          signal here — the label is.
+        */}
+        <View style={styles.meter}>
+          <MBMeter value={row.balance} max={FULL_BAR} tone={levelTone[level]} />
+        </View>
       </MBPressable>
 
       {/* opening + newQty − sold − returned + adjustment = balance */}
@@ -166,6 +203,7 @@ const styles = StyleSheet.create({
   balance: { alignItems: 'flex-end', gap: space.hair },
   // Centred against the balance rather than pinned to the top of the row.
   disclosure: { alignSelf: 'center' },
+  meter: { marginTop: space.snug },
   movements: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -73,7 +73,21 @@ export function MBQuickActions({ profile }: { profile: AccessProfile }): React.R
                 gap: theme.space.xs,
               },
             ]}>
-            <MBIcon name={action.icon} size="action" color={theme.colors.accent} />
+            {/* v4 never draws a bare glyph on a card — every icon it shows sits
+                in a tinted rounded square, which is what stops a row of four
+                outline marks reading as a toolbar. The tint is the brand's,
+                not a status colour: these are destinations, and none of them
+                is more urgent than the others. */}
+            <View
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: theme.colors.primarySoft,
+                  borderRadius: theme.radius.icon,
+                },
+              ]}>
+              <MBIcon name={action.icon} size="action" color={theme.colors.accent} />
+            </View>
             {/* The label is not optional. New staff have not learned which glyph
                 is which, and this row is the first thing they are pointed at. */}
             <Text
@@ -100,4 +114,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: { textAlign: 'center' },
+  chip: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
 });

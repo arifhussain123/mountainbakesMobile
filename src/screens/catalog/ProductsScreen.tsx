@@ -1,14 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBAccountButton,
   MBEmptyState,
   MBErrorState,
   MBFab,
+  MBFilterChips,
   MBHeader,
-  MBPressable,
   MBSkeletonList,
   MBSyncStatus,
   MBProductCard,
@@ -20,7 +21,7 @@ import type { Product } from '@/shared/types/product.types';
 import { useNetworkStore } from '@/store/networkStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { dataAsOfFrom } from '@/utils/dataAsOf';
-import { contentColumn, layout, space } from '@/theme/spacing';
+import { contentColumn, space } from '@/theme/spacing';
 
 /**
  * Product catalogue — the read-only vertical slice.
@@ -50,6 +51,9 @@ const STATUS_FILTERS = [
 ] as const;
 
 type StatusKey = (typeof STATUS_FILTERS)[number]['key'];
+
+/** The same three, in the shape `MBFilterChips` reads. */
+const STATUS_FILTER_OPTIONS = STATUS_FILTERS.map(f => ({ key: f.key, label: f.label }));
 
 export function ProductsScreen(): React.ReactElement {
   const theme = useTheme();
@@ -86,8 +90,8 @@ export function ProductsScreen(): React.ReactElement {
 
   const filterChips = useMemo(
     () => [
-      { id: ALL_CATEGORIES, name: 'All' },
-      ...(categories.data ?? []).map(c => ({ id: c.id, name: c.name })),
+      { key: ALL_CATEGORIES, label: 'All' },
+      ...(categories.data ?? []).map(c => ({ key: c.id, label: c.name })),
     ],
     [categories.data],
   );
@@ -119,6 +123,7 @@ export function ProductsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Products"
         dataAsOf={dataAsOfFrom(products.dataUpdatedAt)}
         subtitle={products.data ? `${products.data.length} items` : undefined}
@@ -133,74 +138,31 @@ export function ProductsScreen(): React.ReactElement {
       />
 
       <View style={{ padding: theme.layout.screenPad, gap: theme.space.md }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: theme.space.sm }}>
-          {filterChips.map(chip => {
-            const selected = chip.id === categoryId;
-            return (
-              <MBPressable
-                key={chip.id}
-                onPress={() => setCategoryId(chip.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.chip,
-                  {
-                    borderRadius: theme.radius.pill,
-                    paddingHorizontal: theme.space.lg,
-                    backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                    borderColor: selected ? theme.colors.primary : theme.colors.border,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    theme.type.label,
-                    {
-                      color: selected ? theme.colors.onPrimary : theme.colors.text,
-                    },
-                  ]}>
-                  {chip.name}
-                </Text>
-              </MBPressable>
-            );
-          })}
-        </ScrollView>
+        {/* Both rows are `MBFilterChips` rather than two hand-rolled copies of
+            it. They had drifted into a third chip idiom — `radius.pill`, which
+            v4 reserves for *status*, a thing that is read rather than chosen —
+            and the status row filled itself with `accent` while labelling
+            itself with `onPrimary`, two tokens that are now the same ink. */}
+        <MBFilterChips
+          scroll
+          options={filterChips}
+          selectedKey={categoryId}
+          onSelect={setCategoryId}
+          testIDPrefix="category"
+        />
 
         {/* Status sits below the categories rather than beside them: two
-            horizontal scrollers on one line is a row nobody can tell apart. */}
+            horizontal scrollers on one line is a row nobody can tell apart. It
+            takes the `accent` tone so the two rows do not both read as the
+            screen's primary choice. */}
         {canManage ? (
-          <View style={styles.chips}>
-            {STATUS_FILTERS.map(filter => {
-              const selected = filter.key === status;
-              return (
-                <MBPressable
-                  key={filter.key}
-                  onPress={() => setStatus(filter.key)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  testID={`status-${filter.key}`}
-                  style={[
-                    styles.chip,
-                    {
-                      borderRadius: theme.radius.pill,
-                      paddingHorizontal: theme.space.lg,
-                      backgroundColor: selected ? theme.colors.accent : theme.colors.surface,
-                      borderColor: selected ? theme.colors.accent : theme.colors.border,
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      theme.type.label,
-                      { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                    ]}>
-                    {filter.label}
-                  </Text>
-                </MBPressable>
-              );
-            })}
-          </View>
+          <MBFilterChips
+            tone="accent"
+            options={STATUS_FILTER_OPTIONS}
+            selectedKey={status}
+            onSelect={key => setStatus(key as StatusKey)}
+            testIDPrefix="status"
+          />
         ) : null}
       </View>
 
@@ -313,12 +275,6 @@ const styles = StyleSheet.create({
   listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
   separator: { height: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    height: layout.chipH,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   rowMain: { flex: 1, gap: space.hair },
 });

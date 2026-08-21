@@ -1,4 +1,5 @@
 import React from 'react';
+import RNBootSplash from 'react-native-bootsplash';
 import { SplashScreen } from '@/screens/SplashScreen';
 import { renderScreen } from '@/test-utils/render';
 
@@ -33,5 +34,30 @@ describe('SplashScreen', () => {
     expect(
       screen.getByLabelText('Mountain Bakes. Fresh • Quality • Every Day. Starting.'),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * The reason anything on this screen is visible.
+ *
+ * `hide()` used to be called at the end of bootstrap, so the app became ready
+ * and the native splash lifted in the same tick — the fade revealed the
+ * dashboard, and this screen was drawn and discarded without ever being seen.
+ * Move the call back there and every visual below silently stops mattering,
+ * with no test failing and nothing looking broken.
+ */
+describe('the hand-off from the native splash', () => {
+  const hide = RNBootSplash.hide as jest.Mock;
+
+  beforeEach(() => hide.mockClear());
+
+  it('dismisses the native splash on mount, not on boot completion', async () => {
+    await renderScreen(<SplashScreen />);
+    expect(hide).toHaveBeenCalledWith({ fade: true });
+  });
+
+  it('survives hide() rejecting, which is what "already hidden" looks like', async () => {
+    hide.mockRejectedValueOnce(new Error('already hidden'));
+    await expect(renderScreen(<SplashScreen />)).resolves.toBeTruthy();
   });
 });

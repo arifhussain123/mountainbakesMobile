@@ -60,7 +60,7 @@ export function MBShareList({
 
   return (
     <View accessibilityLabel={accessibilityLabel} style={styles.list}>
-      {rows.map(row => (
+      {rows.map((row, i) => (
         <View key={row.label} style={styles.row}>
           <View style={styles.labels}>
             <Text
@@ -87,7 +87,13 @@ export function MBShareList({
                   // A hairline minimum, so a row that sold one unit is still
                   // visibly present rather than looking like a zero.
                   width: `${Math.max(2, row.ratio * 100)}%`,
-                  backgroundColor: theme.colors.accent,
+                  // v4 ranks the ramp: the largest share takes the ember and
+                  // each one below it steps into a warmer brown. Rows past the
+                  // fourth all share the fourth colour rather than continuing
+                  // into the ramp's pale tail, which is reserved for an
+                  // "everything else" segment and is 1.3:1 on a card — a bar
+                  // drawn in it reads as a row that sold nothing.
+                  backgroundColor: theme.colors.series[Math.min(i, theme.colors.series.length - 2)],
                   borderRadius: theme.radius.pill,
                 },
               ]}

@@ -33,7 +33,10 @@ export function RootNavigator(): React.ReactElement {
       ...base,
       colors: {
         ...base.colors,
-        primary: theme.colors.primary,
+        // React Navigation spends `primary` on **type** — a header back
+        // label, a default tab's active tint — so it takes the brand mark, not
+        // the brand fill. The ember is 3.2:1 and would be unreadable there.
+        primary: theme.colors.accent,
         background: theme.colors.bg,
         card: theme.colors.surface,
         text: theme.colors.text,

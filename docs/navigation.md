@@ -203,15 +203,29 @@ underneath a pushed detail screen intact.
 
 | Role | Tabs | More |
 |---|---|---|
-| `super_admin` | Home · Orders · Products · Reports · More | Users · Categories · Vendors · Branches · Sales · Stock · Expenses · Production |
+| `super_admin` | Home · Orders · Products · Reports · More | Users · Categories · Vendors · Branches · Sales · Stock · Expenses · Production · Returns |
 | `branch_manager` | Home · Orders · Sales · Stock · More | Expenses · Reports |
 | `branch_user` | Orders · Sales · Stock · More | Expenses |
-| `production_user` | Home · Orders · Preparation · Delivery · More | Stock · Reports |
+| `production_user` | Home · Orders · Preparation · Delivery · More | Stock · Returns · Reports |
 | `finance_*` (4 roles) | Home · Income · Expenses · Reports · More | Partner Expenses |
 
 Every role's More list then ends with the same App group — Sync Center,
-Notifications, Profile, Help, Settings — appended once from `MORE_COMMON` rather
-than repeated per role.
+Notifications, **Events**, Profile, Help, Settings — appended once from
+`MORE_COMMON` rather than repeated per role.
+
+**Events is common because the endpoint is.** `/api/special-events` sits behind
+`authenticate` and nothing else, and `scopedEventRows` narrows a branch account
+to the events that apply to all branches or name its own. Every role therefore
+has something real to see there, which is the test a row in that section has to
+pass — the reason Stock and Sales are *not* in it for finance.
+
+**Returns is not.** `/api/production-returns` is
+`requireRole('super_admin', 'production_user')` on the router itself, so a branch
+is refused the read as well as the review. It appears in exactly those two roles'
+lists and `resolveMoreScreen` gates it again, so a deep link cannot land another
+role on a screen that 403s on first load. A branch's *own* returns are a
+different path with no list endpoint at all — they are applied immediately by
+`POST /api/stock/return` and read off the stock ledger.
 
 Two entries in that table are easy to get wrong from memory:
 
@@ -239,6 +253,67 @@ dismissing returns to the list that now contains the new row. Registered for
 branch roles only; the admin and production "Orders" tabs are different resources
 (customer orders, and branch demands on central production) and neither is
 created from that form.
+
+### The centre action button
+
+v4 draws an ember circle sitting proud of the middle of the floating navigation
+bar. `CENTRE_ACTIONS` in `roleConfig.ts` declares it — **one per role group, not
+one per screen** — and `MBTabBar` reserves a 60dp notch in the row for it.
+
+The mockup varies it per screen: a `+` on Orders, Sales, Expenses, Returns and
+Events, each opening something different, and a *different tab set* on those
+screens than on Dashboard, Stock and Reports. A real tab bar cannot do that. The
+set is a property of the navigator rather than of the screen inside it, and a bar
+whose cells move when you switch tabs is worse than any button it could gain. So
+the per-screen variation is read as what it is — a drawing dropping a tab to make
+room — and the button becomes one fixed action for the whole shift.
+
+Branch gets **New Order**. It is the role's one unambiguous *create* that is not
+already a whole screen: Sales **is** the POS (a FAB there would open the screen
+you are already on), Stock is read-and-adjust, Home is a dashboard. The other
+three groups get none, for the same reason `QUICK_ACTIONS` leaves them empty.
+
+Two consequences worth stating, because both are enforced by
+`navigationSurface.test.ts`:
+
+- **It adds no destination.** `CreateOrder` is already on `OrdersStack`,
+  reachable from the Orders list. This is a shorter path to it, exactly as a
+  quick action is — which is why it is not in the single-path inventory.
+- **Nothing else offers the same action.** The corner `MBFab` that used to open
+  New Order from the demands list is gone, and `newOrder` is no longer a
+  dashboard quick action. One action, one control; a screen with two of them
+  teaches staff neither. The empty state keeps its call to action, because with
+  nothing in the list there is nothing for the centre button to compete with.
+
+### Reports pushes three statements
+
+Reports grew a stack. `DailySales`, `TopProducts` and `SalesVsExpenses` are
+**detail screens, not destinations**: nothing in `roleConfig` points at them and
+the only way in is the Reports index, which keeps the single-path rule intact
+while giving each the whole screen it needs.
+
+They have to be registered in two navigators, because Reports is a **tab** for
+the admin and a **More row** for a branch manager. `REPORT_DETAIL_SCREENS` in
+`types.ts` is the one list both read — `ReportsStack.tsx` for the tab,
+`MORE_DETAIL_SCREENS` for the row — so the two roles cannot drift into being
+offered different statements from the same index.
+
+Both are gated by the index rather than per screen: all three read
+`GET /api/reports/summary`, the same endpoint the index reads, mounted behind
+`requireRole('super_admin', 'branch_manager')`. A `branch_user` never gets the
+tab or the row, so the statements are unreachable for exactly the accounts the
+server would refuse.
+
+### Stock pushes the ledger
+
+`StockHistory` and `StockDay` are the same shape one tab along: detail screens on
+`StockStack`, reached from a link on the stock list and from each other, never
+from a menu. They are registered for **branch roles only** — `GET
+/api/stock/history` scopes a branch role to its own shop, requires an explicit
+`branchId` from a super admin, and refuses everyone else. The admin is left out
+deliberately rather than by omission: they may read it, but only by naming a
+branch, and the Stock tab has no branch picker for them. Adding the route without
+one is a screen that 400s.
 
 ## Route names are shared; screens are not
 

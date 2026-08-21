@@ -6,7 +6,11 @@ import { MBIcon } from '@/components/common/MBIcon';
 import type { IconKey } from '@/constants/navigationIcons';
 import { useTheme } from '@/theme/ThemeProvider';
 import { formatCurrency, toNumber } from '@/utils/money';
-import { space } from '@/theme/spacing';
+import { layout, space } from '@/theme/spacing';
+import { iconSize } from '@/theme/iconSizes';
+
+/** The pastel a tile's glyph chip wears. See `tone` on the props. */
+export type StatTone = 'brand' | 'success' | 'danger' | 'warning' | 'info';
 
 export interface MBStatCardProps {
   label: string;
@@ -19,11 +23,29 @@ export interface MBStatCardProps {
    */
   subtitle?: string;
   /**
-   * A quiet leading glyph, drawn at `iconSize.statCard`. It marks the tile in a
-   * grid of four; it is never the thing carrying the meaning, which is why it is
-   * muted rather than coloured by state.
+   * The leading glyph, drawn inside a tinted square at the top of the tile.
+   *
+   * It marks the tile in a grid of four; it is never the thing carrying the
+   * meaning. v4 moved it from a muted mark beside the label to a coloured chip
+   * above it — see `tone` for what the colour is and, more importantly, what it
+   * is not.
    */
   icon?: IconKey;
+  /**
+   * Which tint the glyph chip wears. **Decorative, and deliberately so.**
+   *
+   * v4 gives each tile in its dashboard grid a different pastel — green on
+   * sales, red on expenses, amber on profit, violet on pending orders — so four
+   * tiles can be told apart at a glance in a way four identical white squares
+   * cannot. It marks *which tile this is*, not whether its number is good news.
+   *
+   * That distinction is the thing to hold on to: expenses are red on every
+   * dashboard v4 draws, including the ones where expenses fell. Wiring this to
+   * a threshold would make the same tile change colour day to day and quietly
+   * turn a landmark into an alarm. The figure's own direction is reported by
+   * `deltaPct` below, which has the arrow to go with it.
+   */
+  tone?: StatTone;
   /** Formats value as currency. Off for counts (orders, low-stock items). */
   currency?: boolean;
   /** Tenant symbol from AppSettings; falls back to 'Rs.'. */
@@ -47,6 +69,7 @@ export function MBStatCard({
   value,
   subtitle,
   icon,
+  tone = 'brand',
   currency = true,
   currencySymbol,
   deltaPct = null,
@@ -55,6 +78,15 @@ export function MBStatCard({
   testID,
 }: MBStatCardProps): React.ReactElement {
   const theme = useTheme();
+
+  const TONES: Record<StatTone, { fg: string; bg: string }> = {
+    brand: { fg: theme.colors.primary, bg: theme.colors.primarySoft },
+    success: { fg: theme.colors.success, bg: theme.colors.successBg },
+    danger: { fg: theme.colors.danger, bg: theme.colors.dangerBg },
+    warning: { fg: theme.colors.warning, bg: theme.colors.warningBg },
+    info: { fg: theme.colors.info, bg: theme.colors.infoBg },
+  };
+  const chip = TONES[tone];
 
   const numeric = toNumber(value);
   const display = currency ? formatCurrency(numeric, currencySymbol) : String(value ?? '—');
@@ -72,19 +104,27 @@ export function MBStatCard({
     <MBCard
       onPress={onPress}
       testID={testID}
+      // A tile is padded tighter than a list card: it holds a glyph, a caption
+      // and a figure, and at `cardPad` it is mostly air. See `layout.tilePad`.
+      style={styles.tile}
       // Subtitle rides in the accessible name so a screen reader gets the whole
       // tile in one stop — "Sales: Rs. 1,250, vs last week" — rather than the
       // number and its qualifier as two unrelated announcements.
       accessibilityLabel={`${label}: ${display}${subtitle ? `, ${subtitle}` : ''}`}>
       <View style={styles.body}>
-        <View style={styles.heading}>
-          <Text
-            style={[theme.type.label, styles.flex, { color: theme.colors.textMuted }]}
-            numberOfLines={1}>
-            {label}
-          </Text>
-          {icon ? <MBIcon name={icon} size="statCard" color={theme.colors.borderStrong} /> : null}
-        </View>
+        {icon ? (
+          <View
+            style={[
+              styles.chip,
+              { backgroundColor: chip.bg, borderRadius: theme.radius.icon },
+            ]}>
+            <MBIcon name={icon} size="action" color={chip.fg} />
+          </View>
+        ) : null}
+
+        <Text style={[theme.type.label, { color: theme.colors.textMuted }]} numberOfLines={1}>
+          {label}
+        </Text>
 
         {/* Money goes through `MBMoney` — the one component that renders
             currency — so a tile and a row can never disagree about the symbol
@@ -130,15 +170,24 @@ export function MBStatCard({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  tile: { padding: layout.tilePad },
   body: { gap: space.tight },
-  // The glyph sits beside the label rather than above the number: the money is
-  // the largest thing on the screen and nothing shares its line.
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: space.sm,
+  /**
+   * The glyph sits above the label, not beside it.
+   *
+   * It used to share the label's line, which was the right call when the mark
+   * was a muted 32px outline that would have owned a row of its own. v4's chip
+   * is a filled 36px square and a much louder object: on the label's line it
+   * competes with the text for the top of the tile, and the eye lands on the
+   * colour instead of on what the tile counts. Stacked, the tile reads in the
+   * order it should — what this is, then the number, then which way it moved.
+   */
+  chip: {
+    width: iconSize.statCard + 4,
+    height: iconSize.statCard + 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.xs,
   },
   trend: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
 });

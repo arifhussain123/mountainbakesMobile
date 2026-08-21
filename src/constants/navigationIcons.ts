@@ -30,6 +30,7 @@ import Boxes from 'lucide-react-native/icons/boxes';
 import Building2 from 'lucide-react-native/icons/building-2';
 import ChartColumn from 'lucide-react-native/icons/chart-column';
 import Check from 'lucide-react-native/icons/check';
+import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import Circle from 'lucide-react-native/icons/circle';
@@ -47,6 +48,7 @@ import LayoutGrid from 'lucide-react-native/icons/layout-grid';
 import LifeBuoy from 'lucide-react-native/icons/life-buoy';
 import ListChecks from 'lucide-react-native/icons/list-checks';
 import LogOut from 'lucide-react-native/icons/log-out';
+import Menu from 'lucide-react-native/icons/menu';
 import Minus from 'lucide-react-native/icons/minus';
 import Package from 'lucide-react-native/icons/package';
 import Plus from 'lucide-react-native/icons/plus';
@@ -127,7 +129,17 @@ export const ICONS = {
   logout: LogOut,
   search: Search,
   filter: Funnel,
+  // Special events — Eid, Ramadan, a wedding order, a market day. A calendar
+  // rather than a star or a gift: what a branch needs off this row is *when*,
+  // and the grid inside the screen is the same shape as the glyph.
+  events: CalendarDays,
   more: Ellipsis,
+  // The three-line drawer button in a header's leading slot. Deliberately a
+  // different glyph from `more`: `more` opens the More TAB, which is a list of
+  // destinations, while this opens the account panel, which holds identity and
+  // actions and navigates nowhere. One ellipsis for both taught the top-left
+  // and the bottom-right corner to look like the same control.
+  menu: Menu,
   back: ArrowLeft,
   close: X,
   add: Plus,

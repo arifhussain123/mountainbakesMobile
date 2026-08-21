@@ -16,7 +16,8 @@ npm run lint             # eslint (clean — keep it that way)
 npm test                 # jest
 npm run shared:check     # src/shared must equal the server's, byte for byte
 npm run theme:check      # no hard-coded colour anywhere in src/components
-npm run verify           # typecheck + shared:check + theme:check + test — run this before calling anything done
+npm run splash:check     # splashTop must equal the native bootsplash colour
+npm run verify           # typecheck + shared:check + theme:check + splash:check + test — run this before calling anything done
 npm run build:android    # release APK
 npm run clean:android    # gradlew clean
 ```
@@ -44,11 +45,21 @@ phone, which is why it is not what the file says.
 `assertApiReachable()` in `src/config/env.ts` throws loudly on a missing value rather
 than letting every request 404 quietly.
 
-A Gradle build prints ~65 deprecation warnings. They come from sixteen third-party
-native modules' own `build.gradle` files (skia, screens, nitro-modules, op-sqlite,
-…) plus AGP's internal dependency declarations — **none from this tree**, which was
-cleaned up. They become errors only in Gradle 10; the libraries will have moved by
-then. Do not go patching `node_modules` over them.
+A Gradle build used to print a deprecation summary on every run. It is silenced by
+`org.gradle.warning.mode=none` in `android/gradle.properties`, and that file carries
+the full measurement behind the decision. In short: `--warning-mode all` reports 36
+problems and the build's own `problems-report.html` attributes **every one of them
+to code outside this repository** — 15 to AGP, 6 to the Kotlin plugins, and 15 to
+three node modules (`op-sqlite` 6, `react-native-blob-util` 5,
+`react-native-bootsplash` 4), all three of which are already pinned at their newest
+published release. Nothing in `android/build.gradle`, `android/app/build.gradle` or
+`android/settings.gradle` contributes one.
+
+So it is suppression, not a fix, because there is nothing here to fix — and the cost
+is that it also hides deprecations from **our** Gradle files. Comment the property
+out, or run `--warning-mode all`, before changing anything under `android/`. Do not
+patch `node_modules`: the next `npm install` undoes it. They become hard errors only
+in Gradle 10, which this project is not on.
 
 **iOS has never been built.** The project exists from the template, CocoaPods has
 never run, and development happens on Linux. Treat any iOS claim as unverified.
@@ -177,6 +188,12 @@ they can be compared. `roleNavigation.ts` keeps only the role *predicates*
 (`isBranchRole`, `isFinanceRole`, `roleGroupFor`), which are domain rules used well
 outside navigation.
 
+The floating nav bar carries **one create action in its centre** per role group
+(`CENTRE_ACTIONS`) — branch gets New Order. It adds no destination, so it is not
+in the single-path inventory; but nothing else may offer the same action, which
+is why the corner FAB on the demands list and the `newOrder` quick action are
+both gone. `navigationSurface.test.ts` asserts that.
+
 `resolveTabScreen(role, route)` in `navigation/screenRegistry.tsx` maps (role, tab
 name) → component, because **the same tab name means different screens for different
 roles**: "Sales" at the production counter allows a `staff` payment method a branch
@@ -232,6 +249,50 @@ bootstrap failure shows a retry, never an endless splash.
 
 Light and dark are two token sets behind one interface (`theme/`). Do not write
 `isDark ? a : b` in a component; add or use a token.
+
+**The palette is a fill and a mark, and they are not interchangeable.** v4 runs
+two colours: ember orange for every **fill** — a button, the active chip, the
+centre action button, a meter, a chart line — and deep brown `#3E1B00` for every
+**mark**: type, icons, links, and the hero blocks a KPI sits on. It never sets a
+link or a figure in orange, and it cannot: the ember is 3.2:1 on a card.
+
+So `primary` is a fill and `accent` is the mark, and reaching for `primary` as a
+text or glyph colour is the mistake to watch for — `contrast.test.ts` asserts
+`accent` is strictly the more readable of the two, and `primary` is held to the
+3:1 non-text bar rather than 4.5:1. In light `accent` happens to equal `text`,
+because v4 carries link-ness with **weight** rather than hue; that is deliberate
+and documented on the token.
+
+`ember500` is v4's `#FB6D34` walked down 6%. Its own orange is 2.73:1 against its
+own field, under the 3:1 that WCAG 1.4.11 asks of a graphical object carrying
+information — and that bar is not academic, because the same value paints the
+stock meter and the trend line, both of which are pure graphics with no label to
+fall back on.
+
+**Cards carry a soft lift again** (`e1`, 7% opacity) *plus* the hairline. An
+earlier revision of v4 separated with borders alone and this file said so; the
+current one draws both. The border is still what separates a card from the
+field — `surface` on `bg` is 1.05:1 — and `e1` only stops white-on-cream looking
+pasted on. `e2` and `e3` remain the floating nav bar and the centre action button
+and nothing else.
+
+Which scheme is live comes from the app's **stored** mode, not the OS — the OS is
+consulted only when that mode is `system`. The native side has to agree, because
+Android resolves `values-night/` from its own night setting and would otherwise
+splash in a scheme the user did not pick: `settingsStore` mirrors the mode into
+`SharedPreferences` through `specs/NativeAppTheme.ts`, and `MainActivity` turns it
+into an `AppCompatDelegate` night mode **before** `RNBootSplash.init`. The mirror
+lands on the next cold start, never mid-session — applying it live recreates the
+activity and remounts the React tree.
+
+The splash background is a gradient in `SplashScreen.tsx` and a flat colour
+natively, because `windowSplashScreenBackground` takes a colour and not a
+drawable. `splashTop` must therefore equal `bootsplash_background` in
+`res/values{,-night}/colors.xml` or the hand-off steps rather than fades;
+`npm run splash:check` is the only thing enforcing it. That hand-off happens when
+`SplashScreen` **mounts** — it calls `RNBootSplash.hide()` itself, so the JS
+splash carries the rest of boot. Hiding at the end of bootstrap, as `App.tsx`
+used to, meant the fade revealed the dashboard and the splash was never seen.
 
 ### Motion
 

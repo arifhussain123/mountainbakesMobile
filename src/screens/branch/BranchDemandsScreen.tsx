@@ -5,10 +5,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBAccountButton,
   MBCard,
   MBEmptyState,
   MBErrorState,
-  MBFab,
   MBHeader,
   MBInput,
   MBPressable,
@@ -148,6 +148,7 @@ export function BranchDemandsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
+        leading={<MBAccountButton />}
         title="Orders"
         subtitle="Demands on production"
         dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
@@ -171,7 +172,7 @@ export function BranchDemandsScreen(): React.ReactElement {
                 style={[
                   styles.chip,
                   {
-                    borderRadius: theme.radius.pill,
+                    borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
                     paddingHorizontal: theme.space.lg,
                     backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
                     borderColor: selected ? theme.colors.primary : theme.colors.border,
@@ -203,6 +204,12 @@ export function BranchDemandsScreen(): React.ReactElement {
           title="No demands"
           message="Demands raised in the last seven business days appear here."
           icon="orders"
+          /* The empty state is the one place a call to action still lives now
+             that the corner FAB is gone: with nothing in the list there is
+             nothing for the centre button to compete with, and a bare "No
+             demands" leaves a new shift with no visible way forward. */
+          actionLabel="New order"
+          onAction={() => navigation.navigate('CreateOrder')}
         />
       ) : (
         <FlashList
@@ -221,11 +228,12 @@ export function BranchDemandsScreen(): React.ReactElement {
         />
       )}
 
-      <MBFab
-        label="New order"
-        onPress={() => navigation.navigate('CreateOrder')}
-        testID="new-demand"
-      />
+      {/* No corner FAB. New Order is the branch bar's **centre action** now —
+          the ember circle sitting proud of the floating pill — and a screen
+          with a FAB *and* a second control for the same thing has two things
+          competing to be its one obvious action. The empty state below still
+          carries its own call to action, which is on screen only while the list
+          is empty. See `CENTRE_ACTIONS` in `navigation/roleConfig.ts`. */}
 
       <MBConfirmDialog
         visible={withdrawing !== null}
