@@ -343,6 +343,41 @@ field — `surface` on `bg` is 1.05:1 — and `e1` only stops white-on-cream loo
 pasted on. `e2` and `e3` remain the floating nav bar and the centre action button
 and nothing else.
 
+**The brand fill is a preference; the mark is not.** `theme/accents.ts` carries
+five selectable accents (Ember, Ink, Pine, Indigo, Violet) and each replaces
+exactly three tokens — `primary`, `primaryPressed`, `onPrimary`. Nothing else
+moves: the field, the cards, the borders, the text ramp and the status colours
+are not preferences, and an accent that could reach them would be a second theme
+rather than a swatch. Choosing Ember returns the base maps **by identity**, so
+the default is not merely equivalent to the pre-accent app but literally it.
+
+`onPrimary` is carried per accent, and that is the interesting part. v4's brief
+states one contrast rule — "text on `#FB6D34` is `#3E1B00`, never white" — and
+then offers `#3E1B00` itself as a swatch: ink on ink is **1.00:1**, an invisible
+button label. So the rule is true of the ember and not of the set. Ember keeps
+ink at 4.78:1; every other swatch takes white in light. Each value is also
+corrected per scheme rather than shared, because `#3E1B00` is 14.56:1 on the
+cream field and **1.19:1** on the near-black one — its dark variant is lifted 32%
+toward white and lands on a taupe that is no longer ink, which is the honest cost
+of offering the ink as a *fill*.
+
+A press moves **away** from its label — darker where the label is white, lighter
+where it is ink. Always-darken is the habit and it drops an ink label to 2.8:1
+for the length of the press. The one exception is Ember in light at 3.94:1, which
+is the value that already shipped and is left alone rather than "fixed" into a
+different default.
+
+`contrast.test.ts` holds all five to the same two bars in both schemes: fill ≥3:1
+on the card and the field, label ≥4.5:1 on the fill. The accent-vs-mark ordering
+is asserted as `>=` rather than `>` for exactly one reason — choosing Ink makes
+the fill *be* the mark, so they coincide. What still must never happen is
+`primary` being the more readable of the two.
+
+`MBAccentPicker` is the only place allowed to reach for an accent's `swatch`,
+which is v4's own hex rather than the corrected fill: a 32px disc with nothing
+set on it, where showing a value 6% off the one being offered would make the row
+disagree with itself.
+
 Which scheme is live comes from the app's **stored** mode, not the OS — the OS is
 consulted only when that mode is `system`. The native side has to agree, because
 Android resolves `values-night/` from its own night setting and would otherwise

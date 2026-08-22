@@ -1,10 +1,13 @@
 import {
   darkColors,
+  darkColorsFor,
   lightColors,
+  lightColorsFor,
   statusColors,
   type SemanticColors,
   type StatusColorKey,
 } from './colors';
+import { DEFAULT_ACCENT, type AccentKey } from './accents';
 import { iconSize, iconStroke } from './iconSizes';
 import { darkShadows, lightShadows, type Shadows } from './shadows';
 import { motion, type Motion } from './motion';
@@ -64,8 +67,26 @@ export const darkTheme: Theme = {
   ...base,
 };
 
-export function themeFor(scheme: ResolvedScheme): Theme {
-  return scheme === 'dark' ? darkTheme : lightTheme;
+/**
+ * The theme for a scheme and a chosen accent.
+ *
+ * The default accent returns the shared `lightTheme` / `darkTheme` objects by
+ * identity, not a copy. That matters beyond tidiness: the theme is a context
+ * value, and handing back a fresh object for the unchanged case would make every
+ * consumer re-render on any provider re-evaluation. Accents other than the
+ * default build one object, memoised by the provider.
+ */
+export function themeFor(
+  scheme: ResolvedScheme,
+  accent: AccentKey = DEFAULT_ACCENT,
+): Theme {
+  const fallback = scheme === 'dark' ? darkTheme : lightTheme;
+  if (accent === DEFAULT_ACCENT) return fallback;
+
+  return {
+    ...fallback,
+    colors: scheme === 'dark' ? darkColorsFor(accent) : lightColorsFor(accent),
+  };
 }
 
-export type { SemanticColors, StatusColorKey };
+export type { SemanticColors, StatusColorKey, AccentKey };

@@ -146,13 +146,14 @@ function Themed(): React.ReactElement {
 
 export default function App(): React.JSX.Element {
   const themeMode = useSettingsStore(s => s.themeMode);
+  const accent = useSettingsStore(s => s.accent);
 
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <KeyboardProvider>
           <QueryClientProvider client={queryClient}>
-            <ThemeProvider mode={themeMode}>
+            <ThemeProvider mode={themeMode} accent={accent}>
               <Themed />
             </ThemeProvider>
           </QueryClientProvider>

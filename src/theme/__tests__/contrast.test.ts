@@ -1,4 +1,11 @@
-import { darkColors, lightColors, type SemanticColors } from '../colors';
+import {
+  darkColors,
+  darkColorsFor,
+  lightColors,
+  lightColorsFor,
+  type SemanticColors,
+} from '../colors';
+import { ACCENT_KEYS, DEFAULT_ACCENT } from '../accents';
 
 /**
  * Contrast is a property of the palette, so it can be checked like any other
@@ -173,5 +180,57 @@ describe.each([
     }
     // The head of the ramp is the brand fill, so it carries the fill bar.
     expect(contrast(colors.series[0], colors.surface)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * The selectable accents.
+ *
+ * The swatch row in Settings offers five brand fills, and a preference must not
+ * be a way to opt out of legibility. Every one is held to the same two bars the
+ * default is: a fill readable as a graphical object, and a label readable on it.
+ *
+ * This is what stops a sixth swatch being added by eye. v4's own brief offers
+ * `#3E1B00` as a swatch while simultaneously stating that text on the fill is
+ * `#3E1B00` — ink on ink, 1.00:1, an invisible button label — so the set as
+ * given does not survive its own rule. `onPrimary` is carried per accent for
+ * exactly that reason, and the second assertion here is what catches it.
+ */
+describe.each(ACCENT_KEYS)('the %s accent', key => {
+  describe.each([
+    ['light', lightColorsFor(key)],
+    ['dark', darkColorsFor(key)],
+  ] as const)('in %s', (_scheme, colors) => {
+    it('paints a fill that carries information on this scheme', () => {
+      // WCAG 1.4.11 — the fill paints the meter and the trend line, which are
+      // graphics with no label to fall back on.
+      expect(contrast(colors.primary, colors.surface)).toBeGreaterThanOrEqual(3);
+      expect(contrast(colors.primary, colors.bg)).toBeGreaterThanOrEqual(3);
+    });
+
+    it('carries a label that can be read on that fill', () => {
+      expect(contrast(colors.onPrimary, colors.primary)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    /**
+     * Weaker than the default palette's strict `>`, and only because of one
+     * swatch: choosing Ink makes the fill *be* the mark, so the two coincide at
+     * equality rather than one outranking the other. What still must never
+     * happen is `primary` being the more readable of the two — that is the
+     * ordering the fill/mark split depends on, and it holds for all five.
+     */
+    it('never makes the fill more readable than the mark', () => {
+      expect(contrast(colors.accent, colors.surface)).toBeGreaterThanOrEqual(
+        contrast(colors.primary, colors.surface),
+      );
+    });
+  });
+});
+
+/** Choosing the default must be indistinguishable from never having chosen. */
+describe('the default accent', () => {
+  it('returns the base maps by identity, not a copy', () => {
+    expect(lightColorsFor(DEFAULT_ACCENT)).toBe(lightColors);
+    expect(darkColorsFor(DEFAULT_ACCENT)).toBe(darkColors);
   });
 });

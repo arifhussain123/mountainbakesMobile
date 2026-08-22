@@ -1,3 +1,5 @@
+import { accentFor, type AccentColors, type AccentKey } from './accents';
+
 /**
  * Mountain Bakes palette — the mobile brand, set to the v4 design.
  *
@@ -553,3 +555,44 @@ export const statusColors = {
 } as const;
 
 export type StatusColorKey = keyof typeof statusColors;
+
+// ---------------------------------------------------------------------------
+// The selectable accent
+// ---------------------------------------------------------------------------
+
+/**
+ * A colour map with the accent's fill group swapped in.
+ *
+ * Only four keys move — `primary`, `primaryPressed`, `onPrimary`, and the soft
+ * tint behind an active affordance. Everything else is the scheme's own map,
+ * shared by reference: the field, the cards, the borders, the text ramp and the
+ * status colours are not preferences, and an accent that could reach them would
+ * be a second theme rather than a swatch. See `accents.ts`.
+ *
+ * `primarySoft` stays the scheme's warm neutral rather than becoming a tint of
+ * the chosen hue. v4's soft brand surface is `#FDF7EA` — a cream, not a wash of
+ * the ember — and `text` is asserted readable on it. Tinting it per accent would
+ * put five new surfaces under that assertion for no visible gain: the pill under
+ * an active tab reads as "active" from its shape, not its hue.
+ *
+ * Returns the base map unchanged for the default accent, so choosing Ember is
+ * not merely equivalent to the old behaviour but literally it.
+ */
+function withAccent(base: SemanticColors, accent: AccentColors): SemanticColors {
+  if (
+    base.primary === accent.primary &&
+    base.primaryPressed === accent.primaryPressed &&
+    base.onPrimary === accent.onPrimary
+  ) {
+    return base;
+  }
+  return { ...base, ...accent };
+}
+
+export function lightColorsFor(key: AccentKey): SemanticColors {
+  return withAccent(lightColors, accentFor(key).light);
+}
+
+export function darkColorsFor(key: AccentKey): SemanticColors {
+  return withAccent(darkColors, accentFor(key).dark);
+}

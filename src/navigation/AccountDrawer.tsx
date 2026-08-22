@@ -8,7 +8,7 @@ import {
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 
-import { MBButton, MBFilterChips, MBLogo } from '@/components';
+import { MBAccentPicker, MBButton, MBFilterChips, MBLogo } from '@/components';
 import { roleLabel } from '@/constants/roleLabels';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
@@ -71,6 +71,8 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
   const { signOut, isSigningOut } = useSignOut();
   const isOnline = useNetworkStore(s => s.isOnline);
   const setThemeMode = useSettingsStore(s => s.setThemeMode);
+  const accent = useSettingsStore(s => s.accent);
+  const setAccent = useSettingsStore(s => s.setAccent);
 
   /**
    * The one sign-out in the app.
@@ -187,6 +189,11 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
           onSelect={key => setThemeMode(key as ThemeMode)}
           testIDPrefix="theme-mode"
         />
+        {/* v4's "Theme colour". A second control under the same heading rather
+            than its own section: light/dark and the brand fill are one question
+            — what the app looks like — asked twice, and splitting them would
+            put a one-row section between Appearance and Log out. */}
+        <MBAccentPicker value={accent} onSelect={setAccent} />
       </View>
 
       <View style={{ paddingHorizontal: theme.layout.screenPad }}>

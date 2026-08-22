@@ -17,6 +17,8 @@ export type { MBDateRangeFieldProps } from './common/MBDateRangeField';
 export { MBRangeFilter } from './common/MBRangeFilter';
 export type { MBRangeFilterProps } from './common/MBRangeFilter';
 
+export { MBAccentPicker } from './common/MBAccentPicker';
+export type { MBAccentPickerProps } from './common/MBAccentPicker';
 export { MBFilterChips } from './common/MBFilterChips';
 export type { FilterChip, MBFilterChipsProps } from './common/MBFilterChips';
 

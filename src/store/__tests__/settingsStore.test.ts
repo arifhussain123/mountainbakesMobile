@@ -13,6 +13,7 @@
  * else runs*.
  */
 import { PreferenceKeys, prefs } from '@/services/storage/preferences';
+import { DEFAULT_ACCENT } from '@/theme/accents';
 import { StorageKeys } from '@/services/storage/secureStorage';
 
 // The encrypted store is stubbed so these tests exercise the preference path and
@@ -165,5 +166,65 @@ describe('the native mirror', () => {
     // The preference itself still landed — the mirror is downstream of it.
     expect(store.getState().themeMode).toBe('dark');
     expect(prefs.getString(PreferenceKeys.themeMode)).toBe('dark');
+  });
+});
+
+/**
+ * The accent is a second, independent appearance preference.
+ *
+ * Independent is the property worth pinning: light/dark is a *scheme* and the
+ * accent is a fill within it, so neither may reset the other. A user on dark who
+ * picks Pine must stay on dark.
+ *
+ * It is read at module scope for the same reason `themeMode` is — an accent
+ * applied by a later effect is a visible flash of the wrong brand colour on
+ * every cold start — so these go through `freshStore()` too.
+ */
+describe('the accent', () => {
+  it('defaults to the ember, so an install with no choice looks as it always did', () => {
+    expect(freshStore().getState().accent).toBe(DEFAULT_ACCENT);
+  });
+
+  it('is already correct on the first read, with no hydrate() call', () => {
+    prefs.set(PreferenceKeys.accent, 'indigo');
+    expect(freshStore().getState().accent).toBe('indigo');
+  });
+
+  it('persists the choice', () => {
+    const store = freshStore();
+    store.getState().setAccent('indigo');
+
+    expect(store.getState().accent).toBe('indigo');
+    expect(prefs.getString(PreferenceKeys.accent)).toBe('indigo');
+  });
+
+  it('leaves the scheme alone', () => {
+    const store = freshStore();
+    store.getState().setThemeMode('dark');
+    store.getState().setAccent('violet');
+
+    expect(store.getState().themeMode).toBe('dark');
+    expect(store.getState().accent).toBe('violet');
+  });
+
+  /**
+   * A preference read at module scope cannot throw: a value stored by a build
+   * that offered a swatch this one does not is a reason to fall back, not to
+   * fail a cold start.
+   */
+  it('falls back rather than trusting an unrecognised stored value', () => {
+    prefs.set(PreferenceKeys.accent, 'chartreuse');
+    expect(freshStore().getState().accent).toBe(DEFAULT_ACCENT);
+  });
+
+  /**
+   * The native mirror exists so `values-night/` and the boot splash resolve to
+   * the scheme the user picked. The splash carries no accent, so there is
+   * nothing for a swatch to keep in step — and mirroring one would be a
+   * SharedPreferences write on every tap for no reader.
+   */
+  it('does not touch the native mirror', () => {
+    freshStore().getState().setAccent('emerald');
+    expect(mockSetThemeMode).not.toHaveBeenCalled();
   });
 });

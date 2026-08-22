@@ -3,6 +3,7 @@ import NativeAppTheme from '@/specs/NativeAppTheme';
 import { PreferenceKeys, prefs } from '@/services/storage/preferences';
 import { StorageKeys, kv } from '@/services/storage/secureStorage';
 import type { ThemeMode } from '@/theme/themes';
+import { DEFAULT_ACCENT, isAccentKey, type AccentKey } from '@/theme/accents';
 
 /**
  * UI preferences.
@@ -20,6 +21,18 @@ import type { ThemeMode } from '@/theme/themes';
 interface SettingsState {
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  /**
+   * The chosen brand fill. Light/dark is a *scheme*; this is the accent within
+   * it, and the two are independent — picking Pine does not change which scheme
+   * is live, and switching to dark keeps the accent.
+   *
+   * Unlike `themeMode` this is NOT mirrored to the native side. The native
+   * mirror exists so `values-night/` and the boot splash resolve to the scheme
+   * the user picked; the splash background is a neutral wash in both schemes and
+   * carries no accent, so there is nothing on the native side to keep in step.
+   */
+  accent: AccentKey;
+  setAccent: (accent: AccentKey) => void;
   /**
    * One-time migration of `themeMode` out of the encrypted store, plus the
    * native mirror.
@@ -61,6 +74,15 @@ function mirrorToNative(mode: ThemeMode): void {
   }
 }
 
+function initialAccent(): AccentKey {
+  try {
+    const stored = prefs.getString(PreferenceKeys.accent);
+    return isAccentKey(stored) ? stored : DEFAULT_ACCENT;
+  } catch {
+    return DEFAULT_ACCENT;
+  }
+}
+
 function initialThemeMode(): ThemeMode {
   try {
     const stored = prefs.getString(PreferenceKeys.themeMode);
@@ -72,11 +94,17 @@ function initialThemeMode(): ThemeMode {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeMode: initialThemeMode(),
+  accent: initialAccent(),
 
   setThemeMode: mode => {
     prefs.set(PreferenceKeys.themeMode, mode);
     set({ themeMode: mode });
     mirrorToNative(mode);
+  },
+
+  setAccent: accent => {
+    prefs.set(PreferenceKeys.accent, accent);
+    set({ accent });
   },
 
   hydrate: () => {

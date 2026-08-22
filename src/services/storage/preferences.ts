@@ -27,4 +27,10 @@ export const prefs = createMMKV({ id: 'mountain-bakes-prefs' });
 /** Centralised so a rename cannot silently orphan a stored preference. */
 export const PreferenceKeys = {
   themeMode: 'settings.themeMode',
+  /**
+   * The chosen accent (`theme/accents.ts`). Read at module scope like the mode,
+   * for the same reason: an accent applied by a later effect is a visible flash
+   * of the wrong brand colour on every cold start.
+   */
+  accent: 'settings.accent',
 } as const;
