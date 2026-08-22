@@ -12,6 +12,17 @@ import { useSyncStore } from '@/store/syncStore';
  *   - returning to the foreground (a queue may have gone stale while backgrounded),
  *   - signing in (an earlier session's work resumes).
  *
+ * Mount *is* the sign-in event: this tree exists only for a signed-in user, so
+ * the drain on mount is what covers somebody signing in the morning after a
+ * shift's work was queued. It stays here even though the boot sequence now fires
+ * a drain of its own (`services/boot/bootSequence.ts`, the `sync` step) — boot
+ * runs once per launch, and a sign-in that happens later would otherwise move
+ * nothing.
+ *
+ * The two do not collide: `syncStore.sync()` sets `phase: 'syncing'`
+ * synchronously, so when boot has already started a drain the mount call returns
+ * at the guard rather than queuing a second pass over the same rows.
+ *
  * There is deliberately no polling timer. A drain that finds nothing costs a
  * database round-trip and, on a locked-down network, a failed request that burns
  * retry budget for no reason.
@@ -24,7 +35,9 @@ export function useSyncEngine(): void {
 
   const wasOnline = useRef(isOnline);
 
-  // Initial count, so the badge is correct before anything syncs.
+  // Initial count, so the badge is correct before anything syncs. Boot refreshes
+  // these too; this covers a remount, and the signed-out tree that boot's own
+  // step deliberately skips.
   useEffect(() => {
     refreshCounts();
   }, [refreshCounts]);

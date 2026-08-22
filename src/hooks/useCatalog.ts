@@ -1,40 +1,26 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import type { ProductFilters, StockResponse } from '@/services/api/catalogApi';
 import {
-  getBranches,
-  getCategories,
-  getProducts,
-  getSettings,
-  getStock,
-  type ProductFilters,
-  type StockResponse,
-} from '@/services/api/catalogApi';
-import { qk } from '@/services/query/queryKeys';
-import { LIVE_STALE_TIME_MS } from '@/services/query/queryClient';
+  branchesQuery,
+  categoriesQuery,
+  productsQuery,
+  settingsQuery,
+  stockQuery,
+} from '@/services/query/catalogQueries';
 import type { Branch } from '@/shared/types/branch.types';
 import type { Category, Product } from '@/shared/types/product.types';
 import type { AppSettings } from '@/shared/types/settings.types';
 import { isBranchRole } from '@/navigation/roleNavigation';
-import {
-  readBranches,
-  readCategories,
-  readProducts,
-  readStock,
-  saveBranches,
-  saveCategories,
-  saveProducts,
-  saveStock,
-} from '@/database/repositories/referenceRepository';
-import { ApiError } from '@/services/api/errors';
-import { readThrough } from '@/services/query/readThrough';
-import { useMirrorStore } from '@/store/mirrorStore';
 import { useAuthStore } from '@/store/authStore';
 
 /**
  * Server-state hooks for the read-only catalogue.
  *
- * Cache lifetimes are chosen per resource rather than globally: the catalogue
- * and branch list barely move, while stock changes with every sale and is
- * therefore treated as live data.
+ * The key, the fetcher and the cache lifetime for each of these now live in
+ * `services/query/catalogQueries.ts`, because the boot sequence warms the same
+ * caches and both callers have to agree on the key exactly — see the note there.
+ * What stays here is the part that needs React and claims: which branch a stock
+ * read is scoped to, and when a query is worth enabling at all.
  *
  * ---------------------------------------------------------------------------
  * Every one of these reads through the SQLite mirror
@@ -48,20 +34,8 @@ import { useAuthStore } from '@/store/authStore';
 
 /** Catalogue data is stable; the default 60s staleTime applies. */
 export function useProducts(filters: ProductFilters = {}): UseQueryResult<Product[]> {
-  // A filtered fetch is a slice of the catalogue, so it is served from the
-  // mirror but never written to it — saving a search result would delete every
-  // product the search did not match.
-  const isFullFetch = !filters.search?.trim() && !filters.categoryId;
-
   return useQuery({
-    queryKey: qk.products.list(filters),
-    queryFn: () =>
-      readThrough({
-        resource: 'products',
-        fetch: () => getProducts(filters),
-        ...(isFullFetch ? { save: saveProducts } : {}),
-        read: () => readProducts(filters),
-      }),
+    ...productsQuery(filters),
     // Keeps the previous list on screen while a new search resolves, instead of
     // flashing a skeleton on every keystroke.
     placeholderData: previous => previous,
@@ -69,18 +43,7 @@ export function useProducts(filters: ProductFilters = {}): UseQueryResult<Produc
 }
 
 export function useCategories(): UseQueryResult<Category[]> {
-  return useQuery({
-    queryKey: qk.categories.all(),
-    queryFn: () =>
-      readThrough({
-        resource: 'categories',
-        fetch: getCategories,
-        save: saveCategories,
-        read: readCategories,
-      }),
-    // Categories change rarely and the server caches them too.
-    staleTime: 10 * 60 * 1000,
-  });
+  return useQuery(categoriesQuery());
 }
 
 /**
@@ -91,26 +54,11 @@ export function useCategories(): UseQueryResult<Category[]> {
  * still worth not making.
  */
 export function useBranches({ enabled = true } = {}): UseQueryResult<Branch[]> {
-  return useQuery({
-    queryKey: qk.branches.all(),
-    queryFn: () =>
-      readThrough({
-        resource: 'branches',
-        fetch: getBranches,
-        save: saveBranches,
-        read: readBranches,
-      }),
-    staleTime: 10 * 60 * 1000,
-    enabled,
-  });
+  return useQuery({ ...branchesQuery(), enabled });
 }
 
 export function useSettings(): UseQueryResult<AppSettings> {
-  return useQuery({
-    queryKey: qk.settings(),
-    queryFn: getSettings,
-    staleTime: 10 * 60 * 1000,
-  });
+  return useQuery(settingsQuery());
 }
 
 /**
@@ -128,33 +76,17 @@ export function useStock(
   const ownBranchId = useAuthStore(s => s.claims?.branchId);
 
   const scopedByServer = role ? isBranchRole(role) : false;
-  const branchId = scopedByServer ? null : options.branchId ?? null;
-  const enabled = scopedByServer ? Boolean(ownBranchId) : Boolean(branchId);
+  const requestBranchId = scopedByServer ? null : options.branchId ?? null;
+  const enabled = scopedByServer ? Boolean(ownBranchId) : Boolean(requestBranchId);
 
   return useQuery({
-    queryKey: qk.stock.byBranch(branchId ?? ownBranchId ?? null, options.date ?? 'today'),
-    queryFn: async () => {
-      // The mirror is keyed by branch, and a branch role's branch comes from its
-      // claims rather than the request — the server scopes it either way.
-      const scope = branchId ?? ownBranchId ?? '';
-      try {
-        const live = await getStock({ branchId, date: options.date });
-        // Only today's balances are mirrored: a back-dated read is a report, and
-        // serving yesterday's numbers as today's is worse than an error state.
-        if (!options.date) await saveStock(scope, live.rows, live.date).catch(() => {});
-        useMirrorStore.getState().clearSavedAt('stock');
-        return live;
-      } catch (error) {
-        if (!(error instanceof ApiError) || !error.isRetryable) throw error;
-        const mirrored = await readStock(scope).catch(() => null);
-        if (!mirrored || mirrored.rows.length === 0) throw error;
-        useMirrorStore.getState().setSavedAt('stock', mirrored.savedAt);
-        // The server's own date, saved with the balances — never the device's.
-        return { date: mirrored.businessDate, rows: mirrored.rows };
-      }
-    },
+    // The mirror is keyed by branch, and a branch role's branch comes from its
+    // claims rather than the request — the server scopes it either way.
+    ...stockQuery({
+      requestBranchId,
+      mirrorScope: requestBranchId ?? ownBranchId ?? '',
+      ...(options.date ? { date: options.date } : {}),
+    }),
     enabled,
-    // Stock moves with every sale — treat it as live rather than 60s-stale.
-    staleTime: LIVE_STALE_TIME_MS,
   });
 }

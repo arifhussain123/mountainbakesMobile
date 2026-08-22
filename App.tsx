@@ -7,13 +7,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import RNBootSplash from 'react-native-bootsplash';
 
 import { MBButton } from '@/components';
-import { assertApiReachable } from '@/config/env';
-import { initDatabase } from '@/database/localDb';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { queryClient } from '@/services/query/queryClient';
-import { initStorage } from '@/services/storage/secureStorage';
-import { useAuthStore } from '@/store/authStore';
-import { useNetworkStore } from '@/store/networkStore';
+import { runBootSequence, type BootStep } from '@/services/boot/bootSequence';
 import { useSettingsStore } from '@/store/settingsStore';
 import { space } from '@/theme/spacing';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
@@ -23,12 +19,11 @@ import { withBootTimeout } from '@/utils/bootTimeout';
 /**
  * App root.
  *
- * Startup order is deliberate:
- *   config → encrypted storage → settings → local database → session → network
- *
- * Storage precedes session restore because the Supabase session lives in it.
- * The database precedes the session because signing in can immediately trigger a
- * sync drain, which needs the queue tables to exist.
+ * The start sequence itself lives in `services/boot/bootSequence.ts` — the order
+ * is the design, and it is worth reading and testing in one place rather than
+ * inferred from the shape of an effect. What stays here is the gate around it:
+ * what the user sees while it runs, what they see when it does not, and what
+ * happens to a run nobody is waiting for any more.
  *
  * A bootstrap failure surfaces a retry rather than hanging on the splash — an
  * unreadable Keychain or a failed migration is recoverable, and a spinner
@@ -36,62 +31,46 @@ import { withBootTimeout } from '@/utils/bootTimeout';
  */
 
 type BootState =
-  | { phase: 'loading' }
+  | { phase: 'loading'; step: BootStep | null }
   | { phase: 'ready' }
   | { phase: 'failed'; message: string };
 
 function useBootstrap(): { state: BootState; retry: () => void } {
-  const [state, setState] = useState<BootState>({ phase: 'loading' });
+  const [state, setState] = useState<BootState>({ phase: 'loading', step: null });
   const [attempt, setAttempt] = useState(0);
-
-  const hydrateSettings = useSettingsStore(s => s.hydrate);
-  const bootstrapAuth = useAuthStore(s => s.bootstrap);
-  const startNetwork = useNetworkStore(s => s.start);
 
   useEffect(() => {
     let cancelled = false;
-    let unsubscribeNetwork: (() => void) | undefined;
+    let dispose: (() => void) | undefined;
 
     const timer: { id?: ReturnType<typeof setTimeout> } = {};
 
     (async () => {
       try {
-        assertApiReachable();
         // The whole sequence is raced, not each step: the budget is what the
         // user is waiting through, and per-step timeouts would let four slow
         // steps add up to a wait none of them individually exceeded.
-        await withBootTimeout(
-          (async () => {
-            /*
-             * Storage and the database are started together.
-             *
-             * The ORDER constraints are real but narrower than the old
-             * `await`-per-line sequence implied: settings and the session live
-             * in encrypted storage, and the database has to be open before the
-             * session because signing in can trigger a drain immediately.
-             * Neither of storage and the database needs anything from the
-             * other — one is Keychain plus MMKV, the other is SQLite opening a
-             * file and running migrations, and both are native I/O the JS
-             * thread only waits on.
-             *
-             * Run in sequence they added up; started together the wait is the
-             * slower of the two rather than the sum, and every constraint above
-             * still holds: settings are chained onto storage, and the session
-             * waits for both.
-             *
-             * `Promise.all` rather than two bare promises awaited in turn. The
-             * latter leaves a window where one has rejected and nothing is
-             * listening yet, which Hermes reports as an unhandled rejection —
-             * a red box on a start that was already failing, in front of the
-             * retry the user needs to see.
-             */
-            await Promise.all([initStorage().then(hydrateSettings), initDatabase()]);
-            await bootstrapAuth();
-          })(),
+        const result = await withBootTimeout(
+          runBootSequence({
+            isCancelled: () => cancelled,
+            // Reported for the splash and for a crash log that would otherwise
+            // say only "startup failed" — which step it died on is the whole
+            // difference between a locked database and an unreachable API.
+            onStep: step => {
+              if (!cancelled) setState({ phase: 'loading', step });
+            },
+          }),
           timer,
         );
-        unsubscribeNetwork = startNetwork();
-        if (!cancelled) setState({ phase: 'ready' });
+        dispose = result.dispose;
+        // A run abandoned mid-flight still resolves — `withBootTimeout` cannot
+        // cancel the work — so the listener it opened is torn down here rather
+        // than leaked to a sequence nobody is watching.
+        if (cancelled) {
+          dispose();
+          return;
+        }
+        setState({ phase: 'ready' });
       } catch (error) {
         if (cancelled) return;
         setState({
@@ -119,12 +98,12 @@ function useBootstrap(): { state: BootState; retry: () => void } {
     return () => {
       cancelled = true;
       if (timer.id) clearTimeout(timer.id);
-      unsubscribeNetwork?.();
+      dispose?.();
     };
-  }, [attempt, hydrateSettings, bootstrapAuth, startNetwork]);
+  }, [attempt]);
 
   const retry = useCallback(() => {
-    setState({ phase: 'loading' });
+    setState({ phase: 'loading', step: null });
     setAttempt(n => n + 1);
   }, []);
 

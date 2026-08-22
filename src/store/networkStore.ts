@@ -73,3 +73,47 @@ export const useNetworkStore = create<NetworkStore>(set => ({
 export function isOnlineNow(): boolean {
   return useNetworkStore.getState().isOnline;
 }
+
+/**
+ * How long boot will wait for NetInfo's first answer before giving up on it.
+ *
+ * Asking the radio its own state is a local call, not a network round-trip, so
+ * two seconds is already generous. If it has not answered by then the sequence
+ * proceeds on the optimistic default (`isOnline: true`) rather than spending
+ * more of the startup budget: being briefly wrong costs one failed request,
+ * while waiting costs every user on every cold start.
+ */
+export const NETWORK_PROBE_CAP_MS = 2_000;
+
+/**
+ * Resolve once the first NetInfo event has landed, or the cap elapses.
+ *
+ * Boot checks connectivity **before** restoring the session, so that the first
+ * reads of the run know whether they are offline instead of assuming they are
+ * not. Without this wait the subscription would still be probing while those
+ * reads ran, and `readThrough`'s known-offline shortcut — the thing that stops
+ * every screen hanging for the client timeout on a dead connection — would
+ * never fire on the one boot where it matters most.
+ *
+ * Resolves rather than rejects on the cap. A radio that will not report is not
+ * a reason to refuse to start; it is a reason to start optimistically.
+ */
+export function waitForNetwork(capMs: number = NETWORK_PROBE_CAP_MS): Promise<void> {
+  if (useNetworkStore.getState().hasResolved) return Promise.resolve();
+
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+
+    const timer = setTimeout(finish, capMs);
+    const unsubscribe = useNetworkStore.subscribe(state => {
+      if (state.hasResolved) finish();
+    });
+  });
+}

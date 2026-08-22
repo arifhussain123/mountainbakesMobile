@@ -238,12 +238,79 @@ frozen onto a queued row — an overnight retry with a captured token would 401.
 `kind` is what the sync queue branches on. Changing the mapping changes retry
 behaviour for real money.
 
-### Startup order is deliberate
+### Startup is a declared sequence
 
-`config → encrypted storage → settings → SQLite migrations → session → network`
-(`App.tsx`). Storage precedes session restore because the session lives in it; the
-database precedes the session because signing in can trigger a drain immediately. A
-bootstrap failure shows a retry, never an endless splash.
+Seven steps, in `services/boot/bootSequence.ts` — not `App.tsx`, which now only
+gates on it:
+
+```
+open → settings → network → session → profile → sync → cache
+```
+
+Four constraints are load-bearing and the rest is convention. **Database before
+session**, because signing in can trigger a drain immediately and the queue
+tables have to exist. **Storage before settings and before session**, because
+both are read out of encrypted MMKV and the Keychain has to hand over its key
+first. **Network before session**, so the first reads of the run know whether
+they are offline — `readThrough` skips the request entirely when NetInfo is *sure*
+there is no connection, and a probe still in flight means a phone that has been
+offline all afternoon hangs on the client timeout for data already on the device.
+**Profile before cache**, because the stock mirror is keyed by the branch the
+profile carries.
+
+**`open` is the database and encrypted storage together**, under `Promise.all`.
+They need nothing from each other — one is SQLite opening a file and running
+migrations, the other is the Keychain handing over a key for MMKV — and both are
+native I/O the JS thread does nothing but wait on, so the wait is the slower of
+the two rather than their sum. They are **one declared step** and not two
+overlapping ones: a sequence whose declared order is not its real order is a
+document that lies, and both constraints running through this step are satisfied
+by it as a whole. `Promise.all` and never two bare promises awaited in turn —
+the latter leaves a window where one has rejected and nothing is listening yet,
+which Hermes reports as an unhandled rejection: a red box on a start that was
+already failing, in front of the retry the user needs to see. `settings` stays
+its own step after it, because hydrating settings is a handful of synchronous
+MMKV reads with nothing left to overlap it against.
+
+`bootSequence.ts` takes its steps as injectable `BootDeps`, and that seam exists
+for one reason: the order *is* the design, and order is exactly what a test cannot
+observe through separately-mocked native modules. `__tests__/bootSequence.test.ts`
+asserts the four constraints as relationships rather than indices, so reordering a
+conventional step does not rewrite the test and breaking a real one does fail it.
+It also asserts that `open` genuinely overlaps — that storage starts before the
+database has resolved, and that neither half is skipped past.
+
+**The last two steps are started, not awaited.** A drain is as long as the queue
+and the connection make it, and a warm may go to the network; navigation waits for
+neither, and neither can fail the start — a drain that cannot reach the server is
+the case the queue exists for, and a cache that did not warm costs a skeleton on
+one screen. Both swallow their own rejections *and* are wrapped against a
+synchronous throw, because an unhandled rejection during startup is a red box over
+the first screen.
+
+`profile` resolves the access profile from the session's claims and does **not**
+fetch one. Role and branch ride in the JWT; a profile endpoint would be a second
+answer to "what may this user reach", and the two would disagree the day a role
+changed mid-session. An unrecognised role gets the minimal shell and a warning
+rather than a failed start, matching `AppNavigator`.
+
+`cache` warms through `queryClient.prefetchQuery` against the definitions in
+`services/query/catalogQueries.ts` — the same module `hooks/useCatalog.ts` builds
+its queries from. That sharing is not tidiness: a prefetch that rebuilt a key by
+hand fills a *second* cache entry, the screen then fetches into its own empty one,
+and the warm costs a round of requests while looking like it worked.
+`__tests__/warmCaches.test.ts` asserts the keys against `qk`.
+
+`sync` fires the first drain of a launch. `useSyncEngine` still drains on mount,
+and that is not a duplicate — mount is the sign-in event for a session established
+*after* boot. When boot did start one, `syncStore.sync()` has already flipped
+`phase` to `syncing` synchronously, so the mount call returns at the guard.
+
+A bootstrap failure shows a retry, never an endless splash, and the whole sequence
+is raced against one budget (`utils/bootTimeout.ts`) rather than per step — four
+slow steps would otherwise add up to a wait none of them individually exceeded.
+The failing step is reported through `onStep`, because "startup failed" alone does
+not distinguish a locked database from an unreachable API.
 
 ### Theme
 

@@ -255,9 +255,13 @@ next sign-in *on that phone*, which matters on a shared branch handset.
 
 ### What the app currently does
 
-Launches → validates config → opens encrypted storage → runs SQLite migrations →
-restores any Supabase session → subscribes to connectivity → shows either the
-sign-in screen or the role's tab navigator.
+Launches → validates config → opens SQLite and encrypted storage together →
+loads settings → checks connectivity → restores any Supabase session → resolves
+the access profile → starts the sync engine → warms the catalogue caches → shows
+either the sign-in screen or the role's tab navigator. The sequence is declared
+and tested in `src/services/boot/bootSequence.ts`; the two native opens overlap
+because neither needs the other, and the last two steps are started rather than
+awaited, so neither can hold the splash or fail the start.
 
 Working end to end: sign-in (main and Finance, with TOTP), forced password
 change, and the **whole branch role** — dashboard, POS sales, production orders,

@@ -27,27 +27,59 @@ shop, often on a poor connection, frequently offline for hours.
 
 ---
 
-## Startup: the two native I/O paths overlap
+## Startup: a declared sequence, with the two native opens overlapped
 
-`App.tsx` ran its bootstrap as four sequential `await`s — encrypted storage,
-settings, SQLite migrations, session. The **ordering constraints are real but
-narrower than that shape implied**: settings and the session live in encrypted
-storage, and the database has to be open before the session because signing in
-can trigger a drain immediately. Nothing ties storage to the database. One is
-Keychain plus MMKV, the other is SQLite opening a file and running migrations,
-and both are native I/O the JS thread does nothing but wait on.
+`App.tsx` ran its bootstrap as four sequential `await`s, then as two overlapped
+ones. It is now seven named steps in `services/boot/bootSequence.ts`, run in the
+declared order:
 
-```ts
-await Promise.all([initStorage().then(hydrateSettings), initDatabase()]);
-await bootstrapAuth();
+```
+open → settings → network → session → profile → sync → cache
 ```
 
-The wait is now the slower of the two rather than their sum, and every
-constraint above still holds — settings are chained onto storage, the session
-waits for both. `Promise.all` rather than two bare promises awaited in turn:
-the latter leaves a window where one has rejected and nothing is listening yet,
-which Hermes reports as an unhandled rejection — a red box on a start that was
-already failing, in front of the retry the user needs to see.
+**`open` is where the overlap lives.** The database and encrypted storage need
+nothing from each other — one is SQLite opening a file and running migrations,
+the other is the Keychain handing over a key for MMKV — and both are native I/O
+the JS thread does nothing but wait on:
+
+```ts
+await Promise.all([d.openDatabase(), d.openStorage()]);
+```
+
+The wait is the slower of the two rather than their sum, and every ordering
+constraint still holds: everything after `open` has both.
+
+They are **one declared step rather than two overlapping ones**, which is the
+only thing that changed here from the earlier revision. A sequence whose declared
+order is not its real order is a document that lies, and two steps reported
+separately cannot say which of them a start died on — "startup failed" without a
+step is the difference between a locked database and an unreadable Keychain.
+Merged, the step list stays true and `onStep` stays meaningful.
+
+`Promise.all` rather than two bare promises awaited in turn: the latter leaves a
+window where one has rejected and nothing is listening yet, which Hermes reports
+as an unhandled rejection — a red box on a start that was already failing, in
+front of the retry the user needs to see. `bootSequence.test.ts` covers that case
+directly, with storage rejecting while the database is still in flight.
+
+`settings` stays its own step after `open` rather than being chained onto storage
+inside it. Hydrating settings is a handful of synchronous MMKV reads, so there is
+nothing left for it to overlap against, and a separate step is one more place a
+failure can be named.
+
+**Two steps were added that do not lengthen the start at all.** `sync` and
+`cache` are fired, not awaited — a drain is as long as the queue and the
+connection make it. The cache warm in particular is not extra work: it is the
+first screen's own round of requests, moved earlier under the same query keys, so
+the screen finds its entries populated rather than fetching again.
+
+The one step that *can* add to the wait is `network`, which waits for NetInfo's
+first answer before restoring the session, capped at **2s**
+(`NETWORK_PROBE_CAP_MS`). Asking the radio its own state is a local call, so the
+cap is a backstop rather than a budget. It buys the case it exists for: with the
+probe still in flight, `readThrough`'s known-offline shortcut cannot fire, and a
+phone that has been offline all afternoon hangs on the **20s** client timeout on
+every screen for data that was on the device the whole time.
 
 The single boot timeout around the whole sequence is unchanged. It is a budget
 for what the user is waiting through, and per-step timeouts would let several
