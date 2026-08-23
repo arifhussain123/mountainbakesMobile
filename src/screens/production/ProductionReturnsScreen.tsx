@@ -29,13 +29,29 @@ import { contentColumn, space } from '@/theme/spacing';
  * Returns waiting on the production counter.
  *
  * ---------------------------------------------------------------------------
- * Accepting one moves real stock. Rejecting one moves nothing.
+ * BOTH decisions move real stock now, so both are confirmed
  * ---------------------------------------------------------------------------
- * That asymmetry is the whole screen. `accepted` runs two movements — the units
- * go back into the production pool and out of the branch's ledger — while
- * `rejected` only closes the record. So accept is confirmed and reject is not:
- * a mis-tapped reject is a decision somebody can revisit by raising the return
- * again, and a mis-tapped accept is inventory that has moved.
+ * This screen used to confirm Accept and fire Reject straight off, on the
+ * grounds that rejecting only closed the record. That stopped being true when
+ * branch returns stopped being auto-approved. A branch return now takes the
+ * units off the shop's balance as it is raised and waits here for a decision:
+ *
+ *   accept  the units go into the production pool
+ *   reject  the units go back onto the branch's balance
+ *
+ * Neither is free, and a mis-tapped reject is no longer something the branch can
+ * simply raise again — it is stock that has moved in a shop that is not looking.
+ * A return Production recorded itself (`source` null) has moved nothing yet, so
+ * for those accept still does both halves and reject really is a no-op; the
+ * confirmation text says which case the operator is in rather than guessing.
+ *
+ * ---------------------------------------------------------------------------
+ * Send Back is on the web app only
+ * ---------------------------------------------------------------------------
+ * The third decision — hand the paperwork to the branch to correct, moving no
+ * stock — is raised from the web Production Returns page. Rows in that state
+ * arrive here labelled "With branch" under their own filter chip and carry no
+ * actions, because they are not this counter's to act on.
  *
  * ---------------------------------------------------------------------------
  * Reviewing does not queue, and the server is why
@@ -56,10 +72,15 @@ import { contentColumn, space } from '@/theme/spacing';
  * exactly like the truth.
  */
 
+// 'Sent back' has its own chip rather than living under 'All'. It is the one
+// status that is neither settled nor on this counter's queue — the branch has
+// it — and without a chip those rows were reachable only by scrolling 'All',
+// which is where a return goes to be forgotten.
 const FILTERS = [
   { key: 'pending', label: 'To review' },
   { key: 'accepted', label: 'Accepted' },
   { key: 'rejected', label: 'Rejected' },
+  { key: 'returned', label: 'Sent back' },
   { key: 'all', label: 'All' },
 ] as const;
 
@@ -67,6 +88,9 @@ const STATUS_LABEL: Record<string, string> = {
   pending: 'To review',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  // Not "Returned": every row on this screen is a return, so the label has to
+  // say who is holding it, not repeat what it is.
+  returned: 'With branch',
 };
 
 /**
@@ -81,7 +105,29 @@ const STATUS_TONE: Record<string, 'pending' | 'approved' | 'rejected'> = {
   pending: 'pending',
   accepted: 'approved',
   rejected: 'rejected',
+  // Amber like `pending`: it is unfinished work, just not this counter's.
+  returned: 'pending',
 };
+
+/**
+ * What the decision does to stock, in the operator's own terms.
+ *
+ * Branches on `source` because the answer genuinely differs — a branch-raised
+ * return has already come off the shop's balance and a Production-recorded one
+ * has not — and getting that wrong in the message is worse than not showing one:
+ * it would tell someone rejecting a branch return that nothing moves.
+ */
+function confirmMessage(r: ProductionReturn, status: 'accepted' | 'rejected'): string {
+  const fromBranch = r.source === 'branch';
+  if (status === 'accepted') {
+    return fromBranch
+      ? `The units go into the production pool. ${r.branchName} has already had them taken off their balance, so nothing changes at the branch. This cannot be undone from here.`
+      : `The units go into the production pool and out of ${r.branchName}'s stock straight away. This cannot be undone from here.`;
+  }
+  return fromBranch
+    ? `The units go back onto ${r.branchName}'s balance and nothing enters the production pool. The branch cannot change the return afterwards. This cannot be undone from here.`
+    : `The return is refused. No stock moves. This cannot be undone from here.`;
+}
 
 export function ProductionReturnsScreen(): React.ReactElement {
   const theme = useTheme();
@@ -89,7 +135,7 @@ export function ProductionReturnsScreen(): React.ReactElement {
   const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState<string>('pending');
-  const [accepting, setAccepting] = useState<ProductionReturn | null>(null);
+  const [confirming, setConfirming] = useState<{ row: ProductionReturn; status: 'accepted' | 'rejected' } | null>(null);
 
   const returns = useQuery({
     queryKey: qk.productionReturns.list(),
@@ -101,9 +147,10 @@ export function ProductionReturnsScreen(): React.ReactElement {
     mutationFn: (input: { id: string; status: 'accepted' | 'rejected' }) =>
       reviewProductionReturn(input.id, input.status),
     onSuccess: () => {
-      // Accepting moves stock in two places, so the pool and the branch ledger
-      // are both stale the moment this returns. Invalidating the return list
-      // alone would leave the Stock tab showing a balance that has moved.
+      // Every outcome moves stock somewhere — the pool on an accept, the branch
+      // ledger on a reject — so both are stale the moment this returns.
+      // Invalidating the return list alone would leave the Stock tab showing a
+      // balance that has moved.
       queryClient.invalidateQueries({ queryKey: qk.productionReturns.all() });
       queryClient.invalidateQueries({ queryKey: qk.production.all() });
       queryClient.invalidateQueries({ queryKey: qk.stock.all() });
@@ -225,18 +272,17 @@ export function ProductionReturnsScreen(): React.ReactElement {
                   <MBButton
                     label="Accept"
                     size="sm"
-                    onPress={() => setAccepting(item)}
+                    onPress={() => setConfirming({ row: item, status: 'accepted' })}
                     disabled={review.isPending}
                     testID={`accept-${item.id}`}
                   />
-                  {/* Not confirmed. Rejecting moves no stock, and the branch can
-                      raise the return again — so a second dialog would be a tax
-                      on the safe half of the decision. */}
+                  {/* Confirmed too — see the header. Rejecting a branch-raised
+                      return pushes the units back onto that shop's balance. */}
                   <MBButton
                     label="Reject"
                     size="sm"
                     variant="dangerSoft"
-                    onPress={() => review.mutate({ id: item.id, status: 'rejected' })}
+                    onPress={() => setConfirming({ row: item, status: 'rejected' })}
                     disabled={review.isPending}
                     testID={`reject-${item.id}`}
                   />
@@ -252,17 +298,19 @@ export function ProductionReturnsScreen(): React.ReactElement {
       )}
 
       <MBConfirmDialog
-        visible={accepting !== null}
-        title={`Accept ${accepting?.qty ?? ''} × ${accepting?.productName ?? ''}?`}
-        message={`The units go back into the production pool and out of ${
-          accepting?.branchName ?? 'the branch'
-        }'s stock straight away. This cannot be undone from here.`}
-        confirmLabel="Accept and restock"
+        visible={confirming !== null}
+        title={
+          confirming
+            ? `${confirming.status === 'accepted' ? 'Accept' : 'Reject'} ${formatQty(confirming.row.qty)} × ${confirming.row.productName}?`
+            : ''
+        }
+        message={confirming ? confirmMessage(confirming.row, confirming.status) : ''}
+        confirmLabel={confirming?.status === 'accepted' ? 'Accept and restock' : 'Reject return'}
         cancelLabel="Not yet"
-        onCancel={() => setAccepting(null)}
+        onCancel={() => setConfirming(null)}
         onConfirm={() => {
-          if (accepting) review.mutate({ id: accepting.id, status: 'accepted' });
-          setAccepting(null);
+          if (confirming) review.mutate({ id: confirming.row.id, status: confirming.status });
+          setConfirming(null);
         }}
       />
     </View>
