@@ -82,9 +82,30 @@ export class ApiError extends Error {
   /** User-facing copy, per the error-message map in design-system.md. */
   get userMessage(): string {
     switch (this.kind) {
+      /**
+       * A transport failure is not evidence that a transaction exists.
+       *
+       * This copy used to read "Your transaction is saved and will sync
+       * automatically", which is the queued-write sentence — and `userMessage`
+       * is never rendered on a write path. Its ONLY caller is `MBErrorState`,
+       * and every call site of that passes a *query* error alongside a
+       * `refetch`: a dashboard, a ledger, a user list that could not load. So
+       * the app told someone whose screen failed to load that a transaction
+       * they never entered was safely queued, and `sync_queue` was empty.
+       *
+       * That is the offline rule in `services/sync/writeOutcome.ts` running in
+       * a third direction. It already forbids reporting a queued write as
+       * saved and a refused write as queued; this forbids claiming a write at
+       * all when the failure was a read. Writes report through
+       * `resolveWriteOutcome`, which reads the row by `client_operation_id`
+       * and carries its own copy — nothing here needs to speak for them.
+       *
+       * `MBErrorState` heads this with "You're offline" already, so the
+       * sentence does not repeat it.
+       */
       case 'offline':
       case 'network':
-        return "You're offline. Your transaction is saved and will sync automatically.";
+        return 'We can\'t reach the server right now. This will load again when the connection returns.';
       case 'timeout':
         return 'The server took too long to respond. Please try again.';
       case 'validation':
