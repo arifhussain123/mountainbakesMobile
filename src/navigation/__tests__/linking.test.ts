@@ -111,9 +111,11 @@ describe('unpermitted deep link fallback', () => {
     }
   });
 
-  it('lands a shift account on Orders, since it has no Home tab at all', () => {
+  it('lands a shift account on Sales, since it has no Home tab at all', () => {
     expect(isTabAvailable(profileFor('branch_user'), 'Home')).toBe(false);
-    expect(fallbackTabFor('branch_user', 'reports')).toBe('Orders');
+    // Sales, not Orders: v5 puts the till in the second cell, so it is the first
+    // tab a shift account can reach once Home is filtered out.
+    expect(fallbackTabFor('branch_user', 'reports')).toBe('Sales');
   });
 
   it('leaves a permitted link alone', () => {

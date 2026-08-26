@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -8,81 +8,85 @@ import {
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 
-import { MBAccentPicker, MBButton, MBFilterChips, MBLogo } from '@/components';
+import { MBBadge, MBIcon, MBLogo, MBPressable } from '@/components';
 import { roleLabel } from '@/constants/roleLabels';
 import { useSignOut } from '@/hooks/useSignOut';
 import { useAuthStore } from '@/store/authStore';
 import { useNetworkStore } from '@/store/networkStore';
-import { useSettingsStore } from '@/store/settingsStore';
-import type { ThemeMode } from '@/theme/themes';
-import { layout } from '@/theme/spacing';
-import { useTheme, useThemeContext } from '@/theme/ThemeProvider';
+import { useSyncStore } from '@/store/syncStore';
+import { iconStroke } from '@/theme/iconSizes';
+import { layout, space } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeProvider';
 import { RoleTabs } from './RoleTabs';
-import { NAV_LABELS, type AccessProfile } from './roleConfig';
+import {
+  drawerItemKey,
+  drawerSectionsFor,
+  NAV_LABELS,
+  type AccessProfile,
+  type BadgeSource,
+  type DrawerDestination,
+} from './roleConfig';
 
 const Drawer = createDrawerNavigator();
 
 /**
- * The account panel. **Not a navigation surface.**
- *
- * The brief describes bottom tabs *and* a drawer *and* a More tab. That is three
- * routes to the same screen and three menus to keep in sync, so §2 resolves it:
- * tabs own daily operations, More owns everything else, and the drawer stops
- * being a menu. It holds identity, connection state, appearance and sign-out —
- * things that are either read-only or an action, never a destination.
- *
- * That is why there is not a single `navigate()` in this file. If a row here
- * ever needs to push a screen, that screen belongs in More instead.
- *
- * What this panel owns is declared as `ACCOUNT_PANEL` in `roleConfig.ts`, beside
- * the tabs and the More list, and `navigationSurface.test.ts` asserts that none
- * of it is also a tab or a More row. The inventory is checked, not trusted.
+ * The navigation drawer.
  *
  * ---------------------------------------------------------------------------
- * Two contradictions in the brief, resolved
+ * It became a menu in v5, and that reversed a standing rule
  * ---------------------------------------------------------------------------
- * §2 puts Sync Center and Help in this panel; §4 puts them in More. They cannot
- * be in both — that is the exact duplication non-negotiable #1 forbids. They are
- * in **More**, because §4 enumerates them there alongside Settings and because
- * More is the general secondary surface. This panel keeps only non-destinations.
+ * This file used to say, in bold, that the drawer was **not** a navigation
+ * surface and that there was not one `navigate()` in it. That was the resolution
+ * of a brief describing tabs *and* a drawer *and* a More tab: three routes to
+ * one screen and three menus to keep in sync, so the drawer stopped being a menu
+ * and became the account panel instead.
  *
- * §2 and §4 both claim sign-out. It is **here, only here**. That duplication was
- * real and shipped: two sign-out paths with two separately-written confirms, and
- * the one in this panel had no confirm at all — it dropped the session without
- * ever mentioning unsynced work. See `docs/navigation.md`.
+ * v5 asks for the drawer back — a grouped index of the whole role, repeating
+ * Dashboard, Orders and Stock from the bar deliberately, because a bar holding
+ * four things is a set of shortcuts and not a map. The objection was never to
+ * the pattern; it was to keeping three lists by hand.
  *
- * Identity shows role and branch. It does **not** show the e-mail address: §7
- * rules out e-mail, phone, token and ID, and the JWT carries no display name
- * (`SessionClaims` is userId / email / role / branchId / branchName), so there
- * is nothing else to show without a new API call.
+ * So the rule that replaced it is derivation, not prohibition:
+ * `drawerSectionsFor(profile)` in `roleConfig.ts` **reads the tabs and the More
+ * list** and groups them. There is no third list to drift, every row is by
+ * construction somewhere the role can already reach, and
+ * `navigationSurface.test.ts` asserts coverage and no duplicates rather than the
+ * old no-two-surfaces check. See the long note on that function.
+ *
+ * ---------------------------------------------------------------------------
+ * What stayed
+ * ---------------------------------------------------------------------------
+ * **Sign-out is here, only here**, and it still goes through `useSignOut()`,
+ * which reads the real unsynced count out of the queue and confirms before
+ * dropping the session. That duplication was real and shipped once: two
+ * sign-out paths, and this one had no confirm at all.
+ *
+ * **Identity shows role and branch, not the e-mail address.** §7 rules out
+ * e-mail, phone, token and ID, and the JWT carries no display name — so there is
+ * nothing else to show without a new API call. v5 draws a person's name in the
+ * footer; the app draws the role, because that is what it actually knows.
+ *
+ * **Appearance moved to Settings.** It was a control sitting in a list of
+ * destinations, and v5's drawer has no controls in it. Light/dark and the brand
+ * accent are preferences, which is what the Settings row is for.
  */
 
-const MODE_OPTIONS: readonly { key: ThemeMode; label: string; accessibilityLabel: string }[] = [
-  { key: 'light', label: 'Light', accessibilityLabel: 'Light theme' },
-  { key: 'dark', label: 'Dark', accessibilityLabel: 'Dark theme' },
-  { key: 'system', label: 'System', accessibilityLabel: 'Follow the device theme' },
-];
+/** How the drawer navigates: into the tab navigator it wraps. */
+const TABS_ROUTE = 'Tabs';
 
-function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
+function AccountDrawerContent({
+  profile,
+  navigation,
+}: DrawerContentComponentProps & { profile: AccessProfile }): React.ReactElement {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { mode } = useThemeContext();
   const claims = useAuthStore(s => s.claims);
   const { signOut, isSigningOut } = useSignOut();
   const isOnline = useNetworkStore(s => s.isOnline);
-  const setThemeMode = useSettingsStore(s => s.setThemeMode);
-  const accent = useSettingsStore(s => s.accent);
-  const setAccent = useSettingsStore(s => s.setAccent);
+
+  const sections = useMemo(() => drawerSectionsFor(profile), [profile]);
 
   /**
-   * The one sign-out in the app.
-   *
-   * `useSignOut()` reads the real unsynced count out of the queue table and
-   * confirms before dropping the session; this panel deliberately does not write
-   * its own confirm. It had one path and More had another, and only More's
-   * warned about unsynced work — a sign-out from here silently stranded whatever
-   * the queue was still holding. One hook, one behaviour.
-   *
    * Sign-out unmounts this whole tree, so there is no component left to show an
    * error in: a failure is logged and the local session is dropped either way.
    */
@@ -92,41 +96,49 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
     });
   }, [signOut]);
 
+  /**
+   * A row goes to a tab, and optionally to a screen inside that tab's stack.
+   *
+   * The drawer wraps the tab navigator, so both hops are one `navigate` with a
+   * nested `screen` — navigating to the tab and then pushing would show the tab
+   * root for a frame before replacing it. The drawer closes itself: leaving it
+   * open over the destination is how a user ends up tapping the same row twice.
+   */
+  const go = useCallback(
+    (item: DrawerDestination) => {
+      /* Cast at the boundary rather than typed through. The drawer navigator is
+         created untyped (one screen, built from a render prop), so React
+         Navigation infers `never` for its route params and a nested navigate
+         cannot be expressed without a param list for every role's tab tree —
+         which is the thing `roleConfig` exists to avoid declaring four times. */
+      const params = item.screen
+        ? { screen: item.tab, params: { screen: item.screen } }
+        : { screen: item.tab };
+      (navigation.navigate as (route: string, params?: unknown) => void)(TABS_ROUTE, params);
+      navigation.closeDrawer();
+    },
+    [navigation],
+  );
+
   const connection = isOnline ? 'Online' : 'Offline';
 
   return (
-    /* `paddingTop: 0` overrides the safe-area inset DrawerContentScrollView
-       applies for us. The identity block is full-bleed brown and has to run
-       under the status bar — with the inset left in place there would be a
-       cream strip above it. The block pays the inset back itself, below. */
-    <DrawerContentScrollView
-      contentContainerStyle={[
-        styles.scroll,
-        { paddingBottom: theme.space.xxl, gap: theme.space.xxl },
-      ]}>
-      {/* Identity.
+    <View style={[styles.flex, { backgroundColor: theme.colors.surface }]}>
+      {/* Brand, not identity.
 
-          v4 draws this as a deep-brown block bled to all three edges rather
-          than as a card on the field: it is the only thing in the panel that is
-          neither a control nor a destination, and giving it the chrome colour
-          is what separates "who you are" from "what you can change" without
-          needing a divider. The mark says which app; the block below it says
-          who is signed in.
-
-          `secondary`, not `primary`. The block is chrome that has to outrank
-          everything under it, which is the ink's job in v4 — the ember is a
-          fill for things you press, and a whole panel header painted with it
-          reads as one enormous button. */}
+          v5 heads the drawer with the mark and the branch and puts the person in
+          the footer beside Logout — which is the right way round for a menu: the
+          top of a scrolling list is where the eye starts, and it should start on
+          where you are rather than on who you are. `secondary` because chrome
+          that has to outrank a list of rows is the ink's job in v4; a header
+          painted in the ember reads as one enormous button. */}
       <View
-        style={[
-          {
-            backgroundColor: theme.colors.secondary,
-            paddingTop: insets.top + theme.space.lg,
-            paddingBottom: theme.space.xl,
-            paddingHorizontal: theme.layout.screenPad,
-            gap: theme.space.md,
-          },
-        ]}>
+        style={{
+          backgroundColor: theme.colors.secondary,
+          paddingTop: insets.top + theme.space.lg,
+          paddingBottom: theme.space.lg,
+          paddingHorizontal: theme.layout.screenPad,
+        }}>
         <View style={[styles.row, { gap: theme.space.md }]}>
           <View
             accessibilityElementsHidden
@@ -135,90 +147,190 @@ function AccountPanel(_props: DrawerContentComponentProps): React.ReactElement {
               styles.avatar,
               { backgroundColor: theme.colors.surface, borderRadius: theme.radius.pill },
             ]}>
-            <MBLogo size={44} />
+            <MBLogo size={38} />
           </View>
-
           <View style={[styles.flex, { gap: theme.space.hair }]}>
-            <Text style={[theme.type.h2, { color: theme.colors.onSecondary }]}>
-              {claims ? roleLabel(claims.role) : 'Signed out'}
-            </Text>
+            <Text style={[theme.type.h2, { color: theme.colors.onSecondary }]}>Mountain Bakes</Text>
             {claims?.branchName ? (
-              <Text style={[theme.type.body, { color: theme.colors.onSecondaryMuted }]}>
+              <Text style={[theme.type.caption, { color: theme.colors.onSecondaryMuted }]}>
                 {claims.branchName}
               </Text>
             ) : null}
-
-            <View
-              accessible
-              accessibilityLabel={`Connection: ${connection}`}
-              style={[styles.row, styles.connection, { gap: theme.space.tight }]}>
-              <View
-                style={[
-                  styles.dot,
-                  {
-                    /* On the brown block the status hues stop being legible —
-                       `success` is 1.5:1 there. The dot keeps its meaning from
-                       the word beside it, and takes a tint that can actually be
-                       seen against the chrome. */
-                    backgroundColor: isOnline
-                      ? theme.colors.successBg
-                      : theme.colors.warningBg,
-                    borderRadius: theme.radius.pill,
-                  },
-                ]}
-              />
-              <Text style={[theme.type.caption, { color: theme.colors.onSecondaryMuted }]}>
-                {connection}
-              </Text>
-            </View>
           </View>
         </View>
       </View>
 
-      {/* Appearance — a control, not a destination. */}
-      <View style={{ gap: theme.space.sm, paddingHorizontal: theme.layout.screenPad }}>
-        <Text accessibilityRole="header" style={[theme.type.label, { color: theme.colors.textMuted }]}>
-          Appearance
-        </Text>
-        {/* The fifth copy of the chip row, now the shared one. It used to draw
-            itself as a pill, which v4 reserves for status — and a theme you are
-            choosing between is not a state being reported. */}
-        <MBFilterChips
-          options={MODE_OPTIONS}
-          selectedKey={mode}
-          onSelect={key => setThemeMode(key as ThemeMode)}
-          testIDPrefix="theme-mode"
-        />
-        {/* v4's "Theme colour". A second control under the same heading rather
-            than its own section: light/dark and the brand fill are one question
-            — what the app looks like — asked twice, and splitting them would
-            put a one-row section between Appearance and Log out. */}
-        <MBAccentPicker value={accent} onSelect={setAccent} />
-      </View>
+      <DrawerContentScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: theme.space.lg }]}>
+        {sections.map(section => (
+          <View key={section.title} style={{ paddingTop: theme.space.lg }}>
+            <Text
+              accessibilityRole="header"
+              style={[
+                theme.type.label,
+                {
+                  color: theme.colors.textMuted,
+                  paddingHorizontal: theme.layout.screenPad,
+                  paddingBottom: theme.space.xs,
+                },
+              ]}>
+              {section.title}
+            </Text>
+            {section.items.map(item => (
+              <DrawerRow key={drawerItemKey(item)} item={item} onPress={go} />
+            ))}
+          </View>
+        ))}
+      </DrawerContentScrollView>
 
-      <View style={{ paddingHorizontal: theme.layout.screenPad }}>
-        <MBButton
-          label={NAV_LABELS.logout}
-          variant="dangerSoft"
-          onPress={onSignOut}
-          disabled={isSigningOut}
-          fullWidth
-        />
+      {/* The account footer: who is signed in, whether the phone can reach the
+          server, and the one way out. Pinned below the scroller rather than
+          inside it — a sign-out that moves as the menu grows is a sign-out
+          somebody hits by accident. */}
+      <View
+        style={[
+          styles.footer,
+          {
+            borderTopColor: theme.colors.border,
+            paddingHorizontal: theme.layout.screenPad,
+            paddingTop: theme.space.md,
+            paddingBottom: Math.max(insets.bottom, space.md) + space.md,
+            gap: theme.space.md,
+          },
+        ]}>
+        <View style={[styles.row, styles.flex, { gap: theme.space.md }]}>
+          <View style={[styles.flex, { gap: theme.space.hair }]}>
+            <Text style={[theme.type.cardTitle, { color: theme.colors.text }]}>
+              {claims ? roleLabel(claims.role) : 'Signed out'}
+            </Text>
+            <View
+              accessible
+              accessibilityLabel={`Connection: ${connection}`}
+              style={[styles.row, { gap: theme.space.tight }]}>
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: isOnline ? theme.colors.success : theme.colors.offline,
+                    borderRadius: theme.radius.pill,
+                  },
+                ]}
+              />
+              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                {connection}
+              </Text>
+            </View>
+          </View>
+
+          <MBPressable
+            onPress={onSignOut}
+            disabled={isSigningOut}
+            restOpacity={isSigningOut ? 0.5 : 1}
+            accessibilityRole="button"
+            accessibilityLabel={NAV_LABELS.logout}
+            accessibilityState={{ disabled: isSigningOut }}
+            testID="drawer-sign-out"
+            style={[
+              styles.logout,
+              {
+                minHeight: theme.layout.tapMin,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.dangerBg,
+                paddingHorizontal: theme.space.lg,
+                gap: theme.space.tight,
+              },
+            ]}>
+            <MBIcon name="logout" size="action" color={theme.colors.danger} />
+            <Text style={[theme.type.label, { color: theme.colors.danger }]}>
+              {NAV_LABELS.logout}
+            </Text>
+          </MBPressable>
+        </View>
       </View>
-    </DrawerContentScrollView>
+    </View>
   );
 }
 
 /**
- * The tabs, hidden from the accessibility tree while the panel is open.
+ * Memoised, and it has to be: the drawer subscribes to the sync store for its
+ * badges, so every drain tick re-renders the content. With a stable item and a
+ * stable handler none of the rows re-render with it.
+ */
+const DrawerRow = React.memo(function DrawerRowView({
+  item,
+  onPress,
+}: {
+  item: DrawerDestination;
+  onPress: (item: DrawerDestination) => void;
+}): React.ReactElement {
+  const theme = useTheme();
+  const badge = useDrawerBadge(item.badge);
+  const press = useCallback(() => onPress(item), [onPress, item]);
+  const label = NAV_LABELS[item.label];
+
+  return (
+    <MBPressable
+      onPress={press}
+      accessibilityRole="link"
+      // Without the count folded in, the reader announces a row that is visibly
+      // carrying a number as though it were not.
+      accessibilityLabel={
+        badge
+          ? `${label}, ${badge.count} ${badge.tone === 'danger' ? 'need attention' : 'waiting to sync'}`
+          : label
+      }
+      testID={`drawer-${drawerItemKey(item)}`}
+      style={[
+        styles.item,
+        {
+          minHeight: theme.layout.tapMin,
+          paddingHorizontal: theme.layout.screenPad,
+          gap: theme.space.md,
+        },
+      ]}>
+      <MBIcon
+        name={item.icon}
+        size="drawer"
+        color={theme.colors.textMuted}
+        strokeWidth={iconStroke.regular}
+      />
+      <Text style={[theme.type.bodyStrong, styles.flex, { color: theme.colors.text }]}>
+        {label}
+      </Text>
+      {badge ? <MBBadge count={badge.count} tone={badge.tone} label="" /> : null}
+    </MBPressable>
+  );
+});
+
+/**
+ * The live count behind a row, or nothing.
  *
- * Without this, the panel is drawn over the tabs but the tabs are still what a
- * screen reader walks: TalkBack reads the More list underneath and never reaches
- * the appearance controls or Sign out, so the panel is unusable without sight.
- * It is a visual overlay, not an accessibility one, until it is told otherwise.
+ * Same rule the tab bar follows: failures outrank queue depth — a parked row
+ * needs a person, a pending row only needs a network — and both clear when the
+ * store clears, which is the property that keeps a badge worth believing. A
+ * badge fed by nothing teaches staff to ignore every badge in the app, so a
+ * source this does not recognise gets none.
+ */
+function useDrawerBadge(
+  source: BadgeSource | undefined,
+): { count: number; tone: 'accent' | 'danger' } | null {
+  const pending = useSyncStore(s => s.pending);
+  const needsAttention = useSyncStore(s => s.needsAttention);
+
+  if (source !== 'syncAttention') return null;
+  if (needsAttention > 0) return { count: needsAttention, tone: 'danger' };
+  if (pending > 0) return { count: pending, tone: 'accent' };
+  return null;
+}
+
+/**
+ * The tabs, hidden from the accessibility tree while the drawer is open.
  *
- * Both props are needed — `accessibilityElementsHidden` is the iOS half,
- * `importantForAccessibility` the Android half.
+ * Without this, the drawer is drawn over the tabs but the tabs are still what a
+ * screen reader walks: TalkBack reads the screen underneath and never reaches
+ * the menu. It is a visual overlay, not an accessibility one, until it is told
+ * otherwise. Both props are needed — `accessibilityElementsHidden` is the iOS
+ * half, `importantForAccessibility` the Android half.
  */
 function DrawerScreenContent({ profile }: { profile: AccessProfile }): React.ReactElement {
   const isOpen = useDrawerStatus() === 'open';
@@ -233,14 +345,16 @@ function DrawerScreenContent({ profile }: { profile: AccessProfile }): React.Rea
 }
 
 /**
- * Wraps the tabs so the panel can be opened from the header avatar on any tab
+ * Wraps the tabs so the menu can be opened from the header avatar on any tab
  * root. Swipe-to-open is off: a left-edge swipe is how you go back inside a
  * stack, and the two gestures fight.
  */
 export function AccountDrawer({ profile }: { profile: AccessProfile }): React.ReactElement {
   const renderContent = useCallback(
-    (props: DrawerContentComponentProps) => <AccountPanel {...props} />,
-    [],
+    (props: DrawerContentComponentProps) => (
+      <AccountDrawerContent {...props} profile={profile} />
+    ),
+    [profile],
   );
   const renderTabs = useCallback(() => <DrawerScreenContent profile={profile} />, [profile]);
 
@@ -252,18 +366,20 @@ export function AccountDrawer({ profile }: { profile: AccessProfile }): React.Re
         drawerType: 'front',
         swipeEnabled: false,
       }}>
-      <Drawer.Screen name="Tabs">{renderTabs}</Drawer.Screen>
+      <Drawer.Screen name={TABS_ROUTE}>{renderTabs}</Drawer.Screen>
     </Drawer.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  /** See the comment at the render site — this defeats the inset the scroll
-      view applies, so the identity block can run under the status bar. */
+  /** Defeats the safe-area inset the scroll view applies: the brand block above
+      it already paid the top inset, and paying it twice leaves a gap. */
   scroll: { paddingTop: 0 },
-  avatar: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center' },
-  connection: { marginTop: 4 },
+  avatar: { width: 50, height: 50, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
+  item: { flexDirection: 'row', alignItems: 'center' },
+  footer: { borderTopWidth: 1 },
+  logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   dot: { width: layout.dotSize, height: layout.dotSize },
 });

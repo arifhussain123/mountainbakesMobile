@@ -8,6 +8,7 @@ import {
   MBAccountButton,
   MBCard,
   MBEmptyState,
+  MBFab,
   MBErrorState,
   MBHeader,
   MBInput,
@@ -137,6 +138,9 @@ export function BranchDemandsScreen(): React.ReactElement {
   }, [cancel, reason, withdrawing]);
 
   const rows = orders.data ?? [];
+  /* Which of the two "New order" controls is on screen. Only ever one: the
+     empty state while there is nothing to scroll, the FAB once there is. */
+  const emptyStateShowing = !orders.isPending && !orders.isError && rows.length === 0;
 
   const renderItem = useCallback(
     ({ item }: { item: BranchProductionOrder }) => (
@@ -204,10 +208,9 @@ export function BranchDemandsScreen(): React.ReactElement {
           title="No demands"
           message="Demands raised in the last seven business days appear here."
           icon="orders"
-          /* The empty state is the one place a call to action still lives now
-             that the corner FAB is gone: with nothing in the list there is
-             nothing for the centre button to compete with, and a bare "No
-             demands" leaves a new shift with no visible way forward. */
+          /* The empty state carries the call to action while there is nothing
+             to scroll; the FAB below takes over once there is. One control on
+             screen at a time — the Expenses rule. */
           actionLabel="New order"
           onAction={() => navigation.navigate('CreateOrder')}
         />
@@ -228,12 +231,23 @@ export function BranchDemandsScreen(): React.ReactElement {
         />
       )}
 
-      {/* No corner FAB. New Order is the branch bar's **centre action** now —
-          the ember circle sitting proud of the floating pill — and a screen
-          with a FAB *and* a second control for the same thing has two things
-          competing to be its one obvious action. The empty state below still
-          carries its own call to action, which is on screen only while the list
-          is empty. See `CENTRE_ACTIONS` in `navigation/roleConfig.ts`. */}
+      {/* The corner FAB is back.
+          
+          It was removed while the navigation bar carried New Order in its
+          centre — two controls competing to be one obvious action. v5 removes
+          that button, so this screen is once again the only place the demand
+          form is one tap away from the list it belongs to.
+
+          One control at a time, as on Expenses: the empty state above holds the
+          instruction while the list is empty, and this takes over once there is
+          something to scroll. */}
+      {!emptyStateShowing ? (
+        <MBFab
+          label="New order"
+          testID="new-demand"
+          onPress={() => navigation.navigate('CreateOrder')}
+        />
+      ) : null}
 
       <MBConfirmDialog
         visible={withdrawing !== null}

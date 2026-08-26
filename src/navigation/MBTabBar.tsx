@@ -15,9 +15,8 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 
-import { MBIcon, MBPressable } from '@/components';
+import { MBIcon } from '@/components';
 import { MBBadge } from '@/components/feedback/MBBadge';
-import type { IconKey } from '@/constants/navigationIcons';
 import { useSyncStore } from '@/store/syncStore';
 import { iconSize, iconStroke } from '@/theme/iconSizes';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -51,26 +50,17 @@ import { weight } from '@/theme/typography';
  */
 
 /**
- * The indicator's ceiling width.
+ * The active underline — v5's selection mark.
  *
- * v4 lifts the indicator from a pill behind the glyph to a rounded rectangle
- * behind the **whole cell** — glyph and label together — so this is now wide
- * enough to hold a label rather than sized to a 24dp icon. It still shrinks to
- * fit a narrow slot (see `indicatorWidth`).
+ * v4 tinted the **whole cell** with `primarySoft`. v5 replaces that with a short
+ * bar under the label: 16 long, 3 thick, `radius.pill`, in the ember. It is a
+ * smaller mark doing a bigger job, so it does not carry the selection alone —
+ * see the colour note at the render site.
  */
-const INDICATOR_MAX_W = 88;
+const INDICATOR_W = 16;
+const INDICATOR_H = 3;
 
-/**
- * The gap between the indicator and its neighbours.
- *
- * Small on purpose: v4's active cell nearly fills its slot, which is what makes
- * the tint read as "this tab" rather than as a badge sitting under it.
- */
-const INDICATOR_INSET = 4;
-
-/** Vertical padding inside the floating bar, above and below the row. */
-const PILL_PAD_V = 8;
-/** Horizontal padding inside the floating bar, so the end cells are not flush. */
+/** Horizontal padding inside the bar, so the end cells are not flush. */
 const PILL_PAD_H = 6;
 
 /**
@@ -80,28 +70,14 @@ const PILL_PAD_H = 6;
 const MIN_BOTTOM_PAD = 8;
 
 /**
- * The notch the centre action button sits in.
- *
- * Wider than the 56dp button so the ring around it has clear air on both sides
- * — v4 wears a `navFabRing` band in the field colour, and a slot sized to the
- * button alone puts that band on top of the neighbouring tab's label.
- */
-const CENTRE_SLOT = 60;
-
-/**
- * How far the button rides above the bar's top edge.
- *
- * Two thirds proud, one third overlapping. Fully clear reads as a corner FAB
- * that wandered into the middle; fully inside is a tab that happens to be
- * round.
- */
-const CENTRE_RISE = 22;
-
-/**
  * Five is the ceiling — four daily-operations tabs plus More. `roleConfig` is
  * where that is enforced and `navigationSurface.test.ts` asserts it; this is the
  * runtime tripwire for a sixth tab arriving from somewhere else, because the
  * first symptom would otherwise be truncated labels on a 360dp phone.
+ *
+ * v5 calls this a "five-tab bar" and it is the same five: the count did not
+ * change, the **centre action button between them** did — it is gone, and with
+ * it the notch the row used to flow around.
  */
 const MAX_TABS = 5;
 
@@ -113,16 +89,6 @@ interface Badge {
 export interface MBTabBarProps extends BottomTabBarProps {
   /** The role's tab configs, in the order they were registered. */
   tabs: readonly TabConfig[];
-  /**
-   * The one create action the bar carries in its centre, or nothing.
-   *
-   * Resolved by `RoleTabs` from `centreActionFor(profile)`, so this component
-   * still has no role name in it. When it is absent the row is laid out exactly
-   * as it was before the button existed — the notch is not reserved "just in
-   * case", because an empty 60dp hole in the middle of four tabs looks like a
-   * control that failed to load.
-   */
-  centreAction?: { label: string; icon: IconKey; onPress: () => void } | undefined;
 }
 
 export function MBTabBar({
@@ -131,7 +97,6 @@ export function MBTabBar({
   navigation,
   insets,
   tabs,
-  centreAction,
 }: MBTabBarProps): React.ReactElement | null {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
@@ -198,19 +163,16 @@ export function MBTabBar({
    * report during the first frames.
    */
   /**
-   * The notch is a fixed-width cell the tabs flow around, so it comes out of
-   * the row before the remainder is divided. `notchAt` is where it sits:
-   * `floor(n / 2)`, which puts it dead centre for an even count and one cell
-   * left of centre for an odd one — v4's own split for four tabs.
+   * Five equal slots and nothing between them.
+   *
+   * v4 took a fixed-width notch out of the row before dividing the remainder,
+   * because the centre action button sat in it. v5 has no such button, so the
+   * arithmetic is one division — and the indicator is a fixed 16 rather than a
+   * width derived from the slot, because it is now a mark under the label
+   * rather than a tint behind the cell.
    */
-  const notch = centreAction ? CENTRE_SLOT : 0;
-  const notchAt = Math.floor(state.routes.length / 2);
-  const slotWidth = (width - notch) / Math.max(state.routes.length, 1);
-  const indicatorWidth = Math.max(0, Math.min(INDICATOR_MAX_W, slotWidth - INDICATOR_INSET));
-  const targetX =
-    slotWidth * state.index +
-    (state.index >= notchAt ? notch : 0) +
-    (slotWidth - indicatorWidth) / 2;
+  const slotWidth = width / Math.max(state.routes.length, 1);
+  const targetX = slotWidth * state.index + (slotWidth - INDICATOR_W) / 2;
 
   const x = useSharedValue(0);
   const placed = useRef(false);
@@ -276,38 +238,6 @@ export function MBTabBar({
           paddingRight: insets.right + theme.layout.navInset,
         },
       ]}>
-      {centreAction ? (
-        /* In the gutter, not in the bar: it has to overflow the pill's top
-           edge, and the pill clips its children so the indicator cannot escape
-           the rounded corners. `box-none` on the layer keeps the rest of the
-           gutter transparent to touches. */
-        <View pointerEvents="box-none" style={[styles.centreLayer, { top: -CENTRE_RISE }]}>
-          <MBPressable
-            onPress={centreAction.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={centreAction.label}
-            testID="tab-centre-action"
-            style={[
-              styles.centre,
-              theme.shadows.e3,
-              {
-                width: theme.layout.fabSize,
-                height: theme.layout.fabSize,
-                borderRadius: theme.radius.pill,
-                backgroundColor: theme.colors.primary,
-                /* The ring is the field colour, not the bar's. It reads as the
-                   button punching through the bar rather than as a second
-                   border drawn on it — which is what makes the notch look like
-                   a notch on a screen that is scrolling underneath. */
-                borderWidth: theme.layout.navFabRing,
-                borderColor: theme.colors.bg,
-              },
-            ]}>
-            <MBIcon name={centreAction.icon} size="header" color={theme.colors.onPrimary} />
-          </MBPressable>
-        </View>
-      ) : null}
-
       <View
         style={[
           styles.pill,
@@ -321,16 +251,23 @@ export function MBTabBar({
         <View
           accessibilityRole="tablist"
           onLayout={onLayout}
-          style={[styles.row, { height: theme.layout.tabH }]}>
+          style={[styles.row, { height: theme.layout.navPillH }]}>
           {width > 0 ? (
+            /* The one place the ember is allowed near the selection.
+               `primary` is a FILL — 3.04:1 on a card, which clears the 3:1 bar
+               WCAG 1.4.11 sets for a graphical object and falls well short of
+               the 4.5:1 a label needs. So the brand lives in this 3dp bar and
+               the glyph and label above it stay in the ink; see the colour note
+               in the cell below for what v5 asks for and why this departs. */
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.indicator,
                 {
-                  width: indicatorWidth,
-                  borderRadius: theme.radius.lg,
-                  backgroundColor: theme.colors.primarySoft,
+                  width: INDICATOR_W,
+                  height: INDICATOR_H,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: theme.colors.primary,
                 },
                 indicatorStyle,
               ]}
@@ -343,10 +280,24 @@ export function MBTabBar({
           const config = configByName.get(route.name);
           const label = options?.title ?? route.name;
           const badge = badgeFor(config?.badge);
-          // `accent`, not `primary`: this paints the glyph AND the label, and
-          // the ember is 3.2:1 — a fill colour, unreadable as type. v4 draws
-          // the active tab in the ink and lets the pill behind it carry the
-          // brand.
+          /**
+           * `accent`, not `primary` — and this is the one place the build
+           * deliberately departs from v5.
+           *
+           * v5 draws the active glyph and its 10px label in `#FB6D34`. Measured
+           * against the bar's own white, that is **2.88:1**; the ember this app
+           * actually ships (`ember500`, v4's hue walked down 6%) is 3.04:1.
+           * Either way it is a fill value, and a fill value is not type: the bar
+           * asks for 4.5:1, and at 10dp the miss is not academic — it is the
+           * label a new staff member is relying on to learn which glyph is
+           * which.
+           *
+           * So the ember goes where it can carry information honestly — the
+           * 3dp underline above, a graphical object held to 3:1 — and the glyph
+           * and label take the ink. The selection is then three signals rather
+           * than one: the mark, the colour shift from `textMuted` to `accent`,
+           * and the weight step below.
+           */
           const color = focused ? theme.colors.accent : theme.colors.textMuted;
 
           const onPress = () => {
@@ -388,10 +339,14 @@ export function MBTabBar({
               testID={`tab-${route.name}`}
               // Borderless ripple reads as native on Android; iOS tab bars have
               // no press state of their own, so it gets a dim instead.
+              /* Sized to the cell, not to the indicator. v4 derived this from
+                 the indicator's width because the indicator *was* the cell;
+                 v5's is a 16dp mark, and a ripple that small reads as a
+                 rendering fault rather than as a touch. */
               android_ripple={{
                 color: theme.colors.primarySoft,
                 borderless: true,
-                radius: INDICATOR_MAX_W / 2,
+                radius: theme.layout.tapMin / 2,
               }}
               style={({ pressed }) => [
                 styles.item,
@@ -444,17 +399,7 @@ export function MBTabBar({
             </Pressable>
           );
 
-          /* The notch is a sibling of the cells rather than padding on one of
-             them, so the row's flex maths and the indicator's arithmetic agree
-             about where each slot starts. */
-          return index === notchAt && notch > 0 ? (
-            <React.Fragment key={`${route.key}-notched`}>
-              <View style={{ width: notch }} pointerEvents="none" />
-              {cell}
-            </React.Fragment>
-          ) : (
-            cell
-          );
+          return cell;
         })}
         </View>
       </View>
@@ -465,33 +410,24 @@ export function MBTabBar({
 const styles = StyleSheet.create({
   /** Transparent. See the comment at the render site. */
   gutter: { backgroundColor: 'transparent' },
-  centreLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    // Above the bar in paint order as well as in position, or the pill's own
-    // elevation on Android draws over the button's lower half.
-    zIndex: 1,
-    elevation: 1,
-  },
-  centre: { alignItems: 'center', justifyContent: 'center' },
   pill: {
     borderWidth: 1,
-    paddingVertical: PILL_PAD_V,
     paddingHorizontal: PILL_PAD_H,
     overflow: 'hidden',
   },
   row: { flexDirection: 'row', alignItems: 'stretch' },
-  /** Top *and* bottom pinned: the indicator is the full height of the cell,
-      not a pill above the label — v4 tints the whole cell. */
-  indicator: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  /**
+   * Pinned to the BOTTOM of the row, not stretched through it.
+   *
+   * v4's indicator was a full-height tint behind the cell and had to pin both
+   * edges. v5's is a mark under the label, so it takes a height of its own and
+   * sits `xs` clear of the bar's lower edge — flush against it would read as
+   * the bar's border thickening rather than as a selection.
+   */
+  indicator: { position: 'absolute', left: 0, bottom: space.xs },
   item: {
     flex: 1,
     alignItems: 'center',
-    // Centred rather than top-aligned: the indicator is now the full height of
-    // the cell, so glyph and label sit in the middle of the tint rather than
-    // hanging from its top edge.
     justifyContent: 'center',
     // No horizontal padding: the whole slot is the target, and the icon and
     // label centre themselves inside it.

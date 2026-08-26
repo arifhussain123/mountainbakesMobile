@@ -96,6 +96,19 @@ shop actually rely on. A write always goes:
 form → writeOffline() → SQLite row + sync_queue row (one transaction) → drain attempt
 ```
 
+**One write is deliberately outside this**, and it is the endpoint's fault rather
+than the screen's: the production counter sale
+(`POST /api/orders/production-sale`, `ProductionSalesScreen`) carries **no
+`idempotent()` middleware and no `businessDate` field**. Queueing it would mean a
+retry that rings up a second sale, and a date Zod strips so the handler stamps
+the day the row *drained* — the two failures the queue exists to prevent. So it
+posts live, and the screen says so before a cart exists: the FAB is disabled with
+no connection and `MBHeader`'s `offlineNote` replaces the offline strip's default
+sentence, which promises the transaction is kept on the device. Re-queueing it is
+a server change first; `docs/offline-sync.md` has the full account. The
+production returns *review* is unqueued too, for the different reason that it is
+a decision about a record other people are acting on.
+
 There are **three** outcomes to report, not two (`services/sync/writeOutcome.ts`):
 saved, queued ("Saved offline"), and **refused** — a write the server rejected with a
 409, which is parked in `sync_conflicts` and will never sync on its own. The rule runs
@@ -183,7 +196,7 @@ slip. A stale copy of `timezone.ts` bills sales to the wrong day.
 ### Screens are resolved by role, not by name
 
 `navigation/roleConfig.ts` is the single source of truth for what a role can reach —
-its tabs, its More list and its account panel, all three inventoried in one file so
+its tabs, its More list and its account footer, all three inventoried in one file so
 they can be compared. `roleNavigation.ts` keeps only the role *predicates*
 (`isBranchRole`, `isFinanceRole`, `roleGroupFor`), which are domain rules used well
 outside navigation.
@@ -197,18 +210,32 @@ both gone. `navigationSurface.test.ts` asserts that.
 `resolveTabScreen(role, route)` in `navigation/screenRegistry.tsx` maps (role, tab
 name) → component, because **the same tab name means different screens for different
 roles**: "Sales" at the production counter allows a `staff` payment method a branch
-sale must never offer, and "Home" is four different dashboards. An unbuilt tab renders
+sale must never offer, and "Home" is four different dashboards. Sales is in fact
+three screens behind one word and only one of them is a tab — the branch POS.
+The production counter's till and the admin's cross-branch money view are both
+More rows, split by `resolveMoreScreen`, and
+`navigation/__tests__/screenRegistry.test.tsx` is what holds all three apart:
+`navigationSurface.test.ts` sees only the config, where each is listed exactly
+once, so it cannot catch a resolver handing one role another's screen. An unbuilt tab renders
 a placeholder naming the phase it lands in, so an unbuilt screen is never mistaken for
 an empty one.
 
-**No screen is reachable from two surfaces**, and
-`navigation/__tests__/navigationSurface.test.ts` enforces that for all eight roles: no
-More route is also a tab name, none is listed twice, and nothing in the account panel
-is also a tab or a More row. The drawer is the account panel, not navigation — it holds
-identity, connection state, appearance and sign-out, and there is not one `navigate()`
-call in `AccountDrawer.tsx`. Adding a destination means adding it in exactly one place;
-`docs/navigation.md` is the full account, including why New Order is a modal on
-`OrdersStack` rather than a tab.
+**The drawer is a navigation surface again as of v5, and the old "no destination on
+two surfaces" rule is gone with it.** That rule was never about duplication being
+wrong — it was about three hand-maintained menus drifting apart. So the drawer is
+**derived**: `drawerSectionsFor(profile)` reads `tabsFor` and `moreSectionsFor` and
+groups them, and there is no third list to drift.
+`navigation/__tests__/navigationSurface.test.ts` now asserts, for all eight roles,
+coverage (every tab and every More row appears in the drawer), no duplicates within
+it, and that every row names a tab the role actually has. A destination is still
+declared in exactly one place, however many places can reach it.
+
+What did **not** relax: `ACCOUNT_PANEL` — identity, branch, connection, appearance,
+sign-out — is the drawer's *pinned footer*, and none of it may be a tab, a More row
+or a drawer row. A row goes somewhere; a button does something, and a sign-out that
+scrolls with a growing menu is one somebody hits by accident. `docs/navigation.md`
+is the full account, including why New Order is a modal on `OrdersStack` rather than
+a tab.
 
 `branch_user` is a **shift account carrying its manager's `branchId`**, not a branch of
 its own — branch-scoped code must treat it and `branch_manager` identically
@@ -319,7 +346,7 @@ Light and dark are two token sets behind one interface (`theme/`). Do not write
 
 **The palette is a fill and a mark, and they are not interchangeable.** v4 runs
 two colours: ember orange for every **fill** — a button, the active chip, the
-centre action button, a meter, a chart line — and deep brown `#3E1B00` for every
+a meter, a chart line, the active tab's underline — and deep brown `#3E1B00` for every
 **mark**: type, icons, links, and the hero blocks a KPI sits on. It never sets a
 link or a figure in orange, and it cannot: the ember is 3.2:1 on a card.
 
@@ -340,8 +367,8 @@ fall back on.
 earlier revision of v4 separated with borders alone and this file said so; the
 current one draws both. The border is still what separates a card from the
 field — `surface` on `bg` is 1.05:1 — and `e1` only stops white-on-cream looking
-pasted on. `e2` and `e3` remain the floating nav bar and the centre action button
-and nothing else.
+pasted on. `e2` is the floating nav bar and `e3` the corner FAB, and nothing
+else.
 
 **The brand fill is a preference; the mark is not.** `theme/accents.ts` carries
 five selectable accents (Ember, Ink, Pine, Indigo, Violet) and each replaces
@@ -445,7 +472,7 @@ comparison and fails in a shop.
 
 `docs/mobile-architecture-audit.md` (the backend audit this app was built from — API
 surface, roles, domain values, decisions), `docs/navigation.md` (tabs vs More vs the
-account panel, header chrome, badges, deep links, icons), `docs/screen-patterns.md`
+the drawer, header chrome, badges, deep links, icons), `docs/screen-patterns.md`
 (dashboard composition, stat cards, quick actions, the FAB rule, lists, sheets, and
 how the outcome of a write is reported), `docs/motion.md` (what animates, what
 deliberately does not, and what Reduce Motion suppresses), `docs/local-database.md` (what the device stores, what it deliberately does not,

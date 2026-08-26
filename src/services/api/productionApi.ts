@@ -4,6 +4,8 @@ import type {
 } from '@/shared/types/production-order.types';
 import type { StockRow } from '@/shared/types/stock.types';
 import type { CancelProductionOrderInput } from '@/shared/schemas/production-order.schemas';
+import type { CreateProductionSaleInput } from '@/shared/schemas/order.schemas';
+import type { Order, OrderItem } from '@/shared/types/order.types';
 import { api } from './client';
 
 /**
@@ -190,4 +192,87 @@ export function getBranchStock(): Promise<BranchStockMatrix> {
 
 export function getPreviousBalance(orderId: string): Promise<PreviousBalance> {
   return api.get<PreviousBalance>(`/api/production-orders/${orderId}/previous-balance`);
+}
+
+// ---------------------------------------------------------------------------
+// The counter sale
+// ---------------------------------------------------------------------------
+
+/**
+ * Sales rung up at the production counter.
+ *
+ * `GET /api/orders/production-sales` and not `GET /api/orders`, and the server's
+ * own comment says why: the generic list caps a production user to the ACTIVE
+ * statuses, so a delivered counter sale — which is every counter sale, they are
+ * written `delivered` — would 403. It also has no branch for this caller to
+ * filter on; the scoping is the Production sentinel branch, which the client
+ * never sees and must never send.
+ *
+ * `from`/`to` bound `created_at` and are full ISO instants, so they come from
+ * `businessDayBounds()` rather than a bare `YYYY-MM-DD`: a bare date compares
+ * against calendar midnight and cuts two hours off both ends of a day that rolls
+ * at 02:00.
+ */
+export interface ProductionSaleFilters {
+  from?: string;
+  to?: string;
+}
+
+export async function getProductionSales(
+  filters: ProductionSaleFilters = {},
+): Promise<Order[]> {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+
+  const data = await api.get<{ orders: Order[]; total: number }>(
+    '/api/orders/production-sales',
+    { params },
+  );
+  return data.orders ?? [];
+}
+
+/**
+ * `POST /api/orders/production-sale` — singular, and under `/api/orders`.
+ *
+ * Not `POST /api/production-sales`, which `screenRegistry`'s plan used to name
+ * and which has never existed: `grep -rn production-sales` across the server
+ * finds one route, and it is the GET above.
+ *
+ * Three differences from the branch POS (`/api/orders/pos`), all of them the
+ * server's:
+ *
+ *   - **No `branchId`.** The schema accepts one and the handler ignores it —
+ *     these orders are pinned to the Production sentinel branch (migration 37)
+ *     because `orders.branch_id` is NOT NULL. Sending a branch would look like
+ *     it worked and mean nothing, so nothing here sends one.
+ *   - **`paymentMethod` may be `staff`**, which takes no money. The schema then
+ *     *requires* `notes`: that comment is the only record of who took what and
+ *     why, and the sale is excluded from every revenue total, so an empty one
+ *     would be unauditable.
+ *   - **No `businessDate`.** The endpoint has no such field and stamps
+ *     `businessDateStr()` at arrival, which is the whole reason this write does
+ *     not go through the offline queue — see `ProductionSalesScreen`.
+ *
+ * The response is the server's own snapshot, and it is what a receipt must be
+ * printed from: the request carries no prices, so a price change between opening
+ * the form and saving cannot print a stale rate.
+ */
+export interface ProductionSaleReceipt {
+  id: string;
+  orderNumber: string;
+  grandTotal: number;
+  subtotal: number;
+  discountTotal: number;
+  taxAmount: number;
+  items: OrderItem[];
+  createdAt: string;
+  receivedCash?: number;
+  cashReturned?: number;
+}
+
+export function createProductionSale(
+  input: CreateProductionSaleInput,
+): Promise<ProductionSaleReceipt> {
+  return api.post<ProductionSaleReceipt>('/api/orders/production-sale', input);
 }

@@ -64,6 +64,13 @@ export interface MBHeaderProps {
    */
   dataAsOf?: string;
   /**
+   * Corrects the offline strip's sentence for a screen whose writes do **not**
+   * queue. Passed straight through to `MBOfflineBanner`, whose `note` prop
+   * carries the full reasoning; the short version is that the default promises
+   * a sale is saved, and on the production counter it would not be.
+   */
+  offlineNote?: string;
+  /**
    * Which of v4's two header treatments this screen wears.
    *
    * `field` — the default, and what every list and dashboard uses. The header
@@ -87,6 +94,7 @@ export function MBHeader({
   right,
   search,
   dataAsOf,
+  offlineNote,
   tone = 'field',
 }: MBHeaderProps): React.ReactElement {
   const theme = useTheme();
@@ -209,7 +217,7 @@ export function MBHeader({
 
       {/* Under the header, never above it: a connectivity blip must not shove
           the whole app down by the height of a strip. */}
-      <MBOfflineBanner dataAsOf={dataAsOf} />
+      <MBOfflineBanner dataAsOf={dataAsOf} note={offlineNote} />
     </>
   );
 }

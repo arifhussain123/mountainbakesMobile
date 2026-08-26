@@ -81,6 +81,12 @@ export type { MBStackedBarProps, StackedSegment } from './charts/MBStackedBar';
 
 export { MBStatCard } from './cards/MBStatCard';
 export { MBStatGrid } from './cards/MBStatGrid';
+export { MBStatScroller } from './cards/MBStatScroller';
+export type { MBStatScrollerProps } from './cards/MBStatScroller';
+export { MBBudgetCard } from './cards/MBBudgetCard';
+export type { MBBudgetCardProps } from './cards/MBBudgetCard';
+export { MBStockSummaryCard } from './cards/MBStockSummaryCard';
+export type { MBStockSummaryCardProps } from './cards/MBStockSummaryCard';
 export { MBShareList } from './charts/MBShareList';
 export type { ShareItem } from './charts/MBShareList';
 export { MBTrendChart } from './charts/MBTrendChart';

@@ -122,7 +122,7 @@ semantic layer.
 | Splash | `splashTop`, `splashBottom`, `splashGlow` |
 
 **`primary` is a fill; `accent` is a mark.** v4 runs two colours: ember orange
-for every fill (a button, the active chip, the centre action button, a meter, a
+for every fill (a button, the active chip, the active tab's underline, a meter, a
 chart line) and deep brown for every mark (type, icons, links, and the hero
 blocks a KPI sits on). It never sets a link or a figure in orange, and it cannot
 — the ember is 3.2:1 on a card. **Never colour text or a glyph with `primary`.**
@@ -194,7 +194,7 @@ dark surface is invisible, so dark separates layers with `borderStrong` and
 `border` underneath it. The border is what separates a card from the field
 (`surface` on `bg` is 1.05:1); the shadow only stops white-on-cream looking
 pasted on. `0` is for a card already inside another surface. `e2` and `e3` are
-the navigation bar and the centre action button and nothing else — reaching for
+the navigation bar and the corner FAB and nothing else — reaching for
 `e2` on a card is how the cream field turns grey.
 
 *(An earlier revision of v4 used borders alone and this section said cards never
@@ -370,7 +370,7 @@ rules can be asserted without rendering.
 ## Navigation rules **[repo rule]**
 
 **There is no fixed tab bar.** `navigation/roleConfig.ts` is the single source of
-truth: it declares tabs, the More list and the account panel for each of the eight
+truth: it declares tabs, the More list and the account footer for each of the eight
 roles (`super_admin`, `branch_manager`, `branch_user`, `production_user`,
 `finance_admin`, `finance_manager`, `accountant`, `finance_auditor`).
 
@@ -378,11 +378,23 @@ roles (`super_admin`, `branch_manager`, `branch_user`, `production_user`,
   (role, tab name) → component, because **the same tab name means different screens
   for different roles**. "Sales" at the production counter allows a `staff` payment
   method a branch sale must never offer; "Home" is four different dashboards.
-- **No screen is reachable from two surfaces.**
-  `navigation/__tests__/navigationSurface.test.ts` enforces this for all eight
-  roles. Adding a destination means adding it in exactly **one** place.
-- **The drawer is the account panel, not navigation** — identity, connection state,
-  appearance, sign-out. There is not one `navigate()` call in `AccountDrawer.tsx`.
+  Sales is in fact three screens behind one word, and only the branch POS is a
+  tab — the production till and the admin money view are both More rows, split by
+  `resolveMoreScreen`.
+- **A destination is declared in exactly one place, and may be reached from
+  several.** The old rule was that no screen appeared on two surfaces; v5 makes
+  the drawer a grouped index that repeats the tabs on purpose, so the rule became
+  derivation instead: `drawerSectionsFor(profile)` **reads** `tabsFor` and
+  `moreSectionsFor`. Never hand-write a drawer list.
+  `navigation/__tests__/navigationSurface.test.ts` asserts coverage, no duplicates
+  within the drawer, and that every row names a tab the role has.
+- **The drawer is navigation; its pinned footer is not.** `ACCOUNT_PANEL` —
+  identity, branch, connection, sign-out — may never be a tab, a More row or a
+  drawer row. A row goes somewhere; a button does something.
+- **There is no centre action button.** v4's ember circle in the middle of the
+  bar is gone, along with `CENTRE_ACTIONS`. The bar is five equal cells; create
+  actions live on the resource's own screen (a corner `MBFab`) and in the
+  dashboard quick-action row.
 - `branch_user` is a shift account carrying its manager's `branchId`. Branch-scoped
   code must treat it and `branch_manager` identically (`isBranchRole`) or the shift
   user sees an empty shop.
@@ -445,7 +457,10 @@ honouring it. `docs/motion.md` is the full account.
 - Do not add a FAB to a screen that *is* the create action (Sales, New Order) — a
   FAB on a form is a button that opens the screen you are already on.
 - Do not invent a tab bar; read `roleConfig.ts`.
-- Do not add a destination to two surfaces.
+- Do not hand-write a drawer list — derive it (`drawerSectionsFor`).
+- Do not declare a destination in two places (reaching it from two is fine).
+- Do not put an action in the drawer's scrolling list, or a destination in its footer.
+- Do not reintroduce a centre action button in the tab bar.
 - Do not spec barcode scanning.
 - Do not report a queued write as saved, or a refused one as queued.
 - Do not animate anything that is not reporting a state change.

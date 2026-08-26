@@ -172,15 +172,16 @@ Reanimated 4 needs `resolver: 'react-native-worklets/jest/resolver.js'` in `jest
 | 4 — Read-only slice | **Done** — Products + Stock on real endpoints, six screen states, server-side debounced search, FlashList |
 | 5 — Offline engine | **Done** — queue, drain, backoff, dependency ordering, idempotency keys (server-honoured as of migration 84), failure classification, Sync Center, reference-data mirroring with read-through fallback, conflict detection + storage + resolution (safe resolutions gated on whether the operation may already have landed). Editing a payload to clear a stock conflict still needs the original entry form |
 | 6 — Branch | **Done** — Dashboard, Sales (POS), New Order, Stock, Expenses. All three writes are offline-first |
-| 7 — Production | **Mostly** — Dashboard, Orders (review), Stock, print preview, **Returns (accept/reject queue)**. Production Sales and preparation remain |
+| 7 — Production | **Mostly** — Dashboard, Orders (review), Stock, print preview, **Returns (accept/reject queue)**, **Sales (the counter till)**. Preparation and Delivery remain |
 | 8 — Admin / Finance | **Partial** — Admin Dashboard, Orders, Products, Reports (range + branch filters, four breakdowns, scoped export) plus three statements pushed from it — Daily Sales, Top Products, Sales vs Expenses; Finance Dashboard and Ledger. Finance Income/Expenses remain |
 | 9 — Performance | **Done** — lists virtualised (FlashList) with memoised rows and stable row callbacks; one app-wide Reduce Motion subscription instead of one per tappable surface; `lazy` + `freezeOnBlur` on tabs and stacks; every query key through `qk` (the branch dashboard and Reports no longer fetch one answer twice); previous data kept while a filter switches; the reference mirror replaced in one `executeBatch` instead of one call per row; the unsynced badge one statement instead of two; a drain clears the whole backlog and prunes settled rows. **No on-device profiling** — see [`docs/performance.md`](docs/performance.md) for what was measured versus reasoned about |
 | 9b — Responsive | **Done** — one 600dp breakpoint (`useBreakpoint`), content-width caps on every screen, responsive dashboard stat grid. List+detail two-column not built |
 | 9c — Charts | **Partial** — `MBTrendChart` (SVG bars) on the daily revenue card. `victory-native` + `@shopify/react-native-skia` were **removed**: `librnskia.so` was ~52 MB across four ABIs (~34% of the release APK) for a library nothing imported. The daily card is charted and Reports now draws every rollup — branch, product, payment, category — as `MBShareList` bars behind a dimension selector |
 | 11 — v4 design | **Done** — theme retuned to the current `Mountain Bakes Mobile v4.dc.html` (ember `#EC6631` fill, deep `#3E1B00` mark, card lift restored), the floating nav bar's centre action button, and nine screens added: Stock ledger (day + history), Daily Sales, Top Products, Sales vs Expenses, Events, Help & Support with the query composer, and the production Returns queue. Four v4 screens are deliberately absent because nothing in the API backs them — see [`docs/screen-patterns.md`](docs/screen-patterns.md) → "Not built" |
+| 12 — v5 branch redesign | **Partial** — the shell and the dashboard. Bottom bar reshaped to v5 (five equal cells, ember underline, **centre action button removed**), branch tab order swapped to Home · Sales · Orders · Stock, and the **drawer became a grouped navigation menu derived from the tabs and the More list** — which retired the old "no destination on two surfaces" rule in favour of a coverage invariant (see [`docs/navigation.md`](docs/navigation.md)). Dashboard recomposed to v5's order with a **Budget vs Actual** card (`branches.*_budget`, arriving on the reports summary and previously unread) and a **Branch Stock** strip. Branch **Returns** built on `GET /api/stock/returns` — a real branch-scoped endpoint this app had no screen for, and one two comments in the tree wrongly said did not exist. v5's Notifications screen and the "sold N avg" figure on Branch Demand are **not built — no server route reads the `notifications` table, and no endpoint reports an average** |
 | 10 — QA | **Partial** — typecheck, lint, 732 tests, debug + release build, secret scan, console-strip verified. The suite is silent: the standing `act(...)`, overlapping-`act`, "Query data cannot be undefined" and worker-exit warnings were each traced to a cause and fixed rather than muted (see [`docs/testing.md`](docs/testing.md)). **Live-API reachability verified** — all 19 GET endpoints the app calls answer `401` (route exists, guarded) against both the local dev server and the production Heroku dyno; zero `404`s, so no screen is wired to a route that does not exist. Still **no on-device run and no authenticated end-to-end pass** |
 
-Verified: `tsc --noEmit` clean · eslint clean (0 problems) · **810 tests passing, no warnings** · production JS bundle builds (3.8 MB, 0 surviving `console.log`) · Android **debug APK builds clean** (`BUILD SUCCESSFUL`, 4 ABIs, `libop-sqlite.so` linked) · Android release APK builds clean at **102 MB** · release bundle scanned for secrets · no service-role key, no direct Supabase table access from the app.
+Verified: `tsc --noEmit` clean · eslint clean (0 problems) · **919 tests passing** · production JS bundle builds (3.8 MB, 0 surviving `console.log`) · Android **debug APK builds clean** (`BUILD SUCCESSFUL`, 4 ABIs, `libop-sqlite.so` linked) · Android release APK builds clean at **102 MB** · release bundle scanned for secrets · no service-role key, no direct Supabase table access from the app.
 
 **Release signing.** The template signed `release` with the committed **debug**
 key. It now uses a real upload key when `MB_RELEASE_STORE_FILE` and its three
@@ -240,9 +241,10 @@ it — `AuthNavigator` has SignIn, FinanceSignIn and ForgotPassword only, and
 
 `src/navigation/__tests__/navigationSurface.test.ts` records exactly what each of
 the eight roles can reach — its tabs, in order, and its More list. It is also
-where the single-path rule is enforced: no destination appears in two surfaces,
-no More row is listed twice, and nothing in the account panel is also a tab or a
-More row. A tab with no screen yet renders a placeholder naming the phase it
+where the navigation invariants are enforced: the drawer covers every tab and
+every More row, lists nothing twice, and points only at tabs the role has; no
+More row is listed twice; and nothing in the account footer is a tab, a More row
+or a drawer row. A tab with no screen yet renders a placeholder naming the phase it
 lands in, so an unbuilt screen is never mistaken for an empty one.
 `docs/navigation.md` is the full account of the structure and why it is shaped
 this way.
@@ -266,9 +268,13 @@ awaited, so neither can hold the splash or fail the start.
 Working end to end: sign-in (main and Finance, with TOTP), forced password
 change, and the **whole branch role** — dashboard, POS sales, production orders,
 stock and expenses — plus the Sync Center. Sales, orders and expenses are all
-offline-first. Production, Admin and Finance tabs render a placeholder naming the
-phase they land in, deliberately, so an unbuilt screen is never mistaken for an
-empty one.
+offline-first. Production has its dashboard, demand review, stock, returns queue
+and **counter till**; the till is the one write in the app that is *not*
+offline-first, because the endpoint behind it honours no `Idempotency-Key` and
+takes no `businessDate` (see [`docs/offline-sync.md`](docs/offline-sync.md)).
+Production's two floor stages and the remaining Admin and Finance tabs render a
+placeholder naming the phase they land in, deliberately, so an unbuilt screen is
+never mistaken for an empty one.
 
 ### Selling
 

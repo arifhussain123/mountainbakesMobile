@@ -24,6 +24,40 @@ drain is attempted. Branching on `isOnline` at submit time would make the offlin
 case a separate, rarely-exercised path — and that is the path staff actually rely
 on in a shop with no signal.
 
+### The one transaction that does not take this path
+
+The **production counter sale** posts straight to
+`POST /api/orders/production-sale` and is never queued. It is the only write in
+the app that does not, and the reason is the endpoint rather than the screen —
+it is missing both halves of what makes a queued write safe:
+
+| | `/api/orders/pos` (branch) | `/api/orders/production-sale` |
+|---|---|---|
+| `idempotent()` middleware | yes, `sale.create` | **no** |
+| `businessDate` in the schema | yes, `optionalBusinessDate` | **no** |
+
+Without the first, a retry after a timeout does not replay an answer — it rings
+up a second sale, which is precisely what `client_operation_id` exists to
+prevent everywhere else. Without the second, Zod strips the date a queued row
+would send and the handler stamps `businessDateStr()` at the moment it *drains*,
+so a 21:00 sale synced at 07:00 lands on the wrong business day with nothing
+appearing to fail.
+
+So `ProductionSalesScreen` sends it live and fails loudly, and it says so before
+a cart exists rather than at checkout: the FAB is disabled with no connection,
+and `MBHeader`'s `offlineNote` replaces the strip's default sentence — which
+promises the transaction is saved on the device and would, here, be the exact
+lie that gets a sale rung up twice.
+
+Making it offline-capable is a **server** change first — `idempotent('sale.create')`
+on the route and `businessDate: optionalBusinessDate` on the schema, matching the
+branch POS. After that it is an entry in `services/sync/endpoints.ts` and a
+`writeOffline({entity: 'sale'})` call, and nothing else moves.
+
+The production **returns review** is also unqueued, for a different reason: it is
+a decision about a server record other people are acting on, not a transaction
+originating on the device. See `ProductionReturnsScreen`.
+
 ---
 
 ## Identity: `client_operation_id`

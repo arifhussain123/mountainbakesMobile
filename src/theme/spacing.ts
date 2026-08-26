@@ -89,25 +89,29 @@ export const layout = {
    * Floating action button. 56 is the size a thumb finds without looking, and
    * `fabInset` keeps it clear of the screen edge on a curved display.
    *
-   * v4 draws the same 56 twice over: once as a corner FAB, and once as the
-   * **centre action button notched into the navigation bar** on the screens
-   * whose dominant action is "create one of these". `navFabRing` is the cream
-   * band it wears there, which is what separates it from the bar behind it.
+   * **One 56 now, not two.** v4 drew this size twice — as a corner FAB and as a
+   * centre action button notched into the navigation bar — and v5 removes the
+   * second. The bar is five equal cells with nothing rising out of it, so the
+   * `navFabRing` token that painted the cream band around that button is gone
+   * rather than left behind naming a control the app no longer has.
    */
   fabSize: 56,
   fabInset: 16,
-  navFabRing: 4,
   /**
    * The floating navigation bar: a rounded card inset from all three edges
    * rather than a full-width strip pinned to the bottom.
    *
    * `navInset` is the gap to the screen edge on the left, right and bottom;
-   * `navPillH` is the bar's own height, and `tabH` above is retained for the
-   * row inside it. The bar floats, so content beneath it must be padded by
-   * `navPillH + navInset` and not merely by `tabH`.
+   * `navPillH` is the bar's own height. v5 draws it at **62** — four less than
+   * v4's 66, which is what the removed notch was paying for. `tabH` above is no
+   * longer the row inside it: the cells now fill the bar's own height, so the
+   * glyph, the label and the active underline centre in one box.
+   *
+   * The bar floats, so content beneath it must be padded by
+   * `navPillH + navInset` and not by `tabH`.
    */
   navInset: 16,
-  navPillH: 66,
+  navPillH: 62,
   /**
    * The one breakpoint, in **logical dp**, not pixels.
    *

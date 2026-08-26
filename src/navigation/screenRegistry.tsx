@@ -20,6 +20,8 @@ import { LedgerScreen } from '@/screens/finance/LedgerScreen';
 import { ProductionDashboardScreen } from '@/screens/production/ProductionDashboardScreen';
 import { BranchDemandsScreen } from '@/screens/branch/BranchDemandsScreen';
 import { EventsScreen } from '@/screens/events/EventsScreen';
+import { BranchReturnsScreen } from '@/screens/branch/BranchReturnsScreen';
+import { ProductionSalesScreen } from '@/screens/production/ProductionSalesScreen';
 import { ProductionReturnsScreen } from '@/screens/production/ProductionReturnsScreen';
 import { HelpScreen } from '@/screens/support/HelpScreen';
 import { ProductionOrdersScreen } from '@/screens/production/ProductionOrdersScreen';
@@ -59,7 +61,6 @@ const SCREEN_PLAN: Partial<Record<string, { phase: string; endpoint?: string }>>
   // Finance's Expenses is the web client's Finance Entries screen; there is no
   // /api/finance/expenses resource.
   Expenses: { phase: 'Phase 8', endpoint: 'GET /api/finance/income/entries' },
-  Sales: { phase: 'Phase 9', endpoint: 'POST /api/production-sales' },
   // The two production-floor stages. Separate resources, separate status enums
   // — see PreparationStackParamList in types.ts.
   Preparation: { phase: 'Phase 7', endpoint: 'GET /api/production/queue' },
@@ -169,9 +170,16 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       // placeholder rather than a form whose save button always fails.
       return admin ? SettingsScreen : null;
     case 'Sales':
-      // The admin's Sales is a money view across every branch. A branch reaches
-      // its own Sales as a TAB (the POS), never from More, so this case is only
-      // ever asked for the admin.
+      // Three different screens have worn this word, and only two of them are
+      // reachable from More. A branch reaches its own Sales as a TAB (the POS),
+      // never from here.
+      //
+      // Production's is the counter till, and it is a different RESOURCE rather
+      // than a different view of one: `POST /api/orders/production-sale` sells
+      // out of the central pool, offers a `staff` method that takes no money,
+      // and refuses this account the branch POS outright. The admin's is a money
+      // view across every branch and writes nothing.
+      if (role === 'production_user') return ProductionSalesScreen;
       return admin ? AdminSalesScreen : null;
     case 'Expenses':
       // Two different screens behind one word. A branch RECORDS an expense —
@@ -186,10 +194,20 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       // `StockScreen` reads a branch's shelf. Same word, different balance.
       return role === 'production_user' ? ProductionStockScreen : StockScreen;
     case 'Returns':
-      // `/api/production-returns` is `requireRole('super_admin',
-      // 'production_user')` on the router itself, so a branch is refused the
-      // read as well as the review. Gated here too, so a deep link cannot land
-      // one on a screen that 403s on first load.
+      /**
+       * One word, two routes, and the gate is what separates them.
+       *
+       * `GET /api/production-returns` is `requireRole('super_admin',
+       * 'production_user')` on the router itself — a branch is refused the read
+       * as well as the review — and it is a work queue over 30 business days.
+       * `GET /api/stock/returns` is `requireRole('super_admin',
+       * ...BRANCH_ROLES)`, scoped off the JWT, and is a shop's own record over
+       * 90 days with no actions on it. Same table, different question.
+       *
+       * Gated here as well as in `roleConfig` so a deep link cannot land either
+       * role on the other's screen and 403 on first load.
+       */
+      if (isBranchRole(role)) return BranchReturnsScreen;
       return role === 'production_user' || admin ? ProductionReturnsScreen : null;
     case 'Events':
       // Every role, deliberately. The endpoint is authenticated-only and scopes

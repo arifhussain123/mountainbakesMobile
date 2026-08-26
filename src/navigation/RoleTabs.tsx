@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
 import { MBTabBar } from './MBTabBar';
-import { centreActionFor, NAV_LABELS, tabsFor, type AccessProfile } from './roleConfig';
+import { NAV_LABELS, tabsFor, type AccessProfile } from './roleConfig';
 import { placeholderFor, resolveTabScreen } from './screenRegistry';
 import { createTabStack } from './stacks/createTabStack';
 import { makeMoreStack } from './stacks/MoreStack';
@@ -35,12 +35,6 @@ const Tab = createBottomTabNavigator();
  */
 export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactElement {
   const tabs = useMemo(() => tabsFor(profile), [profile]);
-  /**
-   * The one create action the bar carries in its centre, or nothing. Resolved
-   * here rather than in `MBTabBar` so the bar keeps no role knowledge — the
-   * same split as `tabs`.
-   */
-  const centre = useMemo(() => centreActionFor(profile), [profile]);
 
   /**
    * Screens are assembled here rather than in the JSX below, so the stack
@@ -90,30 +84,8 @@ export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactEl
    * this arrow is new each time.
    */
   const renderTabBar = useCallback(
-    (props: BottomTabBarProps) => (
-      <MBTabBar
-        {...props}
-        tabs={tabs}
-        centreAction={
-          centre
-            ? {
-                label: NAV_LABELS[centre.label],
-                icon: centre.icon,
-                /* `navigate` on the tab navigator's own navigation object, with
-                   `screen` passed through so the create form lands on top of
-                   the list it belongs to rather than beside it — the same hop
-                   a quick action makes. */
-                onPress: () =>
-                  props.navigation.navigate(
-                    centre.tab,
-                    centre.screen ? { screen: centre.screen } : undefined,
-                  ),
-              }
-            : undefined
-        }
-      />
-    ),
-    [tabs, centre],
+    (props: BottomTabBarProps) => <MBTabBar {...props} tabs={tabs} />,
+    [tabs],
   );
 
   return (

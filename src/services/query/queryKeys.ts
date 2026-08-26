@@ -141,20 +141,43 @@ export const qk = {
     stock: () => ['production', 'stock'] as const,
     /** Branch balances as the production counter sees them. */
     branchStock: () => ['production', 'branchStock'] as const,
+    /**
+     * Counter sales, from `GET /api/orders/production-sales`.
+     *
+     * Under `production` rather than `orders`, even though both read a row of
+     * the same `orders` table, because they are different *questions* with
+     * different answers: `qk.orders.list` is the admin's cross-branch view and
+     * a production account is refused it outright (the generic list caps this
+     * role to the active statuses, and a counter sale is written `delivered`).
+     * Sharing a namespace would suggest one invalidation covered both.
+     *
+     * The bounds are in the key because a day is an answer: two ranges are two
+     * responses, not one list the client narrows.
+     */
+    sales: (filters: { from?: string; to?: string }) =>
+      ['production', 'sales', filters] as const,
     previousBalance: (orderId: string) => ['production', 'previousBalance', orderId] as const,
   },
 
   /**
-   * Returns waiting on the production counter.
+   * Returns.
    *
-   * A **different resource** from a branch's own returns, which have no list
-   * endpoint at all — those are applied immediately by `POST /api/stock/return`
-   * and read off the branch stock ledger. Nesting this under `stock` would
-   * suggest one invalidation covered both.
+   * Both keys read `production_returns` — one table — but through two routes
+   * with two gates and two windows, so they are two answers and must be two
+   * entries. `list` is the production counter's queue
+   * (`GET /api/production-returns`, 30 business days, no filters);
+   * `branch` is a shop's own (`GET /api/stock/returns?days=N`, 90 by default,
+   * scoped off the JWT).
+   *
+   * They share the `productionReturns` namespace so one `invalidateQueries` after
+   * a review refreshes both — a decision on the queue changes what the branch
+   * sees. An earlier comment here claimed a branch's returns had no list endpoint
+   * at all; see `returnsApi.ts` for why that stopped being true.
    */
   productionReturns: {
     all: () => ['productionReturns'] as const,
     list: () => ['productionReturns', 'list'] as const,
+    branch: (days: number) => ['productionReturns', 'branch', days] as const,
   },
 
   /**

@@ -1,7 +1,7 @@
 # Screen patterns
 
 What a screen in this app is made of, and the rules that stop four screens
-becoming four designs. Navigation structure — tabs, More, the account panel,
+becoming four designs. Navigation structure — tabs, More, the drawer,
 header chrome — is in `docs/navigation.md`.
 
 ## Dashboard
@@ -48,23 +48,25 @@ and an unattached qualifier.
 Declared in `roleConfig.ts` as `QUICK_ACTIONS`, resolved by `quickActionsFor()`,
 rendered by `MBQuickActions`.
 
-**They are accelerators, not a fifth surface.** The tabs/More split rests on no
-screen being reachable from two places; a quick action that could name a
-destination of its own would become a third menu and drift from the other two,
-exactly as the drawer once did. So an action may only point somewhere the role
-**already has** — a tab it carries, or a row already in its More list.
+**They are accelerators, not a surface.** An action may only point somewhere the
+role **already has** — a tab it carries, or a row already in its More list.
 `quickActionsFor` drops anything else and `navigationSurface.test.ts` asserts
 nothing is ever dropped: a dropped action means the config named a place that
 role cannot go, which is a bug in the config rather than a card to hide quietly.
 
-That is also why they are absent from the single-path assertions. They add no
-destination; they are a shorter path to one.
+They add no destination; they are a shorter path to one. That is the same
+property the drawer now has — it is *derived* from the tabs and the More list
+rather than declared beside them — and it is what keeps the number of places a
+destination is declared at exactly one, however many places it can be reached
+from. See `docs/navigation.md`.
 
-**Only `branch` has a set** — New Sale, New Order, Add Expense, Stock, in the
-order a shift uses them. The other three role groups have none, and that is the
-honest state: nobody has said what an admin's or a production user's four are,
-and four plausible-looking guesses train staff to stop looking at the row.
-`MBQuickActions` renders nothing rather than filler.
+**Only `branch` has a set** — six, in the order a shift uses them: New Sale, New
+Order, Orders, Stock, Add Expense, Returns. New Order is among them again because
+v5 removed the navigation bar's centre action button, which used to carry it
+everywhere and was the reason it was left off this row. The other three role
+groups have none, and that is the honest state: nobody has said what an admin's
+or a production user's are, and plausible-looking guesses train staff to stop
+looking at the row. `MBQuickActions` renders nothing rather than filler.
 
 ## FAB
 
@@ -90,8 +92,22 @@ The FAB stays up while the list is loading on purpose. Recording an expense does
 not depend on the list, and making an operator wait for a fetch before they can
 log one is how a slip of paper becomes the system of record.
 
-Sales and New Order get **no** FAB: those screens *are* the create action. A FAB
-on a form is a button that opens the screen you are already on.
+The branch's Sales and New Order get **no** FAB: those screens *are* the create
+action. A FAB on a form is a button that opens the screen you are already on.
+
+**The production counter's Sales is the opposite shape, and therefore does have
+one.** It is a *list* — what the counter has taken today, out of
+`GET /api/orders/production-sales` — with the till behind a modal, because there
+is a real resource to come back to after a sale. It follows the Expenses rule
+exactly: the empty state carries the instruction while there is nothing to
+scroll, the FAB takes over once there is, and only ever one of them is on screen.
+
+It is also the app's one **disabled** FAB, which `MBFab` gained for it. A counter
+sale cannot be queued (see `docs/offline-sync.md`), so with no connection there is
+genuinely nothing for a tap to do — and dimming says the counter is shut until
+the signal returns, where hiding would leave an operator hunting for a button
+that was there five minutes ago. A control the *account* may never use is a
+different matter and does not belong on the screen at all.
 
 ## Lists
 
@@ -899,7 +915,7 @@ between this app and completing the production-order workflow end to end.
 
   | v4 screen | Why not |
   |---|---|
-  | Settings → notifications / auto-sync / auto-print toggles | None of the three features exists. There is no notification library, no Wi-Fi-only sync policy and no printer integration, so all three would be switches that control nothing. `SettingsScreen` stays the tenant-settings editor it is; appearance lives in the account panel. |
+  | Settings → notifications / auto-sync / auto-print toggles | None of the three features exists. There is no notification library, no Wi-Fi-only sync policy and no printer integration, so all three would be switches that control nothing. `SettingsScreen` stays the tenant-settings editor it is. |
   | Settings → theme colour and font pickers | Inventing two product features. The palette is contrast-checked per token pair (`contrast.test.ts`) and a user-chosen hue cannot be; the three fonts v4 offers are not shipped. |
   | Login → Google / Apple / Sign Up | Accounts are created by an administrator. Sign-in is `supabase.auth.signInWithPassword` and there is no social provider configured, no self-registration route, and no server-side handler for either. |
   | Help → live chat, call support | No chat backend, and no support number on `AppSettings` to dial. The query queue is the real channel and it is built. |

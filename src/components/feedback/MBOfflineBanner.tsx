@@ -8,6 +8,22 @@ import { radius } from '@/theme/radius';
 export interface MBOfflineBannerProps {
   /** e.g. "09:14" — when the visible data was last refreshed from the server. */
   dataAsOf?: string;
+  /**
+   * Replaces the default sentence on a screen where it would be **false**.
+   *
+   * The default says work is saved here and syncs on its own, and that is true
+   * of every offline-first write in the app — a sale, an order, an expense, a
+   * return. It is not true everywhere. The production counter sale posts
+   * straight to `POST /api/orders/production-sale`, which honours no
+   * `Idempotency-Key` and takes no `businessDate`, so it is deliberately not
+   * queued (see `ProductionSalesScreen`). Leaving the default strip up there
+   * would promise an operator with no signal that the sale they are about to
+   * ring up is safe, which is the exact belief `writeOutcome.ts` exists to
+   * prevent — and the recovery from it is ringing the sale up twice.
+   *
+   * So this is not a styling hook. Pass it only where the default is a lie.
+   */
+  note?: string;
 }
 
 /**
@@ -29,7 +45,7 @@ export interface MBOfflineBannerProps {
  * one thing the screen is for, and each says so beside its disabled button
  * rather than in a strip that reads as routine.
  */
-export function MBOfflineBanner({ dataAsOf }: MBOfflineBannerProps): React.ReactElement | null {
+export function MBOfflineBanner({ dataAsOf, note }: MBOfflineBannerProps): React.ReactElement | null {
   const theme = useTheme();
   const isOnline = useNetworkStore(s => s.isOnline);
   const hasResolved = useNetworkStore(s => s.hasResolved);
@@ -53,7 +69,7 @@ export function MBOfflineBanner({ dataAsOf }: MBOfflineBannerProps): React.React
       <View style={[styles.dot, { backgroundColor: theme.colors.offline }]} />
       <View style={styles.text}>
         <Text style={[theme.type.label, { color: theme.colors.text }]}>
-          Offline — transactions are saved here and sync automatically
+          {note ?? 'Offline — transactions are saved here and sync automatically'}
         </Text>
         {dataAsOf ? (
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>

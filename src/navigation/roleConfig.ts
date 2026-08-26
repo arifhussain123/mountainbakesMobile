@@ -287,8 +287,14 @@ export const ROLE_TABS: Record<UserRole, readonly TabConfig[]> = {
 function branchTabs(): readonly TabConfig[] {
   return [
     { name: 'Home', icon: 'home', label: 'home', requires: ['reports'] },
-    { name: 'Orders', icon: 'orders', label: 'orders' },
+    /**
+     * Sales sits second in v5, ahead of Orders, and the swap is not cosmetic:
+     * with the centre action button gone the second cell is the one a thumb
+     * reaches without moving, and the POS is what a branch opens dozens of times
+     * a shift against a handful of demands a day.
+     */
     { name: 'Sales', icon: 'sales', label: 'sales' },
+    { name: 'Orders', icon: 'orders', label: 'orders' },
     { name: 'Stock', icon: 'stock', label: 'stock' },
   ];
 }
@@ -409,6 +415,18 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
     {
       title: 'Operations',
       items: [
+        /**
+         * The counter's own till — `POST /api/orders/production-sale`, which is
+         * `requireRole('super_admin', 'production_user')`.
+         *
+         * A More row and not a fifth tab, for the same reason Stock is one: the
+         * four tabs are the stages of the floor's day, and the counter sells
+         * between them rather than standing at a station. It also cannot be the
+         * centre action, which is `null` for this group — that button is
+         * reserved for the whole session and this one is unavailable whenever
+         * the phone has no signal, because a counter sale does not queue.
+         */
+        { route: 'Sales', icon: 'sales', label: 'sales', requires: ['production'] },
         { route: 'Stock', icon: 'stock', label: 'stock' },
         /**
          * Returns branches have handed back, waiting to be accepted or refused.
@@ -446,6 +464,18 @@ function branchMore(): readonly MoreSection[] {
       title: 'Operations',
       items: [
         { route: 'Expenses', icon: 'expenses', label: 'expenses' },
+        /**
+         * The shop's **own** returns — a different resource from the queue the
+         * production counter works, and one this app had no screen for.
+         *
+         * `GET /api/stock/returns?days=N` is `requireRole('super_admin',
+         * ...BRANCH_ROLES)` and takes the branch off the JWT, returning 90 days
+         * most recent first. An older comment in `queryKeys.ts` said a branch's
+         * returns had no list endpoint at all and had to be read off the stock
+         * ledger; that stopped being true when branch returns stopped being
+         * auto-approved, and v5 asks for the list.
+         */
+        { route: 'Returns', icon: 'delivery', label: 'returns' },
         { route: 'Reports', icon: 'reports', label: 'reports', requires: ['reports'] },
       ],
     },
@@ -592,34 +622,37 @@ export interface QuickAction {
 /**
  * Per role group, in the order they are used during a shift.
  *
- * **Only `branch` is defined.** These are the four jobs a branch actually does
- * all day — ring up a sale, order from production, log an expense, check stock —
- * and that list came from the brief, not from arranging four plausible icons.
- * The other three groups get none until someone who works that role says what
- * their four are. A dashboard with no quick actions is honest; a dashboard with
- * four guesses on it trains people to ignore the row, and it is the row the
- * brief says matters more than the charts.
+ * **Only `branch` is defined.** These are the jobs a branch actually does all
+ * day, and the list came from the brief rather than from arranging plausible
+ * icons. The other three groups get none until someone who works that role says
+ * what theirs are. A dashboard with no quick actions is honest; a dashboard with
+ * six guesses on it trains people to ignore the row, and it is the row the brief
+ * says matters more than the charts.
+ *
+ * **v5 draws six, and New Order is back among them.** It was deliberately absent
+ * while the navigation bar carried it in its centre — one action, one control.
+ * v5 removes that button, so the reason went with it and the card is the shortest
+ * path again.
+ *
+ * Every one of these is a *shorter route to a place the role already has*, never
+ * a destination of its own: `quickActionsFor` drops any card whose tab did not
+ * survive `tabsFor`, or whose `screen` names a More row the capability filter
+ * removed. A dropped card means the config named somewhere the role cannot go,
+ * and `navigationSurface.test.ts` asserts that never happens.
  */
 export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
   branch: [
     { tab: 'Sales', icon: 'sales', label: 'newSale' },
-    /**
-     * New Order is **not** here, and its absence is a decision rather than an
-     * omission: it is what the navigation bar carries in its centre (see
-     * `CENTRE_ACTIONS`), on screen for the whole shift on every tab. A card
-     * repeating it would be a second control for one action, which is the thing
-     * `MBFab`'s doc calls out — two ways to do one job and staff learning
-     * neither.
-     *
-     * It is dropped here rather than filtered out at runtime because
-     * `quickActionsFor` drops nothing by design: a dropped action means the
-     * config named a place the role cannot go, and
-     * `navigationSurface.test.ts` asserts that never happens. Giving that
-     * filter a second, legitimate reason to remove a card would make the
-     * assertion unable to tell a bug from a decision.
-     */
-    { tab: 'More', screen: 'Expenses', icon: 'expenses', label: 'addExpense' },
+    { tab: 'Orders', screen: 'CreateOrder', icon: 'add', label: 'newOrder' },
+    { tab: 'Orders', icon: 'orders', label: 'orders' },
     { tab: 'Stock', icon: 'stock', label: 'stock' },
+    { tab: 'More', screen: 'Expenses', icon: 'expenses', label: 'addExpense' },
+    /**
+     * `GET /api/stock/returns` is real and branch-scoped — a 90-day window of
+     * the shop's own returns. It is listed last because it is the least
+     * frequent of the six, not because it is the least certain.
+     */
+    { tab: 'More', screen: 'Returns', icon: 'delivery', label: 'returns' },
   ],
   admin: [],
   production: [],
@@ -627,57 +660,20 @@ export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
 };
 
 /**
- * The one action the floating navigation bar carries in its centre, per role
- * group — v4's ember circle sitting proud of the pill.
+ * The centre action button is **gone**, and this note is here so it is not
+ * reinvented.
  *
- * ------------------------------------------------------------------------
- * Why one per role and not one per screen
- * ------------------------------------------------------------------------
- * v4 draws the centre button on Orders, Sales, Expenses, Returns and Events,
- * and a different create action on each. It also draws a **different tab set**
- * on those screens than on Dashboard, Stock and Reports — four tabs plus the
- * notch against five without it. A real tab bar cannot do that: the set is a
- * property of the navigator, not of the screen inside it, and a bar whose cells
- * move when you switch tabs is worse than any button it could gain.
+ * v4 carried one create action in the middle of the navigation bar — an ember
+ * circle notched into the pill, New Order for the branch group. v5 removes it:
+ * the bar is five equal cells with nothing rising out of them, and the create
+ * actions live where the resource does. Branch keeps reaching New Order from
+ * the Orders list, from the dashboard quick actions, and now from the drawer.
  *
- * So the mockup's per-screen variation is read as what it is — a drawing
- * dropping a tab to make room — and the button becomes one fixed action for the
- * whole shift. The slot is reserved for the life of the session or not at all,
- * and nothing in the row ever moves.
- *
- * Branch gets New Order. It is the role's one unambiguous *create* that is not
- * already a whole screen: Sales **is** the POS (a FAB on it would open the
- * screen you are already on, which `docs/screen-patterns.md` forbids), Stock is
- * read-and-adjust, and Home is a dashboard. The other three groups get none,
- * for the same reason `QUICK_ACTIONS` leaves them empty — nobody who works
- * those roles has said what their one action is, and guessing puts a 56dp
- * target in the middle of the bar that people learn to avoid.
- *
- * It adds no destination: `CreateOrder` is already on `OrdersStack`, reachable
- * from the Orders list. This is a shorter path to it, exactly as a quick action
- * is, which is why it is not in the single-path inventory. The corner `MBFab`
- * that used to open it from the Orders list is gone — one action, one control.
+ * What went with it: `CENTRE_ACTIONS`, `centreActionFor()`, `MBTabBar`'s notch
+ * arithmetic and the `navFabRing` layout token. Removed rather than left
+ * dormant — a config naming a control the app does not draw is how the next
+ * person spends an afternoon looking for the bug.
  */
-export const CENTRE_ACTIONS: Record<RoleGroup, QuickAction | null> = {
-  branch: { tab: 'Orders', screen: 'CreateOrder', icon: 'add', label: 'newOrder' },
-  admin: null,
-  production: null,
-  finance: null,
-};
-
-/**
- * The centre action this profile can actually reach, or `null`.
- *
- * Same reachability test as `quickActionsFor`: the tab has to survive
- * `tabsFor`, or the bar would draw a button that navigates nowhere.
- */
-export function centreActionFor(profile: AccessProfile): QuickAction | null {
-  const action = CENTRE_ACTIONS[profile.group] ?? null;
-  if (!action) return null;
-  if (!satisfies(profile, action.requires)) return null;
-  const tabs = new Set(tabsFor(profile).map(t => t.name));
-  return tabs.has(action.tab) ? action : null;
-}
 
 /**
  * The actions this profile can actually reach, in config order.
@@ -738,6 +734,111 @@ export function moreSectionsFor(profile: AccessProfile): readonly MoreSection[] 
     }))
     .filter(section => section.items.length > 0);
 }
+
+// ---------------------------------------------------------------------------
+// The drawer
+// ---------------------------------------------------------------------------
+
+/**
+ * One row in the navigation drawer.
+ *
+ * Carries a `tab` and, when the destination is not that tab's root, the `screen`
+ * inside its stack — the same pair `QuickAction` uses, because a drawer row and
+ * a quick-action card are the same kind of thing: a shorter route to somewhere
+ * the role already has.
+ */
+export interface DrawerDestination {
+  tab: AppTabName;
+  screen?: string;
+  icon: IconKey;
+  label: LabelKey;
+  badge?: BadgeSource;
+}
+
+export interface DrawerSection {
+  title: string;
+  items: readonly DrawerDestination[];
+}
+
+/** Stable identity for a drawer row — React key, and what the surface tests compare. */
+export function drawerItemKey(item: DrawerDestination): string {
+  return item.screen ? `${item.tab}/${item.screen}` : item.tab;
+}
+
+/**
+ * The drawer, **derived** from the tabs and the More list rather than declared.
+ *
+ * ---------------------------------------------------------------------------
+ * v5 makes the drawer a menu, and the single-path rule had to change with it
+ * ---------------------------------------------------------------------------
+ * Until v5 the drawer was the *account panel* and nothing else — identity,
+ * connection, appearance, sign-out — and the rule was that **no destination
+ * appears on two surfaces**. That rule existed to stop three hand-maintained
+ * menus drifting: a brief describing tabs *and* a drawer *and* a More tab is
+ * three lists to keep in sync, and they do not stay in sync.
+ *
+ * v5 asks for the drawer to be a full grouped menu that repeats Dashboard,
+ * Orders and Stock from the bar on purpose — a browsable index of the whole
+ * role beside a bar holding the four things done most. That is a legitimate
+ * pattern and it is what this now builds.
+ *
+ * **The drift problem is solved by derivation instead of by prohibition.** This
+ * function reads `tabsFor` and `moreSectionsFor` — the same two lists the bar
+ * and the More index render — so a destination cannot exist in the drawer and
+ * nowhere else, or be added to a tab and forgotten here. There is no third list.
+ * What replaced "no destination twice" is a stronger invariant, asserted in
+ * `navigationSurface.test.ts`:
+ *
+ *   every drawer row resolves to a real destination this role can reach,
+ *   the drawer covers every tab and every More row,
+ *   and it lists nothing twice.
+ *
+ * The old rule could only be checked by comparing three lists. This one is true
+ * by construction and checked anyway.
+ *
+ * ---------------------------------------------------------------------------
+ * What the drawer deliberately does not carry
+ * ---------------------------------------------------------------------------
+ * **More itself.** It is a tab whose whole content is expanded into the sections
+ * below it, so a "More" row would open a menu the drawer is already showing.
+ *
+ * **Actions.** Sign-out lives in the account footer, and appearance stays a
+ * control there. A drawer row goes somewhere; a button does something, and
+ * mixing the two in one scrolling list is how a mis-tap signs someone out.
+ */
+export function drawerSectionsFor(profile: AccessProfile): readonly DrawerSection[] {
+  const main: DrawerDestination[] = tabsFor(profile)
+    .filter(tab => tab.name !== 'More')
+    .map(tab => ({
+      tab: tab.name,
+      icon: tab.icon,
+      label: tab.label,
+      ...(tab.badge ? { badge: tab.badge } : {}),
+    }));
+
+  const rest: DrawerSection[] = moreSectionsFor(profile).map(section => ({
+    // A More section may declare a null title (an unheaded group at the top of
+    // that index). The drawer is a grouped list throughout, so an untitled group
+    // would be the one section whose rows float — it takes the same heading the
+    // tabs above it do.
+    title: section.title ?? MAIN_SECTION_TITLE,
+    items: section.items.map(item => ({
+      tab: 'More' as const,
+      screen: item.route as string,
+      icon: item.icon,
+      label: item.label,
+      ...(item.badge ? { badge: item.badge } : {}),
+    })),
+  }));
+
+  return [
+    ...(main.length > 0 ? [{ title: MAIN_SECTION_TITLE, items: main }] : []),
+    ...rest,
+  ];
+}
+
+/** v5's heading over the group that mirrors the tab bar. */
+const MAIN_SECTION_TITLE = 'Main';
 
 /** The tab a role lands on after sign-in. */
 export function landingTabFor(profile: AccessProfile): AppTabName {

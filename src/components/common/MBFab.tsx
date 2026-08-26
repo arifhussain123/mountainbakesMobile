@@ -17,6 +17,20 @@ export interface MBFabProps {
    * context.
    */
   extended?: boolean;
+  /**
+   * Greys the button out and stops it answering, without removing it.
+   *
+   * For a create action that is genuinely unavailable right now rather than
+   * unavailable to this account — the production counter sale, which posts
+   * straight to the server and cannot be queued, so with no connection there is
+   * nothing for a tap to do. Hiding it instead would leave an operator hunting
+   * for a control that was there five minutes ago; dimming it says the counter
+   * is shut until the signal returns, which is the true state of affairs.
+   *
+   * A FAB an account may never use is a different matter and does not belong on
+   * the screen at all — see the note above about advertising what cannot answer.
+   */
+  disabled?: boolean;
   testID?: string;
 }
 
@@ -47,6 +61,7 @@ export function MBFab({
   icon = 'add',
   onPress,
   extended = false,
+  disabled = false,
   testID,
 }: MBFabProps): React.ReactElement {
   const theme = useTheme();
@@ -55,8 +70,13 @@ export function MBFab({
     <View pointerEvents="box-none" style={styles.layer}>
       <MBPressable
         onPress={onPress}
+        disabled={disabled}
+        // Dimming belongs to the press layer, not to `style`: the two are the
+        // same property, and whichever were applied last would silently win.
+        restOpacity={disabled ? 0.5 : 1}
         accessibilityRole="button"
         accessibilityLabel={label}
+        accessibilityState={{ disabled }}
         testID={testID}
         style={({ pressed }) => [
           styles.fab,

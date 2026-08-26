@@ -1,6 +1,6 @@
 # Navigation
 
-## The decision: tabs + More. The drawer is not navigation.
+## The decision: tabs + More + a derived drawer
 
 The original brief described bottom tabs **and** a navigational drawer **and** a
 More tab. That is three routes to the same screen, three menus to keep in sync,
@@ -9,30 +9,57 @@ the specific way this architecture rots: the day someone adds "Vendors", they ad
 it to whichever of the three menus they happen to be editing, and the surfaces
 drift apart from there.
 
+**v4 resolved that by deleting the drawer as a menu. v5 brings it back, and the
+resolution is different — derivation instead of prohibition.**
+
 What is implemented:
 
 ```
-Bottom tabs   →  up to 4 daily operations + More
+Bottom tabs   →  up to 4 daily operations + More.  Five equal cells, no centre button.
 More tab      →  everything else — a real screen, scrollable, grouped
-Account panel →  opened from the header avatar. NOT navigation.
+Drawer        →  opened from the header avatar. A GROUPED INDEX OF BOTH,
+                 derived from them, plus a pinned account footer.
 ```
 
-The drawer still exists as a `@react-navigation/drawer`, but it holds identity,
-connection state, appearance and sign-out — things that are read-only or an
-action, never a destination. There is not one `navigate()` call in
-`AccountDrawer.tsx`, and that is the invariant to preserve. If a row in the
-account panel ever needs to push a screen, that screen belongs in **More**.
+### The rule that replaced "no destination on two surfaces"
 
-**The rule, enforced by a test:** no screen is reachable from two surfaces.
-`src/navigation/__tests__/navigationSurface.test.ts` asserts, for all eight
-roles, that no More route is also a tab name, that no More route is listed twice,
-and that nothing in the account panel is also a tab or a More row. If you add a
-destination, that test is what stops it becoming a duplicate.
+The old rule was that no screen was reachable from two surfaces, and
+`navigationSurface.test.ts` asserted it for all eight roles. That rule was never
+about duplication being wrong in itself — it was about **three hand-maintained
+menus drifting apart**.
 
-The panel's contents are declared as `ACCOUNT_PANEL` in `roleConfig.ts` — beside
-`ROLE_TABS` and `MORE_SECTIONS`, so all three surfaces are inventoried in one
-file and can be compared. It is a list of names, not components: the point is
-that the test can read it.
+v5 asks for the drawer to repeat Dashboard, Orders and Stock from the bar on
+purpose: a five-cell bar is a set of shortcuts, not a map, and a browsable index
+of the whole role is a different and legitimate job. So the drift problem is
+solved at the source instead:
+
+> `drawerSectionsFor(profile)` in `roleConfig.ts` **reads `tabsFor` and
+> `moreSectionsFor`**. There is no third list. A destination cannot exist in the
+> drawer and nowhere else, and one added to a tab cannot be forgotten here.
+
+What the test asserts now, for all eight roles:
+
+1. **Coverage** — every tab (except More itself) and every More row appears in
+   the drawer.
+2. **No duplicates** — nothing is listed twice *within* the drawer.
+3. **Reachability** — every drawer row names a tab the role actually has, so a
+   row can never close the drawer onto nothing.
+4. **Every section is headed** — v5's drawer has no floating rows.
+
+That is a stronger invariant than the old one. The old rule could only be
+checked by comparing three lists; this one is true by construction and checked
+anyway, because "true by construction" is a claim about code somebody will edit.
+
+### The account footer is still not navigation
+
+`ACCOUNT_PANEL` in `roleConfig.ts` — identity, branch, connection, appearance,
+sign-out — is what the drawer's **pinned footer** carries, and none of it may be
+a tab, a More row or a drawer row for any role. That assertion survived the
+reversal unchanged, and it should: a row goes somewhere, a button does something,
+and a sign-out that scrolls with a growing menu is one somebody hits by accident.
+
+Appearance moved out of the footer to Settings when the drawer became a menu — it
+was the one *control* sitting in what is now a list of destinations.
 
 ## What `roleConfig.ts` exports, and what it deliberately does not
 
@@ -83,18 +110,21 @@ staff to ignore every badge in the app. Add the badge with the transport.
 ### Two contradictions in the brief, and how they were resolved
 
 1. **Sync Center and Help.** §2 put them in the account panel; §4 listed them in
-   More. They cannot be in both without breaking the single-path rule. They are
-   in **More** — §4 enumerates them there beside Settings, and More is the
-   general secondary surface.
+   More. They are in **More** — §4 enumerates them there beside Settings, and
+   More is the general secondary surface. They therefore also appear in the
+   drawer, which is derived from More; that is coverage, not duplication, and
+   there is still exactly one place they are *declared*.
 
 2. **Sign-out.** §2 put it in the account panel; §4 listed it as a More row. It
    was implemented as **both**, and that is the duplication this document exists
-   to prevent — caught only after the fact. See the section below.
+   to prevent — caught only after the fact. See the section below. This is the
+   one bar that did **not** relax when the drawer became a menu: an action is
+   still not a destination.
 
 3. **`requires: Permission[]` from the server.** §4 assumed the backend returns
    permission strings at login. It does not. See below.
 
-## Sign-out lives in the account panel, and only there
+## Sign-out lives in the account footer, and only there
 
 This is the one place the duplicate rule was actually broken in shipped code, so
 it is worth stating what went wrong rather than just the outcome.
@@ -105,7 +135,7 @@ Sign-out existed on **four** paths at once, with three different behaviours:
 |---|---|---|
 | `useSignOut()` — the hook, with tests | `getUnsyncedSummary()`, i.e. the queue table | yes |
 | `MoreScreen`'s own `confirmSignOut` | `useSyncStore` counters | yes |
-| The account panel's `onSignOut` | nothing | **no** |
+| The account footer's `onSignOut` | nothing | **no** |
 | `ChangePasswordScreen`, calling the store directly | nothing | **no** |
 
 The third one is why this mattered more than tidiness. Signing out from the panel
@@ -116,9 +146,10 @@ about whether to warn you before stranding a shift's takings is a defect.
 
 Resolved:
 
-- Sign-out is in the **account panel only** as far as navigation is concerned. It
-  is an action on the session, not a secondary feature, and the panel is where
-  identity and session live. The two auth screens that also offer it —
+- Sign-out is in the **account footer only** as far as navigation is concerned.
+  It is an action on the session, not a secondary feature, and the footer is
+  where identity and session live — pinned below the menu rather than scrolling
+  with it, so it does not drift under a thumb as the drawer grows. The two auth screens that also offer it —
   `ChangePasswordScreen` and `PlaceholderScreen` — are escape hatches from a
   screen you cannot otherwise leave, not menu entries, and they call the same
   hook.
@@ -128,9 +159,9 @@ Resolved:
   next sign-in — the copy deliberately does not imply the data is at risk, because
   overstating it pushes staff into never signing out at all.
 - `MoreItem` **no longer has an action variant.** A More row carries a
-  `MoreRouteName` or it does not compile. The single-path rule is now structural
-  for this class of mistake instead of remembered — you cannot put an action back
-  in the More list without deliberately reopening the union.
+  `MoreRouteName` or it does not compile. That is structural rather than
+  remembered — you cannot put an action back in the More list, or therefore into
+  the drawer derived from it, without deliberately reopening the union.
 
 ## Permissions: what is real
 
@@ -163,7 +194,7 @@ the server. Navigation config decides only what is convenient to reach.
 RootNavigator                     auth state decides the tree, never navigate()
 ├── AuthNavigator                 SignIn · FinanceSignIn · ForgotPassword
 └── AppNavigator                  resolves the AccessProfile once
-    └── AccountDrawer             account panel
+    └── AccountDrawer             grouped menu + account footer
         └── RoleTabs              ONE component, config-driven
             ├── <tab>  → native stack per tab
             └── More   → MoreStack (index + every secondary destination)
@@ -204,9 +235,9 @@ underneath a pushed detail screen intact.
 | Role | Tabs | More |
 |---|---|---|
 | `super_admin` | Home · Orders · Products · Reports · More | Users · Categories · Vendors · Branches · Sales · Stock · Expenses · Production · Returns |
-| `branch_manager` | Home · Orders · Sales · Stock · More | Expenses · Reports |
-| `branch_user` | Orders · Sales · Stock · More | Expenses |
-| `production_user` | Home · Orders · Preparation · Delivery · More | Stock · Returns · Reports |
+| `branch_manager` | Home · Sales · Orders · Stock · More | Expenses · Returns · Reports |
+| `branch_user` | Sales · Orders · Stock · More | Expenses · Returns |
+| `production_user` | Home · Orders · Preparation · Delivery · More | Sales · Stock · Returns · Reports |
 | `finance_*` (4 roles) | Home · Income · Expenses · Reports · More | Partner Expenses |
 
 Every role's More list then ends with the same App group — Sync Center,
@@ -225,7 +256,11 @@ is refused the read as well as the review. It appears in exactly those two roles
 lists and `resolveMoreScreen` gates it again, so a deep link cannot land another
 role on a screen that 403s on first load. A branch's *own* returns are a
 different path with no list endpoint at all — they are applied immediately by
-`POST /api/stock/return` and read off the stock ledger.
+`POST /api/stock/return`. Both roles now have a Returns row and they resolve to
+**different screens**: a branch gets its own 90-day record (`GET
+/api/stock/returns`, read-only), production gets the 30-day review queue
+(`GET /api/production-returns`, with actions). `screenRegistry.test.tsx` holds
+them apart.
 
 Two entries in that table are easy to get wrong from memory:
 
@@ -233,8 +268,9 @@ Two entries in that table are easy to get wrong from memory:
   `GET /api/reports/summary`, and the server mounts every `/api/reports` route
   behind `requireRole('super_admin', 'branch_manager')`. A shift account would
   land on a 403 as the first thing it sees, so the tab is filtered by the
-  `reports` capability and the shift opens on Orders. Same reason Reports is not
-  in its More list.
+  `reports` capability and the shift opens on **Sales** — v5 puts the till in the
+  second cell, so it is the first tab a shift account can reach. Same reason
+  Reports is not in its More list.
 - **Finance has no Ledger tab.** The ledger is reached through Income, Expenses
   and Reports. And finance's "Reports" is `/api/finance/reports`, *not* the
   admin's `/api/reports` — same tab name, different resource, which is exactly
@@ -254,43 +290,53 @@ branch roles only; the admin and production "Orders" tabs are different resource
 (customer orders, and branch demands on central production) and neither is
 created from that form.
 
-### The centre action button
+### The centre action button is gone
 
-v4 draws an ember circle sitting proud of the middle of the floating navigation
-bar. `CENTRE_ACTIONS` in `roleConfig.ts` declares it — **one per role group, not
-one per screen** — and `MBTabBar` reserves a 60dp notch in the row for it.
+v4 drew an ember circle sitting proud of the middle of the floating navigation
+bar — one create action per role group, with `MBTabBar` reserving a 60dp notch in
+the row for it. Branch got New Order.
 
-The mockup varies it per screen: a `+` on Orders, Sales, Expenses, Returns and
-Events, each opening something different, and a *different tab set* on those
-screens than on Dashboard, Stock and Reports. A real tab bar cannot do that. The
-set is a property of the navigator rather than of the screen inside it, and a bar
-whose cells move when you switch tabs is worse than any button it could gain. So
-the per-screen variation is read as what it is — a drawing dropping a tab to make
-room — and the button becomes one fixed action for the whole shift.
+**v5 removes it.** The bar is five equal cells with nothing rising out of them,
+so `CENTRE_ACTIONS`, `centreActionFor()`, the notch arithmetic and the
+`navFabRing` layout token all went with it — removed rather than left dormant,
+because a config naming a control the app does not draw is how the next person
+spends an afternoon looking for the bug. `roleConfig.ts` keeps a tombstone note
+at the place it used to be.
 
-Branch gets **New Order**. It is the role's one unambiguous *create* that is not
-already a whole screen: Sales **is** the POS (a FAB there would open the screen
-you are already on), Stock is read-and-adjust, Home is a dashboard. The other
-three groups get none, for the same reason `QUICK_ACTIONS` leaves them empty.
+Two things came back when it left, and both were removed *because of* it:
 
-Two consequences worth stating, because both are enforced by
-`navigationSurface.test.ts`:
+- **New Order is a dashboard quick action again**, one of six. It was dropped
+  from that row on the grounds that the bar already carried it everywhere; that
+  reason is gone.
+- **The corner `MBFab` is back on the demands list.** Same reason. One control
+  at a time still holds on that screen: the empty state carries the instruction
+  while the list is empty, and the FAB takes over once there is something to
+  scroll — the Expenses rule.
 
-- **It adds no destination.** `CreateOrder` is already on `OrdersStack`,
-  reachable from the Orders list. This is a shorter path to it, exactly as a
-  quick action is — which is why it is not in the single-path inventory.
-- **Nothing else offers the same action.** The corner `MBFab` that used to open
-  New Order from the demands list is gone, and `newOrder` is no longer a
-  dashboard quick action. One action, one control; a screen with two of them
-  teaches staff neither. The empty state keeps its call to action, because with
-  nothing in the list there is nothing for the centre button to compete with.
+### The bar itself
+
+v5's bar is a white rounded card, `radius.xxl`, `navPillH` 62, floating clear of
+all three edges by `navInset`. Five equal cells, each an icon over a label, and
+the active one marked by a 16×3 ember underline pinned to the bottom of the row.
+
+**The active glyph and label stay in the ink, and that is the one place this
+build deliberately departs from v5.** v5 draws them in `#FB6D34`. Measured on
+the bar's own white that is **2.88:1**; the ember this app ships (`ember500`,
+v4's hue walked down 6%) is 3.04:1. Either way it is a *fill* value — it clears
+the 3:1 bar WCAG 1.4.11 sets for a graphical object and falls well short of the
+4.5:1 a label needs, and at 10dp the miss is not academic. So the ember carries
+the underline, where it can be honest, and the glyph and label take `accent`.
+The selection is then three signals rather than one: the mark, the colour shift
+from `textMuted`, and the weight step on the label. `contrast.test.ts` is what
+holds `primary` to the non-text bar and asserts `accent` is strictly the more
+readable of the two.
 
 ### Reports pushes three statements
 
 Reports grew a stack. `DailySales`, `TopProducts` and `SalesVsExpenses` are
 **detail screens, not destinations**: nothing in `roleConfig` points at them and
-the only way in is the Reports index, which keeps the single-path rule intact
-while giving each the whole screen it needs.
+the only way in is the Reports index. They are not in the drawer either — it is
+derived from the tabs and the More list, and a detail screen is in neither.
 
 They have to be registered in two navigators, because Reports is a **tab** for
 the admin and a **More row** for a branch manager. `REPORT_DETAIL_SCREENS` in
@@ -322,7 +368,13 @@ not incidental:
 
 - **"Sales"** at the production counter posts to a different endpoint and permits
   a `staff` payment method — an unpaid hand-out requiring a comment — that a
-  branch sale must never offer.
+  branch sale must never offer. It is also the one Sales that is **not** a tab:
+  the branch reaches its POS as a tab and the production counter reaches its till
+  from More, so `resolveTabScreen(_, 'Sales')` answers for the branch alone and
+  `resolveMoreScreen` splits the other two — production's till from the admin's
+  cross-branch money view. `__tests__/screenRegistry.test.tsx` holds all three
+  apart; `navigationSurface.test.ts` cannot, because it sees only the config and
+  the config lists each of them exactly once.
 - **"Orders"** is customer orders for the admin and branch demands on central
   production for the production account.
 - **"Home"** is four different dashboards.
@@ -448,7 +500,7 @@ unmount. Reduce Motion swaps it for the static glyph — the label still says
 "Syncing…", so only the movement is lost. `motion.spin` is the one token in
 `motion.ts` that describes a loop rather than a transition, and it says so.
 
-### The account panel header shows no identifiers
+### The account footer shows no identifiers
 
 The real Mountain Bakes mark (`MBLogo`, which picks the variant for the scheme
 through `logoFor()`), an avatar, the role, the branch and a connection dot. No
