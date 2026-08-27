@@ -43,7 +43,7 @@ export const linkingConfig: LinkingOptions<AppTabParamList>['config'] = {
         CreateOrder: 'orders/new',
       },
     },
-    Sales: { screens: { SalesList: 'sales' } },
+    Sales: { screens: { SalesList: 'sales', NewSale: 'sales/new' } },
     Stock: { screens: { StockList: 'stock', StockReturn: 'stock/return' } },
     // The production floor's two stages, on the same paths the web client uses.
     Preparation: { screens: { PreparationQueue: 'production/queue' } },

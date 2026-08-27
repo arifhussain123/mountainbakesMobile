@@ -642,7 +642,10 @@ export interface QuickAction {
  */
 export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
   branch: [
-    { tab: 'Sales', icon: 'sales', label: 'newSale' },
+    /* The till, not the register: `NewSale` is the create modal inside the
+       Sales stack. Without the `screen` this card would land on the day's list
+       and leave the cashier one tap short of the thing it names. */
+    { tab: 'Sales', screen: 'NewSale', icon: 'sales', label: 'newSale' },
     { tab: 'Orders', screen: 'CreateOrder', icon: 'add', label: 'newOrder' },
     { tab: 'Orders', icon: 'orders', label: 'orders' },
     { tab: 'Stock', icon: 'stock', label: 'stock' },

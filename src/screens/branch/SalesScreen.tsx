@@ -1,151 +1,443 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 
 import {
   MBAccountButton,
-  MBButton,
   MBCard,
+  MBDateStepper,
   MBEmptyState,
   MBErrorState,
+  MBFab,
   MBHeader,
   MBIcon,
-  MBInput,
+  MBListCard,
+  MBListRow,
+  MBModal,
   MBMoney,
   MBPressable,
-  MBFilterChips,
+  MBSaleItem,
   MBSearchBar,
+  MBSectionHeader,
   MBSkeletonList,
+  MBStatGrid,
+  MBStatusTag,
   MBSyncStatus,
   MBWriteOutcome,
   writeOutcomeCopy,
-  MBSelect,
-  MBModal,
+  type WriteOutcomeCopy,
+  type WriteSubject,
 } from '@/components';
-import { useCart } from '@/hooks/useCart';
+import {
+  listQueuedSalesForDay,
+  type QueuedSale,
+} from '@/database/repositories/offlineWriteRepository';
 import { useCatalogSettings } from '@/hooks/useCatalogSettings';
-import { useCreateSale, type SaleOutcome } from '@/hooks/useCreateSale';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useCategories, useProducts, useStock } from '@/hooks/useCatalog';
+import { getOrders } from '@/services/api/financeApi';
+import { qk } from '@/services/query/queryKeys';
+import type { WriteOutcome } from '@/services/sync/writeOutcome';
 import { PAYMENT_METHOD_VALUES } from '@/shared/schemas/order.schemas';
-import { stockLevel, type StockLevel } from '@/shared/utils/stock';
-import type { Product } from '@/shared/types/product.types';
+import type { Order } from '@/shared/types/order.types';
+import { businessDateStr, businessDayBounds, karachiTimeStr } from '@/shared/utils/timezone';
+import { useAuthStore } from '@/store/authStore';
+import { useSyncStore } from '@/store/syncStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import type { WriteOutcomeCopy, WriteSubject } from '@/components';
-import { formatCurrency, formatQty, parseCurrency, toNumber } from '@/utils/money';
-import { cashReturned, lineGross, resolveDiscount } from '@/utils/saleTotals';
+import { contentColumn, space } from '@/theme/spacing';
+import { formatBusinessDate } from '@/utils/businessDay';
 import { dataAsOfFrom } from '@/utils/dataAsOf';
-import { contentColumn, layout, space } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
+import { formatCurrency, formatQty, round2, toNumber } from '@/utils/money';
 
 /**
- * Point of sale.
+ * The branch's sales register: one business day, and everything about it.
  *
- * Optimised for speed: search, tap to add, adjust in the cart, pay. Branch staff
- * run this dozens of times a day, so nothing is behind a submenu.
+ * Built from the `Sales Mobile` design — a daily-summary card over a list of the
+ * day's records, with the till behind a create action and a sale's own detail
+ * behind a row. What follows is where this implementation departs from that
+ * mockup, and why; everything not listed here follows it.
  *
- * The running total is a PREVIEW. The request carries only product, quantity and
- * discount — the server resolves prices and returns its own snapshot, so a price
- * change mid-sale cannot print a stale rate.
+ * ---------------------------------------------------------------------------
+ * Why the Sales tab is this and not the till
+ * ---------------------------------------------------------------------------
+ * It used to be the POS itself, which meant the tab a branch opens most often
+ * could answer only one question — "ring up the next sale" — and had no answer
+ * at all for the ones asked around it: what have we taken, was that sale
+ * recorded, which of them was Mrs Khan's. The till is now `NewSaleScreen`, a
+ * modal over this list. A create screen that is a resource's whole tab is a form
+ * with nothing to return to.
+ *
+ * ---------------------------------------------------------------------------
+ * The figures are a sum of what is listed, and the screen says so
+ * ---------------------------------------------------------------------------
+ * `GET /api/reports/summary` is the authoritative day total, and **a
+ * `branch_user` may not call it** — the server mounts every `/api/reports` route
+ * behind `requireRole('super_admin', 'branch_manager')`. A register that read it
+ * would 403 for the shift account this screen exists for, so the totals here are
+ * derived from the day's own records, exactly as the admin's money view derives
+ * its own (`AdminSalesScreen`). The design's "Charged, after discount" caption
+ * on the Total tile is therefore worded as where the figure came from: a branch
+ * manager comparing this against Daily Sales must be able to see which of the
+ * two has the audit behind it.
+ *
+ * Cancelled sales are excluded from every figure and still listed. They took no
+ * money, but they happened, and a register that hid them would disagree with the
+ * paper.
+ *
+ * ---------------------------------------------------------------------------
+ * A queued sale is on this list, and it is not one of the numbers
+ * ---------------------------------------------------------------------------
+ * Sales written offline live in `local_sales` until the queue drains. The mockup
+ * has no state for them — it is a design drawn against a connection — but this
+ * app is offline-first and they are drawn at the top of the records, marked for
+ * what they are. The question a cashier asks after an offline shift is "did that
+ * go through", and a register that showed nothing until the signal returned
+ * answers it with silence, which reads as "it is gone".
+ *
+ * They contribute nothing to the money figures, and cannot: the POS payload
+ * carries `{productId, qty, discount}` and no prices, because the server
+ * resolves the rate at commit. Pricing them here from the mirrored catalogue
+ * would put a number the server never agreed to in a column of numbers it did.
+ *
+ * ---------------------------------------------------------------------------
+ * Three more departures from the mockup, all deliberate
+ * ---------------------------------------------------------------------------
+ *   - **No nine-column table.** The design's records table is 1106px wide and
+ *     scrolls sideways, which is a desktop shape: on the 4.5" handset this runs
+ *     on it is three screens of horizontal travel to read one row. The same nine
+ *     fields are stacked into a card instead — id and total on one line, then
+ *     time and customer, then what was sold, then tender and status — and the
+ *     row itself is the design's "View" button.
+ *   - **A stepper, not a calendar.** `MBDateStepper`, because a register is read
+ *     relative to today and one tap back is the move; see that component.
+ *   - **No Reprint.** There is no receipt-printing path in this app at all —
+ *     `OrderPrintPreview` is the production floor's docket for a demand, not a
+ *     customer receipt — and a button that does nothing is worse on this screen
+ *     than on any other.
  */
-/** The catalogue-wide chip. Not a category id, so it can never collide with one. */
-const ALL_CATEGORIES = 'all';
+
+/** What the cashier is told about the write they just made. */
+const SALE: WriteSubject = {
+  noun: 'sale',
+  confirmed: 'Sale completed.',
+  refusedNote: 'do not ring it up again',
+};
+
+/** How each payment method reads as a tile label. */
+const METHOD_LABEL: Record<string, string> = {
+  cash: 'Cash',
+  easypaisa: 'Easypaisa',
+  foodpanda: 'Foodpanda',
+  bank_account: 'Bank account',
+  staff: 'Staff (unpaid)',
+};
+
+/**
+ * Products shown before the grid has to be asked to open — the mockup's twelve.
+ *
+ * Two-up on a phone, so six rows: enough that "did we sell any X" is usually
+ * answered without opening it, and the count in the toggle says what is behind.
+ */
+const VISIBLE_PRODUCTS = 12;
+
+/**
+ * `NewSaleScreen` hands the outcome back through the route rather than a store.
+ *
+ * It is a message about one write, consumed once by the screen that was waiting
+ * for it — the shape a param has and a store does not. A store would keep the
+ * banner alive across a tab switch and re-announce a sale from twenty minutes
+ * ago.
+ */
+type SalesRoute = RouteProp<{ SalesList: { outcome?: WriteOutcome; reason?: string } }, 'SalesList'>;
 
 export function SalesScreen(): React.ReactElement {
   const theme = useTheme();
-  const settings = useCatalogSettings();
-  const cart = useCart(settings.tax);
+  const navigation = useNavigation<{
+    navigate: (screen: string, params?: object) => void;
+    setParams: (params: object) => void;
+  }>();
+  const route = useRoute<SalesRoute>();
+  const { currencySymbol } = useCatalogSettings();
 
+  const [date, setDate] = useState(() => businessDateStr());
   const [searchInput, setSearchInput] = useState('');
-  const search = useDebouncedValue(searchInput.trim(), 300);
-  const [showCheckout, setShowCheckout] = useState(false);
+  const search = useDebouncedValue(searchInput.trim().toLowerCase(), 300);
+  const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] = useState<Order | null>(null);
   const [banner, setBanner] = useState<WriteOutcomeCopy | null>(null);
 
-  const [categoryId, setCategoryId] = useState(ALL_CATEGORIES);
+  const branchId = useAuthStore(s => s.claims?.branchId ?? null);
+  /** The drain moves rows out of `local_sales`; re-read when it has run. */
+  const syncPhase = useSyncStore(s => s.phase);
 
-  const products = useProducts({
-    search: search || undefined,
-    categoryId: categoryId === ALL_CATEGORIES ? undefined : categoryId,
-    isActive: true,
+  const bounds = useMemo(() => businessDayBounds(date), [date]);
+  const filters = useMemo(
+    () => ({ from: bounds.fromISO, to: bounds.toISO }),
+    [bounds.fromISO, bounds.toISO],
+  );
+
+  /**
+   * The day's sales as the server has them.
+   *
+   * A branch role is scoped server-side, so no `branchId` is sent. The bounds
+   * are business-day instants and never a bare `YYYY-MM-DD`: `created_at` is
+   * compared as an instant and the day rolls at 02:00, so a bare date would cut
+   * two hours off both ends and drop a 01:00 sale out of the night it was rung
+   * up on.
+   */
+  const orders = useQuery({
+    queryKey: qk.orders.list(filters),
+    queryFn: () => getOrders(filters),
+    // The previous day stays on screen while the next loads — stepping the date
+    // asks this screen a different question rather than opening a new one.
+    placeholderData: previous => previous,
   });
 
-  const categories = useCategories();
-  const categoryChips = useMemo(
-    () => [
-      { key: ALL_CATEGORIES, label: 'All' },
-      ...(categories.data ?? []).map(c => ({ key: c.id, label: c.name })),
-    ],
-    [categories.data],
-  );
+  /**
+   * The day's sales that have not left the device.
+   *
+   * Read straight out of SQLite rather than through React Query, matching Sync
+   * Center: this is local state that changes when the drain runs, not a response
+   * to cache. Re-read when the day changes, when the queue moves, and when a
+   * write has just reported back.
+   */
+  const [queued, setQueued] = useState<readonly QueuedSale[]>([]);
+  useEffect(() => {
+    if (!branchId) {
+      setQueued([]);
+      return;
+    }
+    let alive = true;
+    listQueuedSalesForDay(branchId, date)
+      .then(rows => {
+        if (alive) setQueued(rows);
+      })
+      .catch(() => {
+        // The register is still useful without it; the server's list is the
+        // half that matters most and it has its own error state.
+        if (alive) setQueued([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [branchId, date, syncPhase, banner]);
 
   /**
-   * What is actually on the shelf, for the till.
+   * A finished sale arrives as a route param.
    *
-   * A branch role is scoped server-side, so this sends no branchId, and it reads
-   * through the SQLite mirror — the balances are there for a phone that has been
-   * offline all shift.
+   * The day is stepped back to today first: the sale was rung up now, and
+   * leaving the register on last Tuesday would report a sale onto a screen that
+   * cannot show it.
    *
-   * **Advisory, never a gate.** The server is the only authority on stock and
-   * refuses an overdraw with a 409; blocking the sale here would stop a cashier
-   * selling something that is physically in front of them because a balance is
-   * stale. What this buys is that the refusal is *foreseeable* at the counter
-   * rather than surfacing hours later as a parked row in Sync Center.
+   * Announced once per arrival, and the guard is a **reference** to the params
+   * object rather than the outcome value — two identical sales in a row are two
+   * announcements, and a re-render is none. Clearing the param is what stops the
+   * banner coming back with the tab twenty minutes later; the ref is what stops
+   * this effect re-announcing before the clear lands, which is the same shape
+   * `MBSyncStatus` uses for its own one-shot confirmation.
    */
-  const stock = useStock();
+  const announced = useRef<object | null>(null);
+  useEffect(() => {
+    const params = route.params;
+    if (!params?.outcome || announced.current === params) return;
+    announced.current = params;
+    setDate(businessDateStr());
+    setBanner(writeOutcomeCopy(params.outcome, SALE, params.reason));
+    navigation.setParams({ outcome: undefined, reason: undefined });
+  }, [route.params, navigation]);
 
-  const availability = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of stock.data?.rows ?? []) map.set(r.productId, toNumber(r.balance));
-    return map;
-  }, [stock.data]);
+  const rows = useMemo(() => orders.data ?? [], [orders.data]);
+  const day = useMemo(() => summariseDay(rows), [rows]);
 
-  /**
-   * `cart.addProduct` rather than `cart`.
-   *
-   * The setter is stable for the life of the screen; the cart object changes
-   * whenever a line does. Depending on the object would make this callback new
-   * after every tap, which makes `renderProduct` new, which re-renders every
-   * visible product row — on the screen where a cashier taps fastest.
-   */
-  const addProduct = cart.addProduct;
-
-  const onAdd = useCallback(
-    (product: Product) => {
-      addProduct(product);
-      setBanner(null);
-    },
-    [addProduct],
+  const visible = useMemo(
+    () => (search ? rows.filter(order => matchesSale(order, search)) : rows),
+    [rows, search],
   );
 
-  const renderProduct = useCallback(
-    ({ item }: { item: Product }) => (
-      <SaleProductRow
-        product={item}
-        currencySymbol={settings.currencySymbol}
-        /**
-         * `undefined` means "not known", which is NOT the same as zero and must
-         * never be drawn as "out of stock" — that would stop a cashier selling
-         * something they are holding, on a device whose stock has simply never
-         * been mirrored.
-         */
-        available={availability.get(item.id)}
-        onAdd={onAdd}
+  const renderItem = useCallback(
+    ({ item }: { item: Order }) => (
+      <MBSaleItem
+        order={item}
+        currencySymbol={currencySymbol}
+        showTime
+        showItems
+        onPress={() => setSelected(item)}
       />
     ),
-    [onAdd, settings.currencySymbol, availability],
+    [currencySymbol],
+  );
+
+  const openTill = useCallback(() => navigation.navigate('NewSale'), [navigation]);
+
+  const products = expanded ? day.products : day.products.slice(0, VISIBLE_PRODUCTS);
+  const hidden = day.products.length - products.length;
+
+  /** Nothing at all for this day: no record on the server, none on the device. */
+  const dayIsEmpty =
+    !orders.isPending && !orders.isError && rows.length === 0 && queued.length === 0;
+
+  /** The day is unknown rather than quiet — see the summary block below. */
+  const dayUnknown = orders.isError && rows.length === 0;
+
+  const listHeader = (
+    <View style={styles.header}>
+      {/*
+        The mockup's one summary card: the tender split, the two figures that
+        explain the total, and what actually left the shelf — one surface,
+        because they are one answer to one question about one day.
+
+        Hidden rather than zeroed when the day could not be loaded. A card
+        reading "Rs. 0" on a request that failed states a quiet day as a fact.
+      */}
+      {dayUnknown ? null : (
+        <MBCard testID="sales-day-summary">
+          <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
+            {`Daily summary · ${formatBusinessDate(date)}`}
+          </Text>
+
+          <View style={{ gap: theme.space.md }}>
+            <MBStatGrid>
+              {day.payments.map(row => (
+                <SummaryTile
+                  key={row.method}
+                  label={METHOD_LABEL[row.method] ?? row.method}
+                  value={row.total}
+                  currencySymbol={currencySymbol}
+                  /* Only cash carries its gross, as in the mockup: it is the
+                     one tender counted against a drawer at closing. */
+                  caption={
+                    row.method === 'cash' && row.gross > 0
+                      ? `Gross ${formatCurrency(row.gross, currencySymbol)}`
+                      : undefined
+                  }
+                  /* A tender that took nothing today is still one of the four
+                     the shop accepts, so it keeps its tile and loses its
+                     emphasis — the absence is the information. */
+                  muted={row.count === 0}
+                  testID={`sales-payment-${row.method}`}
+                />
+              ))}
+
+              <SummaryTile
+                label="Total sales"
+                value={day.total}
+                currencySymbol={currencySymbol}
+                caption="Summed from the records below"
+                tone="highlight"
+                testID="sales-day-total"
+              />
+            </MBStatGrid>
+
+            <MBStatGrid>
+              <SummaryTile
+                label="Gross (qty × rate)"
+                value={day.gross}
+                currencySymbol={currencySymbol}
+                caption="Before discount"
+              />
+              <SummaryTile
+                label="Discount"
+                value={day.discount}
+                currencySymbol={currencySymbol}
+                caption="Off list price"
+                tone="dashed"
+              />
+            </MBStatGrid>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.colors.divider }]} />
+
+          <View style={styles.itemsHead}>
+            <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>Items sold</Text>
+            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              {`${formatQty(day.units)} units · ${day.products.length} ${
+                day.products.length === 1 ? 'product' : 'products'
+              }`}
+            </Text>
+          </View>
+
+          {day.products.length === 0 ? (
+            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              Nothing has left the shelf on this day.
+            </Text>
+          ) : (
+            <MBStatGrid>
+              {products.map(product => (
+                <ProductTile
+                  key={product.productId}
+                  name={product.productName}
+                  qty={product.qty}
+                />
+              ))}
+            </MBStatGrid>
+          )}
+
+          {day.products.length > VISIBLE_PRODUCTS ? (
+            <MBPressable
+              onPress={() => setExpanded(v => !v)}
+              accessibilityRole="button"
+              feedback="opacity"
+              testID="sales-show-all-products"
+              style={styles.showAll}>
+              <Text style={[theme.type.label, { color: theme.colors.accent }]}>
+                {expanded
+                  ? 'Show fewer products'
+                  : `Show all ${day.products.length} products (+${hidden} more)`}
+              </Text>
+              <MBIcon
+                name={expanded ? 'chevronUp' : 'chevronDown'}
+                size="action"
+                color={theme.colors.accent}
+              />
+            </MBPressable>
+          ) : null}
+        </MBCard>
+      )}
+
+      <MBSectionHeader
+        title="Records"
+        subtitle={
+          search
+            ? `${visible.length} ${visible.length === 1 ? 'record' : 'records'} matching “${searchInput.trim()}”`
+            : `${rows.length} ${rows.length === 1 ? 'record' : 'records'}${
+                queued.length > 0 ? ` · ${queued.length} waiting to sync` : ''
+              }`
+        }
+      />
+
+      {/*
+        Queued sales sit above the server's, newest work first, and they are the
+        one thing on this screen that is not a server record. Marked rather than
+        blended: "waiting" and "recorded" are different states of a transaction
+        and a register that drew them alike is how a sale nobody checked goes
+        missing until the till is reconciled.
+      */}
+      {queued.map(sale => (
+        <QueuedSaleRow key={sale.clientOperationId} sale={sale} />
+      ))}
+
+      {orders.isError && rows.length > 0 ? (
+        <Text style={[theme.type.caption, { color: theme.colors.offline }]}>
+          These records may be out of date — the last refresh did not reach the server.
+        </Text>
+      ) : null}
+    </View>
   );
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         leading={<MBAccountButton />}
-        title="New sale"
+        title="Sales"
+        /* The mockup's page head, in the slot this app puts it: what day, and
+           how many are on it. The money is in the card, where its caption can
+           say where it came from. */
+        subtitle={
+          orders.data ? `${formatBusinessDate(date)} · ${rows.length} recorded` : undefined
+        }
         right={<MBSyncStatus />}
-        /* The POS is the screen most likely to be used offline for hours, and
-           the catalogue behind it is cached. A price that changed on another
-           device this morning is invisible here until something asks, so the
-           till says how old its prices are. */
-        dataAsOf={dataAsOfFrom(products.dataUpdatedAt)}
+        dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
       />
 
       {banner ? (
@@ -157,492 +449,642 @@ export function SalesScreen(): React.ReactElement {
           onPress={() => setBanner(null)}
           accessibilityRole="button"
           accessibilityHint="Dismisses this message"
-          // A full-width band pulling in at its edges reads as the message
-          // shrinking rather than as a control answering a touch.
           feedback="opacity">
           <View style={{ marginHorizontal: theme.layout.screenPad }}>
-            <MBWriteOutcome copy={banner} />
+            <MBWriteOutcome copy={banner} testID="sale-outcome" />
           </View>
         </MBPressable>
       ) : null}
 
-      <View style={{ paddingHorizontal: theme.layout.screenPad, paddingTop: theme.layout.screenPad }}>
+      <View style={styles.controls}>
+        <MBDateStepper value={date} onChange={setDate} testID="sales-date" />
         <MBSearchBar
           value={searchInput}
           onChangeText={setSearchInput}
-          /* Name or code. The server searches both (`name.ilike` OR
-             `sku.ilike`), and so does the offline mirror, so a cashier reading
-             a code off a tray finds the product the same way either way. */
-          placeholder="Search name or code"
-          searching={searchInput.trim() !== search}
-          testID="sale-product-search"
+          /* The register's own fields, not the catalogue's: a customer asking
+             about "the one at half two" and a manager looking for a receipt
+             number are the two searches this list gets. */
+          placeholder="Search sale, customer or product"
+          searching={searchInput.trim().toLowerCase() !== search}
+          testID="sales-search"
         />
       </View>
+
+      {orders.isPending ? (
+        <MBSkeletonList rows={6} />
+      ) : dayUnknown && queued.length === 0 ? (
+        <MBErrorState
+          error={orders.error}
+          onRetry={() => orders.refetch()}
+          retrying={orders.isFetching}
+        />
+      ) : dayIsEmpty ? (
+        <MBEmptyState
+          title="No sales on this day"
+          message={`Nothing was rung up on ${formatBusinessDate(date)}.`}
+          icon="sales"
+          actionLabel="New sale"
+          onAction={openTill}
+        />
+      ) : (
+        <FlashList
+          data={visible}
+          renderItem={renderItem}
+          keyExtractor={keyOf}
+          ListHeaderComponent={listHeader}
+          ItemSeparatorComponent={ListSeparator}
+          /* A search that matches nothing is not an empty day, and must not be
+             reported as one — the summary above it is still the day's. */
+          ListEmptyComponent={
+            search ? (
+              <MBEmptyState
+                title="No sales found"
+                message="Try another date, or clear the search."
+              />
+            ) : null
+          }
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={orders.isFetching && !orders.isPending}
+              onRefresh={() => orders.refetch()}
+              tintColor={theme.colors.primary}
+            />
+          }
+        />
+      )}
 
       {/*
-        The second way to narrow, for the regulars nobody types the name of.
-        A horizontal scroller rather than a wrapping block: categories are
-        unbounded, and a filter that grows to three lines pushes the products
-        themselves off a till screen that already carries a search field and a
-        cart bar.
+        The mockup puts New Sale in the page head. Here it is the corner FAB,
+        which is the same single control in the place this app already puts a
+        create action — the production counter's own Sales list is the sibling,
+        and `docs/screen-patterns.md` carries the rule. One control at a time:
+        the empty state holds the instruction while there is nothing to scroll.
       */}
-      {categoryChips.length > 1 ? (
-        <MBFilterChips
-          options={categoryChips}
-          selectedKey={categoryId}
-          onSelect={setCategoryId}
-          scroll
-          testIDPrefix="sale-category"
-        />
-      ) : null}
+      {!dayIsEmpty ? <MBFab label="New sale" icon="add" onPress={openTill} testID="new-sale" /> : null}
 
-      <View style={styles.flex}>
-        {products.isPending ? (
-          <MBSkeletonList rows={6} />
-        ) : products.isError ? (
-          <MBErrorState error={products.error} onRetry={() => products.refetch()} />
-        ) : (products.data ?? []).length === 0 ? (
-          <MBEmptyState title="No products match" message="Try a different name or code." />
-        ) : (
-          <FlashList
-            data={products.data ?? []}
-            renderItem={renderProduct}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.listContent}
-            ItemSeparatorComponent={ListSeparator}
-            keyboardShouldPersistTaps="handled"
-            /* The catalogue is cached and can be hours old on a phone that has
-               been offline through a shift — a price or a new product changed on
-               another device is invisible until something asks. The cart is
-               untouched by a refetch, so pulling costs nothing mid-sale. */
-            refreshControl={
-              <RefreshControl
-                refreshing={products.isFetching && !products.isPending}
-                onRefresh={() => products.refetch()}
-                tintColor={theme.colors.primary}
-              />
-            }
+      <MBModal visible={selected !== null} onRequestClose={() => setSelected(null)}>
+        {selected ? (
+          <SaleDetail
+            order={selected}
+            currencySymbol={currencySymbol}
+            onClose={() => setSelected(null)}
           />
-        )}
-      </View>
-
-      {!cart.isEmpty ? (
-        <View
-          style={[
-            styles.cartBar,
-            {
-              backgroundColor: theme.colors.surface,
-              borderTopColor: theme.colors.border,
-              padding: theme.layout.screenPad,
-            },
-          ]}>
-          <View style={styles.cartSummary}>
-            <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
-              {cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'}
-            </Text>
-            {/* The server recomputes this from the line items with its own tax
-                settings; this device is working from cached AppSettings. Marked
-                as what it is until the sale comes back confirmed. */}
-            <MBMoney
-              value={cart.totals.grandTotal}
-              symbol={settings.currencySymbol}
-              estimate
-              testID="cart-total"
-            />
-          </View>
-          <MBButton
-            label="Review & pay"
-            onPress={() => setShowCheckout(true)}
-            testID="review-and-pay"
-          />
-        </View>
-      ) : null}
-
-      <MBModal visible={showCheckout} onRequestClose={() => setShowCheckout(false)}>
-        <Checkout
-          cart={cart}
-          currencySymbol={settings.currencySymbol}
-          onCancel={() => setShowCheckout(false)}
-          onDone={(outcome, reason) => {
-            setShowCheckout(false);
-            cart.clear();
-            setSearchInput('');
-            setBanner(writeOutcomeCopy(outcome, SALE, reason));
-          }}
-        />
+        ) : null}
       </MBModal>
     </View>
   );
 }
 
-/**
- * One tappable product in the till's list.
- *
- * Memoised, and at module scope rather than inline in `renderProduct`, because
- * this list re-renders on every keystroke of the search box and every change to
- * the cart. With stable props none of the visible rows re-render at all — the
- * theme still reaches them, because context bypasses `memo`.
- */
-/** Availability wording. A word as well as a colour — never colour alone. */
-const AVAILABILITY_LABEL: Record<StockLevel, (qty: number) => string> = {
-  out: () => 'Out of stock',
-  critical: qty => `${formatQty(qty)} left`,
-  moderate: qty => `${formatQty(qty)} left`,
-  healthy: qty => `${formatQty(qty)} in stock`,
-};
+// ---------------------------------------------------------------------------
+// The summary card's parts
+// ---------------------------------------------------------------------------
 
-const SaleProductRow = React.memo(function SaleProductRowView({
-  product,
+/**
+ * One figure in the daily summary.
+ *
+ * The mockup's three variants, in tokens: the default sits on the sunken field
+ * inside the card, `highlight` is the day's total in the brand fill's soft tint,
+ * and `dashed` is the discount — a figure that is money *not* taken, which is
+ * why its edge is broken and its value is drawn as a real negative.
+ *
+ * Local to this screen rather than in `@/components`: it is a tile *inside* a
+ * card, which `MBStatCard` deliberately is not — that one is a card in its own
+ * right and nesting it here would draw two edges and two lifts. If a second
+ * screen grows the same block, this is what gets promoted.
+ */
+function SummaryTile({
+  label,
+  value,
+  caption,
   currencySymbol,
-  available,
-  onAdd,
+  tone = 'default',
+  muted = false,
+  testID,
 }: {
-  product: Product;
+  label: string;
+  value: number;
+  caption?: string;
   currencySymbol?: string;
-  /** Balance on the shelf, or `undefined` when the device has never been told. */
-  available?: number;
-  onAdd: (product: Product) => void;
+  tone?: 'default' | 'highlight' | 'dashed';
+  /** A tender that took nothing today: present, and visibly empty. */
+  muted?: boolean;
+  testID?: string;
 }): React.ReactElement {
   const theme = useTheme();
-  // Bound here so the caller can pass one stable handler for the whole list.
-  const press = useCallback(() => onAdd(product), [onAdd, product]);
-
-  const level = available === undefined ? null : stockLevel(available);
-  const availabilityColor: Record<StockLevel, string> = {
-    out: theme.colors.danger,
-    critical: theme.colors.danger,
-    moderate: theme.colors.warning,
-    healthy: theme.colors.textMuted,
-  };
+  const highlight = tone === 'highlight';
+  const dashed = tone === 'dashed';
 
   return (
-    <MBPressable
-      onPress={press}
-      accessibilityRole="button"
-      /* Spoken as one thing: what it is, what it costs, and what is left. A
-         cashier using a screen reader should not have to hunt for the third. */
-      accessibilityLabel={`Add ${product.name}, ${formatCurrency(product.price, currencySymbol)}${
-        level ? `, ${AVAILABILITY_LABEL[level](available ?? 0)}` : ''
-      }`}>
-      <MBCard>
-        <View style={styles.productRow}>
-          <View style={styles.productMain}>
-            <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-              {product.name}
-            </Text>
-            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-              {product.sku}
-            </Text>
-          </View>
+    <View
+      testID={testID}
+      style={[
+        styles.tile,
+        dashed && styles.dashedEdge,
+        {
+          borderRadius: theme.radius.md,
+          padding: theme.layout.tilePad,
+          gap: theme.space.hair,
+          backgroundColor: highlight ? theme.colors.primarySoft : theme.colors.surfaceSunken,
+          borderColor: highlight
+            ? theme.colors.primary
+            : dashed
+              ? theme.colors.borderStrong
+              : theme.colors.border,
+        },
+      ]}>
+      <Text
+        numberOfLines={1}
+        style={[
+          theme.type.label,
+          { color: highlight ? theme.colors.accent : theme.colors.textMuted },
+        ]}>
+        {label}
+      </Text>
 
-          <View style={styles.productPrice}>
-            <MBMoney value={product.price} symbol={currencySymbol} />
-            {/*
-              Nothing at all when the balance is unknown. Drawing "0" or "Out of
-              stock" for a device that has simply never mirrored stock would stop
-              a cashier selling what is physically in front of them — the one
-              failure this must not have. Stock is advisory here either way: the
-              server is the only authority and refuses an overdraw with a 409.
-            */}
-            {level ? (
-              <Text style={[theme.type.caption, { color: availabilityColor[level] }]}>
-                {AVAILABILITY_LABEL[level](available ?? 0)}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      </MBCard>
-    </MBPressable>
+      <MBMoney
+        value={value}
+        symbol={currencySymbol}
+        /* A discount is money off, and it is drawn as such — `sign` renders a
+           real minus and says "less" in the accessible name, where a hyphen at
+           money size reads as a dash. */
+        sign={dashed && value > 0 ? 'out' : undefined}
+        color={dashed && value > 0 ? theme.colors.danger : muted ? theme.colors.textMuted : undefined}
+      />
+
+      {caption ? (
+        <Text numberOfLines={1} style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+          {caption}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** One product and what left the shelf, in the items-sold grid. */
+function ProductTile({ name, qty }: { name: string; qty: number }): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.productTile,
+        {
+          borderRadius: theme.radius.md,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surfaceSunken,
+          paddingVertical: theme.space.snug,
+          paddingHorizontal: theme.space.md,
+          gap: theme.space.sm,
+        },
+      ]}>
+      <Text numberOfLines={1} style={[theme.type.label, styles.flex, { color: theme.colors.text }]}>
+        {name}
+      </Text>
+      {/* `accent`, never `primary`: the ember is a fill and fails the text bar
+          on a card. The mockup's orange figure is this token. */}
+      <Text style={[theme.type.number, { color: theme.colors.accent }]}>{formatQty(qty)}</Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The day, summed
+// ---------------------------------------------------------------------------
+
+export interface PaymentTotal {
+  method: string;
+  /** What was taken on this tender, after discount. */
+  total: number;
+  /** Before discount — the drawer figure, and only drawn for cash. */
+  gross: number;
+  count: number;
+}
+
+export interface ProductTotal {
+  productId: string;
+  productName: string;
+  qty: number;
+  revenue: number;
+}
+
+export interface DaySummary {
+  /** Sales counted — cancelled ones are not among them. */
+  count: number;
+  /** Before discount. */
+  gross: number;
+  discount: number;
+  /** What was taken. */
+  total: number;
+  /** Units across every line of every counted sale. */
+  units: number;
+  /** The four branch tenders, always, plus any other one that appears. */
+  payments: PaymentTotal[];
+  /** Busiest product first. */
+  products: ProductTotal[];
+}
+
+/**
+ * One business day of records → the figures above them.
+ *
+ * `toNumber` and not `Number`: every money field is `numeric(14,2)` and arrives
+ * as a JSON string, and one malformed value under `Number` poisons the whole sum
+ * into `NaN` — a register reading "Rs. NaN" rather than one row short.
+ *
+ * `round2` closes each sum for the same reason `saleTotals` does: the drift is
+ * invisible once formatted, but the rounded figure is what the accessibility
+ * label reads out and what any later comparison sees.
+ *
+ * The tender split is in a **fixed** order and always four wide, rather than
+ * ranked by what was taken. A card that reorders itself through the day is one
+ * nobody can read at a glance, and a tender that took nothing is information —
+ * it is drawn muted rather than dropped. Anything else that appears (a `staff`
+ * sale, which a branch has no way to ring up but the row could still carry) is
+ * appended rather than silently excluded from a total labelled as the day's.
+ *
+ * Exported because it is the screen's arithmetic and deserves testing without a
+ * renderer — a wrong total here is wrong money on the one screen a shift is
+ * reconciled from.
+ */
+export function summariseDay(orders: readonly Order[]): DaySummary {
+  const payments = new Map<string, { total: number; gross: number; count: number }>();
+  for (const method of PAYMENT_METHOD_VALUES) {
+    payments.set(method, { total: 0, gross: 0, count: 0 });
+  }
+  const products = new Map<string, ProductTotal>();
+
+  let count = 0;
+  let gross = 0;
+  let discount = 0;
+  let total = 0;
+  let units = 0;
+
+  for (const order of orders) {
+    // Cancelled sales took no money. They stay on the list and out of the sums.
+    if (order.status === 'cancelled') continue;
+
+    count += 1;
+    const orderGross = toNumber(order.subtotal);
+    const grand = toNumber(order.grandTotal);
+    gross += orderGross;
+    discount += toNumber(order.discountTotal);
+    total += grand;
+
+    const method = order.paymentMethod ?? 'cash';
+    const bucket = payments.get(method) ?? { total: 0, gross: 0, count: 0 };
+    payments.set(method, {
+      total: bucket.total + grand,
+      gross: bucket.gross + orderGross,
+      count: bucket.count + 1,
+    });
+
+    for (const item of order.items ?? []) {
+      const qty = toNumber(item.qty);
+      units += qty;
+      const current = products.get(item.productId) ?? {
+        productId: item.productId,
+        productName: item.productName,
+        qty: 0,
+        revenue: 0,
+      };
+      products.set(item.productId, {
+        ...current,
+        qty: current.qty + qty,
+        revenue: current.revenue + toNumber(item.lineTotal),
+      });
+    }
+  }
+
+  return {
+    count,
+    gross: round2(gross),
+    discount: round2(discount),
+    total: round2(total),
+    units: round2(units),
+    payments: [...payments.entries()].map(([method, sums]) => ({
+      method,
+      total: round2(sums.total),
+      gross: round2(sums.gross),
+      count: sums.count,
+    })),
+    products: [...products.values()]
+      .map(p => ({ ...p, qty: round2(p.qty), revenue: round2(p.revenue) }))
+      .sort((a, b) => b.qty - a.qty),
+  };
+}
+
+/**
+ * Does this sale match what was typed?
+ *
+ * The mockup's haystack — id, time, customer, payment, comment and the product
+ * names — plus the status and the cashier, which this app's rows also show. A
+ * register search that matched only the visible line would fail the question it
+ * is most often asked: "which sale had the walnut cake on it".
+ *
+ * `query` arrives already trimmed and lower-cased; doing it here per row would
+ * be the same work once per record per keystroke.
+ */
+export function matchesSale(order: Order, query: string): boolean {
+  if (!query) return true;
+  const haystack = [
+    order.orderNumber,
+    order.customerName,
+    order.customerPhone,
+    order.paymentMethod,
+    order.status,
+    order.notes,
+    order.createdByName,
+    order.createdAt ? karachiTimeStr(new Date(order.createdAt)) : '',
+    ...(order.items ?? []).map(item => item.productName),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+// ---------------------------------------------------------------------------
+// Rows
+// ---------------------------------------------------------------------------
+
+/**
+ * A sale this device is still holding.
+ *
+ * No money on it, deliberately — see the header. What it carries instead is the
+ * two things the cashier needs: that it is safe, and whether it is waiting for a
+ * signal or for a person. A `conflict` or `failed` row is the second: the server
+ * has already refused it, and it will never sync on its own.
+ */
+const QueuedSaleRow = React.memo(function QueuedSaleRowView({
+  sale,
+}: {
+  sale: QueuedSale;
+}): React.ReactElement {
+  const theme = useTheme();
+  const refused = sale.queueStatus === 'conflict' || sale.queueStatus === 'failed';
+
+  return (
+    <MBCard>
+      <View style={styles.queuedHeader}>
+        <Text style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+          {karachiTimeStr(new Date(sale.createdAt))} · on this device
+        </Text>
+        <MBStatusTag
+          label={refused ? 'Not accepted' : 'Waiting to sync'}
+          status={refused ? 'rejected' : 'pending'}
+        />
+      </View>
+      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+        {`${formatQty(sale.units)} units · ${sale.lineCount} ${
+          sale.lineCount === 1 ? 'line' : 'lines'
+        } · ${METHOD_LABEL[sale.paymentMethod] ?? sale.paymentMethod}`}
+      </Text>
+      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+        {refused
+          ? 'The server refused this sale. Open Sync Center — it is waiting for a person.'
+          : 'Stored on this device. The total is set by the server when it syncs.'}
+      </Text>
+    </MBCard>
   );
 });
 
-function Checkout({
-  cart,
+/**
+ * One sale, in full — the mockup's detail sheet.
+ *
+ * Everything here is the **server's** record of it: its own line rates, its own
+ * discounts, its own totals. Nothing is recomputed — this screen is where a
+ * disputed sale is read back, and a figure derived here that disagreed with the
+ * receipt by a rounding step would be the thing under dispute.
+ *
+ * The mockup's five-column line table is a row plus a subtitle here: at 40/70/70
+ * /80 the columns leave about 60dp for a product name on this handset, which is
+ * not a name. Qty, rate and discount ride under it in that order, and the line
+ * total keeps the right edge it has in the design.
+ */
+function SaleDetail({
+  order,
   currencySymbol,
-  onCancel,
-  onDone,
+  onClose,
 }: {
-  cart: ReturnType<typeof useCart>;
+  order: Order;
   currencySymbol?: string;
-  onCancel: () => void;
-  onDone: (outcome: SaleOutcome, reason?: string) => void;
+  onClose: () => void;
 }): React.ReactElement {
   const theme = useTheme();
-  const { createSale, isSaving } = useCreateSale();
-
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] =
-    useState<(typeof PAYMENT_METHOD_VALUES)[number]>('cash');
-  const [receivedCashText, setReceivedCashText] = useState('');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const receivedCash = parseCurrency(receivedCashText);
-  const isCash = paymentMethod === 'cash';
-  const change = cashReturned(receivedCash, cart.totals.grandTotal);
-  const shortOnCash = isCash && receivedCashText.trim() !== '' && change < 0;
-
-  const onConfirm = async () => {
-    setError(null);
-    if (shortOnCash) {
-      setError('The cash received does not cover the total.');
-      return;
-    }
-
-    try {
-      const result = await createSale({
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        items: cart.toOrderItems(),
-        paymentMethod,
-        // Only meaningful for cash; the server validates it covers the total.
-        ...(isCash && receivedCashText.trim() ? { receivedCash } : {}),
-        notes: notes.trim(),
-      });
-      onDone(result.outcome, result.reason);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record the sale.');
-    }
-  };
+  const tax = toNumber(order.taxAmount);
+  const discount = toNumber(order.discountTotal);
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title="Review & pay" onBack={onCancel} />
+      <MBHeader
+        title={order.orderNumber}
+        subtitle={`${formatBusinessDate(order.createdAt.slice(0, 10))} · ${karachiTimeStr(
+          new Date(order.createdAt),
+        )}`}
+        onBack={onClose}
+        right={<MBStatusTag label={order.status} status={order.status} />}
+      />
+
       <ScrollView
         contentContainerStyle={[
           contentColumn,
-          { padding: theme.layout.screenPad, gap: theme.space.lg },
-        ]}
-        keyboardShouldPersistTaps="handled">
-        {cart.lines.map(line => (
-          <MBCard key={line.productId}>
-            <View style={styles.productRow}>
-              <Text style={[theme.type.bodyStrong, styles.flex, { color: theme.colors.text }]}>
-                {line.productName}
-              </Text>
-              <MBMoney
-                value={line.unitPrice}
-                size="sm"
-                color={theme.colors.textMuted}
-                symbol={currencySymbol}
-              />
-            </View>
+          { padding: theme.layout.screenPad, gap: theme.space.md },
+        ]}>
+        {/* The mockup's pair row: who it was for, and how it was paid. */}
+        <View style={styles.pairRow}>
+          <PairTile label="Customer" value={order.customerName || 'Walk-in'} />
+          <PairTile
+            label="Payment"
+            value={METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod}
+          />
+        </View>
 
-            <View style={styles.lineControls}>
-              <View style={styles.stepper}>
-                <MBPressable
-                  onPress={() => cart.setQty(line.productId, line.qty - 1)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Decrease ${line.productName}`}
-                  style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <MBIcon name="remove" size="action" color={theme.colors.text} />
-                </MBPressable>
-                <Text style={[theme.type.money, { color: theme.colors.text }]}>{line.qty}</Text>
-                <MBPressable
-                  onPress={() => cart.setQty(line.productId, line.qty + 1)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Increase ${line.productName}`}
-                  style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <MBIcon name="add" size="action" color={theme.colors.text} />
-                </MBPressable>
-              </View>
+        <MBListCard testID="sale-detail-items">
+          {(order.items ?? []).map(item => (
+            <MBListRow
+              key={`${item.productId}-${item.qty}-${item.lineTotal}`}
+              title={item.productName}
+              subtitle={`${formatQty(item.qty)} × ${formatCurrency(
+                item.unitPrice,
+                currencySymbol,
+              )}${toNumber(item.discount) > 0 ? ` · less ${formatCurrency(item.discount, currencySymbol)}` : ''}`}
+              value={<MBMoney value={item.lineTotal} size="sm" symbol={currencySymbol} />}
+            />
+          ))}
+        </MBListCard>
 
-              <MBInput
-                label="Discount"
-                numeric
-                containerStyle={styles.flex}
-                defaultValue=""
-                keyboardType="default"
-                // Accepts "10%" or a flat amount; only the resolved rupee figure
-                // is stored, because the server's schema knows only numbers.
-                hint="e.g. 50 or 10%"
-                onChangeText={text =>
-                  cart.setDiscount(line.productId, resolveDiscount(text, lineGross(line)))
-                }
-              />
-            </View>
-          </MBCard>
-        ))}
-
-        <MBCard>
-          <TotalRow label="Subtotal" value={cart.totals.grossSubtotal} symbol={currencySymbol} />
-          {cart.totals.discountTotal > 0 ? (
-            <TotalRow label="Discount" value={-cart.totals.discountTotal} symbol={currencySymbol} />
-          ) : null}
-          {cart.totals.taxAmount > 0 ? (
-            <TotalRow
-              label="Government Tax"
-              value={cart.totals.taxAmount}
+        {/* Sunken rather than a card: the mockup sets the totals on its wash so
+            they read as a block belonging to the lines above, not as the next
+            thing along. */}
+        <View
+          style={[
+            styles.totals,
+            {
+              backgroundColor: theme.colors.surfaceSunken,
+              borderColor: theme.colors.border,
+              borderRadius: theme.radius.lg,
+              padding: theme.layout.cardPad,
+              gap: theme.space.sm,
+            },
+          ]}>
+          <DetailTotal label="Gross" value={order.subtotal} symbol={currencySymbol} />
+          {discount > 0 ? (
+            <DetailTotal
+              label="Discount"
+              value={discount}
               symbol={currencySymbol}
+              sign="out"
+              color={theme.colors.danger}
             />
           ) : null}
-          <TotalRow
-            label="Grand Total"
-            value={cart.totals.grandTotal}
+          {toNumber(order.deliveryCharges) > 0 ? (
+            <DetailTotal label="Delivery" value={order.deliveryCharges} symbol={currencySymbol} />
+          ) : null}
+          {tax > 0 ? (
+            <DetailTotal label="Government Tax" value={tax} symbol={currencySymbol} />
+          ) : null}
+
+          <View style={[styles.hair, { backgroundColor: theme.colors.border }]} />
+
+          <DetailTotal
+            label="Grand total"
+            value={order.grandTotal}
             symbol={currencySymbol}
             strong
           />
+
+          {order.receivedCash !== undefined ? (
+            <>
+              <DetailTotal
+                label="Cash received"
+                value={order.receivedCash}
+                symbol={currencySymbol}
+              />
+              <DetailTotal
+                label="Change"
+                value={toNumber(order.cashReturned)}
+                symbol={currencySymbol}
+              />
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.comment}>
+          <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>Comment</Text>
+          <Text style={[theme.type.body, { color: theme.colors.text }]}>{order.notes || '—'}</Text>
+        </View>
+
+        {order.createdByName ? (
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-            Final amounts are confirmed by the server.
-          </Text>
-        </MBCard>
-
-        {/* Four branch methods. 'staff' is production-counter only. */}
-        <MBSelect
-          label="Payment method"
-          options={PAYMENT_METHOD_VALUES}
-          value={paymentMethod}
-          onChange={setPaymentMethod}
-          testIDPrefix="payment"
-        />
-
-        {isCash ? (
-          <>
-            <MBInput
-              label="Cash received"
-              numeric
-              keyboardType="decimal-pad"
-              value={receivedCashText}
-              onChangeText={setReceivedCashText}
-              error={shortOnCash ? 'Less than the grand total' : undefined}
-              editable={!isSaving}
-            />
-            {receivedCashText.trim() && change >= 0 ? (
-              <TotalRow label="Change" value={change} symbol={currencySymbol} />
-            ) : null}
-          </>
-        ) : null}
-
-        <MBInput
-          label="Customer name"
-          value={customerName}
-          onChangeText={setCustomerName}
-          editable={!isSaving}
-        />
-        <MBInput
-          label="Mobile number"
-          value={customerPhone}
-          onChangeText={setCustomerPhone}
-          keyboardType="phone-pad"
-          editable={!isSaving}
-        />
-        <MBInput label="Notes" value={notes} onChangeText={setNotes} editable={!isSaving} />
-
-        {error ? (
-          <Text accessibilityRole="alert" style={[theme.type.body, { color: theme.colors.danger }]}>
-            {error}
+            Rung up by {order.createdByName}
           </Text>
         ) : null}
-
-        <MBButton
-          label="Confirm sale"
-          onPress={onConfirm}
-          loading={isSaving}
-          disabled={cart.isEmpty}
-          fullWidth
-          testID="confirm-sale"
-        />
       </ScrollView>
     </View>
   );
 }
 
-function TotalRow({
+function PairTile({ label, value }: { label: string; value: string }): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.tile,
+        styles.flex,
+        {
+          borderRadius: theme.radius.md,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surfaceSunken,
+          padding: theme.layout.tilePad,
+          gap: theme.space.hair,
+        },
+      ]}>
+      <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>{label}</Text>
+      <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function DetailTotal({
   label,
   value,
   symbol,
+  sign,
+  color,
   strong = false,
 }: {
   label: string;
-  value: number;
+  value: unknown;
   symbol?: string;
+  sign?: 'in' | 'out';
+  color?: string;
   strong?: boolean;
 }): React.ReactElement {
   const theme = useTheme();
   return (
     <View style={styles.totalRow}>
       <Text
-        style={[strong ? theme.type.bodyStrong : theme.type.body, { color: theme.colors.text }]}>
+        style={[
+          strong ? theme.type.bodyStrong : theme.type.body,
+          { color: strong ? theme.colors.text : theme.colors.textMuted },
+        ]}>
         {label}
       </Text>
-      <MBMoney value={value} size={strong ? 'md' : 'sm'} symbol={symbol} />
+      <MBMoney
+        value={toNumber(value)}
+        size={strong ? 'md' : 'sm'}
+        symbol={symbol}
+        sign={sign}
+        color={color}
+      />
     </View>
   );
 }
 
-/** Module scope: a separator defined during render remounts the list each pass. */
+/** Module scope: rebuilt every render, FlashList remounts its rows. */
+function keyOf(item: Order): string {
+  return item.id;
+}
+
 function ListSeparator(): React.ReactElement {
   return <View style={styles.separator} />;
 }
 
-/**
- * Outcome → colour.
- *
- * `refused` is a third tone, not a variant of `queued`: the server rejected the
- * write (a 409 for insufficient stock, say) and it will never sync by itself.
- * Painting that amber alongside "it will sync automatically" is how a sale that
- * never landed goes unnoticed until the till is reconciled.
- */
-/**
- * What the cashier is told, in the three cases that actually occur.
- *
- * The refusal case is the one that used to be wrong: a 409 for insufficient
- * stock was reported as "saved offline, it will sync" — but a refused sale is
- * parked for a person and never syncs on its own. The server's own message is
- * shown verbatim because it names the products that were short.
- */
-const SALE: WriteSubject = {
-  noun: 'sale',
-  confirmed: 'Sale completed.',
-  refusedNote: 'do not ring it up again',
-};
-
 const styles = StyleSheet.create({
-  productPrice: { alignItems: 'flex-end', gap: space.hair },
   flex: { flex: 1 },
-  // ...contentColumn caps the measure on a tablet. A list row is a label at
-  // one edge and a value at the other; unconstrained on a 10" screen the two
-  // end up a hand-span apart with nothing between them.
-  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
+  controls: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm },
+  header: { gap: space.md, paddingTop: space.md },
+  // ...contentColumn caps the measure on a tablet: a register row is a label at
+  // one edge and a figure at the other, and unconstrained on a 10" screen the
+  // two end up a hand-span apart with nothing between them.
+  listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.huge },
   separator: { height: 8 },
-  productRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  productMain: { flex: 1, gap: space.hair },
-  cartBar: {
-    borderTopWidth: 1,
+  tile: { borderWidth: 1 },
+  // A discount is money that did NOT come in, and the broken edge is the
+  // mockup's way of saying so before the figure is read.
+  dashedEdge: { borderStyle: 'dashed' },
+  productTile: { borderWidth: 1, flexDirection: 'row', alignItems: 'center' },
+  divider: { height: 1 },
+  itemsHead: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-  },
-  cartSummary: { flex: 1, gap: space.hair },
-  lineControls: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space.md,
-    marginTop: space.md,
-  },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  stepButton: {
-    width: layout.stepperSize,
-    height: layout.stepperSize,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  totalRow: {
-    flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: space.md,
-    paddingVertical: space.hair,
   },
-  group: { gap: space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: {
-    height: 40,
-    paddingHorizontal: space.lg,
+  showAll: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
+  queuedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
+    gap: space.sm,
+    marginBottom: space.tight,
   },
+  pairRow: { flexDirection: 'row', gap: space.md },
+  totals: { borderWidth: 1 },
+  hair: { height: 1 },
+  comment: { gap: space.hair },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
 });

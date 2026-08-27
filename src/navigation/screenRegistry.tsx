@@ -7,6 +7,7 @@ import { BranchDashboardScreen } from '@/screens/branch/BranchDashboardScreen';
 import { ExpensesScreen } from '@/screens/branch/ExpensesScreen';
 import { NewOrderScreen } from '@/screens/branch/NewOrderScreen';
 import { SalesScreen } from '@/screens/branch/SalesScreen';
+import { NewSaleScreen } from '@/screens/branch/NewSaleScreen';
 import { AdminDashboardScreen } from '@/screens/admin/AdminDashboardScreen';
 import { AdminExpensesScreen } from '@/screens/admin/AdminExpensesScreen';
 import { AdminSalesScreen } from '@/screens/admin/AdminSalesScreen';
@@ -125,6 +126,8 @@ export function resolveTabScreen(role: UserRole, route: AppTabName): ScreenCompo
       if (production) return ProductionStockScreen;
       return StockScreen;
     case 'Sales':
+      // The day's register. The till is `NewSale`, a modal inside this tab's
+      // stack — see `SalesStack`.
       return branch ? SalesScreen : null;
     case 'Preparation':
     case 'Delivery':
@@ -171,8 +174,8 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       return admin ? SettingsScreen : null;
     case 'Sales':
       // Three different screens have worn this word, and only two of them are
-      // reachable from More. A branch reaches its own Sales as a TAB (the POS),
-      // never from here.
+      // reachable from More. A branch reaches its own Sales as a TAB — the
+      // day's register, with the till as a modal inside it — never from here.
       //
       // Production's is the counter till, and it is a different RESOURCE rather
       // than a different view of one: `POST /api/orders/production-sale` sells
@@ -241,6 +244,19 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
 /** The branch create-order form, reached as a modal from OrdersStack. */
 export function resolveCreateOrderScreen(role: UserRole): ScreenComponent | null {
   return isBranchRole(role) ? NewOrderScreen : null;
+}
+
+/**
+ * The till, presented as a modal over the branch register.
+ *
+ * Branch roles only, and it is the same screen for both: a `branch_user` is a
+ * shift account carrying its manager's `branchId`, so it sells from the same
+ * shop through the same endpoint. The production counter's till is a different
+ * resource (`POST /api/orders/production-sale`, its own pool, a `staff` method
+ * that takes no money) and is reached from its own More row.
+ */
+export function resolveNewSaleScreen(role: UserRole): ScreenComponent | null {
+  return isBranchRole(role) ? NewSaleScreen : null;
 }
 
 /**

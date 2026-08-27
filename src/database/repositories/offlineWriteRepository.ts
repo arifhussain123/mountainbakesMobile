@@ -148,3 +148,111 @@ export async function writeOffline(input: OfflineWriteInput): Promise<OfflineWri
 
   return { clientOperationId, businessDate, queued: true };
 }
+
+// ---------------------------------------------------------------------------
+// Reading back what has not reached the server yet
+// ---------------------------------------------------------------------------
+
+/**
+ * A sale this device wrote and the server has not yet acknowledged.
+ *
+ * Carries no money figure, and that is the point rather than an omission: the
+ * POS payload holds `{productId, qty, discount}` and no prices at all, because
+ * the server resolves the rate at commit so a stale cached price can never reach
+ * a receipt. There is therefore nothing on the device to total, and a figure
+ * computed here from mirrored prices would be a number the server never agreed
+ * to sitting in a column of numbers it did.
+ */
+export interface QueuedSale {
+  clientOperationId: string;
+  /** Milliseconds, device clock — when the cashier rang it up. */
+  createdAt: number;
+  paymentMethod: string;
+  /** Distinct products on the sale. */
+  lineCount: number;
+  /** Units across every line. */
+  units: number;
+  /**
+   * The queue's verdict, which is what separates "waiting" from "refused".
+   *
+   * `local_sales.sync_status` cannot answer this on its own: `markFailed` and
+   * `markConflict` touch only the queue row, so a sale the server rejected is
+   * still `'pending'` here. A refused sale that a register drew as "waiting to
+   * sync" is the exact failure the three-outcome rule exists to prevent — it
+   * waits for a person, not for a signal.
+   */
+  queueStatus: string | null;
+}
+
+/**
+ * The day's sales that are still on the device, newest first.
+ *
+ * Scoped by the branch AND the business date the row was stamped with at
+ * creation — `idx_sales_business_date` covers exactly that pair. The date is the
+ * device's own stamp rather than the server's, which is the whole reason a sale
+ * rung up at 21:00 and drained at 07:00 still belongs to the evening it was
+ * made.
+ *
+ * `sync_status = 'pending'` excludes both ends: a synced sale is already in the
+ * server's list for that day and would otherwise appear twice, and a
+ * `superseded` one was closed by a person in the server's favour and must not
+ * come back as outstanding work.
+ */
+export async function listQueuedSalesForDay(
+  branchId: string,
+  businessDate: string,
+): Promise<QueuedSale[]> {
+  const db = getDb();
+  const res = await db.execute(
+    `SELECT s.client_operation_id AS clientOperationId,
+            s.created_at          AS createdAt,
+            s.payment_method      AS paymentMethod,
+            s.payload             AS payload,
+            q.status              AS queueStatus
+       FROM local_sales s
+       LEFT JOIN sync_queue q ON q.client_operation_id = s.client_operation_id
+      WHERE s.branch_id = ? AND s.business_date = ? AND s.sync_status = 'pending'
+      ORDER BY s.created_at DESC`,
+    [branchId, businessDate],
+  );
+
+  const rows = (res.rows as unknown as Record<string, unknown>[] | undefined) ?? [];
+
+  return rows.map(row => {
+    const items = itemsOf(row.payload);
+    return {
+      clientOperationId: String(row.clientOperationId),
+      createdAt: Number(row.createdAt) || 0,
+      paymentMethod: String(row.paymentMethod ?? ''),
+      lineCount: items.length,
+      units: items.reduce((sum, item) => sum + item, 0),
+      queueStatus: row.queueStatus === null || row.queueStatus === undefined
+        ? null
+        : String(row.queueStatus),
+    };
+  });
+}
+
+/**
+ * Quantities out of a stored payload, defensively.
+ *
+ * The column is the exact JSON that will be POSTed, so its shape is the API's
+ * rather than this module's — and it is read back on a device that may have
+ * written it several app versions ago. A malformed or older payload costs the
+ * row its item count, never the register the whole list.
+ */
+function itemsOf(payload: unknown): number[] {
+  if (typeof payload !== 'string') return [];
+  try {
+    const parsed: unknown = JSON.parse(payload);
+    if (typeof parsed !== 'object' || parsed === null) return [];
+    const items = (parsed as { items?: unknown }).items;
+    if (!Array.isArray(items)) return [];
+    return items.map(item => {
+      const qty = (item as { qty?: unknown })?.qty;
+      return typeof qty === 'number' && Number.isFinite(qty) ? qty : 0;
+    });
+  } catch {
+    return [];
+  }
+}

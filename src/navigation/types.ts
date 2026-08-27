@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { WriteOutcome } from '@/services/sync/writeOutcome';
 
 /**
  * Typed route params for the whole app. No `any` routes, no bare strings at a
@@ -69,8 +70,16 @@ export type OrdersStackParamList = {
   OrderPrintPreview: { orderId: string };
 };
 
+/**
+ * The register, with the till presented over it.
+ *
+ * `SalesList` takes params because a finished sale has to be *reported*, and
+ * the screen that reports it is the register rather than the form dismissing
+ * itself. The outcome is the message and the reason is the server's own words
+ * when it refused; both are plain data, so the param stays serializable.
+ */
 export type SalesStackParamList = {
-  SalesList: undefined;
+  SalesList: { outcome?: WriteOutcome; reason?: string } | undefined;
   NewSale: undefined;
 };
 

@@ -33,6 +33,7 @@ import Check from 'lucide-react-native/icons/check';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
 import Circle from 'lucide-react-native/icons/circle';
 import CircleCheck from 'lucide-react-native/icons/circle-check';
 import CircleQuestionMark from 'lucide-react-native/icons/circle-question-mark';
@@ -152,6 +153,8 @@ export const ICONS = {
   // direction IS the state ("there is more below" / "it is open"), and a
   // rotation would be motion decorating a change the glyph already carries.
   chevronDown: ChevronDown,
+  /** Pairs with `chevronDown` on a control that opens and closes in place. */
+  chevronUp: ChevronUp,
 
   // Checklist state (password rules, and anything else where an item is met or
   // not). Both glyphs are circles so the column of them keeps one left edge —

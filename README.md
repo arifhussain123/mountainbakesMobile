@@ -171,7 +171,7 @@ Reanimated 4 needs `resolver: 'react-native-worklets/jest/resolver.js'` in `jest
 | 3 — Auth | **Done** — native splash, sign-in, Finance sign-in + TOTP, forgot password, forced change-password, protected sign-out |
 | 4 — Read-only slice | **Done** — Products + Stock on real endpoints, six screen states, server-side debounced search, FlashList |
 | 5 — Offline engine | **Done** — queue, drain, backoff, dependency ordering, idempotency keys (server-honoured as of migration 84), failure classification, Sync Center, reference-data mirroring with read-through fallback, conflict detection + storage + resolution (safe resolutions gated on whether the operation may already have landed). Editing a payload to clear a stock conflict still needs the original entry form |
-| 6 — Branch | **Done** — Dashboard, Sales (POS), New Order, Stock, Expenses. All three writes are offline-first |
+| 6 — Branch | **Done** — Dashboard, Sales (the day's register, with the POS as a modal over it), New Order, Stock, Expenses. All three writes are offline-first |
 | 7 — Production | **Mostly** — Dashboard, Orders (review), Stock, print preview, **Returns (accept/reject queue)**, **Sales (the counter till)**. Preparation and Delivery remain |
 | 8 — Admin / Finance | **Partial** — Admin Dashboard, Orders, Products, Reports (range + branch filters, four breakdowns, scoped export) plus three statements pushed from it — Daily Sales, Top Products, Sales vs Expenses; Finance Dashboard and Ledger. Finance Income/Expenses remain |
 | 9 — Performance | **Done** — lists virtualised (FlashList) with memoised rows and stable row callbacks; one app-wide Reduce Motion subscription instead of one per tappable surface; `lazy` + `freezeOnBlur` on tabs and stacks; every query key through `qk` (the branch dashboard and Reports no longer fetch one answer twice); previous data kept while a filter switches; the reference mirror replaced in one `executeBatch` instead of one call per row; the unsynced badge one statement instead of two; a drain clears the whole backlog and prunes settled rows. **No on-device profiling** — see [`docs/performance.md`](docs/performance.md) for what was measured versus reasoned about |
@@ -266,8 +266,8 @@ because neither needs the other, and the last two steps are started rather than
 awaited, so neither can hold the splash or fail the start.
 
 Working end to end: sign-in (main and Finance, with TOTP), forced password
-change, and the **whole branch role** — dashboard, POS sales, production orders,
-stock and expenses — plus the Sync Center. Sales, orders and expenses are all
+change, and the **whole branch role** — dashboard, the sales register and its
+POS, production orders, stock and expenses — plus the Sync Center. Sales, orders and expenses are all
 offline-first. Production has its dashboard, demand review, stock, returns queue
 and **counter till**; the till is the one write in the app that is *not*
 offline-first, because the endpoint behind it honours no `Idempotency-Key` and

@@ -9,7 +9,7 @@ jest.mock('@/hooks/useExportReport', () => ({
   useExportReport: () => ({ exportReport: jest.fn(), isExporting: false, error: null }),
 }));
 
-import { resolveMoreScreen, resolveTabScreen } from '../screenRegistry';
+import { resolveMoreScreen, resolveNewSaleScreen, resolveTabScreen } from '../screenRegistry';
 
 /**
  * (role, route) → component.
@@ -44,7 +44,7 @@ describe('resolveMoreScreen', () => {
     expect(production).not.toBe(admin);
   });
 
-  /** A branch reaches its own Sales as a tab (the POS), never from More. */
+  /** A branch reaches its own Sales as a tab (the register), never from More. */
   it('offers no More Sales screen to a branch', () => {
     expect(resolveMoreScreen('branch_manager', 'Sales')).toBeNull();
     expect(resolveMoreScreen('branch_user', 'Sales')).toBeNull();
@@ -106,11 +106,38 @@ describe('resolveTabScreen', () => {
     expect(resolveTabScreen('production_user', 'Sales')).toBeNull();
   });
 
-  /** The branch POS is the one Sales that is a tab. */
-  it('gives both branch roles the POS as a tab', () => {
+  /** The branch register is the one Sales that is a tab. */
+  it('gives both branch roles the register as a tab', () => {
     expect(resolveTabScreen('branch_manager', 'Sales')).not.toBeNull();
     expect(resolveTabScreen('branch_user', 'Sales')).toBe(
       resolveTabScreen('branch_manager', 'Sales'),
     );
+  });
+
+  /**
+   * The Sales tab is the day's register and the till is a modal inside it, so
+   * the two must resolve to **different** components. Handing the same screen to
+   * both would put a form where the list belongs and leave the sale nothing to
+   * return to — which is what the tab was before `SalesStack` existed.
+   */
+  it('keeps the register and the till apart', () => {
+    expect(resolveNewSaleScreen('branch_manager')).not.toBeNull();
+    expect(resolveNewSaleScreen('branch_manager')).not.toBe(
+      resolveTabScreen('branch_manager', 'Sales'),
+    );
+    // A shift account sells from the same shop through the same endpoint.
+    expect(resolveNewSaleScreen('branch_user')).toBe(resolveNewSaleScreen('branch_manager'));
+  });
+
+  /**
+   * The till writes `POST /api/orders/pos`, which refuses a production account
+   * outright and has no branch for an admin to sell from. Neither role has a
+   * Sales tab to reach it from either, but a deep link to `sales/new` names a
+   * route, and the registry is what decides whether that route exists.
+   */
+  it('gives the branch till to nobody else', () => {
+    expect(resolveNewSaleScreen('production_user')).toBeNull();
+    expect(resolveNewSaleScreen('super_admin')).toBeNull();
+    expect(resolveNewSaleScreen('finance_admin')).toBeNull();
   });
 });

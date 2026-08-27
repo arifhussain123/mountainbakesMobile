@@ -211,9 +211,11 @@ both gone. `navigationSurface.test.ts` asserts that.
 name) → component, because **the same tab name means different screens for different
 roles**: "Sales" at the production counter allows a `staff` payment method a branch
 sale must never offer, and "Home" is four different dashboards. Sales is in fact
-three screens behind one word and only one of them is a tab — the branch POS.
-The production counter's till and the admin's cross-branch money view are both
-More rows, split by `resolveMoreScreen`, and
+three screens behind one word and only one of them is a tab — the branch's day
+**register**, which is a list of the day's sales with the till (`NewSaleScreen`)
+as a `NewSale` modal inside its own stack, the same shape `CreateOrder` has on
+`OrdersStack`. The production counter's till and the admin's cross-branch money
+view are both More rows, split by `resolveMoreScreen`, and
 `navigation/__tests__/screenRegistry.test.tsx` is what holds all three apart:
 `navigationSurface.test.ts` sees only the config, where each is listed exactly
 once, so it cannot catch a resolver handing one role another's screen. An unbuilt tab renders

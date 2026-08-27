@@ -10,6 +10,7 @@ import { makeMoreStack } from './stacks/MoreStack';
 import { makeOrdersStack } from './stacks/OrdersStack';
 import { makeProductsStack } from './stacks/ProductsStack';
 import { makeReportsStack } from './stacks/ReportsStack';
+import { makeSalesStack } from './stacks/SalesStack';
 import { makeStockStack } from './stacks/StockStack';
 import { TAB_ROOT_ROUTE } from './types';
 
@@ -53,6 +54,10 @@ export function RoleTabs({ profile }: { profile: AccessProfile }): React.ReactEl
         component = makeOrdersStack(profile.role);
       } else if (tab.name === 'Products') {
         component = makeProductsStack(profile.role);
+      } else if (tab.name === 'Sales') {
+        /* Not the shared factory: the till is a modal inside this tab, so the
+           register keeps its scroll position and its day underneath it. */
+        component = makeSalesStack(profile.role);
       } else if (tab.name === 'Stock') {
         component = makeStockStack(profile.role);
       } else if (tab.name === 'Reports') {

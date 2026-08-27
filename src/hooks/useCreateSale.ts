@@ -72,6 +72,11 @@ export function useCreateSale(): {
         if (outcome === 'synced') {
           // Stock moved server-side, so the cached balances are now wrong.
           queryClient.invalidateQueries({ queryKey: qk.stock.all() });
+          // And the day's register is one sale short of the truth. The branch
+          // register reads `/api/orders` for the business day; without this the
+          // sale the cashier just made is missing from the list they are
+          // returned to, which reads as the write having failed.
+          queryClient.invalidateQueries({ queryKey: qk.orders.all() });
         }
 
         return {

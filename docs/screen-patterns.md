@@ -92,15 +92,19 @@ The FAB stays up while the list is loading on purpose. Recording an expense does
 not depend on the list, and making an operator wait for a fetch before they can
 log one is how a slip of paper becomes the system of record.
 
-The branch's Sales and New Order get **no** FAB: those screens *are* the create
-action. A FAB on a form is a button that opens the screen you are already on.
+**New Sale and New Order get no FAB**: those screens *are* the create action, and
+a FAB on a form is a button that opens the screen you are already on.
 
-**The production counter's Sales is the opposite shape, and therefore does have
-one.** It is a *list* — what the counter has taken today, out of
-`GET /api/orders/production-sales` — with the till behind a modal, because there
-is a real resource to come back to after a sale. It follows the Expenses rule
-exactly: the empty state carries the instruction while there is nothing to
-scroll, the FAB takes over once there is, and only ever one of them is on screen.
+**Both Sales screens are lists, and therefore both have one.** The production
+counter's is what it has taken today (`GET /api/orders/production-sales`); the
+branch's is the day's register (`GET /api/orders` over the business-day bounds).
+Each keeps its till behind a modal because there is a real resource to come back
+to after a sale. Both follow the Expenses rule exactly: the empty state carries
+the instruction while there is nothing to scroll, the FAB takes over once there
+is, and only ever one of them is on screen.
+
+*(The branch's Sales tab used to be the POS itself, and this section used to say
+so. See `docs/navigation.md` → "Sales is a register".)*
 
 It is also the app's one **disabled** FAB, which `MBFab` gained for it. A counter
 sale cannot be queued (see `docs/offline-sync.md`), so with no connection there is

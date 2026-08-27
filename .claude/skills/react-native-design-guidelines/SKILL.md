@@ -378,9 +378,10 @@ roles (`super_admin`, `branch_manager`, `branch_user`, `production_user`,
   (role, tab name) → component, because **the same tab name means different screens
   for different roles**. "Sales" at the production counter allows a `staff` payment
   method a branch sale must never offer; "Home" is four different dashboards.
-  Sales is in fact three screens behind one word, and only the branch POS is a
-  tab — the production till and the admin money view are both More rows, split by
-  `resolveMoreScreen`.
+  Sales is in fact three screens behind one word, and only the branch's day
+  register is a tab — the production till and the admin money view are both More
+  rows, split by `resolveMoreScreen`. The branch till (`NewSaleScreen`) is a
+  `NewSale` modal inside the Sales stack, not a destination of its own.
 - **A destination is declared in exactly one place, and may be reached from
   several.** The old rule was that no screen appeared on two surfaces; v5 makes
   the drawer a grouped index that repeats the tabs on purpose, so the rule became
@@ -454,8 +455,9 @@ honouring it. `docs/motion.md` is the full account.
   `type`, `radius`, `space`, `layout`.
 - Do not put more than **one** primary CTA on a screen, and never a FAB *and* a
   header add button.
-- Do not add a FAB to a screen that *is* the create action (Sales, New Order) — a
-  FAB on a form is a button that opens the screen you are already on.
+- Do not add a FAB to a screen that *is* the create action (New Sale, New Order) —
+  a FAB on a form is a button that opens the screen you are already on. Both Sales
+  screens are lists and both carry one.
 - Do not invent a tab bar; read `roleConfig.ts`.
 - Do not hand-write a drawer list — derive it (`drawerSectionsFor`).
 - Do not declare a destination in two places (reaching it from two is fine).

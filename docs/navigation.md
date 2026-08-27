@@ -268,7 +268,7 @@ Two entries in that table are easy to get wrong from memory:
   `GET /api/reports/summary`, and the server mounts every `/api/reports` route
   behind `requireRole('super_admin', 'branch_manager')`. A shift account would
   land on a 403 as the first thing it sees, so the tab is filtered by the
-  `reports` capability and the shift opens on **Sales** — v5 puts the till in the
+  `reports` capability and the shift opens on **Sales** — v5 puts it in the
   second cell, so it is the first tab a shift account can reach. Same reason
   Reports is not in its More list.
 - **Finance has no Ledger tab.** The ledger is reached through Income, Expenses
@@ -279,6 +279,28 @@ Two entries in that table are easy to get wrong from memory:
 An unknown role gets **Home + More** and a `console.warn`, never a crash and
 never the admin set. Failing open would advertise capabilities that are not
 theirs; the API would still refuse, but the UI would be lying.
+
+### Sales is a register; the till is a modal inside it
+
+The same move, made later and for the same reason. The Sales **tab used to be
+the POS**, so the screen a branch opens most often could answer one question —
+ring up the next sale — and none of the ones asked around it: what have we taken,
+was that sale recorded, which one was Mrs Khan's. A sale saved offline had
+nowhere to appear at all, which is the worst version of the problem: the only
+copy of a transaction, invisible on the screen it belongs to.
+
+`SalesList` is now the register — one business day, its totals, its tender split,
+its units sold, and every record including the ones still queued on the device —
+and `NewSale` is the till presented over it (`SalesStack`). Finishing a sale
+dismisses the modal onto the list the sale just joined, and the **outcome travels
+with the dismissal as a route param** rather than being announced on the form
+that is closing: a queued sale appears on the register marked as waiting, and a
+refused one does not appear at all, so the register is the only surface where the
+three outcomes have visible consequences.
+
+The branch quick action therefore names `{ tab: 'Sales', screen: 'NewSale' }`.
+Without the `screen` it would land on the day's list and leave a cashier one tap
+short of the thing the card is named after.
 
 ### New Order is no longer a tab
 
@@ -369,12 +391,19 @@ not incidental:
 - **"Sales"** at the production counter posts to a different endpoint and permits
   a `staff` payment method — an unpaid hand-out requiring a comment — that a
   branch sale must never offer. It is also the one Sales that is **not** a tab:
-  the branch reaches its POS as a tab and the production counter reaches its till
-  from More, so `resolveTabScreen(_, 'Sales')` answers for the branch alone and
-  `resolveMoreScreen` splits the other two — production's till from the admin's
-  cross-branch money view. `__tests__/screenRegistry.test.tsx` holds all three
-  apart; `navigationSurface.test.ts` cannot, because it sees only the config and
-  the config lists each of them exactly once.
+  the branch reaches its register as a tab and the production counter reaches its
+  till from More, so `resolveTabScreen(_, 'Sales')` answers for the branch alone
+  and `resolveMoreScreen` splits the other two — production's till from the
+  admin's cross-branch money view. `__tests__/screenRegistry.test.tsx` holds all
+  three apart; `navigationSurface.test.ts` cannot, because it sees only the
+  config and the config lists each of them exactly once.
+
+  The branch's own Sales is now **two** screens rather than one, and only the
+  first is named by a route the config knows: `SalesList` is the day's register
+  and `NewSale` is the till, a modal inside the same stack
+  (`resolveNewSaleScreen`). That is not a destination declared twice — the till
+  is a create action inside the resource that owns it, exactly like
+  `CreateOrder`.
 - **"Orders"** is customer orders for the admin and branch demands on central
   production for the production account.
 - **"Home"** is four different dashboards.
@@ -434,10 +463,13 @@ how a list ends up looking empty for no visible reason — the control that woul
 explain it is collapsed. `components.test.tsx` holds that behaviour.
 
 Adopted on the browse screens — Orders, Products, Stock, Production stock —
-where search is one way to narrow a list. **Not** on Sales and New Order, which
-keep a permanent inline `MBSearchBar`: there the field is the primary input, and
-a rung-up sale is a search, a tap, a search, a tap. Hiding it behind a button
-would charge a tap per line item.
+where search is one way to narrow a list. **Not** on New Sale and New Order,
+which keep a permanent inline `MBSearchBar`: there the field is the primary
+input, and a rung-up sale is a search, a tap, a search, a tap. Hiding it behind a
+button would charge a tap per line item. The Sales register keeps one too, for a
+different reason: it sits under the date stepper as the pair of controls the
+screen is read through, and it searches the sale's *contents* — a product name is
+not on the row it matches.
 
 Stock passes `search={undefined}` until a branch is chosen. The list at that
 point is a "choose a branch" message, and a control that filters nothing is
