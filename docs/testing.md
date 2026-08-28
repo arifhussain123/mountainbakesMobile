@@ -117,7 +117,7 @@ set in `jest.config.js`).
   asserted against a mock. Nothing has been exercised against a running backend.
 - **No device or emulator run.** The six offline scenarios in `offline-sync.md`
   are asserted against a faked database, not by killing an app mid-transaction.
-- **No iOS.** Developed on Linux; CocoaPods has never run.
+- **No iOS.** Android is the only target; the `ios/` project was removed.
 - **No multi-branch concurrency test.** Requires a live server and several
   sessions.
 - **No E2E.** Maestro is specified in `stack.md` but not set up.

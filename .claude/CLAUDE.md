@@ -61,8 +61,13 @@ out, or run `--warning-mode all`, before changing anything under `android/`. Do 
 patch `node_modules`: the next `npm install` undoes it. They become hard errors only
 in Gradle 10, which this project is not on.
 
-**iOS has never been built.** The project exists from the template, CocoaPods has
-never run, and development happens on Linux. Treat any iOS claim as unverified.
+**Android is the only target.** The `ios/` project, its `Gemfile` and the
+`.bundle/` CocoaPods config have been removed: iOS was never built, CocoaPods
+never ran, and development happens on Linux — carrying a template nobody
+compiles only invites claims nobody has checked. Restoring it means `git log --
+ios/` and a `react-native init` of the same RN version, not a revert of one
+commit. Note `metro.config.js` still declines to block bare `ios/` by name,
+because `react-native-screens` ships real JS under such a path in node_modules.
 
 ## Architecture
 

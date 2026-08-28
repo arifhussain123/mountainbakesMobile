@@ -22,7 +22,6 @@ Read [`docs/mobile-architecture-audit.md`](docs/mobile-architecture-audit.md) be
 | Node | 22+ (developed on 24) |
 | JDK | 17 |
 | Android SDK | `ANDROID_HOME` set; platform-tools on `PATH` |
-| Xcode | 15+ (macOS only — iOS is unverified on this machine, see Status) |
 | Package manager | **npm** (see below) |
 
 > The siblings use pnpm. This project deliberately uses **npm**: React Native autolinking is most reliable against npm's flat `node_modules`, and pnpm's symlinked layout needs `node-linker=hoisted` to work with native modules at all.
@@ -58,7 +57,6 @@ cd ../mountainbakes-server && pnpm dev    # :3001, start first
 ```bash
 npm start                # Metro
 npm run android          # build + install debug
-npm run ios              # macOS only
 ```
 
 ## Verifying
@@ -253,7 +251,7 @@ this way.
 how many and asks for confirmation — they stay on the device and resume on the
 next sign-in *on that phone*, which matters on a shared branch handset.
 
-**Not verified:** iOS (developed on Linux — the iOS project exists from the template but has never been built and CocoaPods has never run), and live API calls against a running server.
+**Not verified:** live API calls against a running server. iOS is not a target — the `ios/` project was removed rather than left unbuilt.
 
 ### What the app currently does
 

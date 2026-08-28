@@ -17,8 +17,6 @@
     "**/android/build/**": true,
     "**/android/.cxx/**": true,
     "**/android/.gradle/**": true,
-    "**/ios/build/**": true,
-    "**/ios/Pods/**": true,
     "**/.git/objects/**": true,
     "**/.git/subtree-cache/**": true
   },
@@ -29,8 +27,6 @@
     "**/node_modules": true,
     "**/android/build": true,
     "**/android/.cxx": true,
-    "**/android/.gradle": true,
-    "**/ios/build": true,
-    "**/ios/Pods": true
+    "**/android/.gradle": true
   }
 }

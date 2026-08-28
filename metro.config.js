@@ -22,9 +22,11 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
  * watchman is the other half of the fix and is worth doing; this config is what
  * keeps the project working on a stock machine without root.
  *
- * Deliberately NOT blocked: bare `android/` and `ios/` directory names.
- * `react-native-screens` ships real JS at `src/components/gamma/stack/header/ios`,
- * and blocking by name would make it unresolvable.
+ * Deliberately NOT blocked: bare `android/` and `ios/` directory names. This
+ * project no longer ships an `ios/` of its own, but the rule still holds inside
+ * node_modules: `react-native-screens` has real JS at
+ * `src/components/gamma/stack/header/ios`, and blocking by name would make it
+ * unresolvable.
  */
 const blockList = [
   // Metro's own default — keep it, mergeConfig would otherwise drop it.
@@ -50,10 +52,6 @@ const blockList = [
   // ...and per-Gradle-module output under ./android (android/app/build, etc.).
   new RegExp(`^${escapeRegExp(path.join(__dirname, 'android'))}/.*/(build|\\.cxx)/.*`),
 
-  // CocoaPods / Xcode output. iOS has never been built here, but these appear
-  // the moment it is.
-  new RegExp(`^${escapeRegExp(__dirname)}/.*/ios/(build|Pods)/.*`),
-  new RegExp(`^${escapeRegExp(path.join(__dirname, 'ios'))}/(build|Pods)/.*`),
 ];
 
 function escapeRegExp(string) {
