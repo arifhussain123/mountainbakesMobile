@@ -103,7 +103,8 @@ export function OrdersScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Orders"
         dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
         subtitle={orders.data ? `${orders.data.length} orders` : undefined}

@@ -43,7 +43,8 @@ export function PlaceholderScreen({
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title={title}
         subtitle={claims?.branchName ?? undefined}
       />

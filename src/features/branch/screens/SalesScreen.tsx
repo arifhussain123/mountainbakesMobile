@@ -428,7 +428,8 @@ export function SalesScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Sales"
         /* The mockup's page head, in the slot this app puts it: what day, and
            how many are on it. The money is in the card, where its caption can

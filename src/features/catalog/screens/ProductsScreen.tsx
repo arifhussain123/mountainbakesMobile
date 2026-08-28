@@ -123,7 +123,8 @@ export function ProductsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Products"
         dataAsOf={dataAsOfFrom(products.dataUpdatedAt)}
         subtitle={products.data ? `${products.data.length} items` : undefined}

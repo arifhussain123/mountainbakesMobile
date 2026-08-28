@@ -206,7 +206,8 @@ export function StockScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Stock"
         dataAsOf={dataAsOfFrom(stock.dataUpdatedAt)}
         subtitle={

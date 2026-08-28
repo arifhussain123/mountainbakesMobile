@@ -80,7 +80,8 @@ export function ProductionDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Production"
         right={<MBSyncStatus />}
         dataAsOf={dataAsOfFrom(overview.dataUpdatedAt)}

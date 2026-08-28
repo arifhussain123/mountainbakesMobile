@@ -64,7 +64,11 @@ export function MoreScreen({ profile }: { profile: AccessProfile }): React.React
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader title={NAV_LABELS.more} leading={<MBAccountButton />} />
+      <MBHeader
+        title={NAV_LABELS.more}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
+      />
       <ScrollView
         contentContainerStyle={{
           padding: theme.layout.screenPad,

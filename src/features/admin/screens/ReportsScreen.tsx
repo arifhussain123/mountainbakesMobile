@@ -205,7 +205,8 @@ export function ReportsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Reports"
         {...(canScopeBranch ? {} : { subtitle: 'Your branch' })}
         right={<MBSyncStatus />}

@@ -51,7 +51,8 @@ export function FinanceDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Finance"
         dataAsOf={dataAsOfFrom(dashboard.dataUpdatedAt)}
         subtitle={data?.businessDate ? `Business day ${data.businessDate}` : role}

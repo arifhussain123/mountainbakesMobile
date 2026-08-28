@@ -152,7 +152,8 @@ export function BranchDemandsScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
         title="Orders"
         subtitle="Demands on production"
         dataAsOf={dataAsOfFrom(orders.dataUpdatedAt)}
