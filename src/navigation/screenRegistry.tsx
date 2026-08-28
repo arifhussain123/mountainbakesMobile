@@ -15,6 +15,7 @@ import { CategoriesScreen } from '@/features/admin';
 import { OrdersScreen } from '@/features/admin';
 import { ReportsScreen } from '@/features/admin';
 import { SettingsScreen } from '@/features/admin';
+import { AppearanceScreen } from '@/features/appearance';
 import { UsersScreen } from '@/features/admin';
 import { FinanceDashboardScreen } from '@/features/finance';
 import { LedgerScreen } from '@/features/finance';
@@ -89,7 +90,6 @@ const SCREEN_PLAN: Partial<Record<string, { phase: string; endpoint?: string }>>
   Production: { phase: 'Phase 9', endpoint: 'GET /api/production-orders' },
   Profile: { phase: 'Phase 9' },
   PartnerExpenses: { phase: 'Phase 9', endpoint: 'GET /api/finance/partner-expenses' },
-  Settings: { phase: 'Phase 9' },
   // No endpoint named on purpose: there is no inbox resource on the server and
   // no notification library in the app. The placeholder should not print an API
   // path that does not exist — see docs/navigation.md.
@@ -169,9 +169,17 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       return route === 'Users' ? UsersScreen : CategoriesScreen;
     case 'Settings':
       // `GET /api/settings` is open to any signed-in account, but `PUT` is
-      // super_admin only — and this screen exists to edit. Other roles keep the
-      // placeholder rather than a form whose save button always fails.
-      return admin ? SettingsScreen : null;
+      // super_admin only, so the business-settings form stays admin-only rather
+      // than offering a save button that always fails.
+      //
+      // Every other role still gets a screen here, and that is the fix for a
+      // real trap rather than a nicety: scheme and accent are **device-local**
+      // preferences with no endpoint behind them, the drawer had already moved
+      // Appearance to "the Settings row", and `MBAccentPicker` was rendered
+      // nowhere. A device left on a non-default accent could not be changed
+      // back from inside the app at all. `AppearanceScreen` carries the same
+      // card the admin sees above their form.
+      return admin ? SettingsScreen : AppearanceScreen;
     case 'Sales':
       // Three different screens have worn this word, and only two of them are
       // reachable from More. A branch reaches its own Sales as a TAB — the

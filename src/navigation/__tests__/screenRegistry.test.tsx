@@ -62,6 +62,45 @@ describe('resolveMoreScreen', () => {
   });
 });
 
+describe('resolveMoreScreen — Settings', () => {
+  /**
+   * The regression this guards is a trap, not a cosmetic gap.
+   *
+   * Appearance was moved out of the account drawer on the reasoning that "theme
+   * and accent are preferences, which is what the Settings row is for" — but
+   * Settings resolved to `null` for every non-admin role, so it rendered the
+   * "not built yet" placeholder and `MBAccentPicker` was mounted nowhere in the
+   * app. A device left on a non-default accent could not be put back, because
+   * the only control that sets one was unreachable.
+   */
+  it('gives every role a Settings screen, not a placeholder', () => {
+    for (const role of [
+      'branch_manager',
+      'branch_user',
+      'production_user',
+      'super_admin',
+      'finance_admin',
+      'accountant',
+    ] as const) {
+      expect(resolveMoreScreen(role, 'Settings')).not.toBeNull();
+    }
+  });
+
+  /**
+   * The business-settings form stays admin-only: `PUT /api/settings` is
+   * super_admin, so anyone else gets appearance alone rather than a save button
+   * that always fails.
+   */
+  it('gives the admin a different screen from everyone else', () => {
+    const admin = resolveMoreScreen('super_admin', 'Settings');
+    const branch = resolveMoreScreen('branch_manager', 'Settings');
+
+    expect(admin).not.toBeNull();
+    expect(branch).not.toBeNull();
+    expect(admin).not.toBe(branch);
+  });
+});
+
 describe('resolveMoreScreen — Returns', () => {
   /**
    * Same table, two routes, two gates.

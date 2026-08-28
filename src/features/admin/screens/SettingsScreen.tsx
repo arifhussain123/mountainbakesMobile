@@ -17,6 +17,7 @@ import { UpdateSettingsSchema } from '@/shared/schemas/settings.schemas';
 import type { AppSettings } from '@/shared/types/settings.types';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { contentColumn, space } from '@/common/theme/spacing';
+import { AppearanceCard } from '@/features/appearance';
 
 /**
  * Business settings.
@@ -197,6 +198,12 @@ export function SettingsScreen(): React.ReactElement {
           { padding: theme.layout.screenPad, gap: theme.space.md, paddingBottom: space.xxl },
         ]}
         keyboardShouldPersistTaps="handled">
+        {/* Device-local, and deliberately above the server-backed form: it is
+            the one thing on this screen that saves instantly and cannot fail.
+            `AppearanceCard` is its own card, so it is not wrapped in `Section`
+            — a card inside a card draws two borders on the same block. */}
+        <AppearanceCard />
+
         <Section title="Business">
           {TEXT_FIELDS.map(field => (
             <MBInput
