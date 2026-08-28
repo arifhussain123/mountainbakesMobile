@@ -724,10 +724,24 @@ export function summariseDay(orders: readonly Order[]): DaySummary {
     if (order.status === 'cancelled') continue;
 
     count += 1;
-    const orderGross = toNumber(order.subtotal);
+    /**
+     * `orders.subtotal` is **already net** of the line discounts — the server
+     * builds it as `Σ lineTotal`, and `lineTotal` is `qty × rate` with that
+     * line's discount taken off (`orders.routes.ts`). So the gross a register
+     * shows has to add the discount back, which is exactly what the server's own
+     * receipt does (`support.routes.ts`: "orders.subtotal is already net of the
+     * line discounts, so the discount is added back to show what the items came
+     * to before it").
+     *
+     * Getting this wrong is not a rounding difference: it prints Gross equal to
+     * Total on every day that had a discount, which is the one pair of figures
+     * on this card that must differ by a known amount.
+     */
+    const orderDiscount = toNumber(order.discountTotal);
+    const orderGross = toNumber(order.subtotal) + orderDiscount;
     const grand = toNumber(order.grandTotal);
     gross += orderGross;
-    discount += toNumber(order.discountTotal);
+    discount += orderDiscount;
     total += grand;
 
     const method = order.paymentMethod ?? 'cash';
@@ -928,7 +942,13 @@ function SaleDetail({
               gap: theme.space.sm,
             },
           ]}>
-          <DetailTotal label="Gross" value={order.subtotal} symbol={currencySymbol} />
+          {/* `subtotal` is net of the line discounts — see `summariseDay`. The
+              server's own receipt adds them back under this same label. */}
+          <DetailTotal
+            label="Gross"
+            value={toNumber(order.subtotal) + discount}
+            symbol={currencySymbol}
+          />
           {discount > 0 ? (
             <DetailTotal
               label="Discount"

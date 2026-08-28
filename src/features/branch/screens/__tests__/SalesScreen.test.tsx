@@ -64,6 +64,11 @@ function item(partial: Partial<OrderItem> = {}): OrderItem {
   };
 }
 
+/**
+ * `subtotal` is the server's: **net** of the line discounts (`Σ lineTotal`).
+ * Gross is `subtotal + discountTotal`, which is what the register prints and
+ * what the server's own receipt prints under the same label.
+ */
 function sale(partial: Partial<Order> = {}): Order {
   return {
     id: 'o1',
@@ -389,7 +394,7 @@ describe('the outcome of a sale just made', () => {
 describe('summariseDay', () => {
   it('excludes cancelled sales from every figure', () => {
     const day = summariseDay([
-      sale({ grandTotal: 200, subtotal: 220, discountTotal: 20 }),
+      sale({ grandTotal: 200, subtotal: 200, discountTotal: 20 }),
       sale({ id: 'o2', grandTotal: 500, subtotal: 500, status: 'cancelled' }),
     ]);
 
@@ -397,6 +402,21 @@ describe('summariseDay', () => {
     expect(day.total).toBe(200);
     expect(day.gross).toBe(220);
     expect(day.discount).toBe(20);
+  });
+
+  it('adds the line discounts back to reach gross', () => {
+    // `orders.subtotal` is Σ lineTotal and lineTotal is already discounted, so
+    // summing it under a "Gross (qty × rate)" label prints gross EQUAL to total
+    // on every day that had a discount — the one pair on the card that must
+    // differ by a known amount. Caught on a real day: 58 sales, Rs. 35,370 shown
+    // as both, with Rs. 930 of discount sitting between them.
+    const day = summariseDay([
+      sale({ subtotal: 31_520, discountTotal: 930, grandTotal: 31_520 }),
+    ]);
+
+    expect(day.gross).toBe(32_450);
+    expect(day.total).toBe(31_520);
+    expect(day.gross - day.discount).toBe(day.total);
   });
 
   it('reads the PostgREST numeric string form rather than poisoning the sum', () => {
@@ -432,7 +452,7 @@ describe('summariseDay', () => {
     // being readable at a glance. Cash keeps its gross alongside its net,
     // because the drawer is counted before the discounts come off.
     const day = summariseDay([
-      sale({ grandTotal: 200, subtotal: 260, paymentMethod: 'cash' }),
+      sale({ grandTotal: 200, subtotal: 200, discountTotal: 60, paymentMethod: 'cash' }),
       sale({ id: 'o2', grandTotal: 900, subtotal: 900, paymentMethod: 'easypaisa' }),
       sale({ id: 'o3', grandTotal: 100, subtotal: 100, paymentMethod: 'cash' }),
     ]);
