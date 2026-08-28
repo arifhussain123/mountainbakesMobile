@@ -1,5 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { ResolvedScheme } from '@/theme/themes';
+import type { ResolvedScheme } from '@/common/theme/themes';
 
 /**
  * The official Mountain Bakes mark.

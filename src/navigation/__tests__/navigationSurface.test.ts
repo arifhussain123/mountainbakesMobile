@@ -1,4 +1,4 @@
-import { ICONS } from '@/constants/navigationIcons';
+import { ICONS } from '@/common/constants/navigationIcons';
 import { USER_ROLES, type UserRole } from '@/shared/types/user.types';
 import {
   ACCOUNT_PANEL,

@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 
-import { DailySalesScreen } from '@/screens/reports/DailySalesScreen';
-import { SalesVsExpensesScreen } from '@/screens/reports/SalesVsExpensesScreen';
-import { TopProductsScreen } from '@/screens/reports/TopProductsScreen';
+import { DailySalesScreen } from '@/features/reports';
+import { SalesVsExpensesScreen } from '@/features/reports';
+import { TopProductsScreen } from '@/features/reports';
 import type { UserRole } from '@/shared/types/user.types';
 import { NAV_LABELS } from '../roleConfig';
 import { placeholderFor, resolveTabScreen, type ScreenComponent } from '../screenRegistry';

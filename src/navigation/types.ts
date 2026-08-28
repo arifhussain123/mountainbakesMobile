@@ -1,5 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { WriteOutcome } from '@/services/sync/writeOutcome';
+import type { WriteOutcome } from '@/api/sync/writeOutcome';
 
 /**
  * Typed route params for the whole app. No `any` routes, no bare strings at a

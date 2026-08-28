@@ -1,4 +1,4 @@
-import type { IconKey } from '@/constants/navigationIcons';
+import type { IconKey } from '@/common/constants/navigationIcons';
 import { financeCan, type FinancePermission } from '@/shared/types/finance.types';
 import type { UserRole } from '@/shared/types/user.types';
 import { isBranchRole, roleGroupFor, type RoleGroup } from './roleNavigation';

@@ -51,7 +51,7 @@ lie that gets a sale rung up twice.
 
 Making it offline-capable is a **server** change first — `idempotent('sale.create')`
 on the route and `businessDate: optionalBusinessDate` on the schema, matching the
-branch POS. After that it is an entry in `services/sync/endpoints.ts` and a
+branch POS. After that it is an entry in `api/sync/endpoints.ts` and a
 `writeOffline({entity: 'sale'})` call, and nothing else moves.
 
 The production **returns review** is also unqueued, for a different reason: it is
@@ -270,8 +270,8 @@ and put in front of a person.
 detected → classified → stored (both sides) → shown → a person resolves it
 ```
 
-`services/sync/conflicts.ts` classifies; `sync_conflicts` stores; the Sync
-Center's Conflicts tab shows; `services/sync/resolveConflict.ts` applies the
+`api/sync/conflicts.ts` classifies; `sync_conflicts` stores; the Sync
+Center's Conflicts tab shows; `api/sync/resolveConflict.ts` applies the
 choice.
 
 ### The one safety rule
@@ -368,7 +368,7 @@ is already reporting, so it is counted once and never twice.
 symptom appears offline and looks like a sync problem.**
 
 A sale rung up offline carries the business date it was made on. The queue row
-stores it, `services/sync/endpoints.ts` merges it into the payload as
+stores it, `api/sync/endpoints.ts` merges it into the payload as
 `businessDate`, the server accepts it, and `resolveClientBusinessDate` bounds it.
 All of that works, and `syncManager.test.ts` pins it.
 

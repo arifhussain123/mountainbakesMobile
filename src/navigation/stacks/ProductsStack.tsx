@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 
-import { PriceChangeScreen } from '@/screens/catalog/PriceChangeScreen';
-import { PriceHistoryScreen } from '@/screens/catalog/PriceHistoryScreen';
-import { ProductDetailScreen } from '@/screens/catalog/ProductDetailScreen';
-import { ProductFormScreen } from '@/screens/catalog/ProductFormScreen';
+import { PriceChangeScreen } from '@/features/catalog';
+import { PriceHistoryScreen } from '@/features/catalog';
+import { ProductDetailScreen } from '@/features/catalog';
+import { ProductFormScreen } from '@/features/catalog';
 import type { UserRole } from '@/shared/types/user.types';
 import { NAV_LABELS } from '../roleConfig';
 import { placeholderFor, resolveTabScreen, type ScreenComponent } from '../screenRegistry';

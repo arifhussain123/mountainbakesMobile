@@ -15,7 +15,7 @@ npm run typecheck        # tsc --noEmit
 npm run lint             # eslint (clean — keep it that way)
 npm test                 # jest
 npm run shared:check     # src/shared must equal the server's, byte for byte
-npm run theme:check      # no hard-coded colour anywhere in src/components
+npm run theme:check      # no hard-coded colour anywhere in src/common/ui
 npm run splash:check     # splashTop must equal the native bootsplash colour
 npm run verify           # typecheck + shared:check + theme:check + splash:check + test — run this before calling anything done
 npm run build:android    # release APK
@@ -29,7 +29,7 @@ them without a reason.
 One test file, or one case:
 
 ```bash
-npx jest src/services/sync/__tests__/syncManager.test.ts
+npx jest src/api/sync/__tests__/syncManager.test.ts
 npx jest -t 'names the date field per endpoint'
 ```
 
@@ -66,6 +66,49 @@ never run, and development happens on Linux. Treat any iOS claim as unverified.
 
 ## Architecture
 
+### Where code lives
+
+`src/` is feature-sliced, following `skills/react-native-folder-structure-guidelines`:
+
+```
+src/
+├── api/          HTTP client, transport services, react-query hooks, the sync engine
+├── assets/       fonts, icons, images + a typed barrel
+├── common/       cross-feature: ui, theme, hooks, utils, helpers, database, storage, boot
+├── config/       env.ts
+├── features/     the bulk of the app — one slice per domain
+├── navigation/   navigators, routes, param lists, helpers
+├── shared/       the server mirror — NOT ours to organise (see below)
+├── specs/        TurboModule codegen specs
+└── state/        global Zustand stores
+```
+
+**Rule:** code used by exactly one feature lives inside that feature; the moment a
+second feature needs it, it is promoted to `common/` (or `api/`, `state/`). Every
+feature has an `index.ts` that is its only import surface — nothing reaches into
+`features/<x>/screens/…` from another slice. The `@/` alias maps to `src/` and is
+declared in **two places that must stay in sync**: `tsconfig.json` (`paths`) and
+`babel.config.js` (`module-resolver`, which does the rewriting for Metro *and* Jest).
+
+Two deliberate departures from that skill, both load-bearing:
+
+- **The design system is `common/`, not `shared/`.** The skill puts ui/theme/hooks/
+  utils under `shared/`. That name is already taken here by the byte-identical
+  mirror of the server's tree, and `scripts/check-shared-mirror.sh` runs `diff -r`
+  against it — so a single file added under `src/shared/` fails `npm run verify`.
+  Renaming the mirror instead would break the convention it shares with both
+  sibling repos. `common/` is the compromise, and it is the only new bucket.
+- **There is no `Routes` const.** The skill asks for `navigation/routes.ts` as the
+  only place route names are written. They are already written once, more strongly,
+  in `navigation/types.ts`: `AppTabName` is a union and `TAB_ROOT_ROUTE` is
+  `satisfies Record<AppTabName, string>`, so an unlisted tab is a *compile* error.
+  `routes.ts` exists but only re-exports those — a parallel const of string literals
+  would be the second source of truth whose drift `TAB_ROOT_ROUTE`'s own comment
+  records fixing.
+
+`src/specs/` also stays put: it is pinned by `codegenConfig.jsSrcsDir` in
+`package.json`, and moving it can only be validated by a native Android build.
+
 ### A third client of the same API — never a second backend
 
 ```
@@ -79,7 +122,7 @@ endpoint is missing, the fix is in the server, not a Supabase call from here.
 
 Auth is `supabase.auth.signInWithPassword` against Supabase directly, then the access
 token rides on every API call as `Authorization: Bearer`. Role and branch come from
-the JWT's `app_metadata` (`src/services/supabase/claims.ts`) — never from a form, and
+the JWT's `app_metadata` (`src/api/supabase/claims.ts`) — never from a form, and
 never from anything the user can type. Two sign-in routes exist because Finance is a
 separate product surface: e-mail for the main app, a Finance User ID (resolved via
 `POST /api/auth/finance-lookup`) plus TOTP for Finance.
@@ -109,7 +152,7 @@ a server change first; `docs/offline-sync.md` has the full account. The
 production returns *review* is unqueued too, for the different reason that it is
 a decision about a record other people are acting on.
 
-There are **three** outcomes to report, not two (`services/sync/writeOutcome.ts`):
+There are **three** outcomes to report, not two (`api/sync/writeOutcome.ts`):
 saved, queued ("Saved offline"), and **refused** — a write the server rejected with a
 409, which is parked in `sync_conflicts` and will never sync on its own. The rule runs
 both directions: never report a queued transaction as saved (that is how the same
@@ -119,7 +162,7 @@ sale nobody looks at goes missing until the till is reconciled). Read the outcom
 says nothing about which one was *this* write, and on a busy queue that is the normal
 case rather than the edge.
 
-`src/services/sync/syncManager.ts` drains the queue. Its failure classification is the
+`src/api/sync/syncManager.ts` drains the queue. Its failure classification is the
 whole design: network/timeout/5xx back off and retry; **401 pauses the entire drain**
 without burning the row's retry budget; 409 is recorded as a conflict for a human; a
 4xx judgement parks the row as failed. **Nothing is ever deleted on failure** — a
@@ -141,7 +184,7 @@ key is always safe** (the server replays its answer); **re-sending with a new ke
 bypasses the dedupe and executes**. So `resend_as_new` — the one resolution that mints
 a fresh id, because the payload or business date changed — is offered only where the
 operation certainly never landed. `mayHaveLanded` on the policy in
-`services/sync/conflicts.ts` is that gate, and every conflict type declares it
+`api/sync/conflicts.ts` is that gate, and every conflict type declares it
 alongside the resolutions it permits. Getting it backwards is how a stock return that
 already moved half its products moves them again. `keep_server` closes the local row as
 `superseded` rather than deleting it — it is still the only record of what the operator
@@ -149,8 +192,8 @@ actually entered.
 
 ### Reads fall back to the mirror — but only on a transport failure
 
-The read half lives in `services/query/readThrough.ts` over
-`database/repositories/referenceRepository.ts`: fetch, mirror what came back, and on
+The read half lives in `api/readThrough.ts` over
+`common/database/repositories/referenceRepository.ts`: fetch, mirror what came back, and on
 failure serve the mirror instead. Three rules carry the design, and each is a bug if
 inverted:
 
@@ -168,7 +211,7 @@ inverted:
   returning `[]`. "No products" and "we could not reach the server" are different
   screens.
 
-`store/mirrorStore.ts` publishes which resources are currently mirror-served and how
+`state/mirrorStore.ts` publishes which resources are currently mirror-served and how
 old they are. It exists because TanStack Query's `dataUpdatedAt` is when the *query*
 resolved, and a mirror-served read resolves successfully **now** — that clock would
 stamp the current time on hours-old data, the one reading that makes stale data look
@@ -181,7 +224,7 @@ The day rolls at **02:00 Asia/Karachi**, not midnight (`@mb/shared/utils/timezon
 sale rung up at 21:00 offline and synced at 07:00 belongs to the evening it was made,
 so the queue row carries the date and the send merges it into the payload. The field
 is **named per endpoint** (`date` on expenses, `businessDate` elsewhere — see
-`services/sync/endpoints.ts`); sending the wrong key is silently ignored, which is
+`api/sync/endpoints.ts`); sending the wrong key is silently ignored, which is
 precisely how a queued transaction lands on the wrong day with nothing appearing to
 fail. The server bounds it (no future dates, ≤7 business days, closed days refused).
 
@@ -245,31 +288,31 @@ its own — branch-scoped code must treat it and `branch_manager` identically
 
 ### Local database
 
-`op-sqlite` over JSI, WAL, opened in `database/localDb.ts`. Migrations
-(`database/migrations/index.ts`) are versioned with `PRAGMA user_version` and are
+`op-sqlite` over JSI, WAL, opened in `common/database/localDb.ts`. Migrations
+(`common/database/migrations/index.ts`) are versioned with `PRAGMA user_version` and are
 **append-only, forward-only and never destructive**: an app update must not drop a
 table holding unsynced work, and editing a shipped migration silently diverges the
 schema on devices that already ran it. Domain row and queue row are written in one
 `transaction()` — either alone is a lost or a phantom transaction.
 
 The database is **not** encrypted; it holds business records only. Session and tokens
-live in MMKV encrypted with a Keychain-held key (`services/storage/secureStorage.ts`).
+live in MMKV encrypted with a Keychain-held key (`common/storage/secureStorage.ts`).
 
 ### API client conventions
 
-`services/api/client.ts`. There is **no `{success, data}` envelope** — bodies are
+`api/client.ts`. There is **no `{success, data}` envelope** — bodies are
 resource-keyed (`{user}`, `{orders, total}`), so each caller unwraps its own shape and
 the client unwraps nothing. Errors are `{error, details?}`. A 401 triggers exactly one
 refresh-and-replay. The token is attached by an interceptor at **send** time, never
 frozen onto a queued row — an overnight retry with a captured token would 401.
 
-`services/api/errors.ts` turns everything into an `ApiError` with a `kind`, and that
+`api/errors.ts` turns everything into an `ApiError` with a `kind`, and that
 `kind` is what the sync queue branches on. Changing the mapping changes retry
 behaviour for real money.
 
 ### Startup is a declared sequence
 
-Seven steps, in `services/boot/bootSequence.ts` — not `App.tsx`, which now only
+Seven steps, in `common/boot/bootSequence.ts` — not `App.tsx`, which now only
 gates on it:
 
 ```
@@ -324,7 +367,7 @@ changed mid-session. An unrecognised role gets the minimal shell and a warning
 rather than a failed start, matching `AppNavigator`.
 
 `cache` warms through `queryClient.prefetchQuery` against the definitions in
-`services/query/catalogQueries.ts` — the same module `hooks/useCatalog.ts` builds
+`api/catalogQueries.ts` — the same module `api/hooks/useCatalogApi.ts` builds
 its queries from. That sharing is not tidiness: a prefetch that rebuilt a key by
 hand fills a *second* cache entry, the screen then fetches into its own empty one,
 and the warm costs a round of requests while looking like it worked.
@@ -336,14 +379,14 @@ and that is not a duplicate — mount is the sign-in event for a session establi
 `phase` to `syncing` synchronously, so the mount call returns at the guard.
 
 A bootstrap failure shows a retry, never an endless splash, and the whole sequence
-is raced against one budget (`utils/bootTimeout.ts`) rather than per step — four
+is raced against one budget (`common/utils/bootTimeout.ts`) rather than per step — four
 slow steps would otherwise add up to a wait none of them individually exceeded.
 The failing step is reported through `onStep`, because "startup failed" alone does
 not distinguish a locked database from an unreachable API.
 
 ### Theme
 
-Light and dark are two token sets behind one interface (`theme/`). Do not write
+Light and dark are two token sets behind one interface (`common/theme/`). Do not write
 `isDark ? a : b` in a component; add or use a token.
 
 **The palette is a fill and a mark, and they are not interchangeable.** v4 runs
@@ -372,7 +415,7 @@ field — `surface` on `bg` is 1.05:1 — and `e1` only stops white-on-cream loo
 pasted on. `e2` is the floating nav bar and `e3` the corner FAB, and nothing
 else.
 
-**The brand fill is a preference; the mark is not.** `theme/accents.ts` carries
+**The brand fill is a preference; the mark is not.** `common/theme/accents.ts` carries
 five selectable accents (Ember, Ink, Pine, Indigo, Violet) and each replaces
 exactly three tokens — `primary`, `primaryPressed`, `onPrimary`. Nothing else
 moves: the field, the cards, the borders, the text ramp and the status colours
@@ -428,7 +471,7 @@ used to, meant the fade revealed the dashboard and the splash was never seen.
 ### Motion
 
 Motion is **feedback, never decoration** — every duration and curve comes from
-`theme/motion.ts`, and nothing animates that is not reporting a state change. No
+`common/theme/motion.ts`, and nothing animates that is not reporting a state change. No
 bounce, no parallax headers, no confetti, no counters ticking up; the only two
 loops in the app (sync spinner, skeleton pulse) run solely while the work they
 describe is in flight.
@@ -461,7 +504,7 @@ test's `act()` scope, producing standing "not wrapped in act(...)" noise plus
 calling inline also silences the warnings but drops the coalescing hop, which slowed
 the screen suites ~10x. Defer, just not as far.
 
-`src/test-utils/sqliteTestDb.ts` runs migrations and repository SQL against a **real**
+`src/common/test-utils/sqliteTestDb.ts` runs migrations and repository SQL against a **real**
 database via `node:sqlite` (built into the pinned Node, no native module, no new
 dependency), behind the four things the repositories use from op-sqlite — `execute`,
 `executeBatch`, `transaction`, and the `{rows, rowsAffected}` shape. Prefer it for

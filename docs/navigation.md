@@ -203,10 +203,10 @@ RootNavigator                     auth state decides the tree, never navigate()
 Each tab owns a native stack, so detail and create screens push **inside** the
 tab that owns the resource and keep a real back path to their list.
 
-`RoleTabs.tsx` is one file, not one per role. Four copies drift inside a month —
+`RoleTabs/index.tsx` is one file, not one per role. Four copies drift inside a month —
 a padding fix lands in the branch copy, an accessibility label in the admin copy.
 Everything role-specific is data in `roleConfig.ts`; there is no role name in
-`RoleTabs.tsx` at all.
+`RoleTabs/index.tsx` at all.
 
 ### A tab is mounted when opened, and frozen when left
 
@@ -545,7 +545,7 @@ Bakes, image" first only delays it.
 
 There is **no name**, and that is not an omission: the JWT's `app_metadata`
 carries `role`, `branchId` and `branchName` and nothing else
-(`services/supabase/claims.ts`). Showing "Branch Manager · Gilgit" is the true
+(`api/supabase/claims.ts`). Showing "Branch Manager · Gilgit" is the true
 statement available; a name would have to come from a profile endpoint that this
 screen does not call.
 
@@ -565,7 +565,7 @@ it cannot name a tab the role lacks. `navigationRef.resetToTab` takes the tab fo
 the same reason, rather than assuming one.
 
 `routeForNotification` returns the **tab as well as the screen**, and
-`openNotification` in `navigationRef.ts` is what drives it:
+`openNotification` in `helpers.ts` is what drives it:
 `navigate(tab, { screen, params })` puts the order detail inside the Orders
 stack, so back goes to the order list rather than dismissing onto whatever was
 underneath. It returns three outcomes, and the caller has to tell them apart —
@@ -617,7 +617,7 @@ The rule is structural rather than remembered, in three places:
   `lucide-react-native` at all.
 - **`theme.iconSize` / `theme.iconStroke` sit on the theme** beside `space` and
   `radius`, because that is where a reader looks. Neither varies by scheme, so
-  `theme/iconSizes.ts` still exports both directly — which is what a module-scope
+  `common/theme/iconSizes.ts` still exports both directly — which is what a module-scope
   `StyleSheet.create` needs, since a hook cannot run there.
 - **Components that own a glyph take a key, not a node.** `MBEmptyState`'s `icon`
   is an `IconKey`; it was a `ReactNode`, which let a caller hand it a raw Lucide

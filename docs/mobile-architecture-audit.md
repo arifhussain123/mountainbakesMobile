@@ -108,7 +108,7 @@ Finance uses a second, per-action gate — `financeCan(role, permission, allowSu
 - The order-entry **window** (`ORDER_WINDOW_OPEN_MINUTES = 480`, `ORDER_WINDOW_CLOSE_MINUTES = 120`) *is* settings-driven (`orderStartTime`/`orderEndTime`) and wraps past midnight.
 - `assertBusinessDayOpen()` rejects writes against a closed business date for everyone except `super_admin`.
 
-Covered by `src/utils/__tests__/businessDate.test.ts`, which asserts the rollover behaviour directly.
+Covered by `src/common/helpers/__tests__/businessDate.test.ts`, which asserts the rollover behaviour directly.
 
 **Consequence for offline:** the API stamps the business date **on receipt**. A sale created at 21:00 and synced at 07:00 would be billed to the wrong — already closed — business day. See §7.
 
@@ -118,7 +118,7 @@ Covered by `src/utils/__tests__/businessDate.test.ts`, which asserts the rollove
 
 - Postgres `numeric(14,2)` for every monetary column. **Not** floats, **not** integer minor units. Migration `20260719000001` moved off floats specifically because they drifted.
 - Quantities are `numeric(14,3)` and **may be negative** on some ledgers by design.
-- **PostgREST serialises `numeric` as a JSON string.** An untouched `grandTotal` can arrive as `"1250.00"`; adding it to a number concatenates. `toNumber()` in `src/utils/money.ts` is mandatory at every API boundary.
+- **PostgREST serialises `numeric` as a JSON string.** An untouched `grandTotal` can arrive as `"1250.00"`; adding it to a number concatenates. `toNumber()` in `src/common/utils/money.ts` is mandatory at every API boundary.
 - Display: `Rs.` + `en-PK` grouping. The tenant-configurable `AppSettings.currencySymbol` is what the web actually renders with.
 
 **Mobile divergence, deliberate:** the web formats via `Number.toLocaleString('en-PK', …)`. Hermes ships an incomplete `Intl` on Android, where that can degrade to ungrouped digits. `formatAmount()` groups by hand and is pinned by `money.test.ts` against values captured from a full-ICU runtime (verified identical across 4,034 values).
@@ -238,7 +238,7 @@ EXPENSE_CATEGORIES: Ingredients, Packaging, Utilities, Rent, Salaries,
                     Maintenance, Transport, Equipment, Other
 ```
 
-The mobile design docs' status colour map used `waiting / reviewed / in_production / prepared / delivered / returned` — **none of which are real backend values**. `src/theme/colors.ts` is keyed to the real enums instead.
+The mobile design docs' status colour map used `waiting / reviewed / in_production / prepared / delivered / returned` — **none of which are real backend values**. `src/common/theme/colors.ts` is keyed to the real enums instead.
 
 **There is no Vendor entity anywhere in the codebase**, despite the master prompt calling for a Vendors screen. A retail POS sale and a delivery order are both an `Order`; there is no separate `Sale` type.
 
@@ -319,7 +319,7 @@ branch PUT /cancel         → cancelled  (before review; cancelReason mandatory
 | `victory-native` locked vs. offered as a choice | `victory-native`, per the locked stack |
 | Unistyles/NativeWind suggested but absent from the locked stack | Neither. Theme tokens + `StyleSheet.create`, per `design-system.md` |
 | `backend-contract.md` is named as a contract but contains no endpoints | It is a discovery procedure. This document is its output. |
-| Design tokens exist only in a file the skill never references | Tokens transcribed into `src/theme/`; status colours corrected to real enums |
+| Design tokens exist only in a file the skill never references | Tokens transcribed into `src/common/theme/`; status colours corrected to real enums |
 
 ---
 
@@ -456,7 +456,7 @@ cashReturned = round(receivedCash - grandTotal, 2)   ← POS only; < grandTotal 
 `products.price` in one query and computes the line itself, so a price change
 between opening the form and saving cannot be printed. Tax applies to the
 **discounted** subtotal, because the discount is already inside `lineTotal`.
-`src/utils/saleTotals.ts` in this app reproduces exactly this and is a *preview*
+`src/common/helpers/saleTotals.ts` in this app reproduces exactly this and is a *preview*
 only — the receipt is printed from the server's response.
 
 `public.commit_sale(order, items, branchId, businessDate)` does the whole POS
@@ -517,7 +517,7 @@ POST /api/expenses   → idempotent('expense.create') + CreateExpenseSchema
   account is a **400**.
 - `date` in the API is the **`business_date` column** — the route remaps it on
   read and `resolveClientBusinessDate` bounds it on write (no future, ≤7 business
-  days back, closed days refused). This is why `services/sync/endpoints.ts` in
+  days back, closed days refused). This is why `api/sync/endpoints.ts` in
   this app sends `date` for expenses and `businessDate` everywhere else.
 - `expense_payment_method` is `cash | easypaisa` **only** — narrower than an
   order's four.
@@ -716,7 +716,7 @@ from one shop on one Wi-Fi router is a plausible burst, and every branch shares
 an IP. The drain's failure classification treats a 429 as… nothing: it is not
 network, not 5xx, not 401, not 409, so it parks the row as a **4xx judgement**
 and stops retrying. **This is the highest-value follow-up in this document:**
-`services/api/errors.ts` should map 429 to a retryable kind that honours
+`api/errors.ts` should map 429 to a retryable kind that honours
 `Retry-After`.
 
 **4. `GET /api/expenses` is a fixed seven-business-day window** — see §20. Not a

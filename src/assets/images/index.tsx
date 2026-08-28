@@ -1,6 +1,6 @@
 import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { useTheme } from '@/theme/ThemeProvider';
+import { useTheme } from '@/common/theme/ThemeProvider';
 
 /**
  * Stand-in for a product with no photograph.

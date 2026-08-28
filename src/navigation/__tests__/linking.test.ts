@@ -1,6 +1,6 @@
 import type { UserRole } from '@/shared/types/user.types';
 import { buildLinking, isTabAvailable, routeForNotification } from '../linking';
-import { openNotification } from '../navigationRef';
+import { openNotification } from '../helpers';
 import { accessProfileFor, landingTabFor } from '../roleConfig';
 import { isBranchRole } from '../roleNavigation';
 

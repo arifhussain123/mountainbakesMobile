@@ -28,7 +28,7 @@ Concretely, and this is enforced by review rather than by a linter:
 
 ## Tokens
 
-`src/theme/motion.ts` is the only place a duration or a curve is written down,
+`src/common/theme/motion.ts` is the only place a duration or a curve is written down,
 reachable as `theme.motion`. The reason is the same as for `space`: three
 developers each picking "about 200ms, feels right" is how one app ends up with
 four senses of speed.
@@ -85,7 +85,7 @@ that maps to no real prop would only look like it had been.
 ### Press feedback — `MBPressable`
 
 Every tappable surface in the app is `MBPressable`
-(`src/components/common/MBPressable.tsx`). It scales to **0.98** with a small
+(`src/common/ui/common/MBPressable.tsx`). It scales to **0.98** with a small
 opacity shift over **120ms**, in and out.
 
 It is a component rather than a convention because the alternative was already
@@ -141,7 +141,7 @@ conversion is its own change and not a like-for-like swap.
 
 ## Reduce Motion
 
-`useReducedMotion()` (`src/hooks/useReducedMotion.ts`) reports the OS setting —
+`useReducedMotion()` (`src/common/hooks/useReducedMotion.ts`) reports the OS setting —
 "Remove animations" on Android, "Reduce Motion" on iOS — and **subscribes** to it
 rather than sampling once, so someone who turns it on because an animation is
 making them ill does not have to kill and reopen the app.

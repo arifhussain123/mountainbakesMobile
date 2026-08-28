@@ -215,7 +215,7 @@ Reports, Daily Sales and Sales vs Expenses.
 A white tile cannot do that job on a page of white tiles: it would be the same
 object as the four cards below it, only larger. Inverting the surface is what
 makes it read as *the answer* rather than as the first of several. It is
-`secondary` rather than `primary` for the reason in `theme/colors.ts` — the ember
+`secondary` rather than `primary` for the reason in `common/theme/colors.ts` — the ember
 is a fill for things you press, and a full-width block painted with it reads as
 an enormous button.
 
@@ -644,7 +644,7 @@ silently does nothing:
 - `ProductFormScreen` renders the price field **only when creating**. A new
   product has no history; an existing one's price is the head of a versioned
   series.
-- `productsApi.test.ts` asserts an edit carries no `price` key, and that a price
+- `productsService.test.ts` asserts an edit carries no `price` key, and that a price
   change goes to the two-segment path and never to `PUT`.
 
 `PriceChangeScreen` also says it in words, on the screen, above the button: *"Sales

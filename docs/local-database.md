@@ -3,7 +3,7 @@
 What is stored on the device, what deliberately is not, and why. The sync
 mechanics that read these tables are in `docs/offline-sync.md`.
 
-Migrations live in `database/migrations/index.ts`, are versioned with SQLite's
+Migrations live in `common/database/migrations/index.ts`, are versioned with SQLite's
 own `PRAGMA user_version`, and are **append-only, forward-only and never
 destructive**. An app update must not drop a table holding unsynced work, and
 editing a shipped migration silently diverges the schema on every device that

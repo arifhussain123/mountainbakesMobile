@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useReducedMotion } from '@/common/hooks/useReducedMotion';
 import type { ScreenComponent } from '../screenRegistry';
 import { screenAnimation, stackScreenOptions } from '../screenAnimations';
 

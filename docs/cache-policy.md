@@ -31,7 +31,7 @@ which retries deliberately and carries a `client_operation_id`.
 
 ## Query keys
 
-Every key comes from `qk` in `src/services/query/queryKeys.ts`. A hand-rolled key
+Every key comes from `qk` in `src/api/queryKeys.ts`. A hand-rolled key
 that differs by a shape detail creates a second cache entry that invalidations
 silently miss — the screen keeps showing stale data with nothing to indicate why.
 
@@ -67,7 +67,7 @@ filters, and the catalogue's server-side search.
 
 ### A session ending empties the cache
 
-`clearCachedServerState()` (`services/query/queryClient.ts`) is called from every
+`clearCachedServerState()` (`api/queryClient.ts`) is called from every
 transition to signed-out: the explicit sign-out, an abandoned wrong-module or
 no-role session, and an expired refresh token arriving through the Supabase
 listener.
@@ -104,7 +104,7 @@ fails safe — after a sign-out there is nothing left to leak.
 **Server state only.** Unsynced transactions stay in SQLite and resume on the
 next sign-in on that phone, and the reference mirror stays too, because clearing
 it would break the offline cold start it exists for.
-`store/__tests__/signOutPreservesLocalData.test.ts` pins both halves against a
+`state/__tests__/signOutPreservesLocalData.test.ts` pins both halves against a
 real database.
 
 ## Device state (MMKV, encrypted)
@@ -125,7 +125,7 @@ device, and is never cleared by a cache eviction, a sign-out, or an app update.
 
 `local_products` / `local_categories` / `local_branches` / `local_stock` are the
 reference-data mirror, and they are **populated on every successful fetch** and
-served when a request never reaches the server (`services/query/readThrough.ts`).
+served when a request never reaches the server (`api/readThrough.ts`).
 
 That is what makes the app usable offline rather than merely tolerant of it: the
 write path was always offline-first, but a cold start with no signal used to

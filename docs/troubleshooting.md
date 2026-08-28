@@ -61,7 +61,7 @@ checkout to internal storage is the fix.
 
 ## `useSafeAreaInsets` throws in a test
 
-Use `renderScreen` from `src/test-utils/render` rather than RTL's `render`.
+Use `renderScreen` from `src/common/test-utils/render.tsx` rather than RTL's `render`.
 `SafeAreaProvider` needs `initialMetrics` under Jest; without it, it waits for a
 native measurement that never arrives.
 
@@ -145,7 +145,7 @@ Two things make it awkward to locate:
 - **A single test file never reproduces it.** Jest runs one file in-band, so
   there is no worker to fail. Pair the suspect with any trivial suite to force
   worker mode:
-  `npx jest <suspect> src/utils/__tests__/money.test.ts --maxWorkers=2`
+  `npx jest <suspect> src/common/utils/__tests__/money.test.ts --maxWorkers=2`
 - **`--detectOpenHandles` is too slow here**, running serially with async tracing
   on. Bisect by directory, then by file, then with `-t` by test case instead.
 
@@ -153,8 +153,8 @@ The known instance was `renderScreen` setting `gcTime: 0` on queries but not on
 mutations. A settled mutation calls `scheduleGc()` — `setTimeout(remove, gcTime)`
 — and an unset mutation `gcTime` defaults to **five minutes**, so every screen
 test that completed a mutation left a five-minute timer in the worker. Fixed in
-`src/test-utils/render.tsx` and pinned by
-`src/test-utils/__tests__/render.test.tsx`.
+`src/common/test-utils/render.tsx` and pinned by
+`src/common/test-utils/__tests__/render.test.tsx`.
 
 The other half of this pair is already handled in `jest.after-env.js`: React
 Query's default notify scheduler is `setTimeout(..., 0)`, swapped there for

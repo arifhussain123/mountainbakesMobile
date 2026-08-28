@@ -6,15 +6,15 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { QueryClientProvider } from '@tanstack/react-query';
 import RNBootSplash from 'react-native-bootsplash';
 
-import { MBButton } from '@/components';
+import { MBButton } from '@/common/ui';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { queryClient } from '@/services/query/queryClient';
-import { runBootSequence, type BootStep } from '@/services/boot/bootSequence';
-import { useSettingsStore } from '@/store/settingsStore';
-import { space } from '@/theme/spacing';
-import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
-import { SplashScreen } from '@/screens/SplashScreen';
-import { withBootTimeout } from '@/utils/bootTimeout';
+import { queryClient } from '@/api/queryClient';
+import { runBootSequence, type BootStep } from '@/common/boot/bootSequence';
+import { useSettingsStore } from '@/state/settingsStore';
+import { space } from '@/common/theme/spacing';
+import { ThemeProvider, useTheme } from '@/common/theme/ThemeProvider';
+import { SplashScreen } from '@/features/app/screens/SplashScreen';
+import { withBootTimeout } from '@/common/utils/bootTimeout';
 
 /**
  * App root.

@@ -137,7 +137,7 @@ them already carry the meaning. Add one only through
 list are the style guide.
 
 **Motion is feedback, never decoration** — durations and curves come from
-`theme/motion.ts`, every tappable surface is `MBPressable` (0.98 scale plus a
+`common/theme/motion.ts`, every tappable surface is `MBPressable` (0.98 scale plus a
 small opacity shift, 120ms), tab switches are instant, and Reduce Motion is
 honoured by suppressing the movement while keeping the change. Nothing bounces,
 no header collapses on scroll, and the two loops in the app run only while the
@@ -148,7 +148,7 @@ account.
 
 `@testing-library/react-native` v14 made **`render`, `renderHook` and `fireEvent` async** — all must be awaited. A missing `await` does not fail loudly; queries just return nothing and `result.current` is undefined.
 
-Jest hoists `jest.mock()` above every `const` in the file, so a factory that closes over an outer variable captures it while still undefined. Build the mock **inside** the factory and read it back through the import (see `src/store/__tests__/authStore.test.ts`).
+Jest hoists `jest.mock()` above every `const` in the file, so a factory that closes over an outer variable captures it while still undefined. Build the mock **inside** the factory and read it back through the import (see `src/state/__tests__/authStore.test.ts`).
 
 Reanimated 4 needs `resolver: 'react-native-worklets/jest/resolver.js'` in `jest.config.js` (already set) — its `.native` entrypoints call into a native module that throws under Jest.
 
@@ -198,8 +198,8 @@ leaked timer.** An earlier note here called it a worker-pool artifact because
 mutation `gcTime` to **five minutes** — a settled mutation calls
 `scheduleGc()`, i.e. `setTimeout(remove, 300000)`. So the two
 `ProductionOrdersScreen` cases that actually approve a demand each left a
-five-minute timer in the worker. One option in `src/test-utils/render.tsx` fixes
-it; `src/test-utils/__tests__/render.test.tsx` pins it and fails without it,
+five-minute timer in the worker. One option in `src/common/test-utils/render.tsx` fixes
+it; `src/common/test-utils/__tests__/render.test.tsx` pins it and fails without it,
 printing the `"gcTime": 300000` that proves the diagnosis.
 
 The release APK is 102 MB, not the 152 MB an older build produced — that one
@@ -261,7 +261,7 @@ Launches → validates config → opens SQLite and encrypted storage together �
 loads settings → checks connectivity → restores any Supabase session → resolves
 the access profile → starts the sync engine → warms the catalogue caches → shows
 either the sign-in screen or the role's tab navigator. The sequence is declared
-and tested in `src/services/boot/bootSequence.ts`; the two native opens overlap
+and tested in `src/common/boot/bootSequence.ts`; the two native opens overlap
 because neither needs the other, and the last two steps are started rather than
 awaited, so neither can hold the splash or fail the start.
 
@@ -282,7 +282,7 @@ The POS request carries only `{productId, qty, discount}` per line — **no pric
 no total**. The server resolves the current price, recomputes everything and
 returns its own snapshot, which is what a receipt must be printed from. A price
 change between opening the form and saving therefore cannot print a stale rate.
-`src/utils/saleTotals.ts` is a *preview* for the cashier and reproduces the web
+`src/common/helpers/saleTotals.ts` is a *preview* for the cashier and reproduces the web
 client's arithmetic exactly; tax applies to the net subtotal, after discount.
 
 Picking a product carries all six of search, product code, name, category,

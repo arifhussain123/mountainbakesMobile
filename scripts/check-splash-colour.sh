@@ -20,7 +20,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-COLORS=src/theme/colors.ts
+COLORS=src/common/theme/colors.ts
 RES=android/app/src/main/res
 
 fail=0

@@ -1,6 +1,6 @@
 import React from 'react';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { useTheme } from '@/theme/ThemeProvider';
+import { useTheme } from '@/common/theme/ThemeProvider';
 
 /**
  * The branded illustration set for empty and error states.

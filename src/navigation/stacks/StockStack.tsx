@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 
-import { StockDayScreen } from '@/screens/catalog/StockDayScreen';
-import { StockHistoryScreen } from '@/screens/catalog/StockHistoryScreen';
-import { StockReturnScreen } from '@/screens/catalog/StockReturnScreen';
+import { StockDayScreen } from '@/features/catalog';
+import { StockHistoryScreen } from '@/features/catalog';
+import { StockReturnScreen } from '@/features/catalog';
 import { isBranchRole } from '@/navigation/roleNavigation';
 import type { UserRole } from '@/shared/types/user.types';
 import { NAV_LABELS } from '../roleConfig';

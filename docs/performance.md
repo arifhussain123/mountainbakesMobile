@@ -30,7 +30,7 @@ shop, often on a poor connection, frequently offline for hours.
 ## Startup: a declared sequence, with the two native opens overlapped
 
 `App.tsx` ran its bootstrap as four sequential `await`s, then as two overlapped
-ones. It is now seven named steps in `services/boot/bootSequence.ts`, run in the
+ones. It is now seven named steps in `common/boot/bootSequence.ts`, run in the
 declared order:
 
 ```

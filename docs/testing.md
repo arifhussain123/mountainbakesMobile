@@ -10,17 +10,17 @@
 | Business date | `utils/businessDate` | The 2 AM rollover. A 01:30 sale belongs to the previous business date. |
 | Sale arithmetic | `utils/saleTotals` | Tax applies to the NET subtotal after discount; discounts clamp to the line gross. |
 | Operation ids | `utils/operationId` | UUIDv7, time-ordered, never colliding. |
-| Migrations | `database/migrations` | No destructive statement; gapless versions; idempotent DDL. |
-| Migration runner | `database/runMigrations` | Atomic per step, clean retry, downgrade safety. |
-| Offline writes | `database/offlineWrite` | Domain row + queue row in ONE transaction; business date stamped on device. |
-| Sync engine | `services/sync/syncManager` | Failure classification; 401 pauses without burning retries; no double-drain. |
-| Claims | `services/supabase/claims` | Fail-closed on an unrecognised role. |
-| Auth store | `store/authStore` | Finance role gate, MFA hand-off, refresh-after-password-change. |
+| Migrations | `common/database/migrations` | No destructive statement; gapless versions; idempotent DDL. |
+| Migration runner | `common/database/runMigrations` | Atomic per step, clean retry, downgrade safety. |
+| Offline writes | `common/database/offlineWrite` | Domain row + queue row in ONE transaction; business date stamped on device. |
+| Sync engine | `api/sync/syncManager` | Failure classification; 401 pauses without burning retries; no double-drain. |
+| Claims | `api/supabase/claims` | Fail-closed on an unrecognised role. |
+| Auth store | `state/authStore` | Finance role gate, MFA hand-off, refresh-after-password-change. |
 | Sign-out | `hooks/useSignOut` | Warns on unsynced work; never traps the user. |
-| API contracts | `services/api/catalogApi` | Exact query-param names and resource-keyed unwrapping. |
-| Screens | `screens/**` | Six states; queued work never reported as saved; role-correct payment methods. |
-| Offline write copy | `components/feedback/MBWriteOutcome` | A queued write is never called saved and a refused one is never called queued — the same defect in both directions. Asserted on the pure copy function, not through a screen. |
-| Money on the wire | `screens/catalog/PriceHistoryScreen` | `numeric(14,2)` arrives as a JSON **string** though the field is typed `number`, so `newPrice > oldPrice` compares lexicographically and reads a cut as a rise. Both amounts in a row format through the same helper. |
+| API contracts | `api/catalogApi` | Exact query-param names and resource-keyed unwrapping. |
+| Screens | `features/**` | Six states; queued work never reported as saved; role-correct payment methods. |
+| Offline write copy | `common/ui/feedback/MBWriteOutcome` | A queued write is never called saved and a refused one is never called queued — the same defect in both directions. Asserted on the pure copy function, not through a screen. |
+| Money on the wire | `features/catalog/PriceHistoryScreen` | `numeric(14,2)` arrives as a JSON **string** though the field is typed `number`, so `newPrice > oldPrice` compares lexicographically and reads a cut as a rise. Both amounts in a row format through the same helper. |
 | Navigation | `navigation/**` | Every role has tabs; built screens map to real tabs; unbuilt gaps are explicit. |
 
 ## Conventions
@@ -31,9 +31,9 @@ return nothing and `result.current` is undefined.
 
 **Jest hoists `jest.mock()` above every `const`.** A factory closing over an
 outer variable captures it while still undefined. Build the mock *inside* the
-factory and read it back through the import (`store/__tests__/authStore.test.ts`).
+factory and read it back through the import (`state/__tests__/authStore.test.ts`).
 
-**Use `renderScreen` from `src/test-utils/render`** for anything rendering a
+**Use `renderScreen` from `src/common/test-utils/render.tsx`** for anything rendering a
 screen. It supplies safe-area metrics (required — `useSafeAreaInsets` throws
 without them under Jest), a per-test query client, navigation, and the theme. It
 also returns that client as `queryClient`, for the rare test that needs to assert
@@ -84,7 +84,7 @@ wall-clock on the screen suites and pushed one case past its 5s budget.
 
 **One warning survives deliberately.** A full run still prints "A worker process
 has failed to exit gracefully". It traces to
-`screens/production/__tests__/ProductionOrdersScreen.test.tsx`, and only appears
+`features/production/__tests__/ProductionOrdersScreen.test.tsx`, and only appears
 when that file shares a run with another — Jest runs a lone file in-band, where
 it is silent. `--detectOpenHandles` reports nothing to close, so it is a
 worker-pool artifact rather than a leaked timer in this tree. Nothing fails

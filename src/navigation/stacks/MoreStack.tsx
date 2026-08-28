@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { CategoryFormScreen } from '@/screens/admin/CategoryFormScreen';
-import { UserFormScreen } from '@/screens/admin/UserFormScreen';
-import { MoreScreen } from '@/screens/more/MoreScreen';
-import { SyncCenterScreen } from '@/screens/sync/SyncCenterScreen';
+import { useReducedMotion } from '@/common/hooks/useReducedMotion';
+import { CategoryFormScreen } from '@/features/admin';
+import { UserFormScreen } from '@/features/admin';
+import { MoreScreen } from '@/features/more';
+import { SyncCenterScreen } from '@/features/sync';
 import { moreSectionsFor, NAV_LABELS, type AccessProfile } from '../roleConfig';
 import { stackScreenOptions } from '../screenAnimations';
 import { placeholderFor, resolveMoreScreen, type ScreenComponent } from '../screenRegistry';

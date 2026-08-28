@@ -1,7 +1,7 @@
 import React from 'react';
 import { ILLUSTRATIONS, MBIllustration, type IllustrationKey } from '@/assets/illustrations';
 import { ProductPlaceholder } from '@/assets/images';
-import { renderScreen } from '@/test-utils/render';
+import { renderScreen } from '@/common/test-utils/render';
 
 /**
  * These drawings are hand-written SVG path data, which typechecks whatever it

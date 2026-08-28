@@ -147,7 +147,7 @@ the maths, so none of them reintroduce a midnight boundary.
 
 ## Verified
 
-`src/utils/__tests__/businessDate.test.ts` pins the boundary directly — *"is 120
+`src/common/helpers/__tests__/businessDate.test.ts` pins the boundary directly — *"is 120
 minutes past midnight"*, *"rolls over exactly at 02:00"*, *"bills after-midnight
 trade to the PREVIOUS business date"*, *"differs from the plain calendar date in
 the midnight–2 AM window"*, *"places a 01:30 sale inside the previous day bounds
