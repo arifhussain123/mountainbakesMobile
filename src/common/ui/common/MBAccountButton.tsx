@@ -32,7 +32,21 @@ import { MBPressable } from './MBPressable';
  * the panel; the persistent banner below the header is what actually explains
  * offline mode.
  */
-export function MBAccountButton(): React.ReactElement {
+export interface MBAccountButtonProps {
+  /**
+   * Which header this sits in, because the glyph has to survive the background.
+   *
+   * The default paints the menu in `accent` — the deep ink — which is correct on
+   * the cream field and **invisible** on a `brand` header, where the bar is that
+   * same ink. On brown the glyph takes `onSecondary`, and the status dot's ring
+   * takes the bar colour rather than `surface` so the dot still reads as
+   * attached to the icon rather than punched out of a white card that is not
+   * there.
+   */
+  tone?: 'field' | 'brand';
+}
+
+export function MBAccountButton({ tone = 'field' }: MBAccountButtonProps = {}): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation();
   const isOnline = useNetworkStore(s => s.isOnline);
@@ -52,13 +66,17 @@ export function MBAccountButton(): React.ReactElement {
           target is `tapMin` square and padded well beyond the 24pt icon, so a
           dot anchored to its corner would float away from the thing it marks. */}
       <View style={styles.glyph}>
-        <MBIcon name="menu" size="header" color={theme.colors.accent} />
+        <MBIcon
+          name="menu"
+          size="header"
+          color={tone === 'brand' ? theme.colors.onSecondary : theme.colors.accent}
+        />
         <View
           style={[
             styles.dot,
             {
               backgroundColor: isOnline ? theme.colors.success : theme.colors.offline,
-              borderColor: theme.colors.surface,
+              borderColor: tone === 'brand' ? theme.colors.secondary : theme.colors.surface,
               borderRadius: theme.radius.pill,
             },
           ]}

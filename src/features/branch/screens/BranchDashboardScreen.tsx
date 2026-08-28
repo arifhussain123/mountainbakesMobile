@@ -30,7 +30,7 @@ import { getBranchStockDay } from '@/api/services/stockHistoryService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
 import { qk } from '@/api/queryKeys';
 import type { ReportPeriod, ReportSummary } from '@/shared/types/report.types';
-import { businessDateStr } from '@/shared/utils/timezone';
+import { businessDateStr, karachiMinutesOfDay } from '@/shared/utils/timezone';
 import { useAuthStore } from '@/state/authStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { formatBusinessDate } from '@/common/helpers/businessDay';
@@ -99,10 +99,29 @@ export function budgetForPeriod(
   return amount > 0 ? amount : null;
 }
 
+/**
+ * v5's greeting, on the shop's clock rather than the phone's.
+ *
+ * `karachiMinutesOfDay` and not the device hour: a branch phone left on a
+ * travelling user's timezone would otherwise say "Good Evening" to a morning
+ * shift. Every other clock this app shows is the Karachi one, and a greeting
+ * that disagreed with the business date beside it would be the odd one out.
+ *
+ * The boundaries are the shop's, not the calendar's — the day rolls at 02:00,
+ * so the small hours belong to the evening shift that is still working.
+ */
+function greetingFor(minutes: number): string {
+  if (minutes < 120) return 'Good Evening';
+  if (minutes < 12 * 60) return 'Good Morning';
+  if (minutes < 17 * 60) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
 export function BranchDashboardScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<{ navigate: (screen: string, params?: object) => void }>();
   const branchName = useAuthStore(s => s.claims?.branchName);
+  const greeting = useMemo(() => greetingFor(karachiMinutesOfDay()), []);
   const profile = useAccessProfile();
   const { currencySymbol } = useCatalogSettings();
   const [period, setPeriod] = useState<ReportPeriod>('daily');
@@ -223,9 +242,10 @@ export function BranchDashboardScreen(): React.ReactElement {
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        leading={<MBAccountButton />}
-        title="Dashboard"
-        subtitle={branchName ?? undefined}
+        leading={<MBAccountButton tone="brand" />}
+        tone="brand"
+        overline={greeting}
+        title={branchName ?? 'Dashboard'}
         right={<MBSyncStatus />}
         dataAsOf={dataAsOfFrom(summary.dataUpdatedAt)}
       />

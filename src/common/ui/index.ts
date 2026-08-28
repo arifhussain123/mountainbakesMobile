@@ -132,3 +132,4 @@ export { MBBadge } from './feedback/MBBadge';
 export type { MBBadgeProps } from './feedback/MBBadge';
 
 export { MBAccountButton } from './common/MBAccountButton';
+export type { MBAccountButtonProps } from './common/MBAccountButton';

@@ -26,6 +26,14 @@ export interface MBHeaderSearch {
 export interface MBHeaderProps {
   title: string;
   subtitle?: string;
+  /**
+   * A short line ABOVE the title — v5's "Good Morning" over the branch name.
+   *
+   * Distinct from `subtitle`, which renders under it. Use for context that
+   * introduces the title rather than qualifying it; it is not announced as a
+   * heading, so the screen keeps exactly one.
+   */
+  overline?: string;
   onBack?: () => void;
   /**
    * Leading slot, used when there is no back affordance — the account avatar
@@ -78,10 +86,21 @@ export interface MBHeaderProps {
    * white on cream and already draw their own edges, so a rule between the
    * title and the first card is a second boundary describing the same gap.
    *
-   * `brand` — a solid brown block, for a screen that has taken over the whole
-   * device: New Order, a full-screen form, anything reached modally. The colour
-   * is the signal that back is the only way out, which is why it is not offered
-   * as decoration on a tab root — a tab root has no back.
+   * `brand` — a solid brown block. Two kinds of screen wear it: one that has
+   * taken over the device (New Order, a full-screen form, anything reached
+   * modally), and a **dashboard**, which v5 puts on the brown with a greeting
+   * over the branch name.
+   *
+   * This used to say the brown was reserved for the modal case, on the
+   * reasoning that the colour signals "back is the only way out". v5 spends
+   * that signal deliberately: the brown bar is the app's masthead on every
+   * screen in the spec, and a dashboard sitting on the cream was the single
+   * thing that made the build read as an older design. The cost is real and
+   * worth naming — brown no longer means "you are in a modal" — so the back
+   * arrow, not the colour, is what now carries that.
+   *
+   * It is still not decoration. A list screen stays on `field`; the brown is
+   * for a screen that is either the top of a role's world or the whole of it.
    */
   tone?: 'field' | 'brand';
 }
@@ -89,6 +108,7 @@ export interface MBHeaderProps {
 export function MBHeader({
   title,
   subtitle,
+  overline,
   onBack,
   leading,
   right,
@@ -178,6 +198,16 @@ export function MBHeader({
             )}
 
             <View style={styles.titles}>
+              {overline ? (
+                /* v5 puts a greeting ABOVE the branch name, so this cannot be
+                   `subtitle` — that renders under the title. It is not a second
+                   heading either: the screen has exactly one `accessibilityRole
+                   ="header"` below, and a reader that announced both would say
+                   the branch name twice on every tab root. */
+                <Text numberOfLines={1} style={[theme.type.caption, { color: subFg }]}>
+                  {overline}
+                </Text>
+              ) : null}
               <Text
                 accessibilityRole="header"
                 numberOfLines={1}
