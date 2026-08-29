@@ -9,9 +9,9 @@ import Animated, {
 import RNBootSplash from 'react-native-bootsplash';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { logoFor } from '@/assets/logo';
+import { logoOn } from '@/assets/logo';
 import { useReducedMotion } from '@/common/hooks/useReducedMotion';
-import { useTheme, useThemeContext } from '@/common/theme/ThemeProvider';
+import { useTheme } from '@/common/theme/ThemeProvider';
 import { space } from '@/common/theme/spacing';
 
 /**
@@ -66,7 +66,6 @@ const TAGLINE = 'Fresh • Quality • Every Day';
 
 export function SplashScreen(): React.ReactElement {
   const theme = useTheme();
-  const { scheme } = useThemeContext();
   const reduceMotion = useReducedMotion();
 
   // Start at the finished value when motion is reduced, so nothing moves and
@@ -149,7 +148,12 @@ export function SplashScreen(): React.ReactElement {
 
       <Animated.View style={markStyle}>
         <Image
-          source={logoFor(scheme)}
+          /* `logoOn('dark')`, not `logoFor(scheme)`.
+             v6's splash is the masthead plum in BOTH schemes — `splashTop` and
+             `splashBottom` are two plums in light and two near-blacks in dark —
+             so the background is dark either way, and a mark chosen by scheme
+             comes out inverted on the light one. See `logoOn`. */
+          source={logoOn('dark')}
           style={styles.logo}
           resizeMode="contain"
           // Android's default 300ms cross-fade is for an image arriving over a
@@ -163,15 +167,24 @@ export function SplashScreen(): React.ReactElement {
       </Animated.View>
 
       <Animated.View style={[styles.words, wordStyle]}>
-        {/* `accent` rather than `primary` — both are readable here now that the
-            brand is brown, and accent is the darker of the two, which is what
-            the wordmark wants against a wash it sits directly on. */}
-        <Text style={[theme.type.display, styles.center, { color: theme.colors.accent }]}>
+        {/* `onSecondary`, not `accent` — the splash inverted in v6.
+            v4 splashed on a cream and wrote the wordmark in the brand brown, so
+            `accent` was right. v6 splashes on the **brand itself**: the screen is
+            the masthead wave at full height, `splashTop`/`splashBottom` are the
+            two plums, and `accent` IS the deeper of them — an accent wordmark
+            here is 1.00:1, the same colour on the same colour. The splash is a
+            `secondary` surface now, so it takes that surface's own text levels. */}
+        <Text style={[theme.type.display, styles.center, { color: theme.colors.onSecondary }]}>
           Mountain Bakes
         </Text>
-        {/* v4 sets the tagline in the serif, italic, in the brand brown — the
+        {/* v6 sets the tagline in the serif, italic, in white over the wave — the
             one italic in the app. See `type.tagline`. */}
-        <Text style={[theme.type.tagline, styles.center, { color: theme.colors.accent }]}>
+        <Text
+          style={[
+            theme.type.tagline,
+            styles.center,
+            { color: theme.colors.onSecondaryMuted },
+          ]}>
           {TAGLINE}
         </Text>
       </Animated.View>
@@ -191,8 +204,13 @@ export function SplashScreen(): React.ReactElement {
         the announcement; the label already ends with "Starting."
       */}
       <Animated.View style={[styles.progress, wordStyle]}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
-        <Text style={[theme.type.label, styles.center, { color: theme.colors.textMuted }]}>
+        <ActivityIndicator size="small" color={theme.colors.onSecondary} />
+        <Text
+          style={[
+            theme.type.label,
+            styles.center,
+            { color: theme.colors.onSecondaryMuted },
+          ]}>
           Loading…
         </Text>
       </Animated.View>

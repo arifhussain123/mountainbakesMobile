@@ -246,6 +246,7 @@ export function AdminDashboardScreen(): React.ReactElement {
               <MBTrendChart
                 data={trend}
                 accessibilityLabel={`Sales by day. Total ${money(data?.totalRevenue)}.`}
+                formatValue={money}
               />
             </MBCard>
           ) : null}
@@ -256,6 +257,7 @@ export function AdminDashboardScreen(): React.ReactElement {
               <MBTrendChart
                 data={expenseTrend}
                 accessibilityLabel={`Expenses by day. Total ${money(data?.totalExpenses)}.`}
+                formatValue={money}
               />
             </MBCard>
           ) : null}
@@ -266,6 +268,7 @@ export function AdminDashboardScreen(): React.ReactElement {
               <MBTrendChart
                 data={profitTrend}
                 accessibilityLabel={`Profit by day. Total ${money(data?.totalProfit)}.`}
+                formatValue={money}
               />
             </MBCard>
           ) : null}

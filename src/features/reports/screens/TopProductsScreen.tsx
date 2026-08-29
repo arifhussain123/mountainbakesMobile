@@ -16,6 +16,8 @@ import {
   MBSectionHeader,
   MBSkeletonList,
   MBStackedBar,
+  MBStatCard,
+  MBStatGrid,
 } from '@/common/ui';
 import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
 import { getReportSummary } from '@/api/services/reportsService';
@@ -28,7 +30,7 @@ import {
   type CustomDates,
   type DashboardRangeKey,
 } from '@/common/helpers/dashboardRange';
-import { formatQty, toNumber } from '@/common/utils/money';
+import { formatCurrency, formatQty, toNumber } from '@/common/utils/money';
 import { contentColumn, space } from '@/common/theme/spacing';
 
 /**
@@ -59,6 +61,29 @@ import { contentColumn, space } from '@/common/theme/spacing';
  * is *the rest of the top ten*, not the rest of the catalogue, and it says that
  * too. Silently drawing a share-of-everything bar from a truncated list is a
  * pie chart that does not add up to the business.
+ *
+ * ---------------------------------------------------------------------------
+ * Every row states both figures, whichever one it is ranked by
+ * ---------------------------------------------------------------------------
+ * The value column carries the ranked figure and the subline carries the other
+ * one, so switching ordering **moves** a number rather than hiding it. It used
+ * to print the units twice on By units — once in the subline and once in the
+ * value — and never show what the product earned at all, which made "rank 1 by
+ * units" and "biggest earner" impossible to tell apart on the screen whose
+ * whole job is telling them apart.
+ *
+ * ---------------------------------------------------------------------------
+ * There is no change column, and a second request would not fix it
+ * ---------------------------------------------------------------------------
+ * v6 draws a `+/-%` against the period before. The payload carries no previous
+ * figure, and fetching the preceding window would not rescue it: that response
+ * is **also** the server's top ten by revenue, so a product ranked 8th now and
+ * 11th before is missing from it because it missed the cut, not because it sold
+ * nothing. Rendering that as `new` — which is what v6 asks for when a previous
+ * figure is absent — would report a steady seller as a debut. A delta is only
+ * sound for a product present in both tens, which is a column that goes blank
+ * on exactly the rows that moved most. It needs either a per-product breakdown
+ * or a server-supplied previous figure; both are server changes.
  */
 
 type Ordering = 'units' | 'revenue';
@@ -116,7 +141,20 @@ export function TopProductsScreen(): React.ReactElement {
     [ranked, ordering],
   );
 
+  /**
+   * The ten's own totals, and deliberately not the period's.
+   *
+   * A rank means little on its own — 312 units is a lot or a little depending on
+   * what the shop sold — so the totals sit above the list as the denominator the
+   * rows are read against. They are summed from the **ranked ten**, which is the
+   * only total this screen can state honestly: `summary.totalRevenue` is the
+   * whole period's takings on the report's own basis (staff sales excluded,
+   * discounts already deducted) and nothing here says `topProducts` is computed
+   * on that same basis. Putting the two side by side would invite a division
+   * that may not be a percentage of anything.
+   */
   const totalUnits = ranked.reduce((sum, p) => sum + toNumber(p.totalQty), 0);
+  const totalRevenue = ranked.reduce((sum, p) => sum + toNumber(p.totalRevenue), 0);
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
@@ -171,13 +209,43 @@ export function TopProductsScreen(): React.ReactElement {
               tintColor={theme.colors.primary}
             />
           }>
+          {/* `currency={false}` on the units tile — `MBStatCard` formats as
+              currency by DEFAULT, so left off it would render the unit count as
+              a sum of money directly above a list of prices. */}
+          <MBStatGrid>
+            <MBStatCard
+              label="Units"
+              value={totalUnits}
+              subtitle="across these ten"
+              icon="products"
+              tone="brand"
+              currency={false}
+              testID="top-products-total-units"
+            />
+            <MBStatCard
+              label="Revenue"
+              value={totalRevenue}
+              subtitle="across these ten"
+              icon="sales"
+              tone="success"
+              currencySymbol={currencySymbol}
+              testID="top-products-total-revenue"
+            />
+          </MBStatGrid>
+
           <MBListCard testID="top-products-list">
             {ranked.map((product, i) => (
               <MBListRow
                 key={product.productId}
                 rank={i + 1}
                 title={product.productName}
-                subtitle={`${formatQty(product.totalQty)} units · ${product.categoryName}`}
+                /* The figure the row is NOT ranked by, so switching ordering
+                   moves a number between the two slots instead of dropping it. */
+                subtitle={
+                  ordering === 'revenue'
+                    ? `${formatQty(product.totalQty)} units · ${product.categoryName}`
+                    : `${formatCurrency(product.totalRevenue, currencySymbol)} · ${product.categoryName}`
+                }
                 value={
                   ordering === 'revenue' ? (
                     <MBMoney value={product.totalRevenue} size="sm" symbol={currencySymbol} />
@@ -205,8 +273,8 @@ export function TopProductsScreen(): React.ReactElement {
 
           <Text style={[theme.type.caption, styles.note, { color: theme.colors.textMuted }]}>
             The server reports the ten highest-earning products for this range. The share bar
-            splits those ten — it is not a share of the whole catalogue.
-            {ordering === 'units' ? ` They sold ${formatQty(totalUnits)} units between them.` : ''}
+            splits those ten — it is not a share of the whole catalogue, and neither are the
+            totals above.
           </Text>
         </ScrollView>
       )}

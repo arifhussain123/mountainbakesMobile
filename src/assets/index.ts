@@ -13,7 +13,7 @@
  * is a vector reading `useTheme()` and there is exactly one copy of each drawing.
  */
 
-export { LOGO, logoFor } from './logo';
+export { LOGO, logoFor, logoOn } from './logo';
 
 export {
   ILLUSTRATIONS,

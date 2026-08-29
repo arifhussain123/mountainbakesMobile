@@ -1,27 +1,29 @@
 <resources>
     <!--
-      The native half of the theme. These must track src/theme/colors.ts.
+      The native half of the theme. These must track src/common/theme/colors.ts.
 
       `app_background` is `bg` — the colour of the window behind React, so it is
       what shows during an activity transition. `bootsplash_background` is
       `splashTop`, which the JS splash paints over.
 
-      **The two are not the same value in light mode.** The v4 design draws its
-      splash on a warmer cream (#FDF7EA) than the screens behind it (#FBF8F3),
-      so `splashTop` is `palette.cream75` and `bg` is `palette.cream50`. Keep
-      them apart: setting bootsplash_background back to the field colour
-      reintroduces the seam at the top of the screen that
-      scripts/check-splash-colour.sh exists to catch. In dark they still
-      coincide, at palette.brown950.
+      **The two are not the same value in light mode, and v6 widened the gap.**
+      v4 splashed on a warm cream a shade off its field. v6 splashes on the
+      *brand*: its splash screen is the masthead wave at full height, so the top
+      of the screen is the front wave layer `#7A3EA1` (palette.plum500) while the
+      app behind it is the lilac wash `#F6EFFA` (palette.lilac50). Keep them
+      apart: setting bootsplash_background to the field colour reintroduces the
+      seam at the top of the screen that scripts/check-splash-colour.sh exists to
+      catch — and here that seam would be a full purple-to-lilac jump rather than
+      v4's barely-visible cream step.
 
       values-night/ carries the dark pair. Note what that can and cannot do: the
       OS night setting is the only signal available before React starts, so these
       follow the *device*, not the app's Light/Dark/System preference — which
       lives in MMKV and cannot be read this early. A user who forces Light on a
       dark device therefore gets a dark splash and a light app. That mismatch is
-      one frame at the handoff; the alternative was a cream flash on every dark
+      one frame at the handoff; the alternative was a bright flash on every dark
       cold start, which is worse and was the previous behaviour.
     -->
-    <color name="app_background">#FBF8F3</color>
-    <color name="bootsplash_background">#FDF7EA</color>
+    <color name="app_background">#F6EFFA</color>
+    <color name="bootsplash_background">#7A3EA1</color>
 </resources>

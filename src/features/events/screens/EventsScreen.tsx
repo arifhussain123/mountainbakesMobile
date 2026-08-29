@@ -13,7 +13,11 @@ import {
   MBMonthCalendar,
   MBSectionHeader,
   MBSkeletonList,
+  MBModal,
 } from '@/common/ui';
+import { isBranchRole } from '@/navigation/roleNavigation';
+import { useAuthStore } from '@/state/authStore';
+import { EventDemandSheet } from '../components/EventDemandSheet';
 import { getEventCalendar, getSpecialEvents } from '@/api/services/eventsService';
 import { qk } from '@/api/queryKeys';
 import type { SpecialEventView } from '@/shared/types/special-event.types';
@@ -79,6 +83,18 @@ export function EventsScreen(): React.ReactElement {
     month: Number(today.slice(5, 7)),
   }));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  /**
+   * Which event's advance demand is open, if any.
+   *
+   * Branch roles only, and the gate is here rather than inside the sheet: the
+   * three demand routes are `BRANCH_ROLES`, so opening it for an admin would
+   * offer a form whose every button 403s. An admin's view of who has demanded
+   * what is a different screen against a different endpoint.
+   */
+  const role = useAuthStore(s2 => s2.claims?.role);
+  const canDemand = role ? isBranchRole(role) : false;
+  const [demandFor, setDemandFor] = useState<SpecialEventView | null>(null);
 
   const calendar = useQuery({
     queryKey: qk.events.calendar(month.year, month.month),
@@ -194,7 +210,11 @@ export function EventsScreen(): React.ReactElement {
               ) : (
                 <MBListCard testID="events-on-day">
                   {shown.map(event => (
-                    <EventRow key={event.id} event={event} />
+                    <EventRow
+                      key={event.id}
+                      event={event}
+                      {...(canDemand ? { onPress: () => setDemandFor(event) } : {})}
+                    />
                   ))}
                 </MBListCard>
               )}
@@ -210,7 +230,11 @@ export function EventsScreen(): React.ReactElement {
               ) : (
                 <MBListCard testID="events-upcoming">
                   {upcoming.map(event => (
-                    <EventRow key={event.id} event={event} />
+                    <EventRow
+                      key={event.id}
+                      event={event}
+                      {...(canDemand ? { onPress: () => setDemandFor(event) } : {})}
+                    />
                   ))}
                 </MBListCard>
               )}
@@ -220,7 +244,11 @@ export function EventsScreen(): React.ReactElement {
                   <MBSectionHeader title="Done" />
                   <MBListCard testID="events-past">
                     {past.map(event => (
-                      <EventRow key={event.id} event={event} />
+                      <EventRow
+                      key={event.id}
+                      event={event}
+                      {...(canDemand ? { onPress: () => setDemandFor(event) } : {})}
+                    />
                     ))}
                   </MBListCard>
                 </>
@@ -234,6 +262,17 @@ export function EventsScreen(): React.ReactElement {
           </Text>
         </ScrollView>
       )}
+
+      {/* The demand form, over the calendar it was opened from. Mounted only
+          while an event is chosen, so its query does not fire for every row. */}
+      <MBModal
+        visible={demandFor !== null}
+        onRequestClose={() => setDemandFor(null)}
+        testID="event-demand-modal">
+        {demandFor ? (
+          <EventDemandSheet event={demandFor} onClose={() => setDemandFor(null)} />
+        ) : null}
+      </MBModal>
     </View>
   );
 }
@@ -245,7 +284,13 @@ export function EventsScreen(): React.ReactElement {
  * part that changes: a reader scanning for "which one is next" reads down the
  * left edge, and a title that ends in a moving number breaks that column.
  */
-function EventRow({ event }: { event: SpecialEventView }): React.ReactElement {
+function EventRow({
+  event,
+  onPress,
+}: {
+  event: SpecialEventView;
+  onPress?: () => void;
+}): React.ReactElement {
   const when = event.eventDate ? formatBusinessDate(event.eventDate) : 'Date not set';
   const approx = event.dateIsEstimated ? ' · approx.' : '';
   const countdown =
@@ -264,11 +309,13 @@ function EventRow({ event }: { event: SpecialEventView }): React.ReactElement {
       icon="orders"
       iconTone={event.priority === 'critical' || event.priority === 'high' ? 'warning' : 'brand'}
       tag={{ label: STATUS_LABEL[event.status] ?? event.status }}
+      {...(onPress ? { onPress } : {})}
       accessibilityLabel={[
         event.name,
         when,
         event.dateIsEstimated ? 'date is an estimate' : '',
         STATUS_LABEL[event.status] ?? event.status,
+        onPress ? 'opens the advance demand' : '',
       ]
         .filter(Boolean)
         .join(', ')}

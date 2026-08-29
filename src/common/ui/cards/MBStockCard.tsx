@@ -9,7 +9,7 @@ import { useTheme } from '@/common/theme/ThemeProvider';
 import { space } from '@/common/theme/spacing';
 import { stockLevel, type StockLevel } from '@/shared/utils/stock';
 import type { StockRow } from '@/shared/types/stock.types';
-import { formatQty } from '@/common/utils/money';
+import { formatQty, signedQty } from '@/common/utils/money';
 
 /**
  * One product's stock for a business day, with its working foldable underneath.
@@ -53,12 +53,31 @@ export interface MBStockCardProps {
   row: StockRow;
   expanded: boolean;
   onToggle: (productId: string) => void;
+  /**
+   * Units Production has approved and not yet delivered, and the reason this is
+   * a THREE-state prop rather than a number defaulting to 0.
+   *
+   * - `undefined` — this screen does not show the figure at all (a back-dated
+   *   day, or a caller that never asked for it). Neither cell is drawn.
+   * - `null` — the figure was asked for and could not be had: offline, or the
+   *   request failed. Both cells read "—".
+   * - a number — the answer, including a genuine `0`.
+   *
+   * Zero and unknown must not collapse into each other. `0` means Production
+   * owes this branch nothing, which is a real and useful thing to be told; "—"
+   * means nobody could ask. Rendering the second as the first tells a shop
+   * nothing is coming when the truth is that nothing is known — and Expected
+   * would silently equal the balance, which is the one wrong number this whole
+   * addition exists to avoid.
+   */
+  waiting?: number | null;
 }
 
 export const MBStockCard = React.memo(function MBStockCardView({
   row,
   expanded,
   onToggle,
+  waiting,
 }: MBStockCardProps): React.ReactElement {
   const theme = useTheme();
   const level = stockLevel(row.balance);
@@ -169,6 +188,24 @@ export const MBStockCard = React.memo(function MBStockCardView({
           <Movement label="Sold" value={row.sold} />
           <Movement label="Returned" value={row.returned} />
           <Movement label="Adjusted" value={row.adjustment} signed />
+          {/*
+            What is still owed, and what the shelf reaches if it all arrives.
+
+            `Expected` is derived here and is never sent by the server: it is
+            `balance + waiting` and nothing else, so there is no second answer to
+            disagree with. Both cells are omitted entirely when `waiting` is
+            undefined — a screen that cannot ask the question should not draw a
+            blank where the answer goes.
+          */}
+          {waiting !== undefined ? (
+            <>
+              <Movement label="Waiting" value={waiting} />
+              <Movement
+                label="Expected"
+                value={waiting === null ? null : row.balance + waiting}
+              />
+            </>
+          ) : null}
         </View>
       ) : null}
     </MBCard>
@@ -181,18 +218,31 @@ function Movement({
   signed = false,
 }: {
   label: string;
-  value: number;
+  /** `null` is "not known", and is the only thing that draws a dash. */
+  value: number | null;
   signed?: boolean;
 }): React.ReactElement {
   const theme = useTheme();
   // `adjustment` is deliberately signed — the direction is the point, and it is
   // what makes the row reconcile.
-  const display = signed && value > 0 ? `+${formatQty(value)}` : formatQty(value);
+  const display =
+    value === null ? '\u2014' : signed ? signedQty(value) : formatQty(value);
 
   return (
     <View style={styles.movement}>
       <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>{label}</Text>
-      <Text style={[theme.type.mono, { color: theme.colors.text }]}>{display}</Text>
+      {/*
+        A dash is muted because it is the absence of a figure; a real zero is
+        not. `0 waiting` is an answer — Production owes nothing — and it is set
+        in the same ink as every other number so it reads as one.
+      */}
+      <Text
+        style={[
+          theme.type.mono,
+          { color: value === null ? theme.colors.textMuted : theme.colors.text },
+        ]}>
+        {display}
+      </Text>
     </View>
   );
 }

@@ -15,9 +15,16 @@ import {
   MBSkeletonList,
   MBStockCard,
 } from '@/common/ui';
-import { useBranches, useCategories, useProducts, useStock } from '@/api/hooks/useCatalogApi';
+import {
+  useBranches,
+  useCategories,
+  useProducts,
+  useProductionBalances,
+  useStock,
+} from '@/api/hooks/useCatalogApi';
 import { isBranchRole } from '@/navigation/roleNavigation';
 import type { StockRow } from '@/shared/types/stock.types';
+import { stockLevel } from '@/shared/utils/stock';
 import { businessDateStr } from '@/shared/utils/timezone';
 import { useAuthStore } from '@/state/authStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
@@ -38,6 +45,43 @@ import { contentColumn, space } from '@/common/theme/spacing';
  */
 
 const ALL_CATEGORIES = 'all';
+
+/**
+ * The health filter, and what "Low" can honestly mean here.
+ *
+ * ---------------------------------------------------------------------------
+ * There is no reorder point, so the bands are the shared ones
+ * ---------------------------------------------------------------------------
+ * v6's screen 08 grades a product against its **own** reorder quantity — Low at
+ * or below it, Watch to 1.6×, Good above — and says in as many words not to use
+ * a global threshold, because turnover differs by an order of magnitude across
+ * a bakery's catalogue.
+ *
+ * No such field exists. There is no `reorder` on a product in
+ * `@/shared/types`, and the only grading in the system is the opposite kind:
+ * `stockLevel()` in `@/shared/utils/stock` with fixed bands at 0 / 5 / 20, which
+ * lives in the mirror shared with the server and the web app and drives the
+ * server's own low-stock notifications. Inventing a per-product threshold on the
+ * phone would put a second, disagreeing definition of "low" in front of the one
+ * person who can act on it — the branch would see a product marked Low that the
+ * server never warned anybody about. So this filter uses the shared bands, and a
+ * per-product reorder point is a server change first: a column, an admin screen
+ * to set it, and `levelOf` moving into the mirror.
+ *
+ * **Low is every band that is not `healthy`** — `out`, `critical` and
+ * `moderate`. Not a threshold picked here: it is exactly the set `MBStockCard`
+ * already draws a warning colour and a warning word for, so the filter selects
+ * what the cards visibly flag and nothing else. Narrowing it to `critical`
+ * would be worse than arbitrary, because the card labels `moderate` "Low" — a
+ * Low filter that hid the rows saying Low.
+ */
+const HEALTH_LOW = 'low';
+const HEALTH_ALL = 'all';
+
+/** Everything the shared bands do not call `healthy`. See the note above. */
+function isBelowTheLine(row: StockRow): boolean {
+  return stockLevel(row.balance) !== 'healthy';
+}
 
 /**
  * How far back the day picker goes.
@@ -86,6 +130,14 @@ export function StockScreen(): React.ReactElement {
    */
   const [dayOffset, setDayOffset] = useState(0);
   const [categoryId, setCategoryId] = useState<string>(ALL_CATEGORIES);
+  /**
+   * Lands on Low, which v6 asks for and which is the reason the screen gets
+   * opened during a shift: what is about to run out. The cost is that a stock
+   * *count* — the other thing this list is read for — starts one tap away, and
+   * that tap is the All chip sitting directly above the list with its own total
+   * on it.
+   */
+  const [health, setHealth] = useState<string>(HEALTH_LOW);
 
   /**
    * Which branch, for a role that is not scoped to one.
@@ -102,6 +154,44 @@ export function StockScreen(): React.ReactElement {
     date: dayOffset === 0 ? undefined : date,
     branchId: selectedBranchId,
   });
+
+  /**
+   * What Production still owes this shop, for the Waiting and Expected cells.
+   *
+   * Enabled for branch roles only — the hook scopes itself — and it is a
+   * **current** running balance rather than a figure per business date, which is
+   * what `showsWaiting` below turns on the date.
+   */
+  const balances = useProductionBalances();
+
+  /**
+   * Whether the two cells are drawn at all, and why the date decides it.
+   *
+   * `production_balances` is what is outstanding NOW. It carries no history, so
+   * against a back-dated day it would pair today's outstanding demand with an
+   * old day's balance and call the sum "Expected" — a number describing no
+   * moment that ever existed. Today is the only day the two figures belong to
+   * each other, so on any other day the cells are not drawn rather than drawn
+   * wrong.
+   *
+   * An admin or production session is excluded for a different reason: the route
+   * takes no `branchId` from anyone, so there is no way to ask it about the
+   * branch such a session is currently looking at. Showing that session another
+   * shop's outstanding demand would be worse than showing none.
+   */
+  const showsWaiting = dayOffset === 0 && (role ? isBranchRole(role) : false);
+
+  /**
+   * `undefined` — not drawn. `null` — asked and unknown. A map — the answer.
+   *
+   * Loading counts as unknown rather than as zero: a card drawn during the first
+   * fetch would otherwise state that nothing is on the way and then quietly
+   * change its mind.
+   */
+  const waitingByProduct = useMemo<Record<string, number> | null | undefined>(() => {
+    if (!showsWaiting) return undefined;
+    return balances.data ?? null;
+  }, [showsWaiting, balances.data]);
 
   /**
    * The product filter reads the catalogue, not the stock rows: a stock row
@@ -146,7 +236,15 @@ export function StockScreen(): React.ReactElement {
     [],
   );
 
-  const rows = useMemo(() => {
+  /**
+   * Everything the *other* two filters leave, before the health chips narrow it.
+   *
+   * Kept separate because the health counts are taken from it: a count says
+   * what tapping that chip would show, so it has to be measured after category
+   * and search — which are different axes and stay applied — and before the
+   * health filter, which is the axis being counted.
+   */
+  const inScope = useMemo(() => {
     const all = stock.data?.rows ?? [];
     const term = search.trim().toLowerCase();
     const byCategory = categoryProductIds
@@ -157,6 +255,32 @@ export function StockScreen(): React.ReactElement {
       r => r.productName.toLowerCase().includes(term) || r.stockCode.toLowerCase().includes(term),
     );
   }, [stock.data, search, categoryProductIds]);
+
+  const healthChips = useMemo(
+    () => [
+      { key: HEALTH_LOW, label: 'Low', count: inScope.filter(isBelowTheLine).length },
+      { key: HEALTH_ALL, label: 'All', count: inScope.length },
+    ],
+    [inScope],
+  );
+
+  const rows = useMemo(() => {
+    const visible = health === HEALTH_LOW ? inScope.filter(isBelowTheLine) : inScope;
+    /**
+     * Urgency order — the emptiest shelf first.
+     *
+     * v6 sorts by `qty / reorder`. With one shared scale rather than a
+     * per-product one that ratio is monotonic in the balance itself, so this is
+     * a plain ascending sort and not a simplification of the rule: `out` comes
+     * before `critical` before `moderate` before `healthy` by construction.
+     *
+     * Sorted on a copy, and stably — two products on the same balance keep the
+     * order the server sent, which is the catalogue's. That is what stops the
+     * list reshuffling under someone's thumb every time a sale moves one
+     * balance.
+     */
+    return [...visible].sort((a, b) => a.balance - b.balance);
+  }, [inScope, health]);
 
   /**
    * Which rows have their movement breakdown open.
@@ -181,9 +305,22 @@ export function StockScreen(): React.ReactElement {
   // re-render every visible row.
   const renderItem = useCallback(
     ({ item }: { item: StockRow }) => (
-      <MBStockCard row={item} expanded={expanded.has(item.productId)} onToggle={onToggle} />
+      <MBStockCard
+        row={item}
+        expanded={expanded.has(item.productId)}
+        onToggle={onToggle}
+        /* Absent from the map is a real zero — the route only returns products
+           with something outstanding — but only once the map exists at all. */
+        waiting={
+          waitingByProduct === undefined
+            ? undefined
+            : waitingByProduct === null
+              ? null
+              : waitingByProduct[item.productId] ?? 0
+        }
+      />
     ),
-    [expanded, onToggle],
+    [expanded, onToggle, waitingByProduct],
   );
 
   // Admin and production roles carry no branch of their own, so one has to be
@@ -259,6 +396,24 @@ export function StockScreen(): React.ReactElement {
       ) : (
         <>
           <View style={{ paddingHorizontal: theme.layout.screenPad, gap: theme.space.sm }}>
+            {/* Health, first, because it is the question the screen is opened
+                for. Two chips and a short fixed set, so it wraps rather than
+                scrolls — a scroller hides half of a pair.
+
+                `accent` rather than `primary` for a reason that only shows up
+                with three rows stacked: the tone exists so two adjacent
+                scrollers are not both painted as "this is the choice", and
+                with accent / primary / accent no two neighbours match. The
+                counts are what make the pair worth a row at all — Low on its
+                own cannot say whether it is hiding two products or forty. */}
+            <MBFilterChips
+              tone="accent"
+              options={healthChips}
+              selectedKey={health}
+              onSelect={setHealth}
+              testIDPrefix="stock-health"
+            />
+
             {/* Business day. `Today` is sent as no date at all so the server
                 picks it — its idea of the current business day is the one that
                 counts, and after 02:00 the two can differ. */}
@@ -311,17 +466,31 @@ export function StockScreen(): React.ReactElement {
             <MBSkeletonList rows={8} />
           ) : stock.isError ? (
             <MBErrorState error={stock.error} onRetry={onRefresh} retrying={stock.isFetching} />
+          ) : rows.length === 0 && search ? (
+            <MBEmptyState
+              title="No products match"
+              message={`Nothing found for "${search}".`}
+              actionLabel="Clear search"
+              onAction={() => setSearch('')}
+            />
+          ) : rows.length === 0 && health === HEALTH_LOW && inScope.length > 0 ? (
+            /* Not an empty screen — a good one. There is stock here and none of
+               it is below the line, which is the answer the Low chip was asked
+               for. Saying "No stock recorded" instead would report a healthy
+               shop as an empty one, and the action is the chip that shows what
+               is actually there. */
+            <MBEmptyState
+              title="Everything is above the line"
+              message="No product is low, critical or out for this business day."
+              actionLabel="Show all stock"
+              onAction={() => setHealth(HEALTH_ALL)}
+              illustration="empty-stock"
+            />
           ) : rows.length === 0 ? (
             <MBEmptyState
-              title={search ? 'No products match' : 'No stock recorded'}
-              message={
-                search
-                  ? `Nothing found for "${search}".`
-                  : 'No stock movements for this business day yet.'
-              }
-              actionLabel={search ? 'Clear search' : undefined}
-              onAction={search ? () => setSearch('') : undefined}
-              illustration={search ? undefined : 'empty-stock'}
+              title="No stock recorded"
+              message="No stock movements for this business day yet."
+              illustration="empty-stock"
             />
           ) : (
             <FlashList

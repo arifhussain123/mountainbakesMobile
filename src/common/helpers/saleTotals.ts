@@ -22,6 +22,24 @@ export interface CartLine {
   qty: number;
   /** Resolved rupee discount for the line (see resolveDiscount). */
   discount: number;
+  /**
+   * The percentage the discount was entered as, when it was entered as one.
+   *
+   * `discount` stays the canonical rupee figure — it is what `saleTotals` sums
+   * and what the payload carries, because `OrderItemSchema.discount` is a
+   * number of rupees and the server knows nothing about percentages. This is
+   * kept alongside it so the percentage can be **re-applied when the quantity
+   * changes**.
+   *
+   * Without it, "10%" is resolved once against the gross at the moment it is
+   * typed and then frozen: ring up one more of the same product and the rupee
+   * figure stays put, so the line silently becomes a 5% discount. The cashier
+   * sees the number they typed and the customer is charged something else.
+   *
+   * `undefined` means the discount was entered as a flat amount and must be
+   * left exactly as given.
+   */
+  discountPct?: number;
 }
 
 export interface SaleTotals {
@@ -77,6 +95,19 @@ export function saleTotals(lines: CartLine[], settings: TaxSettings = {}): SaleT
 /** Change owed. Negative means the tendered amount does not cover the total. */
 export function cashReturned(receivedCash: number, grandTotal: number): number {
   return round2(toNumber(receivedCash) - toNumber(grandTotal));
+}
+
+/**
+ * A percentage of the line's gross, in rupees.
+ *
+ * Clamped to 0–100 rather than to the gross, which is the stronger guarantee:
+ * a percentage above 100 is a typo, and resolving it to "the whole line" would
+ * silently accept it as a giveaway instead of showing the cashier a figure they
+ * can see is wrong.
+ */
+export function discountFromPct(gross: number, pct: number): number {
+  const clamped = Math.min(Math.max(0, toNumber(pct)), 100);
+  return round2((Math.max(0, toNumber(gross)) * clamped) / 100);
 }
 
 /**

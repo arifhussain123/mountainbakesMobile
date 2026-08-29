@@ -29,6 +29,19 @@ export interface FilterChip {
   key: string;
   label: string;
   /**
+   * How many rows this filter would show, drawn after the label.
+   *
+   * Only for a row filtering a set the screen **already holds**. A count beside
+   * a filter that refetches is a promise the screen cannot keep: it is either
+   * the previous answer's figure or a number fetched separately, and both go
+   * stale the moment the list does. Leave it undefined and the chip is exactly
+   * what it was before.
+   *
+   * `0` draws, and is the point — a filter that would show nothing is worth
+   * knowing about before it empties the screen.
+   */
+  count?: number;
+  /**
    * Overrides the chip's accessible name.
    *
    * For a row whose labels only make sense next to each other — "Today",
@@ -89,13 +102,17 @@ export function MBFilterChips({
 
   const chips = options.map(option => {
     const selected = option.key === selectedKey;
+    const hasCount = option.count !== undefined;
+    /* Spelled out rather than left to the reader assembling "Waiting" and "3"
+       from two Texts, which it announces as a bare pair of words. */
+    const name = option.accessibilityLabel ?? (hasCount ? `${option.label}, ${option.count}` : undefined);
     return (
       <MBPressable
         key={option.key}
         onPress={() => onSelect(option.key)}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        {...(option.accessibilityLabel ? { accessibilityLabel: option.accessibilityLabel } : {})}
+        {...(name ? { accessibilityLabel: name } : {})}
         {...(testIDPrefix ? { testID: `${testIDPrefix}-${option.key}` } : {})}
         style={[
           styles.chip,
@@ -109,6 +126,7 @@ export function MBFilterChips({
             paddingHorizontal: theme.space.lg,
             backgroundColor: selected ? fill : theme.colors.surface,
             borderColor: selected ? fill : theme.colors.borderStrong,
+            gap: theme.space.tight,
           },
         ]}>
         <Text
@@ -118,6 +136,19 @@ export function MBFilterChips({
           ]}>
           {option.label}
         </Text>
+        {hasCount ? (
+          /* A step down from the label, never a step up. The count is context
+             for a choice, not the choice — and on a selected chip there is no
+             muted level available anyway, because the only colour guaranteed
+             legible on the fill is the one `tone` pairs with it. */
+          <Text
+            style={[
+              theme.type.caption,
+              { color: selected ? label : theme.colors.textMuted },
+            ]}>
+            {option.count}
+          </Text>
+        ) : null}
       </MBPressable>
     );
   });
@@ -139,6 +170,7 @@ export function MBFilterChips({
 const styles = StyleSheet.create({
   chip: {
     height: layout.chipH,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

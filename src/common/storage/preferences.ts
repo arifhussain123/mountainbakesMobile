@@ -33,4 +33,24 @@ export const PreferenceKeys = {
    * of the wrong brand colour on every cold start.
    */
   accent: 'settings.accent',
+  /**
+   * The chosen typeface (`theme/typography.ts`). Read at module scope like the
+   * mode and the accent, and for the stronger version of the same reason: a face
+   * applied by a later effect does not just flash a colour, it re-measures every
+   * line of text on screen.
+   */
+  typeface: 'settings.typeface',
+  /**
+   * Whether the first-run panels have been shown (`features/onboarding`).
+   *
+   * Here rather than in `secureStorage` for the same reason the three above
+   * are: it is read to decide the very first screen, and the encrypted store
+   * cannot answer until the Keychain has. It is also not a secret — the fact
+   * that this phone has opened the app before is not worth a key.
+   *
+   * Namespaced `onboarding.` rather than `settings.` because it is not a
+   * setting: nothing in Settings offers it, and there is no UI that turns it
+   * back off. It is a record that something happened.
+   */
+  onboardingSeen: 'onboarding.seen',
 } as const;

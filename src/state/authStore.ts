@@ -20,6 +20,52 @@ import { clearCachedServerState } from '@/api/queryClient';
 
 export type AuthStatus = 'bootstrapping' | 'signedOut' | 'signedIn';
 
+/**
+ * One message for every failure that is a *decision about these credentials*.
+ *
+ * Supabase answers a wrong password with "Invalid login credentials", which is
+ * already generic — but it is not the only thing it answers with. "Email not
+ * confirmed" is returned only for an address that **exists**, so surfacing the
+ * raw message hands an attacker a way to sort real accounts from invented ones
+ * by reading the error text. `signInFinance` below already collapses its whole
+ * failure surface to one sentence for exactly this reason; this is that rule
+ * applied to the door everybody else comes through.
+ */
+const BAD_CREDENTIALS_MESSAGE = 'Those sign-in details were not recognised.';
+
+/**
+ * Did the auth service fail to *answer*, rather than answer "no"?
+ *
+ * The same distinction `readThrough` draws, and drawn the same way round: a 4xx
+ * is an answer about these credentials and must read identically whatever its
+ * reason, while a request that never got a reply is a different event the person
+ * can act on — retrying a wrong password is pointless, retrying a dropped
+ * connection is the whole fix.
+ *
+ * Deliberately a narrow allow-list, so the default is the generic message. An
+ * unrecognised error shape reaching this returns `false` and is reported as bad
+ * credentials, which is the safe direction to be wrong in: the cost is a
+ * slightly unhelpful message, against leaking which accounts exist.
+ */
+function isTransportFailure(error: unknown): boolean {
+  const e = error as { name?: string; status?: number } | null | undefined;
+  if (!e) return false;
+
+  // Rate limiting is worth saying out loud — it is actionable, and it is a fact
+  // about this device rather than about whether the account exists.
+  if (e.status === 429) return true;
+  // The service broke rather than decided.
+  if (typeof e.status === 'number' && e.status >= 500) return true;
+  // No answer at all. Supabase names its own retryable fetch failure; a bare
+  // fetch rejection arrives as a TypeError.
+  if (e.status === undefined || e.status === 0) {
+    return e.name === 'AuthRetryableFetchError' || e.name === 'TypeError';
+  }
+  return false;
+}
+
+
+
 /** Set when a Finance sign-in needs a TOTP code before the session is usable. */
 export interface MfaChallenge {
   factorId: string;
@@ -109,8 +155,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      set({ lastError: error.message, status: 'signedOut', claims: null });
-      throw error;
+      const message = isTransportFailure(error) ? error.message : BAD_CREDENTIALS_MESSAGE;
+      set({ lastError: message, status: 'signedOut', claims: null });
+      throw new Error(message);
     }
 
     const claims = claimsFromSession(data.session);
@@ -140,16 +187,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Deliberately identical to a wrong-password failure — the lookup must not
       // reveal whether an account exists.
-      const message = 'Those sign-in details were not recognised.';
-      set({ lastError: message });
-      throw new Error(message);
+      set({ lastError: BAD_CREDENTIALS_MESSAGE });
+      throw new Error(BAD_CREDENTIALS_MESSAGE);
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
-      const message = 'Those sign-in details were not recognised.';
-      set({ lastError: message });
-      throw new Error(message);
+      set({ lastError: BAD_CREDENTIALS_MESSAGE });
+      throw new Error(BAD_CREDENTIALS_MESSAGE);
     }
 
     // A second factor shows up as an assurance-level gap: the session exists at

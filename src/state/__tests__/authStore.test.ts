@@ -359,3 +359,79 @@ describe('signOut and cached server state', () => {
     expect(useAuthStore.getState().status).toBe('signedOut');
   });
 });
+
+/**
+ * What a failed sign-in is allowed to say.
+ *
+ * Supabase's answer for a wrong password is already generic, but it is not the
+ * only answer it gives: "Email not confirmed" comes back only for an address
+ * that EXISTS, so passing the raw text through lets someone sort real accounts
+ * from invented ones by reading the error. Every decision about credentials has
+ * to read the same; only a failure to reach the service may say something else,
+ * because that is the one the person can actually act on.
+ */
+describe('signIn failure messages', () => {
+  const GENERIC = 'Those sign-in details were not recognised.';
+
+  function failWith(error: unknown): void {
+    mockAuth.signInWithPassword.mockResolvedValue({ data: { session: null }, error });
+  }
+
+  async function messageFrom(): Promise<string> {
+    try {
+      await useAuthStore.getState().signIn('a@b.com', 'pw');
+    } catch (e) {
+      return (e as Error).message;
+    }
+    throw new Error('sign-in was expected to fail');
+  }
+
+  it('will not confirm that an account exists', async () => {
+    // The enumeration case: Supabase only says this for a real address.
+    failWith(Object.assign(new Error('Email not confirmed'), { status: 400 }));
+
+    expect(await messageFrom()).toBe(GENERIC);
+    expect(useAuthStore.getState().lastError).toBe(GENERIC);
+  });
+
+  it('says the same thing for a wrong password', async () => {
+    failWith(Object.assign(new Error('Invalid login credentials'), { status: 400 }));
+    expect(await messageFrom()).toBe(GENERIC);
+  });
+
+  it('says the same thing for a disabled sign-in method', async () => {
+    failWith(Object.assign(new Error('Email logins are disabled'), { status: 422 }));
+    expect(await messageFrom()).toBe(GENERIC);
+  });
+
+  it('keeps a dropped connection distinguishable — retrying it is the fix', async () => {
+    const offline = Object.assign(new Error('Failed to fetch'), {
+      name: 'AuthRetryableFetchError',
+    });
+    failWith(offline);
+    expect(await messageFrom()).toBe('Failed to fetch');
+  });
+
+  it('keeps rate limiting audible, which says nothing about the account', async () => {
+    failWith(Object.assign(new Error('Too many requests'), { status: 429 }));
+    expect(await messageFrom()).toBe('Too many requests');
+  });
+
+  it('keeps a server fault distinguishable from a refusal', async () => {
+    failWith(Object.assign(new Error('Internal error'), { status: 500 }));
+    expect(await messageFrom()).toBe('Internal error');
+  });
+
+  it('falls back to the generic message on an unrecognised failure', async () => {
+    // Safe direction to be wrong in: an unhelpful sentence, not a leak.
+    failWith(new Error('something new from the SDK'));
+    expect(await messageFrom()).toBe(GENERIC);
+  });
+
+  it('leaves the session signed out either way', async () => {
+    failWith(Object.assign(new Error('Email not confirmed'), { status: 400 }));
+    await messageFrom();
+    expect(useAuthStore.getState().status).toBe('signedOut');
+    expect(useAuthStore.getState().claims).toBeNull();
+  });
+});

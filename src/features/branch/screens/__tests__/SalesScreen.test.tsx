@@ -138,11 +138,30 @@ describe('SalesScreen', () => {
     const screen = await renderScreen(<SalesScreen />);
 
     await waitFor(() => expect(screen.getByTestId('sales-day-total')).toBeTruthy());
-    // The figure is in the card, where its caption can say where it came from;
-    // the header carries the day and the count.
+    // The figure is in the card, where its caption can say what it MEANS —
+    // net of discount — and the header carries the day and the count.
     expect(within(screen.getByTestId('sales-day-total')).getByText('Rs. 350')).toBeTruthy();
-    expect(screen.getByText('Summed from the records below')).toBeTruthy();
+    expect(screen.getByText('Charged, after discount')).toBeTruthy();
     expect(screen.getByText(/· 2 recorded$/)).toBeTruthy();
+  });
+
+  it('draws the discount as money going out, with a real minus', async () => {
+    // A discount is money NOT taken, and the tile says so three ways: a broken
+    // edge, the danger colour, and a signed figure.
+    //
+    // The sign is U+2212 and not a hyphen, deliberately — at money size a hyphen
+    // reads as a dash between two figures rather than as a negative. `MBMoney`
+    // also spells it out in the accessible name, so the one glyph carrying the
+    // meaning is not lost to a screen reader.
+    mockGetOrders.mockResolvedValue([
+      sale({ id: 'o1', grandTotal: 200, subtotal: 200, discountTotal: 20 }),
+    ]);
+    const screen = await renderScreen(<SalesScreen />);
+
+    const tile = await waitFor(() => screen.getByTestId('sales-day-discount'));
+    expect(within(tile).getByText('\u2212Rs. 20')).toBeTruthy();
+    // Not a hyphen-minus.
+    expect(within(tile).queryByText('-Rs. 20')).toBeNull();
   });
 
   it('keeps all four tenders on the card, including the ones that took nothing', async () => {

@@ -69,11 +69,19 @@ const TEXT: Pair[] = [
   ['danger', 'dangerBg', 4.5, 'danger text on its tint'],
   ['info', 'infoBg', 4.5, 'info text on its tint'],
   ['offline', 'warningBg', 4.5, 'offline text on its tint'],
-  // The splash wordmark sits over the far end of the gradient, not over `bg`.
-  // Deepening `splashBottom` to warm the wash is exactly the kind of tweak that
-  // reads as harmless and takes the tagline under the bar.
-  ['accent', 'splashBottom', 4.5, 'the wordmark on the splash wash'],
-  ['textMuted', 'splashBottom', 4.5, 'the tagline on the splash wash'],
+  // The splash is a `secondary` surface in v6 — the masthead wave at full
+  // height — so its type takes that surface's levels rather than the page's.
+  //
+  // BOTH ends of the gradient are checked, which the v4 version did not do. It
+  // only needed `splashBottom` because v4's wash ran from a cream to the same
+  // cream; v6 runs from one plum to a deeper one, so the wordmark crosses a real
+  // contrast range and the lighter end is the one that binds. Deepening either
+  // stop is exactly the kind of tweak that reads as harmless and takes the
+  // tagline under the bar.
+  ['onSecondary', 'splashTop', 4.5, 'the wordmark on the near end of the wash'],
+  ['onSecondary', 'splashBottom', 4.5, 'the wordmark on the far end of the wash'],
+  ['onSecondaryMuted', 'splashTop', 4.5, 'the tagline on the near end of the wash'],
+  ['onSecondaryMuted', 'splashBottom', 4.5, 'the tagline on the far end of the wash'],
 ];
 
 /**
@@ -98,6 +106,11 @@ const NON_TEXT: Pair[] = [
   ['focusRing', 'surface', 3, 'focused field edge against a card'],
   ['primary', 'surface', 3, 'brand fill (meter, chart line) on a card'],
   ['primary', 'bg', 3, 'brand fill on the page'],
+  // The drawer's presence dot. It sits on the hero block rather than on a card,
+  // and `success` / `offline` are unusable there — both are tuned to read as
+  // text on their own light tint. See the tokens in `colors.ts`.
+  ['onSecondarySuccess', 'secondary', 3, 'the online dot on the hero block'],
+  ['onSecondaryOffline', 'secondary', 3, 'the offline dot on the hero block'],
 ];
 
 describe.each([

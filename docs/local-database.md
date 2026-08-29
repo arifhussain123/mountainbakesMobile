@@ -29,11 +29,34 @@ Mapped against the server's real schema and against what this app actually does:
 | `local_production_items` | **Rejected.** Items live in `payload`. |
 | `sync_queue` | **Exists.** |
 | `sync_conflicts` | **Exists, and is written to (migration 6).** Both sides of every disagreement with the server; never pruned. |
-| `app_metadata` | **Exists.** Key/value bookkeeping. |
+| `app_metadata` | **Exists.** Key/value bookkeeping, and it has two writers — see below. |
 
 Plus one the list did not mention and the app needs: **`local_branches`**, which
 already exists — a branch name has to render offline, and only the server knows
 it.
+
+### What `app_metadata` actually holds
+
+Two things, and neither is a transaction:
+
+- **`stock.businessDate.<branchId>`** — the business date the *server* stamped
+  the mirrored balances with. It has no column on `local_stock` because it
+  belongs to the response rather than the row, and a mirrored read that invented
+  one from the device clock would display a day the balances are not from.
+- **`branch.orderDraft.<branchId>`** — the unsent production order a branch left
+  on screen 20 (`orderDraftRepository`). One draft per branch, replaced
+  wholesale, nothing queried inside it: that is a key/value, and a new table
+  would cost a migration — permanent on every device that runs it — for rows
+  with nothing worth indexing.
+
+**A draft is deliberately not a `local_production_orders` row**, and the
+distinction is the point rather than an implementation detail. A row in that
+table is a transaction the app owes the server: it has a `client_operation_id`,
+it is paired with a `sync_queue` row, it is counted as pending, and it will be
+drained. A draft is work the branch has explicitly **not** committed. Put it in
+that table and "let me finish this after the delivery" becomes an order nobody
+placed. `__tests__/orderDraft.test.ts` asserts that saving one leaves both
+`sync_queue` and `local_production_orders` empty.
 
 ### Why `local_stock_movements` was added
 

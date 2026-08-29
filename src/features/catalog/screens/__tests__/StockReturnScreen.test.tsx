@@ -134,6 +134,48 @@ describe('StockReturnScreen', () => {
     );
   });
 
+  /**
+   * The day the units come off is on the screen, because the day the units come
+   * off is not the day the phone is showing.
+   *
+   * 01:30 Karachi on the 30th is business day **29 August** — the rollover is at
+   * 02:00, not midnight, so a branch closing out a late shift is booking to
+   * yesterday's calendar date. This is the hour that makes the subtitle worth
+   * drawing, and asserting it at any other instant would only prove the helper
+   * formats.
+   */
+  it('names the business day it books to, across the 02:00 rollover', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-08-29T20:30:00Z')); // 01:30 on the 30th, Karachi
+    try {
+      const screen = await renderScreen(<StockReturnScreen />);
+      await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+      expect(screen.getByText(/Back to production · Sat 29 Aug/)).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  /**
+   * The outcome reports the date the RECORD carries, not the clock.
+   *
+   * This is the one that matters on a queued return: the row was stamped when it
+   * was written and may not drain for hours, so recomputing here would show the
+   * day of the drain — the reading that makes a correctly-dated return look
+   * wrong. The stub's date is deliberately nowhere near today.
+   */
+  it('reports the business date the record carries, not the day it is read', async () => {
+    mockCreateReturn.mockResolvedValue({
+      outcome: 'queued',
+      clientOperationId: '0191-bbbb',
+      businessDate: '2026-08-18',
+    });
+    const screen = await addOneUnit();
+    await fireEvent.press(screen.getByTestId('submit-return'));
+    await fireEvent.press(screen.getByTestId('confirm-return-confirm'));
+    await waitFor(() => expect(screen.getByText(/Booked to Tue 18 Aug/)).toBeTruthy());
+  });
+
   it('keeps the lines when the return is only queued', async () => {
     // A queued return has moved no units. Clearing the form would tell the
     // branch it was done while the stock is still on their shelf.

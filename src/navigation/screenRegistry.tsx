@@ -5,6 +5,8 @@ import { ProductsScreen } from '@/features/catalog';
 import { StockScreen } from '@/features/catalog';
 import { BranchDashboardScreen } from '@/features/branch';
 import { ExpensesScreen } from '@/features/branch';
+import { ClosingScreen } from '@/features/branch';
+import { DiscountsScreen } from '@/features/discounts';
 import { NewOrderScreen } from '@/features/branch';
 import { SalesScreen } from '@/features/branch';
 import { NewSaleScreen } from '@/features/branch';
@@ -160,6 +162,25 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
   const branch = isBranchRole(role);
   const admin = role === 'super_admin';
   switch (route) {
+    case 'Discounts':
+      /*
+       * Branch only. The router is `super_admin` + BRANCH_ROLES, but an admin
+       * has no branch of its own for the claims to be about — the create route
+       * answers 400 "Branch context required" without one — so this is a branch
+       * surface and the deep link is gated to match the More list.
+       */
+      if (!branch) return null;
+      return DiscountsScreen;
+    case 'Closing':
+      /*
+       * Branch only, and gated here as well as in the More list so a deep link
+       * cannot land another role on it. The screen sums the branch's own orders
+       * and expenses, both scoped server-side off the JWT — an admin or finance
+       * session has no branch for it to be about, and would read a blank day
+       * rather than a refusal.
+       */
+      if (!branch) return null;
+      return ClosingScreen;
     case 'Users':
     case 'Categories':
       // Every route behind both is `requireRole('super_admin')`, and only the

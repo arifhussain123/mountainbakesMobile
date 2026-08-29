@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 
-import { ReportsScreen } from '../ReportsScreen';
+import { ReportsScreen, reconcilePayments } from '../ReportsScreen';
 import { renderScreen } from '@/common/test-utils/render';
 import * as reportsApi from '@/api/services/reportsService';
 import * as catalogApi from '@/api/services/catalogService';
@@ -22,7 +22,7 @@ jest.mock('@/api/services/catalogService', () => ({
  * filters are — so it is stubbed whole rather than dragging a share sheet and a
  * file downloader into a test about chips.
  */
-jest.mock('@/features/admin/hooks/useExportReport', () => ({
+jest.mock('@/common/hooks/useExportReport', () => ({
   useExportReport: () => ({ exportReport: jest.fn(), isExporting: false, error: null }),
 }));
 jest.mock('@/common/hooks/useCatalogSettings', () => ({
@@ -281,5 +281,157 @@ describe('ReportsScreen daily rows', () => {
 
     await waitFor(() => expect(screen.getByText('2026-07-07')).toBeTruthy());
     expect(screen.queryByText(/export for the full range/)).toBeNull();
+  });
+});
+
+/**
+ * The payment breakdown is the one rollup that is supposed to account for the
+ * revenue quoted above it, and the failure is silent: the screen looks complete
+ * whether or not the two agree.
+ *
+ * The trap is that the two sets are deliberately different. The rows include
+ * `staff` sales — stock that left with no money in — and revenue excludes them,
+ * so a naive `revenue − Σ rows` is non-zero on a perfectly healthy period and
+ * would fire every time staff took anything.
+ */
+describe('reconcilePayments', () => {
+  function summary(over: Record<string, unknown>): Summary {
+    return {
+      ...SUMMARY,
+      staffTotal: 0,
+      totalCancelled: 0,
+      ...over,
+    } as unknown as Summary;
+  }
+
+  it('balances when the rows account for revenue', () => {
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 1000,
+        totalOrders: 10,
+        paymentMethodBreakdown: [
+          { method: 'cash', total: 600, count: 6 },
+          { method: 'easypaisa', total: 400, count: 4 },
+        ],
+      }),
+    );
+    expect(result?.balanced).toBe(true);
+  });
+
+  it('does not cry wolf over a staff sale', () => {
+    // Rows exceed revenue by exactly staffTotal, which is the healthy case.
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 1000,
+        staffTotal: 200,
+        totalOrders: 13,
+        totalCancelled: 2,
+        paymentMethodBreakdown: [
+          { method: 'cash', total: 900, count: 7 },
+          { method: 'easypaisa', total: 100, count: 1 },
+          { method: 'staff', total: 200, count: 3 },
+        ],
+      }),
+    );
+    expect(result).toEqual({ moneyGap: 0, countGap: 0, balanced: true });
+  });
+
+  it('counts non-cancelled orders, not every order raised', () => {
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 500,
+        totalOrders: 9,
+        totalCancelled: 4,
+        paymentMethodBreakdown: [{ method: 'cash', total: 500, count: 5 }],
+      }),
+    );
+    expect(result?.countGap).toBe(0);
+  });
+
+  it('reports real money drift once staff is allowed for', () => {
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 1000,
+        staffTotal: 200,
+        totalOrders: 10,
+        paymentMethodBreakdown: [{ method: 'cash', total: 1150, count: 10 }],
+      }),
+    );
+    // 1150 − 200 − 1000 = −50: fifty rupees of revenue in no row.
+    expect(result?.moneyGap).toBe(-50);
+    expect(result?.balanced).toBe(false);
+  });
+
+  it('reports a count that does not add up even when the money does', () => {
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 300,
+        totalOrders: 5,
+        paymentMethodBreakdown: [{ method: 'cash', total: 300, count: 4 }],
+      }),
+    );
+    expect(result?.moneyGap).toBe(0);
+    expect(result?.countGap).toBe(-1);
+    expect(result?.balanced).toBe(false);
+  });
+
+  it('treats an empty range as nothing to reconcile, not a discrepancy', () => {
+    expect(reconcilePayments(summary({ paymentMethodBreakdown: [] }))).toBeNull();
+    expect(reconcilePayments(undefined)).toBeNull();
+  });
+
+  it('ignores float noise from summing numeric(14,2)', () => {
+    const result = reconcilePayments(
+      summary({
+        totalRevenue: 0.3,
+        totalOrders: 3,
+        paymentMethodBreakdown: [
+          { method: 'cash', total: 0.1, count: 1 },
+          { method: 'easypaisa', total: 0.2, count: 2 },
+        ],
+      }),
+    );
+    expect(result?.balanced).toBe(true);
+  });
+});
+
+describe('the payment reconciliation on screen', () => {
+  it('says so, in words, when the rows do not account for the revenue', async () => {
+    // The shared fixture is deliberately short: 1100 of rows against 1250.
+    const screen = await showReports();
+    await waitFor(() => expect(screen.getByText('Saddar · 8')).toBeTruthy());
+
+    await fireEvent.press(screen.getByTestId('report-by-payment'));
+
+    await waitFor(() => expect(screen.getByTestId('payment-reconciliation')).toBeTruthy());
+    expect(screen.getByText(/do not reconcile/)).toBeTruthy();
+    // Named explicitly, so the reader cannot dismiss it as the usual difference.
+    expect(screen.getByText(/Staff sales are already allowed for/)).toBeTruthy();
+  });
+
+  it('stays quiet on a period that balances', async () => {
+    getReportSummary.mockResolvedValue({
+      ...SUMMARY,
+      totalRevenue: 1100,
+      totalOrders: 11,
+      totalCancelled: 1,
+      staffTotal: 0,
+      paymentMethodBreakdown: [{ method: 'cash', total: 1100, count: 10 }],
+    } as unknown as Summary);
+
+    const screen = await showReports();
+    await fireEvent.press(screen.getByTestId('report-by-payment'));
+
+    await waitFor(() => expect(screen.getByText(/cash/)).toBeTruthy());
+    expect(screen.queryByTestId('payment-reconciliation')).toBeNull();
+  });
+
+  it('checks only the payment rollup', async () => {
+    // Products and categories are line-level and legitimately sum elsewhere.
+    const screen = await showReports();
+    await fireEvent.press(screen.getByTestId('report-by-product'));
+
+    await waitFor(() => expect(screen.getByText(/Milk Rusk/)).toBeTruthy());
+    expect(screen.queryByTestId('payment-reconciliation')).toBeNull();
   });
 });

@@ -111,6 +111,28 @@ export function parseCurrency(value: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * The same figures with an explicit `+` on a positive one.
+ *
+ * For a **change** — a delta, an adjustment, a day's movement — where the
+ * direction is the information and a bare `12` beside a bare `-3` reads as two
+ * quantities rather than as up and down. Never for a balance or a total, which
+ * are quantities: a `+` on a closing figure implies it was gained today.
+ *
+ * A negative already carries its sign from `formatQty` / `formatAmount`, so only
+ * the positive case is added. Zero gets nothing — it did not move in either
+ * direction, and `+0` claims it moved and came back.
+ */
+export function signedQty(value: unknown): string {
+  const n = toNumber(value);
+  return n > 0 ? `+${formatQty(n)}` : formatQty(n);
+}
+
+export function signedAmount(value: unknown): string {
+  const n = toNumber(value);
+  return n > 0 ? `+${formatAmount(n)}` : formatAmount(n);
+}
+
 /** Format a quantity. Backend quantities are `numeric(14,3)` and may be negative. */
 export function formatQty(value: unknown): string {
   const n = toNumber(value);

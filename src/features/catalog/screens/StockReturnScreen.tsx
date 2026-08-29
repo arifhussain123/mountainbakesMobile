@@ -22,6 +22,8 @@ import type { StockRow } from '@/shared/types/stock.types';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import type { WriteSubject } from '@/common/ui';
 import { formatQty } from '@/common/utils/money';
+import { formatBusinessDate } from '@/common/helpers/businessDay';
+import { businessDateStr } from '@/shared/utils/timezone';
 
 /**
  * Hand unsold or damaged stock back to production.
@@ -71,6 +73,37 @@ export function StockReturnScreen(): React.ReactElement {
 
   const stock = useStock();
   const { createReturn, isSaving } = useCreateStockReturn();
+
+  /**
+   * The business day this return will be booked to.
+   *
+   * ---------------------------------------------------------------------------
+   * Why it is on the screen at all
+   * ---------------------------------------------------------------------------
+   * The day rolls at **02:00 Asia/Karachi**, not midnight, and the date is
+   * captured on the *device* — `writeOffline` stamps `businessDateStr()` as the
+   * row is created, so a return raised at 21:00 with no signal and drained at
+   * 07:00 still belongs to the evening it was made. That is the right behaviour
+   * and it is also the one nobody can see: between midnight and 02:00 the phone
+   * says one calendar date and the ledger will file the return under the
+   * previous one. A branch closing out a late shift is exactly the person
+   * standing here at that hour.
+   *
+   * ---------------------------------------------------------------------------
+   * Recomputed every render, deliberately not memoised
+   * ---------------------------------------------------------------------------
+   * `useMemo(…, [])` would freeze this at mount, which is precisely the bug it
+   * would look like a fix for: a screen open across 02:00 would keep naming
+   * yesterday while the write lands on today. There is no dependency that
+   * changes at the rollover, so the honest version is a bare call — it
+   * re-evaluates on every stepper tap, which is as live as this needs to be.
+   *
+   * The authoritative value is still the one on the record: `writeOffline`
+   * stamps its own at write time, and `ReturnOutcome` reports **that** rather
+   * than recomputing. If a shift crosses the rollover mid-count the two differ,
+   * and the one that matters is the one that was stored.
+   */
+  const businessDate = businessDateStr();
 
   const [qtyById, setQtyById] = useState<Record<string, number>>({});
   const [reason, setReason] = useState('');
@@ -150,7 +183,12 @@ export function StockReturnScreen(): React.ReactElement {
       <MBHeader
         tone="brand"
         title="Return stock"
-        subtitle="Back to production"
+        /* The day it books to, next to where it goes. `formatBusinessDate`
+           rather than `businessDateLabel`: "Today" is the word this screen
+           cannot use, because between midnight and 02:00 the business day and
+           the calendar day disagree and the whole reason the date is here is
+           that disagreement. */
+        subtitle={`Back to production · ${formatBusinessDate(businessDate, { weekday: true })}`}
         onBack={() => navigation.goBack()}
       />
 
@@ -253,6 +291,13 @@ export function StockReturnScreen(): React.ReactElement {
               </Text>
             </View>
           ))}
+          {/* The day the units come off, on the last screen that can still stop
+              them. The confirm already names every product rather than counting
+              them, for the same reason: what is checkable here is not checkable
+              once `commit_branch_return` has appended its movement. */}
+          <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+            Books to {formatBusinessDate(businessDate, { weekday: true })}
+          </Text>
           {reason.trim().length > 0 ? (
             <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
               Reason: {reason.trim()}
@@ -296,6 +341,19 @@ function ReturnOutcome({ result }: { result: CreateStockReturnResult }): React.R
       <MBWriteOutcome
         copy={writeOutcomeCopy(result.outcome, RETURN_SUBJECT, result.reason)}
       />
+      {/*
+        The business day the record carries, read off the row rather than
+        recomputed.
+
+        This is the figure that matters on a **queued** return: the units have
+        not moved, the row may not drain for hours, and the date it will land on
+        was fixed when it was written — not when it sends. Recomputing here would
+        show the day of the drain, which is the one reading that makes a
+        correctly-dated return look wrong (and a wrongly-dated one look right).
+      */}
+      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+        Booked to {formatBusinessDate(result.businessDate, { weekday: true })}
+      </Text>
       {/* The only identifier a queued or refused return has: no server reference
           exists for it yet. It is what to quote when someone goes looking. */}
       <Text style={[theme.type.mono, { color: theme.colors.textMuted }]} selectable>

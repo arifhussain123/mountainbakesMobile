@@ -12,6 +12,7 @@ export * as categories from './categoriesService';
 export * as events from './eventsService';
 export * as expenses from './expensesService';
 export * as finance from './financeService';
+export * as loginHistory from './loginHistoryService';
 export * as index from './index';
 export * as production from './productionService';
 export * as products from './productsService';

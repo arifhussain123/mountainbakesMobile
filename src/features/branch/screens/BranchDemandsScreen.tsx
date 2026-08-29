@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -10,12 +10,15 @@ import {
   MBEmptyState,
   MBFab,
   MBErrorState,
+  MBFilterChips,
   MBHeader,
   MBInput,
   MBPressable,
   MBSkeletonList,
+  MBStatusTag,
   MBSyncStatus,
   MBConfirmDialog,
+  type FilterChip,
 } from '@/common/ui';
 import { cancelProductionOrder, getProductionOrders } from '@/api/services/productionService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
@@ -25,6 +28,7 @@ import type {
   BranchProductionOrderStatus,
 } from '@/shared/types/production-order.types';
 import { useTheme } from '@/common/theme/ThemeProvider';
+import { businessDateLabel, formatBusinessDate } from '@/common/helpers/businessDay';
 import { dataAsOfFrom } from '@/common/helpers/dataAsOf';
 import { formatQty } from '@/common/utils/money';
 
@@ -57,6 +61,26 @@ import { formatQty } from '@/common/utils/money';
  *
  * The list covers the **last seven business days** because that is what the
  * endpoint returns — an indexed cutoff, not a client filter.
+ *
+ * ---------------------------------------------------------------------------
+ * v6's screen 05: the chips filter what is already here
+ * ---------------------------------------------------------------------------
+ * The screen used to send `status` to the server and hold one cache entry per
+ * filter, which meant every chip tap was a round trip and the counts v6 draws on
+ * the chips could not be honest — a count beside a filter that refetches is
+ * either the previous answer's figure or a second request that goes stale the
+ * moment the list does.
+ *
+ * So it fetches the window **once** and narrows in memory. The endpoint's own
+ * bound is seven business days rather than a page size, so "everything" is a
+ * known, small set and this is not an unbounded list being pulled to the device
+ * to be filtered. What it buys, beyond the counts: an instant chip, one cache
+ * entry to invalidate, and no `placeholderData` dance holding the previous
+ * answer on screen while the next one loads — there is no next one.
+ *
+ * `api.getProductionOrders` still takes `status`, and the day the window grows
+ * past one page this moves back to the server. The counts are what would have to
+ * move with it.
  */
 
 /**
@@ -73,6 +97,16 @@ export const BRANCH_PRODUCTION_ORDER_STATUSES: Record<BranchProductionOrderStatu
   cancelled: 'Withdrawn',
 };
 
+/**
+ * Every status gets a chip, which it did not before.
+ *
+ * `rejected` and `cancelled` were left off while the chips refetched, and All
+ * still included them — so they were reachable only by scrolling past
+ * everything else. Counts make that inconsistency visible rather than merely
+ * present: five chips summing to less than All, with nowhere to find the
+ * difference. A refused demand is also the one on this screen most likely to
+ * need somebody, so it is the last thing that should be the hardest to find.
+ */
 const FILTERS: ReadonlyArray<{ key: string; label: string; status?: BranchProductionOrderStatus }> =
   [
     { key: 'all', label: 'All' },
@@ -80,6 +114,8 @@ const FILTERS: ReadonlyArray<{ key: string; label: string; status?: BranchProduc
     { key: 'awaiting_verification', label: 'To count in', status: 'awaiting_verification' },
     { key: 'verified', label: 'Counted in', status: 'verified' },
     { key: 'approved', label: 'Approved', status: 'approved' },
+    { key: 'rejected', label: 'Refused', status: 'rejected' },
+    { key: 'cancelled', label: 'Withdrawn', status: 'cancelled' },
   ];
 
 export function BranchDemandsScreen(): React.ReactElement {
@@ -88,23 +124,14 @@ export function BranchDemandsScreen(): React.ReactElement {
   const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState('all');
-  const status = FILTERS.find(f => f.key === filter)?.status;
 
   const orders = useQuery({
-    // The server scopes to the caller's own branch, so no branchId is sent.
-    queryKey: qk.productionOrders.list({ status }),
-    queryFn: () => getProductionOrders(status ? { status } : {}),
+    // The server scopes to the caller's own branch, so no branchId is sent —
+    // and no status either: the whole window comes down once and the chips
+    // narrow it here. See the note at the top of the file.
+    queryKey: qk.productionOrders.list({}),
+    queryFn: () => getProductionOrders(),
     staleTime: LIVE_STALE_TIME_MS,
-    /**
-     * The previous answer stays on screen while the new one loads.
-     *
-     * Without it, changing the filter unmounts the whole result and puts a
-     * skeleton in its place — the screen empties, the layout collapses, and it
-     * refills a moment later. The user did not ask for a new screen, they asked
-     * the same screen a different question, so the old answer is the honest
-     * thing to show until the new one arrives.
-     */
-    placeholderData: previous => previous,
   });
 
   const cancel = useMutation({
@@ -137,10 +164,39 @@ export function BranchDemandsScreen(): React.ReactElement {
     );
   }, [cancel, reason, withdrawing]);
 
-  const rows = orders.data ?? [];
+  const all = useMemo(() => orders.data ?? [], [orders.data]);
+
+  /**
+   * Counted over the whole window, not over what is on screen — the point of a
+   * count on a chip is to say what tapping it would show, which a count of the
+   * current filter's own result cannot do.
+   */
+  const chips: FilterChip[] = useMemo(
+    () =>
+      FILTERS.map(option => ({
+        key: option.key,
+        label: option.label,
+        count: option.status
+          ? all.filter(order => order.status === option.status).length
+          : all.length,
+      })),
+    [all],
+  );
+
+  const selected = FILTERS.find(f => f.key === filter)?.status;
+  const rows = useMemo(
+    () => (selected ? all.filter(order => order.status === selected) : all),
+    [all, selected],
+  );
+
   /* Which of the two "New order" controls is on screen. Only ever one: the
-     empty state while there is nothing to scroll, the FAB once there is. */
-  const emptyStateShowing = !orders.isPending && !orders.isError && rows.length === 0;
+     empty state while there is nothing to scroll, the FAB once there is.
+
+     Keyed on the WHOLE window rather than on `rows`. A filter that matches
+     nothing is not an empty screen — there are demands, they are just not these
+     — so the FAB stays and that empty state carries no call to action. */
+  const noDemandsAtAll = !orders.isPending && !orders.isError && all.length === 0;
+  const filterLabel = FILTERS.find(f => f.key === filter)?.label ?? '';
 
   const renderItem = useCallback(
     ({ item }: { item: BranchProductionOrder }) => (
@@ -160,40 +216,18 @@ export function BranchDemandsScreen(): React.ReactElement {
         right={<MBSyncStatus />}
       />
 
-      <View style={{ paddingHorizontal: theme.layout.screenPad, paddingTop: theme.space.sm }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: theme.space.sm }}>
-          {FILTERS.map(option => {
-            const selected = option.key === filter;
-            return (
-              <MBPressable
-                key={option.key}
-                onPress={() => setFilter(option.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                testID={`demand-filter-${option.key}`}
-                style={[
-                  styles.chip,
-                  {
-                    borderRadius: theme.radius.sm, // a chip is chosen, not read — v4 keeps the pill for status
-                    paddingHorizontal: theme.space.lg,
-                    backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                    borderColor: selected ? theme.colors.primary : theme.colors.border,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    theme.type.label,
-                    { color: selected ? theme.colors.onPrimary : theme.colors.text },
-                  ]}>
-                  {option.label}
-                </Text>
-              </MBPressable>
-            );
-          })}
-        </ScrollView>
+      {/* Full-bleed, with the gutter inside the scroller — a row padded by its
+          parent stops at the gutter, so the last chip can never be dragged
+          clear of the edge and always looks clipped. */}
+      <View style={{ paddingTop: theme.space.sm }}>
+        <MBFilterChips
+          options={chips}
+          selectedKey={filter}
+          onSelect={setFilter}
+          scroll
+          gutter={theme.layout.screenPad}
+          testIDPrefix="demand-filter"
+        />
       </View>
 
       {orders.isPending ? (
@@ -204,7 +238,7 @@ export function BranchDemandsScreen(): React.ReactElement {
           onRetry={() => orders.refetch()}
           retrying={orders.isFetching}
         />
-      ) : rows.length === 0 ? (
+      ) : all.length === 0 ? (
         <MBEmptyState
           title="No demands"
           message="Demands raised in the last seven business days appear here."
@@ -214,6 +248,16 @@ export function BranchDemandsScreen(): React.ReactElement {
              screen at a time — the Expenses rule. */
           actionLabel="New order"
           onAction={() => navigation.navigate('CreateOrder')}
+        />
+      ) : rows.length === 0 ? (
+        /* A different sentence from the one above, because it is a different
+           situation: there IS work here and this filter is not where it is.
+           Offering "New order" would answer a question nobody asked — the
+           filter row above is what this state is telling you to change. */
+        <MBEmptyState
+          title={`Nothing ${filterLabel.toLowerCase()}`}
+          message="No demand in the last seven business days has this status. Try another filter."
+          icon="orders"
         />
       ) : (
         <FlashList
@@ -233,16 +277,17 @@ export function BranchDemandsScreen(): React.ReactElement {
       )}
 
       {/* The corner FAB is back.
-          
+
           It was removed while the navigation bar carried New Order in its
           centre — two controls competing to be one obvious action. v5 removes
           that button, so this screen is once again the only place the demand
           form is one tap away from the list it belongs to.
 
           One control at a time, as on Expenses: the empty state above holds the
-          instruction while the list is empty, and this takes over once there is
-          something to scroll. */}
-      {!emptyStateShowing ? (
+          instruction while there is nothing at all, and this takes over once
+          there is something to scroll — including when the current filter is
+          the empty one. */}
+      {!noDemandsAtAll ? (
         <MBFab
           label="New order"
           testID="new-demand"
@@ -301,38 +346,38 @@ const DemandCard = React.memo(function DemandCardView({
   const canWithdraw = order.status === 'pending';
   const withdraw = useCallback(() => onWithdraw(order), [onWithdraw, order]);
 
-  const tone: Record<BranchProductionOrderStatus, string> = {
-    pending: theme.colors.warning,
-    awaiting_verification: theme.colors.accent,
-    verified: theme.colors.success,
-    approved: theme.colors.success,
-    rejected: theme.colors.danger,
-    cancelled: theme.colors.textMuted,
-  };
-
   const items = order.items ?? [];
+  const status = BRANCH_PRODUCTION_ORDER_STATUSES[order.status];
 
   return (
-    <MBCard accessibilityLabel={`${order.demandNumber}, ${BRANCH_PRODUCTION_ORDER_STATUSES[order.status]}`}>
+    <MBCard accessibilityLabel={`${order.demandNumber}, ${status}`}>
+      {/* v6 heads an order card with the number and the status pill on one
+          line and drops the meta under it, rather than running all three across
+          a single row. The status is the thing being scanned for down a column
+          of these, and it cannot hold a column when the line above it is a
+          variable-length date. */}
       <View style={styles.row}>
-        <View style={styles.rowMain}>
-          <Text style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-            {order.demandNumber}
-          </Text>
-          <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-            {order.date} · {order.time}
-            {/* Absent on demands raised before migration 81 — shown as a dash
-                rather than falling back to the raise date, which would display a
-                delivery commitment nobody made. */}
-            {' · needed '}
-            {order.requiredDate ?? '—'}
-          </Text>
-        </View>
-        {/* A word, not a colour alone. */}
-        <Text style={[theme.type.label, { color: tone[order.status] }]}>
-          {BRANCH_PRODUCTION_ORDER_STATUSES[order.status]}
+        <Text style={[theme.type.bodyStrong, styles.flex, { color: theme.colors.text }]}>
+          {order.demandNumber}
         </Text>
+        {/* The one map from a status to a hue, rather than a colour written
+            here. Two screens drawing `verified` in two different colours is
+            what `MBStatusTag` and `theme.statusColors` exist to prevent — and
+            this file used to keep its own copy. */}
+        <MBStatusTag label={status} status={order.status} />
       </View>
+
+      <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+        {/* Through the app's own funnel, never the raw `YYYY-MM-DD`: a business
+            date is neither the device's locale nor its timezone, and this list
+            is read against the day it is being read on. */}
+        {businessDateLabel(order.date)} · {order.time}
+        {/* Absent on demands raised before migration 81 — shown as a dash
+            rather than falling back to the raise date, which would display a
+            delivery commitment nobody made. */}
+        {' · needed '}
+        {order.requiredDate ? formatBusinessDate(order.requiredDate, { weekday: true }) : '—'}
+      </Text>
 
       <View style={[styles.items, { borderTopColor: theme.colors.border }]}>
         {items.map(item => {
@@ -399,13 +444,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { paddingHorizontal: 16, paddingVertical: 16 },
   separator: { height: 8 },
-  chip: { height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  row: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  rowMain: { flex: 1, gap: 2 },
+  row: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   items: { borderTopWidth: 1, paddingTop: 8, gap: 4 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cancel: { paddingTop: 8 },
-  backdrop: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { width: '100%' },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
 });

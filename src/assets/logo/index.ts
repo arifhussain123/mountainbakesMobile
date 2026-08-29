@@ -58,7 +58,7 @@ import type { ResolvedScheme } from '@/common/theme/themes';
  * Regenerate with, from the project root:
  *
  *     npx react-native-bootsplash generate assets/bootsplash_logo.png \
- *       --platforms android --logo-width 192 --background '#FDF7EA'
+ *       --platforms android --logo-width 192 --background '#7A3EA1'
  *
  * **It rewrites more than the drawables, and it strips comments.** It rewrote
  * `AndroidManifest.xml` (deleting the deep-link block explaining why the
@@ -95,8 +95,27 @@ export const LOGO = {
   dark: require('./mountain-bakes-logo-dark.png') as ImageSourcePropType,
 } as const;
 
-/** The mark for a resolved scheme. The one correct way to choose a variant. */
+/**
+ * The mark for a **background tone** — the contract `-light` / `-dark` actually
+ * encode, stated directly.
+ *
+ * `logoFor(scheme)` is the right call for anything sitting on the page or on a
+ * card, because there the scheme and the background agree. It is the wrong call
+ * for a surface that is dark in a light theme, and v6 introduced exactly one:
+ * the splash is the masthead plum in **both** schemes, so a mark chosen by
+ * scheme comes out inverted on it in light. Reach for this instead whenever the
+ * surface is a brand block rather than the field.
+ */
+export function logoOn(background: 'light' | 'dark'): ImageSourcePropType {
+  return background === 'dark' ? LOGO.dark : LOGO.light;
+}
+
+/**
+ * The mark for a resolved scheme — correct wherever the background tracks the
+ * theme, which is the page, a card, and the print docket. For a surface that
+ * does not track it, see `logoOn`.
+ */
 export function logoFor(scheme: ResolvedScheme): ImageSourcePropType {
-  return scheme === 'dark' ? LOGO.dark : LOGO.light;
+  return logoOn(scheme === 'dark' ? 'dark' : 'light');
 }
 

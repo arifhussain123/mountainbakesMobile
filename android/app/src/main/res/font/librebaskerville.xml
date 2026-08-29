@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Libre Baskerville — the other alternate. Like Space Grotesk it is a whole mood
+  in v6: chosen, it serves as both the UI face and the display face.
+
+  It carries a real italic, which Space Grotesk does not, so `type.tagline` is
+  genuinely italic here. It has no 800, so:
+
+    800 (h1/h2/h3, cardTitle, money) -> 700
+
+  A two-and-a-bit-weight face is what a Baskerville IS; the flattened heading
+  weight is the design of the typeface, not a gap in this file.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/librebaskerville_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/librebaskerville_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/librebaskerville_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        app:font="@font/librebaskerville_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+    <font
+        android:font="@font/librebaskerville_bold"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        app:font="@font/librebaskerville_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+    <font
+        android:font="@font/librebaskerville_italic"
+        android:fontStyle="italic"
+        android:fontWeight="400"
+        app:font="@font/librebaskerville_italic"
+        app:fontStyle="italic"
+        app:fontWeight="400" />
+</font-family>

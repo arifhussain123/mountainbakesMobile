@@ -5,7 +5,14 @@
  * `@/api/queryKeys`; nothing here builds a key by hand.
  */
 
-export { useProducts, useCategories, useBranches, useSettings, useStock } from './useCatalogApi';
+export {
+  useProducts,
+  useCategories,
+  useBranches,
+  useSettings,
+  useStock,
+  useProductionBalances,
+} from './useCatalogApi';
 
 export {
   useProduct,

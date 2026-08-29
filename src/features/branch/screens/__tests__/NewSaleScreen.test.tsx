@@ -132,11 +132,14 @@ beforeEach(() => {
   });
 });
 
-async function addRuskAndOpenCheckout(screen: Awaited<ReturnType<typeof renderScreen>>) {
+type Screen = Awaited<ReturnType<typeof renderScreen>>;
+
+/** Ring one up and cross to the payment stage, which is where both finishes live. */
+async function addRuskAndCharge(screen: Screen) {
   await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
   await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
-  await fireEvent.press(screen.getByTestId('review-and-pay'));
-  await waitFor(() => expect(screen.getByTestId('confirm-sale')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('charge'));
+  await waitFor(() => expect(screen.getByTestId('save-sale')).toBeTruthy());
 }
 
 describe('NewSaleScreen', () => {
@@ -147,8 +150,42 @@ describe('NewSaleScreen', () => {
     await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
 
     await waitFor(() => expect(screen.getByText('1 item')).toBeTruthy());
-    // Twice: the product row's price, and the cart bar's running total.
-    expect(screen.getAllByText('Rs. 100')).toHaveLength(2);
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('Rs. 100');
+  });
+
+  /**
+   * The cart is the price list's header rather than a second screen, so what has
+   * been rung up is visible where the ringing up happens.
+   */
+  it('shows the line it just created above the price list', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+
+    await waitFor(() => expect(screen.getByTestId('line-total-p1')).toBeTruthy());
+    expect(screen.getByTestId('cart-qty-p1').props.value).toBe('1');
+    // And the price-list row says how many of it are already in the sale.
+    expect(screen.getByText('1 in cart')).toBeTruthy();
+  });
+
+  it('cannot reach payment with an empty cart', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+
+    expect(screen.getByTestId('charge').props.accessibilityState.disabled).toBe(true);
+    expect(screen.queryByTestId('save-sale')).toBeNull();
+  });
+
+  /** Back is one step, not one screen — and the cart survives it. */
+  it('returns from payment to items with the cart intact', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.press(screen.getByLabelText('Go back'));
+
+    await waitFor(() => expect(screen.getByTestId('charge')).toBeTruthy());
+    expect(screen.getByTestId('cart-qty-p1').props.value).toBe('1');
   });
 
   it('increments quantity rather than adding a duplicate line', async () => {
@@ -166,8 +203,8 @@ describe('NewSaleScreen', () => {
     // The server resolves the price. Sending one would let a stale cached price
     // reach a receipt.
     const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
-    await fireEvent.press(screen.getByTestId('confirm-sale'));
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-sale'));
 
     await waitFor(() => expect(mockWriteOffline).toHaveBeenCalled());
     const payload = mockWriteOffline.mock.calls[0][0].payload;
@@ -176,36 +213,26 @@ describe('NewSaleScreen', () => {
     expect(payload).not.toHaveProperty('grandTotal');
   });
 
-  it('offers the four branch payment methods and never staff', async () => {
+  it('offers the four branch payment methods, spelled for a person, and never staff', async () => {
     const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
+    await addRuskAndCharge(screen);
 
-    expect(screen.getByText('cash')).toBeTruthy();
-    expect(screen.getByText('easypaisa')).toBeTruthy();
-    expect(screen.getByText('foodpanda')).toBeTruthy();
-    expect(screen.getByText('bank_account')).toBeTruthy();
+    expect(screen.getByText('Cash')).toBeTruthy();
+    expect(screen.getByText('Easypaisa')).toBeTruthy();
+    expect(screen.getByText('Foodpanda')).toBeTruthy();
+    // Spelled out, not the raw enum: `bank_account` with the underscore showing
+    // was what the till rendered before the label map existed.
+    expect(screen.getByText('Bank account')).toBeTruthy();
+    expect(screen.queryByText('bank_account')).toBeNull();
     // 'staff' is production-counter only — an unpaid hand-out.
-    expect(screen.queryByText('staff')).toBeNull();
-  });
-
-  it('refuses a cash sale that is not covered by the tender', async () => {
-    const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
-
-    await fireEvent.changeText(screen.getByLabelText('Cash received'), '50');
-    await fireEvent.press(screen.getByTestId('confirm-sale'));
-
-    await waitFor(() =>
-      expect(screen.getByText('The cash received does not cover the total.')).toBeTruthy(),
-    );
-    expect(mockWriteOffline).not.toHaveBeenCalled();
+    expect(screen.queryByText('Staff (unpaid)')).toBeNull();
   });
 
   it('hands a confirmed sale back to the register as synced', async () => {
     drainSyncs(1);
     const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
-    await fireEvent.press(screen.getByTestId('confirm-sale'));
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-sale'));
 
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('SalesList', { outcome: 'synced' }),
@@ -221,8 +248,8 @@ describe('NewSaleScreen', () => {
     drainRefuses('Cream roll: requested 5, available 2');
 
     const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
-    await fireEvent.press(screen.getByTestId('confirm-sale'));
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-sale'));
 
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('SalesList', {
@@ -235,8 +262,8 @@ describe('NewSaleScreen', () => {
   it('hands back a queued sale as queued, never as saved', async () => {
     drainSyncs(0);
     const screen = await renderScreen(<NewSaleScreen />);
-    await addRuskAndOpenCheckout(screen);
-    await fireEvent.press(screen.getByTestId('confirm-sale'));
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-sale'));
 
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('SalesList', { outcome: 'queued' }),
@@ -347,5 +374,227 @@ describe('category filter', () => {
     await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
     // An "All" chip on its own filters nothing and only costs the list its room.
     expect(screen.queryByTestId('sale-category-all')).toBeNull();
+  });
+});
+
+/**
+ * The discount is entered as a percentage and sent as rupees, because
+ * `OrderItemSchema.discount` is a number of rupees and the server knows nothing
+ * about percentages.
+ */
+describe('line discount', () => {
+  it('sends the resolved rupee figure, not the percentage', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+    await fireEvent.changeText(screen.getByTestId('discount-p1'), '10');
+    await fireEvent.press(screen.getByTestId('charge'));
+    await fireEvent.press(screen.getByTestId('save-sale'));
+
+    await waitFor(() => expect(mockWriteOffline).toHaveBeenCalled());
+    expect(mockWriteOffline.mock.calls[0][0].payload.items).toEqual([
+      { productId: 'p1', qty: 1, discount: 10 },
+    ]);
+  });
+
+  /**
+   * The bug this pairing exists to prevent.
+   *
+   * Resolving "10%" once against the gross at the moment it is typed and then
+   * freezing the rupee figure means ringing up a second unit silently turns it
+   * into a 5% discount — the cashier sees the number they typed and the customer
+   * is charged something else. `useCart` re-applies the percentage on every
+   * quantity change.
+   */
+  it('re-applies the percentage when the quantity changes', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+    await fireEvent.changeText(screen.getByTestId('discount-p1'), '10');
+    // A second unit: gross 200, so 10% must become 20, not stay 10.
+    await fireEvent.press(screen.getByLabelText('Increase Milk Rusk'));
+
+    await waitFor(() => expect(screen.getByTestId('cart-total')).toHaveTextContent('Rs. 180'));
+
+    await fireEvent.press(screen.getByTestId('charge'));
+    await fireEvent.press(screen.getByTestId('save-sale'));
+
+    await waitFor(() => expect(mockWriteOffline).toHaveBeenCalled());
+    expect(mockWriteOffline.mock.calls[0][0].payload.items).toEqual([
+      { productId: 'p1', qty: 2, discount: 20 },
+    ]);
+  });
+
+  it('removes a whole line in one tap rather than stepping it to zero', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('Milk Rusk')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+    await fireEvent.press(screen.getByTestId('remove-p1'));
+
+    await waitFor(() => expect(screen.getByTestId('cart-total')).toHaveTextContent('Rs. 0'));
+    expect(screen.queryByTestId('line-total-p1')).toBeNull();
+  });
+});
+
+/**
+ * Taking cash. The notes ADD and Exact SETS, because tendering is cumulative and
+ * settling is not.
+ */
+describe('cash pad', () => {
+  it('adds a note to what has already been received', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.press(screen.getByTestId('cash-note-50'));
+    await fireEvent.press(screen.getByTestId('cash-note-100'));
+
+    await waitFor(() => expect(screen.getByTestId('cash-received').props.value).toBe('150'));
+    expect(screen.getByTestId('cash-returned')).toHaveTextContent('Rs. 50');
+  });
+
+  it('sets the tender to the grand total exactly', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.press(screen.getByTestId('cash-exact'));
+
+    await waitFor(() => expect(screen.getByTestId('cash-received').props.value).toBe('100'));
+    expect(screen.getByTestId('cash-returned')).toHaveTextContent('Rs. 0');
+  });
+
+  /**
+   * A sale saved with money missing is a till that will not reconcile at close,
+   * and nobody will know which sale it was.
+   */
+  it('blocks both finishes while the tender is short, and says what is still due', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.changeText(screen.getByTestId('cash-received'), '50');
+
+    await waitFor(() => expect(screen.getByTestId('cash-still-due')).toHaveTextContent('Rs. 50'));
+    expect(screen.getByTestId('save-sale').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByTestId('save-and-share').props.accessibilityState.disabled).toBe(true);
+    expect(mockWriteOffline).not.toHaveBeenCalled();
+  });
+
+  /**
+   * An empty field is NOT short — it means the tender was not recorded, which is
+   * a normal thing to skip. Treating blank as zero would refuse most sales on
+   * the screen used most often.
+   */
+  it('saves without a recorded tender, and sends no receivedCash', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-sale'));
+
+    await waitFor(() => expect(mockWriteOffline).toHaveBeenCalled());
+    expect(mockWriteOffline.mock.calls[0][0].payload).not.toHaveProperty('receivedCash');
+  });
+
+  it('sends the tender when it was recorded', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.press(screen.getByTestId('cash-note-500'));
+    await fireEvent.press(screen.getByTestId('save-sale'));
+
+    await waitFor(() => expect(mockWriteOffline).toHaveBeenCalled());
+    expect(mockWriteOffline.mock.calls[0][0].payload.receivedCash).toBe(500);
+  });
+
+  it('offers no cash pad for a method that takes no cash', async () => {
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+
+    await fireEvent.press(screen.getByTestId('payment-easypaisa'));
+
+    await waitFor(() => expect(screen.queryByTestId('cash-received')).toBeNull());
+  });
+});
+
+/**
+ * There is no printing in this app — `react-native-print` is unusable and PDF
+ * rendering was deferred to a server endpoint that does not exist. The slip
+ * previews on-device and shares as text, which is what `OrderPrintPreview`
+ * already does for the production slip.
+ */
+describe('save and share', () => {
+  it('opens a slip carrying the sale, then hands the outcome to the register', async () => {
+    drainSyncs(1);
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-and-share'));
+
+    await waitFor(() => expect(screen.getByTestId('slip-total')).toBeTruthy());
+    expect(screen.getByTestId('slip-total')).toHaveTextContent('Rs. 100');
+    // The figures are the till's own, and the slip says so rather than passing
+    // them off as the server's.
+    expect(screen.getByText(/Amounts are this till's own/)).toBeTruthy();
+    // The register is still where the outcome is read, so leaving the slip is
+    // what reports it.
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByTestId('slip-done'));
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('SalesList', { outcome: 'synced' }),
+    );
+  });
+
+  it('admits a queued sale has no sale number yet', async () => {
+    drainSyncs(0);
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-and-share'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/It has no sale number until it reaches the server/)).toBeTruthy(),
+    );
+  });
+
+  /**
+   * A refused sale did not happen. Printing a slip for it is how a customer
+   * walks out holding proof of a sale the business has no record of.
+   */
+  it('never offers a slip for a sale the server refused', async () => {
+    drainRefuses('Milk Rusk: requested 1, available 0');
+    const screen = await renderScreen(<NewSaleScreen />);
+    await addRuskAndCharge(screen);
+    await fireEvent.press(screen.getByTestId('save-and-share'));
+
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('SalesList', {
+        outcome: 'refused',
+        reason: 'Milk Rusk: requested 1, available 0',
+      }),
+    );
+    expect(screen.queryByTestId('slip-total')).toBeNull();
+  });
+});
+
+/**
+ * Stock stays advisory — see the `availability` block above — so the row's job
+ * is to make the 409 foreseeable at the counter rather than to prevent the tap.
+ */
+describe('over stock', () => {
+  it('says so when the cart exceeds what is on record, without blocking the sale', async () => {
+    getStock.mockResolvedValue({
+      date: '2026-08-18',
+      rows: [{ productId: 'p1', stockCode: 'STK-1', productName: 'Milk Rusk', balance: 1 }],
+    });
+    const screen = await renderScreen(<NewSaleScreen />);
+    await waitFor(() => expect(screen.getByText('1 left')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+    await fireEvent.press(screen.getByLabelText(/^Add Milk Rusk/));
+
+    await waitFor(() => expect(screen.getByText(/more than the 1 on record/)).toBeTruthy());
+    // Advisory, not a gate: the server adjudicates, and a stale balance must not
+    // stop a real sale.
+    expect(screen.getByTestId('charge').props.accessibilityState.disabled).toBe(false);
   });
 });

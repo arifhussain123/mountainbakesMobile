@@ -199,6 +199,10 @@ export function ProductionDashboardScreen(): React.ReactElement {
               <MBTrendChart
                 data={demandTrend}
                 accessibilityLabel="Branch demand quantity by business day"
+                /* Units, not money — this is the one trend in the app whose
+                   axis is a count, and formatting it as currency would put a
+                   rupee sign on a number of loaves. */
+                formatValue={v => `${formatQty(v)} units`}
               />
             </MBCard>
           ) : null}

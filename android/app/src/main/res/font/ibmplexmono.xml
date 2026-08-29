@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The monospace face, at the single weight `type.mono` declares.
+
+  v6 has no mono — it never draws an identifier. This app does (order numbers,
+  voucher numbers, `client_operation_id`), and that is the only thing this face
+  is for, at one weight. Carried as an XML family rather than a bare asset purely
+  for consistency with the other two: one registration path in MainApplication
+  is easier to keep correct than two.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/ibmplexmono_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/ibmplexmono_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+</font-family>

@@ -110,3 +110,91 @@ describe('MBTrendChart', () => {
     expect(screen.getByLabelText(LABEL)).toBeTruthy();
   });
 });
+
+/**
+ * The peak caption exists because the bars carry no axis: two charts of
+ * identical shape can be a quiet week and a record one, and nothing on either
+ * says which. These cases are about the two ways the caption itself can lie —
+ * quoting a number the bars were not scaled against, and putting a scale on a
+ * period that never traded.
+ */
+describe('MBTrendChart peak caption', () => {
+  const money = (v: number) => `Rs. ${v}`;
+
+  it('says nothing when no formatter is given', async () => {
+    const screen = await renderScreen(
+      <MBTrendChart
+        data={[{ label: 'a', value: 400 }]}
+        accessibilityLabel={LABEL}
+      />,
+    );
+    expect(screen.queryByText(/Peak/)).toBeNull();
+  });
+
+  it('states what the tallest bar is worth', async () => {
+    const screen = await renderScreen(
+      <MBTrendChart
+        data={[
+          { label: 'a', value: 50 },
+          { label: 'b', value: 400 },
+          { label: 'c', value: 120 },
+        ]}
+        accessibilityLabel={LABEL}
+        formatValue={money}
+      />,
+    );
+    expect(screen.getByText('Peak Rs. 400')).toBeTruthy();
+  });
+
+  /**
+   * The caption must quote the value the bars were SCALED against, not the raw
+   * maximum of the input. A negative is clamped to zero before scaling, so a
+   * caption reading it off the untouched array would name a figure no bar is
+   * drawn at.
+   */
+  it('quotes the clamped maximum the bars were scaled against', async () => {
+    const screen = await renderScreen(
+      <MBTrendChart
+        data={[
+          { label: 'a', value: 300 },
+          { label: 'b', value: Number.NaN },
+          { label: 'c', value: -900 },
+        ]}
+        accessibilityLabel={LABEL}
+        formatValue={money}
+      />,
+    );
+    expect(screen.getByText('Peak Rs. 300')).toBeTruthy();
+  });
+
+  /**
+   * Every bar is the stub when nothing traded, so there is no tallest bar for a
+   * figure to describe. "Peak Rs. 0" states a scale that was never applied.
+   */
+  it('states no scale for a period that did not trade', async () => {
+    const screen = await renderScreen(
+      <MBTrendChart
+        data={[
+          { label: 'a', value: 0 },
+          { label: 'b', value: 0 },
+        ]}
+        accessibilityLabel={LABEL}
+        formatValue={money}
+      />,
+    );
+    expect(screen.queryByText(/Peak/)).toBeNull();
+  });
+
+  /** The bars stay one accessibility node; the caption is text of its own. */
+  it('leaves the caption outside the chart’s own summary', async () => {
+    const screen = await renderScreen(
+      <MBTrendChart
+        data={[{ label: 'a', value: 400 }]}
+        accessibilityLabel={LABEL}
+        formatValue={money}
+      />,
+    );
+    expect(screen.getByLabelText(LABEL)).toBeTruthy();
+    expect(screen.getByText('Peak Rs. 400')).toBeTruthy();
+  });
+});

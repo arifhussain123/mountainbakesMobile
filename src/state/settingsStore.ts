@@ -2,8 +2,13 @@ import { create } from 'zustand';
 import NativeAppTheme from '@/specs/NativeAppTheme';
 import { PreferenceKeys, prefs } from '@/common/storage/preferences';
 import { StorageKeys, kv } from '@/common/storage/secureStorage';
-import type { ThemeMode } from '@/common/theme/themes';
+import { DEFAULT_THEME_MODE, type ThemeMode } from '@/common/theme/themes';
 import { DEFAULT_ACCENT, isAccentKey, type AccentKey } from '@/common/theme/accents';
+import {
+  DEFAULT_TYPEFACE,
+  isTypefaceKey,
+  type TypefaceKey,
+} from '@/common/theme/typography';
 
 /**
  * UI preferences.
@@ -33,6 +38,17 @@ interface SettingsState {
    */
   accent: AccentKey;
   setAccent: (accent: AccentKey) => void;
+  /**
+   * The chosen typeface. Device-local, like the accent — it is a preference
+   * about this phone, not a tenant setting, so it never reaches the API.
+   *
+   * Nothing is mirrored natively for it. The mode has to be, because Android
+   * resolves `values-night/` before React starts; a typeface has no native
+   * counterpart to keep in step, and the boot splash draws a logo rather than
+   * type.
+   */
+  typeface: TypefaceKey;
+  setTypeface: (typeface: TypefaceKey) => void;
   /**
    * One-time migration of `themeMode` out of the encrypted store, plus the
    * native mirror.
@@ -83,23 +99,38 @@ function initialAccent(): AccentKey {
   }
 }
 
+function initialTypeface(): TypefaceKey {
+  try {
+    const stored = prefs.getString(PreferenceKeys.typeface);
+    return isTypefaceKey(stored) ? stored : DEFAULT_TYPEFACE;
+  } catch {
+    return DEFAULT_TYPEFACE;
+  }
+}
+
 function initialThemeMode(): ThemeMode {
   try {
     const stored = prefs.getString(PreferenceKeys.themeMode);
-    return isThemeMode(stored) ? stored : 'system';
+    return isThemeMode(stored) ? stored : DEFAULT_THEME_MODE;
   } catch {
-    return 'system';
+    return DEFAULT_THEME_MODE;
   }
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeMode: initialThemeMode(),
   accent: initialAccent(),
+  typeface: initialTypeface(),
 
   setThemeMode: mode => {
     prefs.set(PreferenceKeys.themeMode, mode);
     set({ themeMode: mode });
     mirrorToNative(mode);
+  },
+
+  setTypeface: typeface => {
+    prefs.set(PreferenceKeys.typeface, typeface);
+    set({ typeface });
   },
 
   setAccent: accent => {

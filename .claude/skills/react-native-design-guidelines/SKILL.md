@@ -65,11 +65,15 @@ that a check script enforces.
 
 ### Typography — use `theme.type`, never a raw size **[repo rule]**
 
-The scale lives in `src/theme/typography.ts`, set to the v4 design. Three
+The scale lives in `src/common/theme/typography.ts`, set to the v6 design. Three
 families (`fontFamily.display` = Playfair Display, `body` = Plus Jakarta Sans,
-`mono` = IBMPlexMono — **none of which ship yet**, so everything currently falls
-back to the platform sans) and five weights
-(`weight.regular|medium|semibold|bold|extrabold`).
+`mono` = IBMPlexMono — **all three now ship**, as Android font resources in
+`android/app/src/main/res/font/`, registered by name in `MainApplication.kt`) and
+five weights (`weight.regular|medium|semibold|bold|extrabold`).
+
+Never add a weight to the scale without adding the cut to the matching
+`res/font/*.xml`: an undeclared weight silently resolves to the nearest declared
+one. `npm run fonts:check` is what catches that.
 
 | Token | Size/weight | Use for |
 |---|---|---|

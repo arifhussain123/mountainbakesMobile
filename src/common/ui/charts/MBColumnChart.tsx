@@ -16,6 +16,21 @@ export interface ColumnGroup {
    * "the biggest", which the columns already show by being taller.
    */
   emphasis?: boolean;
+  /**
+   * This bucket has not happened yet — December in a quarter you are three
+   * weeks into.
+   *
+   * **A future bucket is not a zero**, and drawing it as one is the failure this
+   * flag exists to stop: a quarter with a month still to come would read as a
+   * collapse in trade, and the collapse is the calendar. It draws as a hairline
+   * track with a dimmed label instead — present, so the shape of the period is
+   * honest, and visibly not a measurement.
+   *
+   * The caller is responsible for the other half: a future bucket must be left
+   * out of totals and averages too, or the chart tells the truth while the cards
+   * above it do not.
+   */
+  future?: boolean;
 }
 
 export interface MBColumnChartProps {
@@ -38,6 +53,25 @@ export interface MBColumnChartProps {
    * writes the sentence.
    */
   accessibilityLabel: string;
+  /**
+   * Renders the scale ceiling beside the legend: `Peak Rs. 12,340`.
+   *
+   * The axis under the columns says *which* bucket, never *how much* — so
+   * without this the chart implies a precision it does not have, and two charts
+   * of identical shape can be a quiet day and a record one with nothing on
+   * either to tell them apart. On a till-reconciliation screen that is the
+   * difference between a reading and a guess.
+   *
+   * A **formatter** rather than a pre-formatted string, because the number shown
+   * has to be the number the columns were actually scaled against. A caller
+   * computing its own peak would build a second maximum over the same groups,
+   * and the two disagree the moment a value arrives negative or non-finite —
+   * which this component clamps and a naive caller would not. Only the units are
+   * the caller's to know, so only the units are its to supply.
+   *
+   * Omitted means no caption, so every existing call site is unchanged.
+   */
+  formatValue?: (value: number) => string;
   testID?: string;
 }
 
@@ -67,19 +101,30 @@ export interface MBColumnChartProps {
  *
  * A zero value still draws a two-pixel stub. "Closed" and "off the end of the
  * data" must not look identical, which is the same rule `MBTrendChart` follows.
+ * A bucket that has not happened *yet* is a third state again — see
+ * `ColumnGroup.future`.
  */
 export function MBColumnChart({
   series,
   groups,
   height = 96,
   accessibilityLabel,
+  formatValue,
   testID,
 }: MBColumnChartProps): React.ReactElement | null {
   const theme = useTheme();
 
+  /**
+   * The shared scale, over the buckets that have happened.
+   *
+   * Future buckets are skipped rather than contributing their zeros — they
+   * cannot raise the maximum, but reading them would make the intent unclear the
+   * first time someone passes a placeholder value into one.
+   */
   const max = useMemo(() => {
     let m = 0;
     for (const g of groups) {
+      if (g.future) continue;
       for (const v of g.values) {
         if (Number.isFinite(v) && v > m) m = v;
       }
@@ -94,18 +139,47 @@ export function MBColumnChart({
      is emphasised is a property of the data, not of the column being drawn. */
   const anyEmphasis = groups.some(g => g.emphasis);
 
+  /*
+   * Suppressed when nothing traded. `max` is 0 there and every column is the
+   * two-percent stub, so there is no tallest one to be worth anything — "Peak
+   * Rs. 0" states a scale that was never applied, which is the opposite of what
+   * this caption is for.
+   */
+  const peakCaption = formatValue && max > 0 ? `Peak ${formatValue(max)}` : null;
+  const showLegend = series.length > 1;
+
   return (
     <View style={{ gap: theme.space.md }} testID={testID}>
-      {series.length > 1 ? (
-        <View style={[styles.legend, { gap: theme.space.lg }]}>
-          {series.map((name, i) => (
-            <View key={name} style={[styles.legendItem, { gap: theme.space.tight }]}>
-              <View
-                style={[styles.swatch, { backgroundColor: fills[i], borderRadius: theme.radius.xs }]}
-              />
-              <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>{name}</Text>
+      {/* One row, so a two-series chart with a peak does not spend two lines of
+          a phone screen on chrome. The peak carries `marginLeft: 'auto'` rather
+          than the row carrying `space-between`, because the caption is often the
+          only child — and `space-between` would then park it on the LEFT, under
+          the first column, reading as that column's own value. */}
+      {showLegend || peakCaption ? (
+        <View style={[styles.header, { gap: theme.space.md }]}>
+          {showLegend ? (
+            <View style={[styles.legend, { gap: theme.space.lg }]}>
+              {series.map((name, i) => (
+                <View key={name} style={[styles.legendItem, { gap: theme.space.tight }]}>
+                  <View
+                    style={[
+                      styles.swatch,
+                      { backgroundColor: fills[i], borderRadius: theme.radius.xs },
+                    ]}
+                  />
+                  <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+                    {name}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
+          ) : null}
+
+          {peakCaption ? (
+            <Text style={[theme.type.caption, styles.peak, { color: theme.colors.textMuted }]}>
+              {peakCaption}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -119,6 +193,24 @@ export function MBColumnChart({
                 {group.values.map((value, i) => {
                   const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
                   const pct = max > 0 ? Math.max(2, (safe / max) * 100) : 2;
+
+                  /* A hairline track on the BORDER token, not a short column in
+                     the series colour. A stub in the series hue is what "closed,
+                     and we measured it" looks like — the two must not be one
+                     glyph apart. */
+                  if (group.future) {
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.column,
+                          styles.future,
+                          { backgroundColor: theme.colors.border },
+                        ]}
+                      />
+                    );
+                  }
+
                   return (
                     <View
                       key={i}
@@ -152,8 +244,16 @@ export function MBColumnChart({
                 theme.type.caption,
                 styles.axisLabel,
                 {
-                  color: group.emphasis ? theme.colors.text : theme.colors.textMuted,
+                  color: group.future
+                    ? theme.colors.textMuted
+                    : group.emphasis
+                      ? theme.colors.text
+                      : theme.colors.textMuted,
                 },
+                /* Dimmed past `textMuted`, which is a readable 4.29:1 body
+                   level. A label that has not happened yet should read as
+                   pending rather than as small print. */
+                group.future ? styles.dimmed : null,
               ]}>
               {group.label}
             </Text>
@@ -165,6 +265,9 @@ export function MBColumnChart({
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  // Pushed to the right edge whether or not a legend shares the row.
+  peak: { marginLeft: 'auto' },
   legend: { flexDirection: 'row', flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center' },
   swatch: { width: 9, height: 9 },
@@ -173,6 +276,9 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', alignItems: 'flex-end', height: '100%' },
   column: { flex: 1 },
   dimmed: { opacity: 0.35 },
+  /* Full height so the pair still occupies the bucket, 1px wide-ish so it reads
+     as a track rather than a measurement. */
+  future: { height: '100%', maxWidth: 2, alignSelf: 'center' },
   axis: { flexDirection: 'row' },
   axisLabel: { flex: 1, textAlign: 'center' },
 });

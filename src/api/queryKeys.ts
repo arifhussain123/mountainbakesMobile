@@ -52,6 +52,28 @@ export const qk = {
   productionOrders: {
     all: () => ['productionOrders'] as const,
     list: (filters: { status?: string }) => ['productionOrders', 'list', filters] as const,
+    /**
+     * `GET /api/production-orders/balances` — outstanding demand per product,
+     * i.e. what Production still owes and has not delivered.
+     *
+     * No branch in the key. The route takes no `branchId` from a branch role at
+     * all — it scopes to the JWT's branch server-side — so for the sessions that
+     * read this there is exactly one answer per session, and inventing a branch
+     * segment would imply a second one that cannot be requested.
+     */
+    balances: () => ['productionOrders', 'balances'] as const,
+  },
+
+  /**
+   * Branch discount claims — money asked back against a demand.
+   *
+   * The window is in the key because it is the request: asking for 30 days and
+   * asking for 90 are two different answers, not one list the client narrows.
+   * No branch segment — the server scopes a branch role from its JWT.
+   */
+  discounts: {
+    all: () => ['discounts'] as const,
+    list: (days: number) => ['discounts', 'list', days] as const,
   },
 
   expenses: {
@@ -121,6 +143,17 @@ export const qk = {
    * scopes the same period to one shop and then another, and those are two
    * answers. Leaving it out would serve Saddar's revenue under Gulberg's chip.
    */
+  /**
+   * Sign-in history. Keyed by the window only — never by user, because the
+   * server pins a non-admin to its own `uid` and the client cannot ask for
+   * another. A `userId` in this key would imply a scope the API will not honour.
+   */
+  loginHistory: {
+    all: () => ['loginHistory'] as const,
+    window: (days: number, limit: number) =>
+      ['loginHistory', 'window', days, limit] as const,
+  },
+
   reports: {
     all: () => ['reports'] as const,
     summary: (params: { period?: string; from?: string; to?: string; branchId?: string }) =>
@@ -191,6 +224,13 @@ export const qk = {
     all: () => ['events'] as const,
     list: (year: number) => ['events', 'list', year] as const,
     calendar: (year: number, month: number) => ['events', 'calendar', year, month] as const,
+    /**
+     * The caller's OWN advance demand for one event.
+     *
+     * No branch in the key: the route takes no `branchId` and resolves it from
+     * the JWT, so for any one session there is exactly one answer per event.
+     */
+    myDemand: (eventId: string) => ['events', 'myDemand', eventId] as const,
   },
 
   /** Support queries — the caller's own unless they are the super admin. */

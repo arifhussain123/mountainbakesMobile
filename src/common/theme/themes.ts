@@ -13,17 +13,45 @@ import { darkShadows, lightShadows, type Shadows } from './shadows';
 import { motion, type Motion } from './motion';
 import { radius } from './radius';
 import { layout, space } from './spacing';
-import { fontFamily, type, weight } from './typography';
+import {
+  DEFAULT_TYPEFACE,
+  familiesFor,
+  fontFamily,
+  type FontFamilies,
+  type,
+  typeFor,
+  weight,
+  type TypefaceKey,
+  type TypeScale,
+} from './typography';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedScheme = 'light' | 'dark';
+
+/**
+ * The mode a device gets before anyone has chosen one — **light, not system**.
+ *
+ * `system` is the conventional default and it is the wrong one here, because
+ * this app's two schemes are not two designs. v6 draws twenty-one screens and
+ * every one of them is light; the dark map is a derivation with no counterpart
+ * in the spec. Defaulting to `system` meant a majority of phones — night mode is
+ * on by default on a lot of Android skins — opened an app that had never been
+ * designed, and the first report back was exactly that: "the colours are grey,
+ * not the design."
+ *
+ * So the app opens in the design. `system` remains selectable in Appearance and
+ * is still honoured by `ThemeProvider`; it is simply no longer what you get by
+ * accident. Note this only affects a device with nothing stored — anyone who has
+ * already chosen a mode keeps it, because `initialThemeMode` reads MMKV first.
+ */
+export const DEFAULT_THEME_MODE: ThemeMode = 'light';
 
 export interface Theme {
   scheme: ResolvedScheme;
   colors: SemanticColors;
   shadows: Shadows;
-  type: typeof type;
-  fontFamily: typeof fontFamily;
+  type: TypeScale;
+  fontFamily: FontFamilies;
   weight: typeof weight;
   space: typeof space;
   radius: typeof radius;
@@ -79,14 +107,27 @@ export const darkTheme: Theme = {
 export function themeFor(
   scheme: ResolvedScheme,
   accent: AccentKey = DEFAULT_ACCENT,
+  typeface: TypefaceKey = DEFAULT_TYPEFACE,
 ): Theme {
   const fallback = scheme === 'dark' ? darkTheme : lightTheme;
-  if (accent === DEFAULT_ACCENT) return fallback;
+  // Both at their default is the common case and returns the shared object.
+  if (accent === DEFAULT_ACCENT && typeface === DEFAULT_TYPEFACE) return fallback;
 
   return {
     ...fallback,
-    colors: scheme === 'dark' ? darkColorsFor(accent) : lightColorsFor(accent),
+    /* Each preference is applied only if it moved. `lightColorsFor` and
+       `typeFor` both return their base by identity for the default, so this is
+       belt-and-braces rather than necessary — but it keeps the shape obvious:
+       two independent controls, neither reaching into the other's tokens. */
+    colors:
+      accent === DEFAULT_ACCENT
+        ? fallback.colors
+        : scheme === 'dark'
+          ? darkColorsFor(accent)
+          : lightColorsFor(accent),
+    type: typeFor(typeface),
+    fontFamily: familiesFor(typeface),
   };
 }
 
-export type { SemanticColors, StatusColorKey, AccentKey };
+export type { SemanticColors, StatusColorKey, AccentKey, TypefaceKey, TypeScale };

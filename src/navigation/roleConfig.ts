@@ -135,6 +135,7 @@ export const NAV_LABELS = {
   ledger: 'Ledger',
   income: 'Income',
   closing: 'Closing',
+  discounts: 'Discount Claims',
   production: 'Production',
   returns: 'Returns',
   newOrder: 'New Order',
@@ -476,6 +477,22 @@ function branchMore(): readonly MoreSection[] {
          * auto-approved, and v5 asks for the list.
          */
         { route: 'Returns', icon: 'delivery', label: 'returns' },
+        /**
+         * The day's takings and spending on one screen — a READ, and carrying
+         * no capability gate because it fetches nothing a branch cannot already
+         * reach: it sums `GET /api/orders` and `GET /api/expenses`, both of
+         * which this role uses on its own Sales and Expenses surfaces. Gating it
+         * behind `reports` would hide a shop's own till from the shift that ran
+         * it while leaving both underlying lists open.
+         */
+        { route: 'Closing', icon: 'closing', label: 'closing' },
+        /**
+         * Claims a branch raises when a delivery arrives damaged, short or
+         * wrong. Ungated for the same reason Closing is: `/api/branch-discounts`
+         * is mounted behind `BRANCH_ROLES`, so both branch roles may raise and
+         * correct their own — this is not an admin surface with a branch view.
+         */
+        { route: 'Discounts', icon: 'payments', label: 'discounts' },
         { route: 'Reports', icon: 'reports', label: 'reports', requires: ['reports'] },
       ],
     },

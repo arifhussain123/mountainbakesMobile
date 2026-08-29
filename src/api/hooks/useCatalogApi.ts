@@ -1,5 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { ProductFilters, StockResponse } from '@/api/services/catalogService';
+import { getProductionBalances } from '@/api/services/productionService';
+import { qk } from '@/api/queryKeys';
 import {
   branchesQuery,
   categoriesQuery,
@@ -30,6 +32,9 @@ import { useAuthStore } from '@/state/authStore';
  * cart from a screen showing "could not connect". `readThrough` fetches, mirrors
  * what it got, and serves the mirror when the request never reached the server.
  * See `database/repositories/referenceRepository.ts`.
+ *
+ * `useProductionBalances` is the one exception and says so at its own
+ * definition — it has no mirror table, and deliberately no fallback.
  */
 
 /** Catalogue data is stable; the default 60s staleTime applies. */
@@ -87,6 +92,56 @@ export function useStock(
       mirrorScope: requestBranchId ?? ownBranchId ?? '',
       ...(options.date ? { date: options.date } : {}),
     }),
+    enabled,
+  });
+}
+
+
+/**
+ * What Production still owes this branch, per product — the "waiting" figure.
+ *
+ * Returned as a `productId → qty` map because that is how every caller uses it:
+ * a row asks about one product and must not scan an array to do it.
+ *
+ * ---------------------------------------------------------------------------
+ * Absent means zero, but ONLY once this has succeeded
+ * ---------------------------------------------------------------------------
+ * The route filters `pending_qty > 0`, so a product Production owes nothing on
+ * is simply not in the response, and the map is empty in the ordinary case where
+ * a branch is fully supplied. That makes an empty map a real answer rather than
+ * a missing one — which is exactly why callers must branch on the query's own
+ * status and not on the map being empty. A failed request also produces no
+ * entries, and drawing those as "0 waiting" would state, in the shop, that
+ * nothing is on its way when the truth is that nobody could ask.
+ *
+ * ---------------------------------------------------------------------------
+ * No mirror, deliberately
+ * ---------------------------------------------------------------------------
+ * Unlike its neighbours this does not read through SQLite. There is no mirror
+ * table for it, and a stale one would be worse than none here: an outstanding
+ * balance is cleared by a delivery, so yesterday's copy claims stock is still
+ * coming that is already on the shelf and counted in `balance` — the one error
+ * that would make Expected double-count. Offline, the column reads "—" and the
+ * branch is told the figure is unavailable rather than told a number.
+ *
+ * Branch roles only. The server takes no `branchId` from them and scopes to the
+ * JWT; an admin session has no single branch for this question and is not asked
+ * to have one.
+ */
+export function useProductionBalances(): UseQueryResult<Record<string, number>> {
+  const role = useAuthStore(s => s.claims?.role);
+  const enabled = role ? isBranchRole(role) : false;
+
+  return useQuery({
+    queryKey: qk.productionOrders.balances(),
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { balances } = await getProductionBalances();
+      const byProduct: Record<string, number> = {};
+      for (const row of balances ?? []) {
+        if (row?.productId) byProduct[row.productId] = Number(row.pendingQty) || 0;
+      }
+      return byProduct;
+    },
     enabled,
   });
 }

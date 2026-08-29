@@ -344,6 +344,12 @@ describe('navigation surface', () => {
     expect(items.map(moreItemKey)).toEqual([
       'Expenses',
       'Returns',
+      // The day's takings and spending, summed from two lists this role already
+      // reaches. Ungated, unlike Reports beneath it: it adds no endpoint.
+      'Closing',
+      // Claims against a delivery. Behind BRANCH_ROLES server-side, so both
+      // branch roles get it.
+      'Discounts',
       'Reports',
       'SyncCenter',
       'Notifications',

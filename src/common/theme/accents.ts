@@ -1,44 +1,67 @@
 /**
- * The selectable accent — v4's "Theme colour" swatch row in Settings.
+ * The selectable accent — v6's "Feel > accent" swatch row, surfaced in Settings.
  *
  * ---------------------------------------------------------------------------
  * What an accent may and may not change
  * ---------------------------------------------------------------------------
- * An accent replaces the **fill axis only**: `primary`, its pressed step, the
- * label that sits on it, and the soft tint behind an active affordance. It does
- * not touch the field, the cards, the borders, the text ramp or the status
- * colours. The palette is a fill and a mark (see `colors.ts`), and only the fill
- * is a preference — recolouring the mark would recolour every word in the app.
+ * An accent replaces the **fill axis only**: `primary`, its pressed step, and
+ * the label that sits on it. It does not touch the field, the cards, the
+ * borders, the text ramp, the status colours, or — new in v6 — **the masthead
+ * wave**. The palette is a fill and a mark (see `colors.ts`), and only the fill
+ * is a preference; recolouring the mark would recolour every word in the app.
+ *
+ * That the wave is out of reach is v6's own arrangement, not a restriction
+ * invented here. The design file exposes `accent` and `mood` as two independent
+ * controls: the mood owns the plum and the accent owns the buttons, and picking
+ * a new swatch in the mockup leaves the purple header exactly where it was.
+ *
+ * ---------------------------------------------------------------------------
+ * The set, against v6's own options
+ * ---------------------------------------------------------------------------
+ * v6 offers five: `#FB6D34`, `#1F7A47`, `#3D63C4`, `#6B4FBB`, `#C2412E`. Four
+ * are already here as Ember, Pine, Indigo and Violet. The fifth — v6's brick red
+ * — is **not** carried, because this app has always offered the brand mark
+ * itself as a fill and that swatch is the more useful of the two. See Plum.
+ *
+ * ---------------------------------------------------------------------------
+ * "Ink" became "Plum", and that is a correction rather than a rename
+ * ---------------------------------------------------------------------------
+ * The v4 swatch named Ink was `#3E1B00`: the mark, offered as a fill. With the
+ * neutral axis gone purple a brown button is simply off-palette, so the swatch
+ * moves onto the new axis — and it must move to **`#4A1D70`, the mark**, not to
+ * `#2E1440`, the ink.
+ *
+ * That distinction is load-bearing. v4's ink and v4's mark were the same hex, so
+ * choosing Ink made the fill *be* the mark and the two coincided; that
+ * coincidence is the whole reason `contrast.test.ts` asserts the accent-vs-mark
+ * ordering as `>=` rather than `>`. In v6 they are different colours — the ink
+ * is 16.28:1 on a card and the mark is 12.35:1 — so a fill set to the ink would
+ * be *more readable than the mark* and break the ordering outright. Setting the
+ * swatch to the mark restores the coincidence exactly as before.
  *
  * ---------------------------------------------------------------------------
  * `onPrimary` is per-accent, and that is not a detail
  * ---------------------------------------------------------------------------
- * The v4 brief states one contrast rule — "text and icons placed on #FB6D34 are
- * #3E1B00, never white" — and then offers `#3E1B00` itself as swatch two. Ink
- * type on an ink fill is **1.00:1**: an invisible button label. So the rule is
- * true of the ember and not of the set, and `onPrimary` is carried per accent,
- * chosen as whichever of ink or white is more readable on that fill. Ember keeps
- * ink at 4.78:1; every other swatch takes white.
+ * v6 states one contrast rule — text on `#FB6D34` is the ink, never white — and
+ * then offers four more swatches the rule is simply false of. Ink type on the
+ * deep plum is 1.79:1: an unreadable button label. So `onPrimary` is carried per
+ * accent, chosen as whichever of ink or white is more readable on that fill.
+ * Ember keeps the ink at 4.75:1; Plum, Pine and Indigo take white in light.
  *
  * ---------------------------------------------------------------------------
  * Each value is contrast-corrected per scheme, not shared between them
  * ---------------------------------------------------------------------------
  * A fill carries information here — the meter on the stock card, the trend line
  * on the dashboard — so it is held to the 3:1 of WCAG 1.4.11 against the surface
- * it actually sits on, exactly as `ember500` is. Two swatches cannot meet that
- * with one value:
+ * it actually sits on, exactly as `ember500` is.
  *
- * - **Ember** is v4's `#FB6D34` walked down 6% in light (2.73:1 → 3.04:1) and
- *   used verbatim in dark, where it is already 6.43:1.
- * - **Ink** is the extreme case. `#3E1B00` is 14.56:1 on the cream field and
- *   **1.19:1** on the near-black one — a black button on a black screen. Its
- *   dark variant is lifted 32% toward white, which lands on a taupe that is no
- *   longer ink in any meaningful sense. That is the honest consequence of
- *   offering the ink as a *fill*, and it is why the swatch is labelled by name
- *   rather than by its hex.
- *
- * Emerald and indigo clear both schemes unmodified. Violet needs a lift in dark
- * to clear a card.
+ * Two swatches cannot meet that with one value. **Plum** is the extreme case:
+ * `#4A1D70` is 12.35:1 on a white card and **1.72:1** on the near-black field —
+ * a purple button on a purple-black screen. Its dark variant is lifted well
+ * toward lilac and lands somewhere that is no longer the mark in any meaningful
+ * sense, which is the honest consequence of offering the mark as a *fill*.
+ * **Pine**, **Indigo** and **Violet** each lighten a step in dark for the same
+ * reason, at less cost. **Ember** holds one value across both schemes.
  *
  * ---------------------------------------------------------------------------
  * A press moves *away* from its label
@@ -46,10 +69,7 @@
  * The pressed step darkens where the label is white and lightens where the label
  * is ink, rather than always darkening. Always-darken is the habit, and on the
  * dark-scheme accents whose label is ink it drops that label to 2.8:1 for the
- * length of the press. Moving away from the label instead keeps every pressed
- * state at or above 4.8:1 — with one exception, Ember in light at 3.94:1, which
- * is the value that already shipped and is left alone rather than "fixed" into a
- * different default.
+ * length of the press.
  *
  * There is no assertion on the pressed step, deliberately: it is a ~120ms
  * transient under `MBPressable`'s scale, not a state anything is read in. The
@@ -59,7 +79,7 @@
  * schemes, so a new swatch cannot be added without meeting the same bars.
  */
 
-export type AccentKey = 'ember' | 'ink' | 'emerald' | 'indigo' | 'violet';
+export type AccentKey = 'ember' | 'plum' | 'emerald' | 'indigo' | 'violet';
 
 /** The fill group an accent replaces. */
 export interface AccentColors {
@@ -71,13 +91,13 @@ export interface AccentColors {
 
 export interface Accent {
   key: AccentKey;
-  /** Shown in Settings. v4 names the default "Ember". */
+  /** Shown in Settings. v6 names the default "Ember". */
   label: string;
   /**
    * The circle drawn in the swatch row.
    *
-   * v4's own hex, NOT the corrected `primary` below — the swatch is a brand
-   * choice being offered, and showing a value 6% off the one the user is picking
+   * v6's own hex, NOT the corrected `primary` below — the swatch is a brand
+   * choice being offered, and showing a value 9% off the one the user is picking
    * would make the row disagree with itself. Nothing is ever set in this colour;
    * it is a 32px circle with no text on it, so 1.4.11 does not apply.
    */
@@ -86,7 +106,8 @@ export interface Accent {
   dark: AccentColors;
 }
 
-const INK = '#3E1B00';
+/** v6's ink — the purple one. Not v4's `#3E1B00`. */
+const INK = '#2E1440';
 const WHITE = '#FFFFFF';
 
 export const ACCENTS: Record<AccentKey, Accent> = {
@@ -95,22 +116,29 @@ export const ACCENTS: Record<AccentKey, Accent> = {
     label: 'Ember',
     swatch: '#FB6D34',
     /*
-     * The default, and byte-identical to what shipped before accents existed —
-     * `ember500` / `ember600` / ink, one value across both schemes. Choosing
-     * Ember must leave the app exactly as it was, so this is not recomputed
-     * alongside the other four; it is copied.
+     * The default, and v6's own default accent.
+     *
+     * `#E4632F` is v6's `#FB6D34` walked down 9% to clear 3:1 on the lilac wash,
+     * where the raw hex is 2.54:1. Note this is a deeper walk than v4 needed:
+     * the old `#EC6631`, tuned against the cream field, is only 2.86:1 here.
+     *
+     * The pressed step darkens even though the label is ink, which is the one
+     * standing exception to the rule above — it keeps the pair consistent with
+     * `ember500`/`ember600` in the palette, and the label holds at 4.03:1.
      */
-    light: { primary: '#EC6631', primaryPressed: '#D65A28', onPrimary: INK },
-    dark: { primary: '#EC6631', primaryPressed: '#D65A28', onPrimary: INK },
+    light: { primary: '#E4632F', primaryPressed: '#CE5829', onPrimary: INK },
+    dark: { primary: '#E4632F', primaryPressed: '#CE5829', onPrimary: INK },
   },
-  ink: {
-    key: 'ink',
-    label: 'Ink',
-    swatch: INK,
-    // 14.56:1 on the field. White label at 15.42:1 — never ink on ink.
-    light: { primary: INK, primaryPressed: '#2E1400', onPrimary: WHITE },
-    // Lifted 32% toward white: 3.33:1 on the dark field, where the ink is 1.19:1.
-    dark: { primary: '#7C6452', primaryPressed: '#846D5C', onPrimary: WHITE },
+  plum: {
+    key: 'plum',
+    label: 'Plum',
+    swatch: '#4A1D70',
+    // The mark, offered as a fill. 12.35:1 on a card — identical to the mark's
+    // own figure, which is what keeps the accent-vs-fill ordering an equality.
+    light: { primary: '#4A1D70', primaryPressed: '#3C1759', onPrimary: WHITE },
+    // 1.72:1 on the dark field, so lifted to a mid-lilac at 5.12:1. The label
+    // flips to ink with it, at 4.92:1 where white would be 3.31:1.
+    dark: { primary: '#A87ACF', primaryPressed: '#B389D6', onPrimary: INK },
   },
   emerald: {
     key: 'emerald',

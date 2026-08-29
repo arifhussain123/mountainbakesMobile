@@ -6,6 +6,8 @@ import {
   parseCurrency,
   round2,
   toNumber,
+  signedQty,
+  signedAmount,
 } from '../money';
 
 /**
@@ -151,5 +153,37 @@ describe('formatQty', () => {
 
   it('renders negative balances', () => {
     expect(formatQty(-3.5)).toBe('-3.5');
+  });
+});
+
+/**
+ * `+` on a positive, the existing sign on a negative, nothing on zero.
+ *
+ * For a CHANGE, where the direction is the information. A bare `12` beside a
+ * bare `-3` reads as two quantities rather than as up and down — and `+0`
+ * claims a figure moved and came back.
+ */
+describe('signed figures', () => {
+  it.each([
+    [12, '+12'],
+    [-12, '-12'],
+    [0, '0'],
+    [1250.5, '+1,250.5'],
+  ])('formats a quantity change of %s as %s', (input, expected) => {
+    expect(signedQty(input)).toBe(expected);
+  });
+
+  it.each([
+    [1500, '+1,500'],
+    [-1500, '-1,500'],
+    [0, '0'],
+  ])('formats an amount change of %s as %s', (input, expected) => {
+    expect(signedAmount(input)).toBe(expected);
+  });
+
+  /** PostgREST serialises `numeric` as a string; both helpers go through `toNumber`. */
+  it('accepts the wire string form', () => {
+    expect(signedQty('12')).toBe('+12');
+    expect(signedAmount('-40.00')).toBe('-40');
   });
 });

@@ -21,7 +21,7 @@ import type { BranchStockHistoryRow } from '@/shared/types/stock.types';
 import { businessDateStr } from '@/shared/utils/timezone';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { formatBusinessDate, shiftBusinessDate } from '@/common/helpers/businessDay';
-import { formatAmount, formatQty } from '@/common/utils/money';
+import { formatAmount, formatQty, signedAmount, signedQty } from '@/common/utils/money';
 import { contentColumn, space } from '@/common/theme/spacing';
 
 /**
@@ -88,6 +88,41 @@ export function StockDayScreen(): React.ReactElement {
   const row = day.data?.row;
 
   const rows = useMemo<LedgerRow[]>(() => (row ? ledgerRows(row, date) : []), [row, date]);
+
+  /**
+   * The day's change, in units AND value — never one of them.
+   *
+   * They can move in opposite directions, and on a bakery's books that is
+   * ordinary rather than exotic: a day spent selling cheap volume lines while
+   * taking in a delivery of celebration cakes ends with fewer items on the shelf
+   * and more money sitting on it. Either figure alone reports that day as a
+   * clean gain or a clean loss, and both readings are wrong.
+   *
+   * Derived from the two ends of the ledger above rather than from the
+   * movements, so it is the same subtraction a reader would do on the table —
+   * closing minus the balance carried in.
+   */
+  const change = row
+    ? { qty: row.balanceQty - row.openingQty, amount: row.balanceAmount - row.openingAmount }
+    : null;
+
+  /**
+   * A day where nothing moved at all.
+   *
+   * A real state, not a failure: a shop that was shut, or one whose sales have
+   * not synced yet. The ledger still draws both ends — the balance carried
+   * straight through — and the note below says which of those it is, because a
+   * table of zeroes with no sentence beside it reads as a fetch that went wrong.
+   *
+   * Tested on the quantities and not the amounts: quantity is what moved, and an
+   * amount can be zero on a real movement of a zero-priced line.
+   */
+  const nothingMoved =
+    row !== undefined &&
+    row.newQty === 0 &&
+    row.soldQty === 0 &&
+    row.returnedQty === 0 &&
+    row.adjustmentQty === 0;
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
@@ -164,9 +199,34 @@ export function StockDayScreen(): React.ReactElement {
                 <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
                   {formatQty(row.balanceQty)} items on hand
                 </Text>
+                {/* Both figures, and no colour on either.
+
+                    Tone here would have to answer "is less stock good?", and
+                    the honest answer is that this screen cannot know — selling
+                    the shelf down is the point of the shop, and a red closing
+                    change on the best day of the week is an alarm wired to a
+                    threshold nobody set. The signs carry the direction; the
+                    same rule `MBStatCard.tone` states for its own tiles. */}
+                {change && (change.qty !== 0 || change.amount !== 0) ? (
+                  <Text
+                    style={[theme.type.caption, { color: theme.colors.textSubtle }]}
+                    testID="stock-day-change">
+                    {signedQty(change.qty)} items · {signedAmount(change.amount)} on the day
+                  </Text>
+                ) : null}
               </View>
               <MBMoney value={row.balanceAmount} symbol={currencySymbol} />
             </View>
+
+            {nothingMoved ? (
+              <Text
+                style={[theme.type.caption, styles.note, { color: theme.colors.textMuted }]}
+                testID="stock-day-nothing-moved">
+                Nothing moved on this day. The balance carried straight through from{' '}
+                {formatBusinessDate(shiftBusinessDate(date, -1))} — either the shop was shut, or
+                its sales have not synced yet.
+              </Text>
+            ) : null}
 
             <Text style={[theme.type.caption, styles.note, { color: theme.colors.textMuted }]}>
               Amounts value every quantity at today&apos;s price list. Sold here is stock leaving

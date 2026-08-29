@@ -27,7 +27,7 @@ import { businessDateStr, businessDayBounds, karachiTimeStr } from '@/shared/uti
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { businessDateLabel, formatBusinessDate } from '@/common/helpers/businessDay';
 import { resolveRange } from '@/common/helpers/dashboardRange';
-import { formatAmount, formatQty, toNumber } from '@/common/utils/money';
+import { formatAmount, formatCurrency, formatQty, toNumber } from '@/common/utils/money';
 import { contentColumn } from '@/common/theme/spacing';
 
 /**
@@ -182,6 +182,10 @@ export function DailySalesScreen(): React.ReactElement {
                       series={['Sales']}
                       groups={hours}
                       accessibilityLabel={hourSummary(hours, currencySymbol)}
+                      /* The busiest hour is emphasised but its value is not
+                         drawn on it, so without this the tallest column is a
+                         shape: a quiet day and a record one plot identically. */
+                      formatValue={v => formatCurrency(v, currencySymbol)}
                       testID="daily-sales-hours"
                     />
                   )}

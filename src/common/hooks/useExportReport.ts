@@ -15,6 +15,13 @@ import type { ReportPeriod } from '@/shared/types/report.types';
  *
  * The token is fetched per call, never cached — the same rule the sync engine
  * follows, so a long-lived screen cannot send an expired one.
+ *
+ * Lives in `common/` because two features export the same report over the same
+ * endpoint: the admin Reports index for whatever range is filtered there, and
+ * Sales vs Expenses for the calendar period on screen. `/api/reports/export` is
+ * mounted behind `requireRole('super_admin', 'branch_manager')` — the same two
+ * roles that can reach either screen — so there is no capability difference
+ * between the callers, only a different window.
  */
 
 export type ExportType = 'excel' | 'pdf' | 'csv';

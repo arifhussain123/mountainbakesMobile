@@ -27,14 +27,14 @@ import {
 } from '@/common/ui';
 import { useBranches } from '@/api/hooks/useCatalogApi';
 import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
-import { useExportReport } from '../hooks';
+import { useExportReport } from '@/common/hooks/useExportReport';
 import { getReportSummary } from '@/api/services/reportsService';
 import type { ReportSummary } from '@/shared/types/report.types';
 import { businessDateStr, businessDaysAgoStr } from '@/shared/utils/timezone';
 import { useAuthStore } from '@/state/authStore';
 import { useNetworkStore } from '@/state/networkStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
-import { formatAmount, formatCurrency, formatQty, toNumber } from '@/common/utils/money';
+import { formatAmount, formatCurrency, formatQty, round2, toNumber } from '@/common/utils/money';
 import { dataAsOfFrom } from '@/common/helpers/dataAsOf';
 import {
   resolveRange,
@@ -358,6 +358,7 @@ export function ReportsScreen(): React.ReactElement {
                   value: toNumber(day.totalRevenue),
                 }))}
                 accessibilityLabel={trendSummary}
+                formatValue={v => formatCurrency(v, currencySymbol)}
               />
 
               {/* Said out loud rather than silently sliced. A quarter shown as
@@ -448,6 +449,65 @@ export function ReportsScreen(): React.ReactElement {
  * is the ten best sellers, so a category total built from it would be a
  * fraction of the real one wearing the real one's name.
  */
+
+/**
+ * Does the payment breakdown account for the revenue above it?
+ *
+ * Worth checking because the failure is silent: the screen can quote one revenue
+ * figure over rows that total something else, and the report looks complete
+ * either way. Nobody notices until the two are reconciled by hand.
+ *
+ * ---------------------------------------------------------------------------
+ * The two sets are deliberately different, and that is not the drift
+ * ---------------------------------------------------------------------------
+ * A naive `revenue − Σ methods` is non-zero on a perfectly healthy period, and
+ * would cry wolf on the one check worth interrupting for. On the server:
+ *
+ *   - `paymentMethodBreakdown` sums every non-cancelled order, **including
+ *     `staff`** — an order that moved stock with no money in. It is a real sale
+ *     with a required comment saying who took what, so it keeps its row.
+ *   - `totalRevenue` sums the same set **excluding `staff`**, or profit would be
+ *     overstated by whatever staff consumed.
+ *
+ * So the rows exceed revenue by exactly `staffTotal` whenever anyone took
+ * anything, by design. Putting `staffTotal` back is what makes the identity
+ * hold, and it is returned for precisely this reason.
+ *
+ * Counts differ the other way: the rows count non-cancelled orders, while
+ * `totalOrders` counts every order raised. Hence the `totalCancelled` term.
+ *
+ * A non-zero result after both corrections is real drift — a method the server
+ * bucketed into a total it did not also add to the breakdown, or the reverse.
+ */
+export interface PaymentReconciliation {
+  /** `Σ methods − staffTotal − totalRevenue`, rounded. Zero when it balances. */
+  moneyGap: number;
+  /** `Σ counts − (totalOrders − totalCancelled)`. Zero when it balances. */
+  countGap: number;
+  balanced: boolean;
+}
+
+export function reconcilePayments(
+  data: ReportSummary | undefined,
+): PaymentReconciliation | null {
+  const rows = data?.paymentMethodBreakdown ?? [];
+  // Nothing to reconcile against nothing — an empty range is not a discrepancy.
+  if (!data || rows.length === 0) return null;
+
+  const methodTotal = rows.reduce((sum, r) => sum + toNumber(r.total), 0);
+  const methodCount = rows.reduce((sum, r) => sum + toNumber(r.count), 0);
+
+  const moneyGap = round2(
+    methodTotal - toNumber(data.staffTotal) - toNumber(data.totalRevenue),
+  );
+  const countGap =
+    methodCount - (toNumber(data.totalOrders) - toNumber(data.totalCancelled));
+
+  // A hundredth is the smallest unit the money columns carry (`numeric(14,2)`),
+  // so anything under it is float noise from summing, not a missing sale.
+  return { moneyGap, countGap, balanced: Math.abs(moneyGap) < 0.01 && countGap === 0 };
+}
+
 function Breakdown({
   dimension,
   data,
@@ -480,7 +540,57 @@ function Breakdown({
     );
   }
 
-  return <MBShareList accessibilityLabel={label} items={items} />;
+  /*
+   * Only the payment view can be checked this way — it is the one breakdown that
+   * is supposed to account for the whole revenue figure. Products and categories
+   * are line-level rollups that legitimately sum to something else, and branches
+   * only add up when no branch filter is applied.
+   */
+  const reconciliation = dimension === 'payment' ? reconcilePayments(data) : null;
+
+  return (
+    <>
+      {reconciliation && !reconciliation.balanced ? (
+        <Text
+          accessibilityRole="alert"
+          style={[theme.type.caption, { color: theme.colors.danger }]}
+          testID="payment-reconciliation">
+          {reconciliationNote(reconciliation, money)}
+        </Text>
+      ) : null}
+      <MBShareList accessibilityLabel={label} items={items} />
+    </>
+  );
+}
+
+/**
+ * The discrepancy in words, because a bare signed number beside a list of
+ * payment methods does not say which way it runs or what to do about it.
+ *
+ * Staff sales are named explicitly: they are the reason a reader would otherwise
+ * assume the figure is the usual harmless difference and dismiss it.
+ */
+function reconciliationNote(
+  { moneyGap, countGap }: PaymentReconciliation,
+  money: (value: unknown) => string,
+): string {
+  const parts: string[] = [];
+  if (Math.abs(moneyGap) >= 0.01) {
+    parts.push(
+      moneyGap > 0
+        ? `the rows come to ${money(moneyGap)} more than the revenue above them`
+        : `the rows come to ${money(Math.abs(moneyGap))} less than the revenue above them`,
+    );
+  }
+  if (countGap !== 0) {
+    const n = Math.abs(countGap);
+    parts.push(
+      countGap > 0
+        ? `they count ${formatQty(n)} more sales than the period recorded`
+        : `they count ${formatQty(n)} fewer sales than the period recorded`,
+    );
+  }
+  return `These payment rows do not reconcile: ${parts.join(', and ')}. Staff sales are already allowed for, so this is a genuine gap worth reporting.`;
 }
 
 function rollup(

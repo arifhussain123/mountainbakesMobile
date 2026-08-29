@@ -1,6 +1,18 @@
 <resources>
-    <!-- Dark pair of values/colors.xml. `bg` and `splashTop` are both
-         palette.brown950 in dark, so unlike light these two coincide. -->
-    <color name="app_background">#1C120B</color>
-    <color name="bootsplash_background">#1C120B</color>
+    <!-- Dark pair of values/colors.xml.
+
+         `app_background` is the dark field, `palette.plum990`.
+
+         `bootsplash_background` is the SAME `#7A3EA1` the light file carries,
+         and that is deliberate rather than an oversight. The splash is the
+         masthead wave at full height, and the wave is v6's own plums in both
+         schemes — so the boot splash is one colour on every device regardless of
+         its night setting. That removes the mismatch this pair usually has to
+         manage: the OS night setting is the only signal available before React
+         starts, so these follow the *device* and not the app's Light/Dark/System
+         preference, and a user who forces one against the other would otherwise
+         get a splash in the scheme they did not pick. With a single splash
+         colour there is nothing left to get wrong. -->
+    <color name="app_background">#171021</color>
+    <color name="bootsplash_background">#7A3EA1</color>
 </resources>

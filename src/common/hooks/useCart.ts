@@ -1,7 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Product } from '@/shared/types/product.types';
 import { toNumber } from '@/common/utils/money';
-import { saleTotals, type CartLine, type TaxSettings } from '@/common/helpers/saleTotals';
+import {
+  discountFromPct,
+  lineGross,
+  saleTotals,
+  type CartLine,
+  type TaxSettings,
+} from '@/common/helpers/saleTotals';
 
 /**
  * POS basket.
@@ -34,16 +40,53 @@ export function useCart(settings: TaxSettings = {}) {
     });
   }, []);
 
+  /**
+   * A quantity of zero removes the line, and a percentage discount is
+   * **re-applied to the new gross**.
+   *
+   * That second part is the whole reason `discountPct` exists. A line discounted
+   * "10%" and then bumped from 1 to 2 keeps a rupee figure resolved against the
+   * old gross, so the discount the cashier typed and the discount the customer
+   * gets stop agreeing — quietly, on the screen used most often. Lines whose
+   * discount was entered as a flat amount are left exactly as given.
+   */
   const setQty = useCallback((productId: string, qty: number) => {
     setLines(current =>
       qty <= 0
         ? current.filter(l => l.productId !== productId)
-        : current.map(l => (l.productId === productId ? { ...l, qty } : l)),
+        : current.map(l => {
+            if (l.productId !== productId) return l;
+            const next = { ...l, qty };
+            return l.discountPct === undefined
+              ? next
+              : { ...next, discount: discountFromPct(lineGross(next), l.discountPct) };
+          }),
     );
   }, []);
 
+  /**
+   * A flat rupee discount. Clears any percentage — otherwise the next quantity
+   * change would recompute over the top of the amount just typed.
+   */
   const setDiscount = useCallback((productId: string, discount: number) => {
-    setLines(current => current.map(l => (l.productId === productId ? { ...l, discount } : l)));
+    setLines(current =>
+      current.map(l =>
+        l.productId === productId
+          ? { ...l, discount, discountPct: undefined }
+          : l,
+      ),
+    );
+  }, []);
+
+  /** A percentage discount, resolved to rupees now and again on every qty change. */
+  const setDiscountPct = useCallback((productId: string, pct: number) => {
+    setLines(current =>
+      current.map(l =>
+        l.productId === productId
+          ? { ...l, discountPct: pct, discount: discountFromPct(lineGross(l), pct) }
+          : l,
+      ),
+    );
   }, []);
 
   const remove = useCallback((productId: string) => {
@@ -90,11 +133,23 @@ export function useCart(settings: TaxSettings = {}) {
       addProduct,
       setQty,
       setDiscount,
+      setDiscountPct,
       remove,
       clear,
       toOrderItems,
       isEmpty: lines.length === 0,
     }),
-    [lines, itemCount, totals, addProduct, setQty, setDiscount, remove, clear, toOrderItems],
+    [
+      lines,
+      itemCount,
+      totals,
+      addProduct,
+      setQty,
+      setDiscount,
+      setDiscountPct,
+      remove,
+      clear,
+      toOrderItems,
+    ],
   );
 }

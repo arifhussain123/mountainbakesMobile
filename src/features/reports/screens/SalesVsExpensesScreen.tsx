@@ -1,164 +1,161 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBButton,
   MBCard,
   MBColumnChart,
   MBEmptyState,
   MBErrorState,
   MBFilterChips,
   MBHeader,
-  MBHeroCard,
   MBListCard,
   MBListRow,
   MBMoney,
   MBSectionHeader,
   MBSkeletonList,
-  MBStatCard,
-  MBStatGrid,
-  type ColumnGroup,
 } from '@/common/ui';
 import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
-import { getExpenses } from '@/api/services/expensesService';
-import { getReportSummary } from '@/api/services/reportsService';
-import { qk } from '@/api/queryKeys';
-import type { DailySalesData } from '@/shared/types/report.types';
-import { businessDateStr, businessDaysAgoStr } from '@/shared/utils/timezone';
+import { useExportReport, type ExportScope } from '@/common/hooks/useExportReport';
+import { useNetworkStore } from '@/state/networkStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
-import { resolveRange } from '@/common/helpers/dashboardRange';
-import { formatAmount, toNumber } from '@/common/utils/money';
+import { formatAmount, formatCurrency, toNumber } from '@/common/utils/money';
 import { contentColumn, space } from '@/common/theme/spacing';
+import { businessDayBounds } from '@/shared/utils/timezone';
+
+import { NetCard, SeriesCards } from '../components';
+import { useComparison } from '../hooks';
+import { describePeriod, type ComparisonRangeKey } from '../comparisonPeriods';
 
 /**
- * Money in against money out, over a period.
+ * Money in against money out, over a calendar period. v6, screen 17.
+ *
+ * The screen is composition and states. Every figure comes from
+ * `useComparison`, and the calendar underneath it from `comparisonPeriods.ts` —
+ * which is where the two things worth testing live: what a bucket covers, and
+ * what the previous period is bounded to.
+ *
+ * ---------------------------------------------------------------------------
+ * Calendar periods, and buckets that have not happened
+ * ---------------------------------------------------------------------------
+ * Week is Monday to Sunday, Month is the calendar month by week, Quarter is
+ * three months. A period you are inside therefore has buckets still to come —
+ * December in a quarter you are three weeks into — and those are **not zeros**.
+ * They draw as a hairline pair with a dimmed label and are excluded from every
+ * total and average, because counting them makes an ordinary quarter read as a
+ * collapse in trade.
+ *
+ * The comparison is truncated to match: five days of November against the first
+ * five days of October, never against the whole of it. Untruncated, this screen
+ * would report a 70% collapse on the 8th of every month, on the one screen a
+ * manager opens to find out whether something is wrong.
  *
  * ---------------------------------------------------------------------------
  * Two sources, and neither is a subset of the other
  * ---------------------------------------------------------------------------
- * The totals, the daily series and the profit all come from
- * `GET /api/reports/summary`, which is the authority: it is where `totalProfit`
- * is *defined*, and recomputing it here from two other numbers would produce a
- * second definition that drifts the moment the server's changes.
+ * The series and the totals come from `GET /api/reports/summary`, which
+ * populates `dailyData[].expenses` for exactly this chart. The **category
+ * split** does not exist in that response — `categoryBreakdown` there is sales
+ * by *product* category, what was sold, and using it under a heading about
+ * spending would be a wrong number that reads exactly like a right one. So the
+ * split comes from `GET /api/expenses` for the same range and is grouped here.
  *
- * The **category split** does not exist in that response. `categoryBreakdown`
- * there is sales by *product* category — what was sold — and using it under a
- * heading about spending would be a wrong number that reads exactly like a right
- * one. So the split comes from `GET /api/expenses` for the same range and is
- * grouped here.
- *
- * That second read returns rows rather than aggregates, which is why the range
- * chips stop at a quarter. A year of expense rows is the one request on this
- * screen big enough to matter, and no endpoint in this API paginates.
- *
- * ---------------------------------------------------------------------------
- * Weeks are buckets of days, and a partial week is labelled
- * ---------------------------------------------------------------------------
- * There is no weekly series in the response — `dailyData` is per business day —
- * so the columns are folded here, seven days at a time counting back from the
- * most recent. The final bucket is usually short, and the axis says `W…` with
- * its day count rather than pretending it is a full week beside three that are.
+ * That second read returns rows rather than aggregates, which is why the ranges
+ * stop at a quarter: a year of expense rows is the one request on this screen
+ * big enough to matter, and no endpoint in this API paginates.
  */
 
 const RANGES = [
-  { key: 'week', label: 'Week', accessibilityLabel: 'The last 7 business days' },
-  { key: 'month', label: 'Month', accessibilityLabel: 'The last 30 business days' },
-  { key: 'quarter', label: 'Quarter', accessibilityLabel: 'The last 90 business days' },
+  { key: 'week', label: 'Week', accessibilityLabel: 'This week, Monday to Sunday' },
+  { key: 'month', label: 'Month', accessibilityLabel: 'This calendar month, by week' },
+  { key: 'quarter', label: 'Quarter', accessibilityLabel: 'This quarter, by month' },
 ] as const;
-
-const RANGE_DAYS: Record<string, number> = { week: 7, month: 30, quarter: 90 };
-
-const DAYS_PER_BUCKET = 7;
 
 export function SalesVsExpensesScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<{ goBack: () => void }>();
   const { currencySymbol } = useCatalogSettings();
+  const isOnline = useNetworkStore(s => s.isOnline);
+  const { exportReport, isExporting, error: exportError } = useExportReport();
 
-  const [rangeKey, setRangeKey] = useState<string>('month');
-  const days = RANGE_DAYS[rangeKey] ?? 30;
-
-  const dates = useMemo(
-    () => ({ from: businessDaysAgoStr(days - 1), to: businessDateStr() }),
-    [days],
-  );
-  const scope = useMemo(() => resolveRange('custom', dates), [dates]);
-
-  const summary = useQuery({
-    queryKey: qk.reports.summary(scope),
-    queryFn: () => getReportSummary(scope),
-    placeholderData: previous => previous,
-  });
+  const comparison = useComparison('month');
+  const { period, totals, expenses } = comparison;
+  const wording = useMemo(() => describePeriod(period), [period]);
 
   /**
-   * Expense rows for the same window.
+   * What the export covers, which must be what is on screen.
    *
-   * Business **dates**, not the ISO instants the summary takes: `/api/expenses`
-   * filters on the `date` column, which already holds the business date the
-   * device captured at write time. Sending an instant there would compare a
-   * timestamp against a date and quietly lose the edges of the range.
+   * Week and Month map onto the server's own named periods — `businessRange` is
+   * calendar-aligned in exactly the same way, so the file is named `weekly` or
+   * `monthly` and a person can tell three downloads apart. A quarter has no
+   * named period, so it goes as a custom span and is named for the dates it
+   * covers. Sending `period` alone for that would export the current *month*
+   * under a file called `custom` while the screen showed a quarter.
    */
-  const expenses = useQuery({
-    queryKey: qk.expenses.list({ from: dates.from, to: dates.to }),
-    queryFn: () => getExpenses({ from: dates.from, to: dates.to }),
-    placeholderData: previous => previous,
-  });
-
-  const data = summary.data;
-  const revenue = toNumber(data?.totalRevenue);
-  const spend = toNumber(data?.totalExpenses);
-  const profit = toNumber(data?.totalProfit);
-
-  const buckets = useMemo<ColumnGroup[]>(
-    () => byWeek(data?.dailyData ?? []),
-    [data?.dailyData],
-  );
+  const scope = useMemo<Omit<ExportScope, 'type'>>(() => {
+    if (period.key === 'week') return { period: 'weekly' };
+    if (period.key === 'month') return { period: 'monthly' };
+    return {
+      period: 'custom',
+      from: businessDayBounds(period.from).fromISO,
+      to: businessDayBounds(period.to).toISO,
+    };
+  }, [period.from, period.key, period.to]);
 
   const categories = useMemo(() => {
-    const totals = new Map<string, number>();
+    const byCategory = new Map<string, number>();
     for (const row of expenses.data ?? []) {
       const key = row.category || 'Uncategorised';
-      totals.set(key, (totals.get(key) ?? 0) + toNumber(row.amount));
+      byCategory.set(key, (byCategory.get(key) ?? 0) + toNumber(row.amount));
     }
-    const rows = [...totals.entries()].map(([category, amount]) => ({ category, amount }));
+    const rows = [...byCategory.entries()].map(([category, amount]) => ({ category, amount }));
     rows.sort((a, b) => b.amount - a.amount);
-    const sum = rows.reduce((t, r) => t + r.amount, 0);
-    return { rows, sum };
+    return { rows, sum: rows.reduce((t, r) => t + r.amount, 0) };
   }, [expenses.data]);
 
   /**
-   * The margin, or nothing.
+   * The bucketed totals against the server's own headline figures.
    *
-   * A percentage of zero revenue is not zero per cent — it is undefined — and
-   * printing "0.0%" on a day with no sales is a figure someone will screenshot.
+   * `dailyData` groups on each order's stored `business_date` while the query
+   * bounds `created_at`, so an order written either side of the 02:00 rollover
+   * can land a day outside the window. The bucketed figure is what the bars are
+   * drawn from and is therefore what the cards show; when the two disagree by
+   * more than a rupee the screen says so rather than leaving someone to
+   * reconcile them by hand and conclude the app is wrong.
    */
-  const margin = revenue > 0 ? (profit / revenue) * 100 : null;
+  const drift = useMemo(() => {
+    const server = comparison.serverTotals;
+    if (!server) return null;
+    const salesGap = Math.abs(server.sales - totals.sales);
+    const spendGap = Math.abs(server.expenses - totals.expenses);
+    return salesGap > 1 || spendGap > 1 ? server : null;
+  }, [comparison.serverTotals, totals.expenses, totals.sales]);
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
         title="Sales vs expenses"
-        subtitle={data ? `${data.from} → ${data.to}` : undefined}
+        subtitle={wording.title}
         onBack={() => navigation.goBack()}
       />
 
       <View style={{ padding: theme.layout.screenPad }}>
         <MBFilterChips
           options={RANGES}
-          selectedKey={rangeKey}
-          onSelect={setRangeKey}
+          selectedKey={comparison.rangeKey}
+          onSelect={key => comparison.setRangeKey(key as ComparisonRangeKey)}
           testIDPrefix="sve-range"
         />
       </View>
 
-      {summary.isPending ? (
+      {comparison.isPending ? (
         <MBSkeletonList rows={5} />
-      ) : summary.isError ? (
+      ) : comparison.isError ? (
         <MBErrorState
-          error={summary.error}
-          onRetry={() => summary.refetch()}
-          retrying={summary.isFetching}
+          error={comparison.error}
+          onRetry={comparison.refetch}
+          retrying={comparison.isFetching}
         />
       ) : (
         <ScrollView
@@ -168,48 +165,68 @@ export function SalesVsExpensesScreen(): React.ReactElement {
           ]}
           refreshControl={
             <RefreshControl
-              refreshing={summary.isFetching && !summary.isPending}
-              onRefresh={() => {
-                summary.refetch();
-                expenses.refetch();
-              }}
+              refreshing={comparison.isFetching && !comparison.isPending}
+              onRefresh={comparison.refetch}
               tintColor={theme.colors.primary}
             />
           }>
-          <MBStatGrid>
-            <MBStatCard
-              label="Sales"
-              value={revenue}
-              currencySymbol={currencySymbol}
-              icon="sales"
-              tone="success"
+          {comparison.isEmpty ? (
+            /*
+              A real state, not zeroed cards. A margin of nothing is undefined
+              rather than 0%, an expense ratio of nothing is not "Rs. 0.00
+              spent per rupee", and a chart of flat stubs looks exactly like a
+              chart of a terrible month. Saying it plainly is the only reading
+              that cannot be misread.
+            */
+            <MBEmptyState
+              title={`Nothing recorded in ${wording.title.toLowerCase()}`}
+              message="No sales and no expenses have been logged in this period yet."
+              icon="reports"
             />
-            <MBStatCard
-              label="Expenses"
-              value={spend}
-              currencySymbol={currencySymbol}
-              icon="expenses"
-              tone="danger"
-            />
-          </MBStatGrid>
+          ) : (
+            <>
+              <SeriesCards
+                sales={totals.sales}
+                expenses={totals.expenses}
+                change={comparison.change}
+                comparisonLabel={wording.comparisonLabel}
+                {...(currencySymbol ? { currencySymbol } : {})}
+              />
 
-          <MBSectionHeader title="By week" subtitle={`${days} business days`} />
-          <MBCard>
-            <MBColumnChart
-              series={['Sales', 'Expenses']}
-              groups={buckets}
-              accessibilityLabel={weekSummary(buckets, currencySymbol)}
-              testID="sve-weeks"
-            />
-          </MBCard>
+              <MBCard>
+                {/* No legend of its own: the two cards above carry the swatches,
+                    read from the same `colors.series` this fills its columns
+                    with, so a second key would be a second thing to keep true. */}
+                <MBColumnChart
+                  series={['Sales', 'Expenses']}
+                  groups={comparison.groups}
+                  accessibilityLabel={chartSummary(comparison, wording.bucketNoun, currencySymbol)}
+                  formatValue={v => formatCurrency(v, currencySymbol)}
+                  testID="sve-chart"
+                />
+              </MBCard>
 
-          <MBHeroCard
-            caption={`Net over ${days} business days`}
-            value={profit}
-            currencySymbol={currencySymbol}
-            {...(margin === null ? {} : { highlight: `Margin ${margin.toFixed(1)}%` })}
-            testID="sve-net"
-          />
+              <NetCard
+                totals={totals}
+                previousMargin={comparison.previous?.margin ?? null}
+                average={comparison.averages}
+                bucketNoun={wording.bucketNoun}
+                lossBuckets={comparison.lossBuckets}
+                periodLabel={wording.title}
+                {...(currencySymbol ? { currencySymbol } : {})}
+              />
+
+              {drift ? (
+                <Text style={[theme.type.caption, styles.note, { color: theme.colors.textMuted }]}>
+                  The buckets total {formatAmount(totals.sales)} in and{' '}
+                  {formatAmount(totals.expenses)} out, against the server&apos;s{' '}
+                  {formatAmount(drift.sales)} and {formatAmount(drift.expenses)}. The cards
+                  match the bars; an order written either side of the 2 AM rollover can fall
+                  a day outside the window.
+                </Text>
+              ) : null}
+            </>
+          )}
 
           <MBSectionHeader title="Where it went" subtitle="Expenses by category" />
           {expenses.isPending ? (
@@ -245,16 +262,60 @@ export function SalesVsExpensesScreen(): React.ReactElement {
             </MBListCard>
           )}
 
-          {/* The two totals come from different places and can legitimately
-              disagree by a rounding step; saying which is which is cheaper than
-              someone reconciling them by hand and concluding the app is wrong. */}
-          {Math.abs(categories.sum - spend) > 1 ? (
-            <Text style={[theme.type.caption, styles.note, { color: theme.colors.textMuted }]}>
-              The category rows total {formatAmount(categories.sum)} against the period&apos;s{' '}
-              {formatAmount(spend)}. The header figure is the server&apos;s; these rows are the
-              expense records this branch can read.
+          <MBCard>
+            <Text style={[theme.type.h3, { color: theme.colors.text }]}>Export</Text>
+            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              Generated by the server and shared from this device. The file covers{' '}
+              {wording.title.toLowerCase()}.
             </Text>
-          ) : null}
+            {/*
+              `lg` (56), not the `sm` the Reports index uses. These are the only
+              actions on a screen that is otherwise read rather than operated,
+              and 56 is the one button height in this app that clears
+              `layout.tapMin`.
+            */}
+            <View style={styles.exportRow}>
+              <MBButton
+                label="Excel"
+                onPress={() => exportReport({ type: 'excel', ...scope })}
+                loading={isExporting}
+                disabled={!isOnline}
+                variant="secondary"
+                style={styles.grow}
+                testID="sve-export-excel"
+              />
+              <MBButton
+                label="PDF"
+                onPress={() => exportReport({ type: 'pdf', ...scope })}
+                loading={isExporting}
+                disabled={!isOnline}
+                variant="secondary"
+                style={styles.grow}
+                testID="sve-export-pdf"
+              />
+              <MBButton
+                label="CSV"
+                onPress={() => exportReport({ type: 'csv', ...scope })}
+                loading={isExporting}
+                disabled={!isOnline}
+                variant="secondary"
+                style={styles.grow}
+                testID="sve-export-csv"
+              />
+            </View>
+            {!isOnline ? (
+              <Text style={[theme.type.caption, { color: theme.colors.offline }]}>
+                Offline — the file is built on the server, so an export needs a connection.
+              </Text>
+            ) : null}
+            {exportError ? (
+              <Text
+                accessibilityRole="alert"
+                style={[theme.type.caption, { color: theme.colors.danger }]}>
+                {exportError}
+              </Text>
+            ) : null}
+          </MBCard>
         </ScrollView>
       )}
     </View>
@@ -262,54 +323,33 @@ export function SalesVsExpensesScreen(): React.ReactElement {
 }
 
 /**
- * Daily rows → weekly columns, newest week last.
+ * The chart in a sentence.
  *
- * Counted back from the most recent day so the *current* week is whole and the
- * oldest bucket takes the remainder — the opposite convention would leave the
- * week being lived in looking like a collapse.
+ * Ten columns read out one at a time is noise; the shape they make is the
+ * content. It names the future buckets explicitly, because "nothing there" and
+ * "not yet" are the distinction the hairline is drawing and a reader who cannot
+ * see it gets no other clue.
  */
-function byWeek(daily: readonly DailySalesData[]): ColumnGroup[] {
-  if (daily.length === 0) return [];
+function chartSummary(
+  comparison: ReturnType<typeof useComparison>,
+  bucketNoun: string,
+  symbol?: string,
+): string {
+  const drawn = comparison.groups.filter(g => !g.future);
+  const pending = comparison.groups.length - drawn.length;
+  const money = (v: number) => formatCurrency(v, symbol);
 
-  const ordered = [...daily].sort((a, b) => a.date.localeCompare(b.date));
-  const groups: ColumnGroup[] = [];
+  const head =
+    `Sales against expenses over ${drawn.length} ${bucketNoun}${drawn.length === 1 ? '' : 's'}. ` +
+    `${money(comparison.totals.sales)} taken, ${money(comparison.totals.expenses)} spent.`;
 
-  for (let end = ordered.length; end > 0; end -= DAYS_PER_BUCKET) {
-    const start = Math.max(0, end - DAYS_PER_BUCKET);
-    const slice = ordered.slice(start, end);
-    const sales = slice.reduce((sum, d) => sum + toNumber(d.totalRevenue), 0);
-    const spend = slice.reduce((sum, d) => sum + toNumber(d.expenses ?? 0), 0);
-    groups.unshift({
-      // A short bucket says how short. Four columns where one silently covers
-      // three days invites reading a drop that is a calendar artefact.
-      label: slice.length === DAYS_PER_BUCKET ? shortLabel(slice) : `${slice.length}d`,
-      values: [sales, spend],
-      emphasis: end === ordered.length,
-    });
-  }
-
-  return groups;
-}
-
-/** `12–18` — the day-of-month span the bucket covers. */
-function shortLabel(slice: readonly DailySalesData[]): string {
-  const first = slice[0]?.date.slice(8) ?? '';
-  const last = slice[slice.length - 1]?.date.slice(8) ?? '';
-  return `${Number(first)}–${Number(last)}`;
-}
-
-function weekSummary(groups: readonly ColumnGroup[], symbol?: string): string {
-  if (groups.length === 0) return 'No daily figures in this period.';
-  const last = groups[groups.length - 1]!;
-  const [sales = 0, spend = 0] = last.values;
-  return (
-    `Sales against expenses over ${groups.length} weekly buckets. ` +
-    `The most recent took ${symbol ?? 'Rs.'} ${formatAmount(sales)} ` +
-    `and spent ${symbol ?? 'Rs.'} ${formatAmount(spend)}.`
-  );
+  if (pending === 0) return head;
+  return `${head} ${pending} ${bucketNoun}${pending === 1 ? '' : 's'} still to come, not counted.`;
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   note: { paddingHorizontal: space.xs },
+  exportRow: { flexDirection: 'row', gap: space.sm },
+  grow: { flex: 1 },
 });

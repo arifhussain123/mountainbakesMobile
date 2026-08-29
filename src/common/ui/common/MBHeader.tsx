@@ -6,6 +6,7 @@ import { useTheme } from '@/common/theme/ThemeProvider';
 import { MBIcon } from './MBIcon';
 import { MBPressable } from './MBPressable';
 import { MBSearchBar } from './MBSearchBar';
+import { MBWave, WAVE_TAIL } from './MBWave';
 import { space } from '@/common/theme/spacing';
 
 /**
@@ -86,21 +87,28 @@ export interface MBHeaderProps {
    * white on cream and already draw their own edges, so a rule between the
    * title and the first card is a second boundary describing the same gap.
    *
-   * `brand` — a solid brown block. Two kinds of screen wear it: one that has
-   * taken over the device (New Order, a full-screen form, anything reached
-   * modally), and a **dashboard**, which v5 puts on the brown with a greeting
-   * over the branch name.
+   * `brand` — the **purple wave**: two overlapping plum shapes whose mirrored
+   * curves cross under the title. See `MBWave`. Two kinds of screen wear it: one
+   * that has taken over the device (New Order, a full-screen form, anything
+   * reached modally), and a **dashboard**, which v6 puts on the wave with a
+   * greeting over the branch name.
    *
-   * This used to say the brown was reserved for the modal case, on the
-   * reasoning that the colour signals "back is the only way out". v5 spends
-   * that signal deliberately: the brown bar is the app's masthead on every
-   * screen in the spec, and a dashboard sitting on the cream was the single
-   * thing that made the build read as an older design. The cost is real and
-   * worth naming — brown no longer means "you are in a modal" — so the back
-   * arrow, not the colour, is what now carries that.
+   * v5 drew this as a flat brown block and v4 reserved it for the modal case, on
+   * the reasoning that the colour signals "back is the only way out". v5 spent
+   * that signal deliberately and v6 keeps the spending: the masthead is on every
+   * screen in the spec, so the colour no longer means "you are in a modal" and
+   * the back arrow, not the header, is what carries that.
    *
-   * It is still not decoration. A list screen stays on `field`; the brown is
-   * for a screen that is either the top of a role's world or the whole of it.
+   * **`brand` is the default as of v6, and that is the design rather than a
+   * convenience.** v6 draws twenty-one screens and every one of them wears the
+   * wave — 21 front layers and 21 back layers, counted in the file, with no
+   * exceptions for lists, forms, or the two auth screens. v4 made the masthead
+   * the exception and v5 made it the common case; v6 finishes the move.
+   *
+   * `field` therefore no longer means "an ordinary screen". It means a screen
+   * deliberately held off the masthead, and there is currently no such screen —
+   * the tone is kept because a sheet or an embedded view may yet need it, not
+   * because anything uses it today.
    */
   tone?: 'field' | 'brand';
 }
@@ -115,7 +123,7 @@ export function MBHeader({
   search,
   dataAsOf,
   offlineNote,
-  tone = 'field',
+  tone = 'brand',
 }: MBHeaderProps): React.ReactElement {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -136,13 +144,34 @@ export function MBHeader({
   const expanded = searchOpen && search;
 
   const brand = tone === 'brand';
-  /* The brand block is `secondary`, not `primary`.
-     v4 paints a taken-over screen — New Order, Stock Detail, Branch Stock
-     History — in the deep ink and writes on it in white. An ember block would
-     be a header shouting louder than the button inside it, and `onPrimary` is
+
+  /**
+   * The wave is drawn to the header's MEASURED height, not a computed one.
+   *
+   * The header grows with its content — an overline and a subtitle together add
+   * two lines — and a wave sized from `insets.top + headerH` would leave a band
+   * of page colour above the curve on exactly the screens that wear it most (a
+   * dashboard has both). Measuring is the only way to track that without
+   * duplicating the row's layout arithmetic here.
+   *
+   * The initial value is the no-extras height, so the first paint is already
+   * correct on a plain title and `onLayout` only ever corrects it upward. A zero
+   * initial would flash a header with no masthead for one frame.
+   */
+  const [waveH, setWaveH] = useState(
+    insets.top + theme.layout.headerH + WAVE_TAIL,
+  );
+  /* The wave is `secondary`/`secondaryWave`, not `primary`.
+     v6 paints a taken-over screen — New Order, Stock Detail, Branch Stock
+     History — in the plums and writes on it in white. An ember masthead would be
+     a header shouting louder than the button inside it, and `onPrimary` is
      itself the ink, so an ember block with an ink title is a header you cannot
      read. The subtitle takes the block's own muted level rather than the
-     field's, which is a cream and vanishes on brown. */
+     field's, which is a lilac and vanishes on plum.
+
+     Both plums are behind the same text, so the muted level is the one checked
+     against the LIGHTER of the two — see `heroMutedFg` in `colors.ts`, which is
+     lifted off its flattened value for exactly this reason. */
   const fg = brand ? theme.colors.onSecondary : theme.colors.text;
   const glyph = brand ? theme.colors.onSecondary : theme.colors.accent;
   const subFg = brand ? theme.colors.onSecondaryMuted : theme.colors.textMuted;
@@ -150,15 +179,29 @@ export function MBHeader({
   return (
     <>
       <View
+        onLayout={
+          brand
+            ? event => setWaveH(event.nativeEvent.layout.height)
+            : undefined
+        }
         style={[
           styles.header,
           {
             paddingTop: insets.top,
             minHeight: theme.layout.headerH + insets.top,
-            backgroundColor: brand ? theme.colors.secondary : theme.colors.bg,
+            /* The wave paints the background in brand tone, so the View itself
+               must not — a `secondary` fill behind it would square off the
+               curve with the deep plum and erase the whole shape. */
+            backgroundColor: brand ? theme.colors.transparent : theme.colors.bg,
             paddingHorizontal: theme.layout.screenPad,
           },
+          /* The tail hangs below the row. Adding it to the padding rather than
+             to `minHeight` keeps the content box — and so the title's baseline —
+             exactly where it sits in `field` tone; growing the height alone
+             would re-centre the row half a tail lower. */
+          brand ? { paddingBottom: space.md + WAVE_TAIL } : null,
         ]}>
+        {brand ? <MBWave height={waveH} /> : null}
         {expanded ? (
           // The whole row becomes the field. Keeping the title beside it would
           // leave the input too narrow to read a product name back in.
@@ -254,10 +297,10 @@ export function MBHeader({
 
 const styles = StyleSheet.create({
   /**
-   * No bottom border in either tone. v4 draws none: on the field the cards
-   * below supply the edge, and on the brown block the colour change is the
-   * edge. It was a 1px rule under a white header, which is the treatment that
-   * made every screen read as a settings page.
+   * No bottom border in either tone. v6 draws none: on the field the cards below
+   * supply the edge, and on the wave the curve is the edge — a rule under it
+   * would cut the shape off flat. It was a 1px line under a white header, which
+   * is the treatment that made every screen read as a settings page.
    */
   header: {
     flexDirection: 'row',

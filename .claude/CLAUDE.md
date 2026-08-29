@@ -17,7 +17,8 @@ npm test                 # jest
 npm run shared:check     # src/shared must equal the server's, byte for byte
 npm run theme:check      # no hard-coded colour anywhere in src/common/ui
 npm run splash:check     # splashTop must equal the native bootsplash colour
-npm run verify           # typecheck + shared:check + theme:check + splash:check + test — run this before calling anything done
+npm run fonts:check      # every family/weight the scale uses is registered in Kotlin
+npm run verify           # typecheck + shared:check + theme:check + splash:check + fonts:check + test — run this before calling anything done
 npm run build:android    # release APK
 npm run clean:android    # gradlew clean
 ```
@@ -79,7 +80,7 @@ because `react-native-screens` ships real JS under such a path in node_modules.
 src/
 ├── api/          HTTP client, transport services, react-query hooks, the sync engine
 ├── assets/       fonts, icons, images + a typed barrel
-├── common/       cross-feature: ui, theme, hooks, utils, helpers, database, storage, boot
+├── common/       cross-feature: ui, theme, till, hooks, utils, helpers, database, storage, boot
 ├── config/       env.ts
 ├── features/     the bulk of the app — one slice per domain
 ├── navigation/   navigators, routes, param lists, helpers
@@ -249,11 +250,25 @@ they can be compared. `roleNavigation.ts` keeps only the role *predicates*
 (`isBranchRole`, `isFinanceRole`, `roleGroupFor`), which are domain rules used well
 outside navigation.
 
-The floating nav bar carries **one create action in its centre** per role group
-(`CENTRE_ACTIONS`) — branch gets New Order. It adds no destination, so it is not
-in the single-path inventory; but nothing else may offer the same action, which
-is why the corner FAB on the demands list and the `newOrder` quick action are
-both gone. `navigationSurface.test.ts` asserts that.
+**The centre action button is gone as of v5, and this note is here so it is not
+reinvented.** v4 carried one create action in the middle of the navigation bar —
+an ember circle notched into the pill, New Order for the branch group. The bar is
+now five equal cells with nothing rising out of them, and a create action lives
+where its resource does: branch reaches New Order from the Orders list, from the
+dashboard quick actions, and from the drawer. Removed with it: `CENTRE_ACTIONS`,
+`centreActionFor()`, `MBTabBar`'s notch arithmetic and the `navFabRing` layout
+token — deleted rather than left dormant, because a config naming a control the
+app does not draw is how the next person spends an afternoon looking for the bug.
+`roleConfig.ts` carries the full account at the point the const used to be.
+
+What went with it is the rule that **nothing else may offer the same action**.
+That rule existed only because the centre button claimed the action globally, so
+the corner FAB on the demands list and the `newOrder` quick action are both
+*back* — `QUICK_ACTIONS.branch` lists `newSale` and `newOrder`, each naming the
+create modal (`NewSale`, `CreateOrder`) rather than the list it opens over.
+`MBTabBar`'s `MAX_TABS` is the runtime tripwire for a sixth tab, and
+`navigationSurface.test.ts` asserts the tab sets — neither asserts a centre
+action, and no test should be written that does.
 
 `resolveTabScreen(role, route)` in `navigation/screenRegistry.tsx` maps (role, tab
 name) → component, because **the same tab name means different screens for different
@@ -281,15 +296,48 @@ it, and that every row names a tab the role actually has. A destination is still
 declared in exactly one place, however many places can reach it.
 
 What did **not** relax: `ACCOUNT_PANEL` — identity, branch, connection, appearance,
-sign-out — is the drawer's *pinned footer*, and none of it may be a tab, a More row
-or a drawer row. A row goes somewhere; a button does something, and a sign-out that
-scrolls with a growing menu is one somebody hits by accident. `docs/navigation.md`
-is the full account, including why New Order is a modal on `OrdersStack` rather than
-a tab.
+sign-out — is what the drawer carries *outside its rows*, and none of it may be a
+tab, a More row or a drawer row. A row goes somewhere; a button does something, and
+a sign-out that scrolls with a growing menu is one somebody hits by accident.
+
+**v6 splits the panel across both ends of the drawer** and the rule is unchanged by
+it: screen 04 heads the drawer with a plum profile block — logo, role, branch,
+presence — and pins only Logout below the scroller, where v5 kept all five in one
+footer. The panel still holds no destinations and sign-out still cannot scroll.
+Presence on that block needs `onSecondarySuccess` / `onSecondaryOffline` rather than
+`success` / `offline`: the latter two are tuned to read as *text on their own light
+tint* and land near 1.5:1 against the plum. The drawer's own rows take v6's
+hairlines but keep their section headings, because `drawerSectionsFor` is derived
+from a grouped More index and v6's flat list is one role's eleven destinations
+rather than the admin's twenty. A selected row is the same three signals the tab bar
+uses — the ember as a 3dp edge, `accent` for glyph and label, a `primarySoft` tint —
+and the edge is *reserved* on every row so selecting one does not shift its label.
+`docs/navigation.md` is the full account, including why New Order is a modal on
+`OrdersStack` rather than a tab.
 
 `branch_user` is a **shift account carrying its manager's `branchId`**, not a branch of
 its own — branch-scoped code must treat it and `branch_manager` identically
 (`isBranchRole`) or the shift user sees an empty shop.
+
+**Two gates sit above every navigator, outside `NavigationContainer`**, and
+neither is a route: the first-run panels (`features/onboarding`) and the forced
+change-password screen, in that order. Both apply before any navigator mounts
+and neither can be navigated to or away from — the only way out of each is the
+thing it collects, which changes state that re-renders `RootNavigator`.
+
+The onboarding gate is v6's screen 01, and it is **not** the splash. That screen
+draws a START button and a row of dots, which describes a sequence the user
+drives; `SplashScreen` is `BootGate`'s loading state and unmounts the instant
+`runBootSequence` resolves, so a fast boot would blink a START button out from
+under the thumb reaching for it. Its own file records why it holds nothing for a
+fixed beat. So the panels are a separate screen after boot and before sign-in,
+and `shouldShowOnboarding()` carries the one condition that is not about
+onboarding: **signed out as well as unseen**. The stored flag reads absent on
+every phone that installed the app before it existed, so the flag alone would
+hand a tour of the app to the whole shop mid-shift; `RootNavigator` writes it the
+first time it sees a live session, or the panels would appear at the next
+sign-out — the same evening, on a shift account. `PANELS` is the single source
+the dots are counted from, so three dots over four panels is not expressible.
 
 ### Local database
 
@@ -394,65 +442,112 @@ not distinguish a locked database from an unreachable API.
 Light and dark are two token sets behind one interface (`common/theme/`). Do not write
 `isDark ? a : b` in a component; add or use a token.
 
-**The palette is a fill and a mark, and they are not interchangeable.** v4 runs
-two colours: ember orange for every **fill** — a button, the active chip, the
-a meter, a chart line, the active tab's underline — and deep brown `#3E1B00` for every
-**mark**: type, icons, links, and the hero blocks a KPI sits on. It never sets a
-link or a figure in orange, and it cannot: the ember is 3.2:1 on a card.
+**The palette is a wave, a fill and a mark, and none of the three is
+interchangeable with another.** v6 replaced v4/v5's warm system outright — the
+cream field and the brown masthead are gone. What it draws instead:
 
-So `primary` is a fill and `accent` is the mark, and reaching for `primary` as a
-text or glyph colour is the mistake to watch for — `contrast.test.ts` asserts
-`accent` is strictly the more readable of the two, and `primary` is held to the
-3:1 non-text bar rather than 4.5:1. In light `accent` happens to equal `text`,
-because v4 carries link-ness with **weight** rather than hue; that is deliberate
-and documented on the token.
+- **the wave** — two plums, `#7A3EA1` in front and `#4A1D70` behind, as the
+  masthead on *every* screen, plus `#4A1D70` again as the hero block a KPI sits
+  on (`secondaryWave` / `secondary`);
+- **the fill** — ember orange for every action: a button, the corner FAB, the
+  active chip, a meter, a chart line (`primary`);
+- **the mark** — the deep plum for type, icons and links (`accent`).
 
-`ember500` is v4's `#FB6D34` walked down 6%. Its own orange is 2.73:1 against its
-own field, under the 3:1 that WCAG 1.4.11 asks of a graphical object carrying
-information — and that bar is not academic, because the same value paints the
-stock meter and the trend line, both of which are pure graphics with no label to
-fall back on.
+Reaching for `primary` as a text colour is still the mistake to watch for, and
+`contrast.test.ts` still asserts `accent` is at least as readable as `primary`.
+What changed is that **the mark finally has a colour of its own**: in v4 `accent`
+had to *be* the ink, because the ember cannot carry type and v4 carried
+link-ness with weight instead of hue, so the token looked redundant. v6's plum is
+a real brand colour that is also readable (12.35:1 on a card), so the mark and
+the body text are different colours in both schemes for the first time.
 
-**Cards carry a soft lift again** (`e1`, 7% opacity) *plus* the hairline. An
-earlier revision of v4 separated with borders alone and this file said so; the
-current one draws both. The border is still what separates a card from the
-field — `surface` on `bg` is 1.05:1 — and `e1` only stops white-on-cream looking
-pasted on. `e2` is the floating nav bar and `e3` the corner FAB, and nothing
-else.
+The page is the lilac wash `#F6EFFA` and cards are pure white floating over it,
+which inverts v4's relationship (a white card on a cream field). Cards keep the
+soft lift (`e1`, 7%) *plus* the hairline; `e2` is the floating nav bar and `e3`
+the corner FAB, and nothing else. Shadows are tinted `palette.shadow` `#3A145A`
+and deliberately **not** the ink — at 7% opacity the ink's browner cast reads as
+a grey smudge on lilac rather than as depth.
 
-**The brand fill is a preference; the mark is not.** `common/theme/accents.ts` carries
-five selectable accents (Ember, Ink, Pine, Indigo, Violet) and each replaces
-exactly three tokens — `primary`, `primaryPressed`, `onPrimary`. Nothing else
-moves: the field, the cards, the borders, the text ramp and the status colours
-are not preferences, and an accent that could reach them would be a second theme
-rather than a swatch. Choosing Ember returns the base maps **by identity**, so
-the default is not merely equivalent to the pre-accent app but literally it.
+**Three of v6's own hexes are corrected, each for the reason v4's were.** The
+design file's authority is the `moods` map at the end of it, which defaults to
+`Purple wave`; the inline `var(--x, #hex)` fallbacks are stale leftovers from the
+v5 pass and disagree with it on most screens. Read the map, not the fallbacks.
 
-`onPrimary` is carried per accent, and that is the interesting part. v4's brief
-states one contrast rule — "text on `#FB6D34` is `#3E1B00`, never white" — and
-then offers `#3E1B00` itself as a swatch: ink on ink is **1.00:1**, an invisible
-button label. So the rule is true of the ember and not of the set. Ember keeps
-ink at 4.78:1; every other swatch takes white in light. Each value is also
-corrected per scheme rather than shared, because `#3E1B00` is 14.56:1 on the
-cream field and **1.19:1** on the near-black one — its dark variant is lifted 32%
-toward white and lands on a taupe that is no longer ink, which is the honest cost
-of offering the ink as a *fill*.
+- The **ember as a graphic** is `#FB6D34` walked down 9% to `#E4632F`. v6's own
+  orange is 2.54:1 on the lilac wash, under the 3:1 WCAG 1.4.11 asks of a
+  graphical object carrying information — and the same value paints the stock
+  meter and the trend line, both pure graphics with no label to fall back on.
+  Note the wash is a *harder* surface than v4's cream: the old `#EC6631`, tuned
+  to clear 3:1 on the cream, is only 2.86:1 here.
+- The **muted text level** `#7B6C88` is 4.29:1 on the wash, walked to `#776984`.
+- A **control's edge** `#E7DCEF` is 1.32:1 — the identical figure v4's `#EADFCD`
+  scored, arrived at independently in a different hue — walked to `#8F8894`.
+
+v6's faintest text tier `#A79BB2` is 2.34:1 and is not carried as text at all,
+exactly as v4's `#A99884` was not; it folds into `textMuted`.
+
+**The masthead is `MBWave`, and it is two shapes rather than a fill.** v6 draws
+two overlapping layers whose elliptical corners are *mirrored* — the back is deep
+on the right, the front deep on the left — and it is that crossing, not the
+colour, that reads as a wave. React Native's `borderRadius` cannot express an
+ellipse, so this is `react-native-svg` with a `0 0 100 h` viewBox and
+`preserveAspectRatio="none"`, which makes x units percentages of the width while
+y stays real pixels — precisely CSS's `<percentage> / <length>` semantics, so
+v6's radii are transcribed with no conversion. Collapsing it to one rounded rect
+is the obvious simplification and it loses the design.
+
+`MBHeader`'s `tone` therefore **defaults to `brand`**, which v5's did not. v6
+draws 21 screens and every one wears the wave — 21 front layers and 21 back
+layers, counted in the file, with no exception for lists, forms or the two auth
+screens. `field` no longer means "an ordinary screen"; it means one deliberately
+held off the masthead, and nothing uses it today.
+
+**The brand fill is a preference; the wave and the mark are not.**
+`common/theme/accents.ts` carries five selectable accents and each replaces
+exactly three tokens — `primary`, `primaryPressed`, `onPrimary`. That the wave is
+out of reach is v6's own arrangement rather than a restriction invented here: the
+design file exposes `accent` and `mood` as two independent controls, and picking
+a new swatch there leaves the purple header where it was. Choosing Ember returns
+the base maps **by identity**, so the default is not merely equivalent to the
+pre-accent app but literally it.
+
+v4's **Ink** swatch is now **Plum**, and that is a correction rather than a
+rename. With the neutral axis gone purple a brown button is off-palette, and the
+swatch must move to `#4A1D70`, *the mark*, not to `#2E1440`, the ink. v4's ink
+and mark were the same hex, so choosing Ink made the fill *be* the mark and the
+two coincided — which is the whole reason the accent-vs-mark ordering is asserted
+as `>=` rather than `>`. In v6 they are different colours, so a fill set to the
+ink would be **more readable than the mark** and break the ordering outright.
+
+`onPrimary` is carried per accent, and that is the interesting part. v6 states
+one contrast rule — text on `#FB6D34` is the ink — and then offers four more
+swatches the rule is simply false of. Ember keeps ink at 4.75:1; Plum, Pine and
+Indigo take white in light. Each value is corrected per scheme rather than
+shared: `#4A1D70` is 12.35:1 on a white card and **1.72:1** on the near-black
+one, so its dark variant is lifted well toward lilac and lands somewhere that is
+no longer the mark — the honest cost of offering the mark as a *fill*.
 
 A press moves **away** from its label — darker where the label is white, lighter
 where it is ink. Always-darken is the habit and it drops an ink label to 2.8:1
-for the length of the press. The one exception is Ember in light at 3.94:1, which
-is the value that already shipped and is left alone rather than "fixed" into a
-different default.
+for the length of the press. `contrast.test.ts` holds all five to the same two
+bars in both schemes: fill >=3:1 on the card and the field, label >=4.5:1 on the
+fill.
 
-`contrast.test.ts` holds all five to the same two bars in both schemes: fill ≥3:1
-on the card and the field, label ≥4.5:1 on the fill. The accent-vs-mark ordering
-is asserted as `>=` rather than `>` for exactly one reason — choosing Ink makes
-the fill *be* the mark, so they coincide. What still must never happen is
-`primary` being the more readable of the two.
+Those two bars name **the card and the field**, and that is the whole list. An
+accent fill may not be drawn on the `secondary` block: `contrast.test.ts` never
+asserted it there, and one of the five swatches — Plum — *is* `#4A1D70`, which is
+`secondary` exactly, so a `primary` button on the plum is 1:1 for anyone who
+picked it. Pine is 2.31:1 and Indigo 2.5:1, both under the 3:1 WCAG 1.4.11 asks
+of a control's own fill. So a screen that wears the wave puts its action on the
+field **below** the wave, where the ember is already held to the bar — which is
+what `FirstRunScreen` does, and why v6's white pill on the purple is not
+transcribed literally. The rule generalises: `onSecondary`-family tokens are the
+only fills that hold on the block, because they are the only ones that are not a
+preference.
 
 `MBAccentPicker` is the only place allowed to reach for an accent's `swatch`,
-which is v4's own hex rather than the corrected fill: a 32px disc with nothing
-set on it, where showing a value 6% off the one being offered would make the row
+which is v6's own hex rather than the corrected fill: a 32px disc with nothing
+set on it, where showing a value 9% off the one being offered would make the row
 disagree with itself.
 
 Which scheme is live comes from the app's **stored** mode, not the OS — the OS is
@@ -464,14 +559,30 @@ into an `AppCompatDelegate` night mode **before** `RNBootSplash.init`. The mirro
 lands on the next cold start, never mid-session — applying it live recreates the
 activity and remounts the React tree.
 
+**The splash inverted in v6 and two things follow from it.** v4 splashed on a
+cream a shade off its field; v6 splashes on the *brand* — the wave at full
+height, so `splashTop`/`splashBottom` are `plum500` and `plum700`, **the same
+two plums in both schemes**. Dark does not step them down, and `colors.ts`
+carries the reason at length: a muted-grey masthead in night mode stopped
+carrying the brand at all, and it also means the boot splash is one colour on
+every device regardless of the night setting, which removes a whole class of
+hand-off flash. First, its type is `onSecondary`/`onSecondaryMuted` rather than
+`accent`/`textMuted`: an `accent` wordmark on the new `splashBottom` is 1.00:1,
+the same colour on the same colour. Second, the background is dark in **both**
+schemes, so the mark is chosen with `logoOn('dark')` and not `logoFor(scheme)` —
+`-light`/`-dark` name the background, and a mark picked by scheme comes out
+inverted on the light splash.
+
 The splash background is a gradient in `SplashScreen.tsx` and a flat colour
 natively, because `windowSplashScreenBackground` takes a colour and not a
 drawable. `splashTop` must therefore equal `bootsplash_background` in
 `res/values{,-night}/colors.xml` or the hand-off steps rather than fades;
-`npm run splash:check` is the only thing enforcing it. That hand-off happens when
-`SplashScreen` **mounts** — it calls `RNBootSplash.hide()` itself, so the JS
-splash carries the rest of boot. Hiding at the end of bootstrap, as `App.tsx`
-used to, meant the fade revealed the dashboard and the splash was never seen.
+`npm run splash:check` is the only thing enforcing it, and the step it now
+guards is a full purple-to-lilac jump rather than v4's barely-visible cream one.
+That hand-off happens when `SplashScreen` **mounts** — it calls
+`RNBootSplash.hide()` itself, so the JS splash carries the rest of boot. Hiding
+at the end of bootstrap, as `App.tsx` used to, meant the fade revealed the
+dashboard and the splash was never seen.
 
 ### Motion
 

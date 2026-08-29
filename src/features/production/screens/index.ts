@@ -5,5 +5,4 @@ export { ProductionDashboardScreen } from './ProductionDashboardScreen';
 export { ProductionOrdersScreen } from './ProductionOrdersScreen';
 export { ProductionReturnsScreen } from './ProductionReturnsScreen';
 export { productionSalesRange, ProductionSalesScreen } from './ProductionSalesScreen';
-export type { ProductionSaleRequest } from './ProductionSalesScreen';
 export { ProductionStockScreen } from './ProductionStockScreen';

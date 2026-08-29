@@ -1,54 +1,45 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import {
-  MBButton,
-  MBCard,
   MBEmptyState,
   MBErrorState,
   MBFab,
   MBFilterChips,
   MBHeader,
-  MBIcon,
-  MBInput,
   MBModal,
-  MBMoney,
   MBPressable,
   MBSaleItem,
   MBSearchBar,
-  MBSelect,
   MBSkeletonList,
   MBSyncStatus,
   MBWriteOutcome,
 } from '@/common/ui';
 import type { WriteOutcomeCopy } from '@/common/ui';
-import { useCart } from '@/common/hooks/useCart';
-import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
-import { useDebouncedValue } from '@/common/hooks/useDebouncedValue';
-import { useProducts } from '@/api/hooks/useCatalogApi';
 import {
-  createProductionSale,
-  getProductionSales,
-  getProductionStock,
-} from '@/api/services/productionService';
-import { ApiError } from '@/api/errors';
+  SalePayment,
+  SaleProductList,
+  SaleReceipt,
+  SaleSummaryBar,
+  type SaleSlip,
+} from '@/common/till';
+import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
+import { useProducts } from '@/api/hooks/useCatalogApi';
+import { getProductionSales, getProductionStock } from '@/api/services/productionService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
 import { qk } from '@/api/queryKeys';
 import { PRODUCTION_SALE_PAYMENT_METHOD_VALUES } from '@/shared/schemas/order.schemas';
 import type { Order } from '@/shared/types/order.types';
 import { businessDateStr, businessDayBounds } from '@/shared/utils/timezone';
-import { stockLevel, type StockLevel } from '@/shared/utils/stock';
-import type { Product } from '@/shared/types/product.types';
 import { useNetworkStore } from '@/state/networkStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
-import { contentColumn, layout, space } from '@/common/theme/spacing';
-import { radius } from '@/common/theme/radius';
+import { contentColumn, space } from '@/common/theme/spacing';
 import { shiftBusinessDate } from '@/common/helpers/businessDay';
 import { dataAsOfFrom } from '@/common/helpers/dataAsOf';
-import { formatCurrency, formatQty, parseCurrency, round2, toNumber } from '@/common/utils/money';
-import { cashReturned, lineGross, resolveDiscount } from '@/common/helpers/saleTotals';
+import { formatCurrency, round2, toNumber } from '@/common/utils/money';
+import { useCounterSale, type CounterSaleResult } from '../hooks';
 
 /**
  * The production counter's own till.
@@ -152,11 +143,11 @@ function bounds(fromDate: string, toDate: string): { from: string; to: string } 
 
 export function ProductionSalesScreen(): React.ReactElement {
   const theme = useTheme();
-  const queryClient = useQueryClient();
   const settings = useCatalogSettings();
 
   const [range, setRange] = useState<RangeKey>('today');
   const [selling, setSelling] = useState(false);
+  const [slip, setSlip] = useState<SaleSlip | null>(null);
   const [banner, setBanner] = useState<WriteOutcomeCopy | null>(null);
 
   const isOnline = useNetworkStore(s => s.isOnline);
@@ -190,20 +181,24 @@ export function ProductionSalesScreen(): React.ReactElement {
     [rows],
   );
 
-  const sell = useMutation({
-    mutationFn: createProductionSale,
-    onSuccess: receipt => {
-      setSelling(false);
+  /**
+   * What the counter is told, and where.
+   *
+   * The banner lands on THIS list rather than inside the till, because the sale
+   * is now a row on it — and unlike the branch's POS there is no register to
+   * navigate to. One outcome only: this write does not queue, so it either
+   * happened or it failed loudly inside the till with the cart still intact.
+   */
+  const reportSale = useCallback(
+    (orderNumber: string, grandTotal: number) => {
       setBanner({
         tone: 'ok',
-        title: `Sale ${receipt.orderNumber} completed.`,
-        detail: `${formatCurrency(receipt.grandTotal, settings.currencySymbol)} taken. The units are out of the production pool.`,
+        title: `Sale ${orderNumber} completed.`,
+        detail: `${formatCurrency(grandTotal, settings.currencySymbol)} taken. The units are out of the production pool.`,
       });
-      // The sale is in the list and the pool has moved. Both are server truths
-      // this device now has a stale copy of.
-      queryClient.invalidateQueries({ queryKey: qk.production.all() });
     },
-  });
+    [settings.currencySymbol],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Order }) => (
@@ -311,18 +306,28 @@ export function ProductionSalesScreen(): React.ReactElement {
         />
       ) : null}
 
+      {/*
+        Two modals, never both open. RN's `Modal` nested inside another `Modal`
+        is unreliable on Android — the inner one can simply fail to appear —
+        which is why the till itself confirms in place rather than opening a
+        second one, and why the slip is a SIBLING here: the till closes and the
+        slip opens in the same batch, so only one is ever mounted.
+      */}
       <MBModal visible={selling} onRequestClose={() => setSelling(false)}>
         <CounterSale
-          currencySymbol={settings.currencySymbol}
-          tax={settings.tax}
-          isSaving={sell.isPending}
-          error={sell.error}
-          onCancel={() => {
-            sell.reset();
+          onCancel={() => setSelling(false)}
+          onSold={(result, mode) => {
             setSelling(false);
+            reportSale(result.orderNumber, result.grandTotal);
+            if (mode === 'share') setSlip(result.slip);
           }}
-          onSell={input => sell.mutate(input)}
         />
+      </MBModal>
+
+      <MBModal visible={slip !== null} onRequestClose={() => setSlip(null)} testID="counter-slip">
+        {slip ? (
+          <SaleReceipt sale={slip} branchName="Production counter" onDone={() => setSlip(null)} />
+        ) : null}
       </MBModal>
     </View>
   );
@@ -337,45 +342,34 @@ function ListSeparator(): React.ReactElement {
   return <View style={styles.separator} />;
 }
 
-/** Availability wording. A word as well as a colour — never colour alone. */
-const AVAILABILITY_LABEL: Record<StockLevel, (qty: number) => string> = {
-  out: () => 'Out of stock',
-  critical: qty => `${formatQty(qty)} left`,
-  moderate: qty => `${formatQty(qty)} left`,
-  healthy: qty => `${formatQty(qty)} in pool`,
-};
-
 /**
- * The till itself, in two steps inside one modal.
+ * The counter's till, in the same two stages as the branch's.
  *
- * Two steps and not two modals: RN's `Modal` nested inside another `Modal` is
- * unreliable on Android — the inner one can simply fail to appear — which is why
- * the expense form confirms in place as well. The cart survives the swap, so
- * Back from the payment step returns to a full basket rather than an empty one.
+ * ---------------------------------------------------------------------------
+ * Two stages inside ONE modal
+ * ---------------------------------------------------------------------------
+ * Not two modals: RN's `Modal` nested inside another `Modal` is unreliable on
+ * Android — the inner one can simply fail to appear — which is why the expense
+ * form confirms in place as well. The cart survives the swap, so Back from
+ * payment returns to a full basket rather than an empty one.
+ *
+ * Everything drawn here comes from `common/till/`, and everything decided here
+ * comes from `useCounterSale`. What is left in this file is the wiring and the
+ * three sentences that are the counter's own: the pool rather than a shelf, the
+ * staff explanation, and the offline note.
  */
 function CounterSale({
-  currencySymbol,
-  tax,
-  isSaving,
-  error,
   onCancel,
-  onSell,
+  onSold,
 }: {
-  currencySymbol?: string;
-  tax: ReturnType<typeof useCatalogSettings>['tax'];
-  isSaving: boolean;
-  error: unknown;
   onCancel: () => void;
-  onSell: (input: ProductionSaleRequest) => void;
+  onSold: (result: CounterSaleResult, mode: 'save' | 'share') => void;
 }): React.ReactElement {
   const theme = useTheme();
-  const cart = useCart(tax);
+  const form = useCounterSale();
+  const { cart } = form;
 
-  const [step, setStep] = useState<'pick' | 'pay'>('pick');
-  const [searchInput, setSearchInput] = useState('');
-  const search = useDebouncedValue(searchInput.trim(), 300);
-
-  const products = useProducts({ search: search || undefined, isActive: true });
+  const products = useProducts({ search: form.search || undefined, isActive: true });
 
   /**
    * The **central pool**, not a branch shelf.
@@ -383,8 +377,9 @@ function CounterSale({
    * `GET /api/production-stock`, the same read Production Stock shows. Advisory
    * and never a gate: the server is the only authority and refuses an overdraw
    * with a 409, and blocking here would stop an operator selling something
-   * physically in front of them because a balance is a minute stale. What it
-   * buys is that the refusal is foreseeable at the counter.
+   * physically in front of them because a balance is a minute stale. What the
+   * row buys instead is that the refusal is foreseeable at the counter — it says
+   * what is left and how many are already rung up.
    */
   const pool = useQuery({
     queryKey: qk.production.stock(),
@@ -398,463 +393,155 @@ function CounterSale({
     return map;
   }, [pool.data]);
 
-  // The setter, not the cart: depending on the object would make this callback
-  // new after every tap, and with it every visible product row.
-  const addProduct = cart.addProduct;
-  const onAdd = useCallback((product: Product) => addProduct(product), [addProduct]);
+  const inCart = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const line of cart.lines) map.set(line.productId, line.qty);
+    return map;
+  }, [cart.lines]);
 
-  const renderProduct = useCallback(
-    ({ item }: { item: Product }) => (
-      <CounterProductRow
-        product={item}
-        currencySymbol={currencySymbol}
-        /* `undefined` is "not known" and must never draw as "out of stock" —
-           that is a balance this device has simply never been told. */
-        available={availability.get(item.id)}
-        onAdd={onAdd}
-      />
-    ),
-    [onAdd, currencySymbol, availability],
-  );
+  const onSave = useCallback(async () => {
+    const result = await form.save();
+    if (result) onSold(result, 'save');
+  }, [form, onSold]);
 
-  if (step === 'pay') {
-    return (
-      <CounterCheckout
-        cart={cart}
-        currencySymbol={currencySymbol}
-        isSaving={isSaving}
-        error={error}
-        onBack={() => setStep('pick')}
-        onSell={onSell}
-      />
-    );
-  }
+  const onSaveAndShare = useCallback(async () => {
+    const result = await form.saveAndShare();
+    if (result) onSold(result, 'share');
+  }, [form, onSold]);
+
+  const items = form.stage === 'items';
+  const symbol = form.currencySymbol;
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
       <MBHeader
-        title="New counter sale"
-        onBack={onCancel}
+        title={items ? 'New counter sale' : 'Payment'}
+        {...(items
+          ? {}
+          : { subtitle: `${cart.itemCount} ${cart.itemCount === 1 ? 'item' : 'items'}` })}
+        /* Back is one step, not one screen: from payment it returns to the items
+           stage with the cart intact, and only from items does it leave the
+           till. */
+        onBack={items ? onCancel : form.toItems}
         offlineNote="Offline — a counter sale needs a connection and cannot be saved here"
       />
 
-      <View
-        style={{ paddingHorizontal: theme.layout.screenPad, paddingTop: theme.layout.screenPad }}>
-        <MBSearchBar
-          value={searchInput}
-          onChangeText={setSearchInput}
-          /* Name or code. The server matches both, and so does the offline
-             mirror, so a code read off a tray finds the product either way. */
-          placeholder="Search name or code"
-          searching={searchInput.trim() !== search}
-          testID="counter-product-search"
-        />
-      </View>
-
-      <View style={styles.flex}>
-        {products.isPending ? (
-          <MBSkeletonList rows={6} />
-        ) : products.isError ? (
-          <MBErrorState error={products.error} onRetry={() => products.refetch()} />
-        ) : (products.data ?? []).length === 0 ? (
-          <MBEmptyState title="No products match" message="Try a different name or code." />
-        ) : (
-          <FlashList
-            data={products.data ?? []}
-            renderItem={renderProduct}
-            keyExtractor={productKeyOf}
-            contentContainerStyle={styles.listContent}
-            ItemSeparatorComponent={ListSeparator}
-            keyboardShouldPersistTaps="handled"
-          />
-        )}
-      </View>
-
-      {!cart.isEmpty ? (
-        <View
-          style={[
-            styles.cartBar,
-            {
-              backgroundColor: theme.colors.surface,
-              borderTopColor: theme.colors.border,
-              padding: theme.layout.screenPad,
-            },
-          ]}>
-          <View style={styles.cartSummary}>
-            <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
-              {cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'}
-            </Text>
-            {/* The server recomputes this with its own tax settings; this device
-                is working from cached AppSettings. Marked as an estimate until
-                the sale comes back confirmed. */}
-            <MBMoney
-              value={cart.totals.grandTotal}
-              symbol={currencySymbol}
-              estimate
-              testID="counter-cart-total"
+      {items ? (
+        <>
+          <View
+            style={{
+              paddingHorizontal: theme.layout.screenPad,
+              paddingTop: theme.layout.screenPad,
+            }}>
+            <MBSearchBar
+              value={form.searchInput}
+              onChangeText={form.setSearchInput}
+              /* Name or code. The server matches both, and so does the offline
+                 mirror, so a code read off a tray finds the product either way. */
+              placeholder="Search name or code"
+              searching={form.searchInput.trim() !== form.search}
+              testID="counter-product-search"
             />
           </View>
-          <MBButton
-            label="Review & pay"
-            onPress={() => setStep('pay')}
-            testID="counter-review-and-pay"
-          />
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
-function productKeyOf(item: Product): string {
-  return item.id;
-}
-
-/**
- * One tappable product at the counter.
- *
- * Memoised at module scope rather than inline, because this list re-renders on
- * every keystroke and every tap. With stable props none of the visible rows
- * re-render at all; the theme still reaches them, because context bypasses
- * `memo`.
- */
-const CounterProductRow = React.memo(function CounterProductRowView({
-  product,
-  currencySymbol,
-  available,
-  onAdd,
-}: {
-  product: Product;
-  currencySymbol?: string;
-  /** Pool balance, or `undefined` when the device has never been told. */
-  available?: number;
-  onAdd: (product: Product) => void;
-}): React.ReactElement {
-  const theme = useTheme();
-  const press = useCallback(() => onAdd(product), [onAdd, product]);
-
-  const level = available === undefined ? null : stockLevel(available);
-  const availabilityColor: Record<StockLevel, string> = {
-    out: theme.colors.danger,
-    critical: theme.colors.danger,
-    moderate: theme.colors.warning,
-    healthy: theme.colors.textMuted,
-  };
-
-  return (
-    <MBPressable
-      onPress={press}
-      accessibilityRole="button"
-      /* One announcement: what it is, what it costs, what is left. */
-      accessibilityLabel={`Add ${product.name}, ${formatCurrency(product.price, currencySymbol)}${
-        level ? `, ${AVAILABILITY_LABEL[level](available ?? 0)}` : ''
-      }`}>
-      <MBCard>
-        <View style={styles.productRow}>
-          <View style={styles.productMain}>
-            <Text numberOfLines={1} style={[theme.type.bodyStrong, { color: theme.colors.text }]}>
-              {product.name}
-            </Text>
-            <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-              {product.sku}
-            </Text>
-          </View>
-
-          <View style={styles.productPrice}>
-            <MBMoney value={product.price} symbol={currencySymbol} />
-            {/* Nothing at all when the balance is unknown — drawing "0" would
-                stop an operator selling what is in front of them. */}
-            {level ? (
-              <Text style={[theme.type.caption, { color: availabilityColor[level] }]}>
-                {AVAILABILITY_LABEL[level](available ?? 0)}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      </MBCard>
-    </MBPressable>
-  );
-});
-
-/**
- * What the counter actually sends.
- *
- * `branchId` is deliberately absent, not optional-and-omitted: the schema
- * accepts one and the handler ignores it, so a field here would be a value that
- * looks authoritative and means nothing.
- */
-export interface ProductionSaleRequest {
-  customerName: string;
-  customerPhone: string;
-  items: { productId: string; qty: number; discount: number }[];
-  paymentMethod: (typeof PRODUCTION_SALE_PAYMENT_METHOD_VALUES)[number];
-  receivedCash?: number;
-  notes: string;
-}
-
-/** How each payment method reads on a chip. `staff` needs the explanation. */
-const METHOD_LABEL: Record<(typeof PRODUCTION_SALE_PAYMENT_METHOD_VALUES)[number], string> = {
-  cash: 'cash',
-  easypaisa: 'easypaisa',
-  foodpanda: 'foodpanda',
-  bank_account: 'bank account',
-  staff: 'staff (unpaid)',
-};
-
-function CounterCheckout({
-  cart,
-  currencySymbol,
-  isSaving,
-  error,
-  onBack,
-  onSell,
-}: {
-  cart: ReturnType<typeof useCart>;
-  currencySymbol?: string;
-  isSaving: boolean;
-  error: unknown;
-  onBack: () => void;
-  onSell: (input: ProductionSaleRequest) => void;
-}): React.ReactElement {
-  const theme = useTheme();
-
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] =
-    useState<(typeof PRODUCTION_SALE_PAYMENT_METHOD_VALUES)[number]>('cash');
-  const [receivedCashText, setReceivedCashText] = useState('');
-  const [notes, setNotes] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  const isStaff = paymentMethod === 'staff';
-  const isCash = paymentMethod === 'cash';
-  const receivedCash = parseCurrency(receivedCashText);
-  const change = cashReturned(receivedCash, cart.totals.grandTotal);
-  const shortOnCash = isCash && receivedCashText.trim() !== '' && change < 0;
-
-  /**
-   * A staff sale needs a comment, checked here as well as on the server.
-   *
-   * `CreateProductionSaleSchema.superRefine` refuses it and paths the issue at
-   * `notes`, so the server would answer 400 with a field error. Checking first
-   * means the operator sees it against the field instead of after a round trip,
-   * and it is the same rule stated once in each place rather than two rules.
-   */
-  const staffNeedsNote = isStaff && notes.trim() === '';
-
-  const apiError = error instanceof ApiError ? error : null;
-  const submitError =
-    localError ??
-    (apiError
-      ? apiError.kind === 'conflict'
-        ? // The server's own words: they name the products that were short.
-          `${apiError.message} Nothing was sold — re-check the pool and try again.`
-        : apiError.userMessage
-      : error instanceof Error
-        ? error.message
-        : null);
-
-  const onConfirm = () => {
-    setLocalError(null);
-    if (shortOnCash) {
-      setLocalError('The cash received does not cover the total.');
-      return;
-    }
-    if (staffNeedsNote) {
-      setLocalError('A staff sale needs a comment saying who took what and why.');
-      return;
-    }
-
-    onSell({
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      items: cart.toOrderItems(),
-      paymentMethod,
-      // Only meaningful for a cash sale that took money. A staff sale collects
-      // nothing, and the handler guards against a stray figure landing on an
-      // unpaid order — so it is not sent in the first place.
-      ...(isCash && !isStaff && receivedCashText.trim() ? { receivedCash } : {}),
-      notes: notes.trim(),
-    });
-  };
-
-  return (
-    <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      <MBHeader
-        title="Review & pay"
-        onBack={onBack}
-        offlineNote="Offline — a counter sale needs a connection and cannot be saved here"
-      />
-      <ScrollView
-        contentContainerStyle={[
-          contentColumn,
-          { padding: theme.layout.screenPad, gap: theme.space.lg },
-        ]}
-        keyboardShouldPersistTaps="handled">
-        {cart.lines.map(line => (
-          <MBCard key={line.productId}>
-            <View style={styles.productRow}>
-              <Text style={[theme.type.bodyStrong, styles.flex, { color: theme.colors.text }]}>
-                {line.productName}
-              </Text>
-              <MBMoney
-                value={line.unitPrice}
-                size="sm"
-                color={theme.colors.textMuted}
-                symbol={currencySymbol}
-              />
-            </View>
-
-            <View style={styles.lineControls}>
-              <View style={styles.stepper}>
-                <MBPressable
-                  onPress={() => cart.setQty(line.productId, line.qty - 1)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Decrease ${line.productName}`}
-                  style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <MBIcon name="remove" size="action" color={theme.colors.text} />
-                </MBPressable>
-                <Text style={[theme.type.money, { color: theme.colors.text }]}>{line.qty}</Text>
-                <MBPressable
-                  onPress={() => cart.setQty(line.productId, line.qty + 1)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Increase ${line.productName}`}
-                  style={[styles.stepButton, { borderColor: theme.colors.border }]}>
-                  <MBIcon name="add" size="action" color={theme.colors.text} />
-                </MBPressable>
-              </View>
-
-              <MBInput
-                label="Discount"
-                numeric
-                containerStyle={styles.flex}
-                defaultValue=""
-                keyboardType="default"
-                hint="e.g. 50 or 10%"
-                onChangeText={text =>
-                  cart.setDiscount(line.productId, resolveDiscount(text, lineGross(line)))
-                }
-              />
-            </View>
-          </MBCard>
-        ))}
-
-        <MBCard>
-          <TotalRow label="Subtotal" value={cart.totals.grossSubtotal} symbol={currencySymbol} />
-          {cart.totals.discountTotal > 0 ? (
-            <TotalRow label="Discount" value={-cart.totals.discountTotal} symbol={currencySymbol} />
-          ) : null}
-          {cart.totals.taxAmount > 0 ? (
-            <TotalRow label="Government Tax" value={cart.totals.taxAmount} symbol={currencySymbol} />
-          ) : null}
-          <TotalRow
-            label="Grand Total"
-            value={cart.totals.grandTotal}
-            symbol={currencySymbol}
-            strong
-          />
-          <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-            Final amounts are confirmed by the server.
-          </Text>
-        </MBCard>
-
-        {/*
-          Five methods here against the branch's four. `staff` is the counter's
-          own and takes no money; `PRODUCTION_SALE_PAYMENT_METHOD_VALUES` is what
-          keeps it out of the branch list without a second check anywhere.
-        */}
-        <MBSelect
-          label="Payment method"
-          options={PRODUCTION_SALE_PAYMENT_METHOD_VALUES}
-          value={paymentMethod}
-          onChange={setPaymentMethod}
-          renderLabel={option => METHOD_LABEL[option]}
-          testIDPrefix="counter-payment"
-        />
-
-        {isStaff ? (
-          <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-            No money is taken. The sale is excluded from every revenue total, so the comment
-            below is the only record of it — it is required.
-          </Text>
-        ) : null}
-
-        {isCash && !isStaff ? (
-          <>
-            <MBInput
-              label="Cash received"
-              numeric
-              keyboardType="decimal-pad"
-              value={receivedCashText}
-              onChangeText={setReceivedCashText}
-              error={shortOnCash ? 'Less than the grand total' : undefined}
-              editable={!isSaving}
+          <View style={styles.flex}>
+            <SaleProductList
+              products={products.data ?? []}
+              availability={availability}
+              inCart={inCart}
+              /* The counter sells off the central pool, not a shelf. Only the
+                 healthy level names it — "Out of stock" and "3 left" read the
+                 same either way, and "Out of pool" reads as nothing at all. */
+              availabilityNoun="pool"
+              lines={cart.lines}
+              {...(symbol ? { currencySymbol: symbol } : {})}
+              onAdd={cart.addProduct}
+              onQty={cart.setQty}
+              onDiscountPct={cart.setDiscountPct}
+              onRemove={cart.remove}
+              isPending={products.isPending}
+              isError={products.isError}
+              error={products.error}
+              isRefreshing={products.isFetching && !products.isPending}
+              onRefresh={() => products.refetch()}
             />
-            {receivedCashText.trim() && change >= 0 ? (
-              <TotalRow label="Change" value={change} symbol={currencySymbol} />
-            ) : null}
-          </>
-        ) : null}
+          </View>
 
-        <MBInput
-          label="Customer name"
-          value={customerName}
-          onChangeText={setCustomerName}
-          editable={!isSaving}
-        />
-        <MBInput
-          label="Mobile number"
-          value={customerPhone}
-          onChangeText={setCustomerPhone}
-          keyboardType="phone-pad"
-          editable={!isSaving}
-        />
-        <MBInput
-          label={isStaff ? 'Comment (required)' : 'Notes'}
-          value={notes}
-          onChangeText={setNotes}
-          editable={!isSaving}
-          error={staffNeedsNote && localError ? 'A comment is required for a staff sale' : undefined}
-          testID="counter-notes"
-        />
+          <SaleSummaryBar
+            itemCount={cart.itemCount}
+            total={cart.totals.grandTotal}
+            {...(symbol ? { currencySymbol: symbol } : {})}
+            error={form.error}
+            disabled={cart.isEmpty}
+            onCharge={form.toPayment}
+          />
+        </>
+      ) : (
+        <>
+          <View style={styles.flex}>
+            <SalePayment
+              lines={cart.lines}
+              totals={cart.totals}
+              {...(symbol ? { currencySymbol: symbol } : {})}
+              /* Five methods here against the branch's four. `staff` is the
+                 counter's own and takes no money;
+                 `PRODUCTION_SALE_PAYMENT_METHOD_VALUES` is what keeps it out of
+                 the branch list without a second check anywhere. */
+              methods={PRODUCTION_SALE_PAYMENT_METHOD_VALUES}
+              paymentMethod={form.paymentMethod}
+              onPaymentMethod={form.setPaymentMethod}
+              {...(form.isStaff
+                ? {
+                    methodNote:
+                      'No money is taken. The sale is excluded from every revenue total, so the comment below is the only record of it — it is required.',
+                  }
+                : {})}
+              {...(form.isCash
+                ? {
+                    cash: {
+                      value: form.receivedText,
+                      onChangeText: form.setReceivedText,
+                      onAddNote: form.addCash,
+                      onExact: form.setExact,
+                      returned: form.returned,
+                      stillDue: form.stillDue,
+                      ...(symbol ? { currencySymbol: symbol } : {}),
+                      disabled: form.busy !== null,
+                    },
+                  }
+                : {})}
+              customerName={form.customerName}
+              onCustomerName={form.setCustomerName}
+              customerPhone={form.customerPhone}
+              onCustomerPhone={form.setCustomerPhone}
+              notes={form.notes}
+              onNotes={form.setNotes}
+              notesLabel={form.isStaff ? 'Comment (required)' : 'Notes'}
+              {...(form.staffNeedsNote && form.error
+                ? { notesError: 'A comment is required for a staff sale' }
+                : {})}
+              disabled={form.busy !== null}
+              testIDPrefix="counter-payment"
+            />
+          </View>
 
-        {submitError ? (
-          <Text accessibilityRole="alert" style={[theme.type.body, { color: theme.colors.danger }]}>
-            {submitError}
-          </Text>
-        ) : null}
-
-        <MBButton
-          label={isStaff ? 'Record staff sale' : 'Confirm sale'}
-          onPress={onConfirm}
-          loading={isSaving}
-          disabled={cart.isEmpty}
-          fullWidth
-          testID="confirm-counter-sale"
-        />
-      </ScrollView>
-    </View>
-  );
-}
-
-function TotalRow({
-  label,
-  value,
-  symbol,
-  strong = false,
-}: {
-  label: string;
-  value: number;
-  symbol?: string;
-  strong?: boolean;
-}): React.ReactElement {
-  const theme = useTheme();
-  return (
-    <View style={styles.totalRow}>
-      <Text
-        style={[strong ? theme.type.bodyStrong : theme.type.body, { color: theme.colors.text }]}>
-        {label}
-      </Text>
-      <MBMoney value={value} size={strong ? 'md' : 'sm'} symbol={symbol} />
+          <SaleSummaryBar
+            itemCount={cart.itemCount}
+            total={cart.totals.grandTotal}
+            {...(symbol ? { currencySymbol: symbol } : {})}
+            error={form.error}
+            disabled={!form.canFinish}
+            busy={form.busy}
+            onSave={onSave}
+            onSaveAndShare={onSaveAndShare}
+            /* A staff sale is not *paid for*, it is recorded — so the verb
+               changes with the method rather than promising money changed
+               hands. */
+            saveLabel={form.isStaff ? 'Record staff sale' : 'Record sale'}
+            shareLabel={form.isStaff ? 'Record & share' : 'Record & share'}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -865,36 +552,5 @@ const styles = StyleSheet.create({
   // and a value at the other, and unconstrained on a 10" screen the two end up a
   // hand-span apart with nothing between them.
   listContent: { ...contentColumn, paddingHorizontal: space.lg, paddingBottom: space.xxl },
-  separator: { height: 8 },
-  productRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  productMain: { flex: 1, gap: space.hair },
-  productPrice: { alignItems: 'flex-end', gap: space.hair },
-  cartBar: {
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-  },
-  cartSummary: { flex: 1, gap: space.hair },
-  lineControls: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space.md,
-    marginTop: space.md,
-  },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  stepButton: {
-    width: layout.stepperSize,
-    height: layout.stepperSize,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.md,
-    paddingVertical: space.hair,
-  },
+  separator: { height: space.sm },
 });

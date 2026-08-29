@@ -208,6 +208,16 @@ export type MoreStackParamList = {
    */
   Returns: undefined;
   Closing: undefined;
+  /**
+   * Branch discount CLAIMS — money asked back against a demand that arrived
+   * damaged, short or wrong. Not the per-line discount on a sale, and not a
+   * stock return; all three are separate resources.
+   *
+   * Branch-side only. `/api/branch-discounts` is mounted behind
+   * `requireRole(super_admin, ...BRANCH_ROLES)`, and Production's review board
+   * is a different router a branch role is 403'd from at the mount.
+   */
+  Discounts: undefined;
   PartnerExpenses: undefined;
   SyncCenter: undefined;
   Notifications: undefined;

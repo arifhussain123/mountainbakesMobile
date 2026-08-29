@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   NavigationContainer,
@@ -11,6 +11,11 @@ import { AppNavigator } from '@/navigation/AppNavigator';
 import { AuthNavigator } from '@/navigation/AuthNavigator';
 import { navigationRef } from '@/navigation/helpers';
 import { ChangePasswordScreen } from '@/features/auth';
+import {
+  FirstRunScreen,
+  shouldShowOnboarding,
+  useOnboardingStore,
+} from '@/features/onboarding';
 import { useAuthStore } from '@/state/authStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
 
@@ -47,8 +52,9 @@ export function RootNavigator(): React.ReactElement {
   }, [theme]);
 
   /**
-   * Three states, in strict precedence:
+   * Four states, in strict precedence:
    *
+   *   first run, signed out    → the onboarding panels, and nothing else
    *   not signed in            → auth stack
    *   signed in, must change   → change-password, and nothing else
    *   signed in                → the role's tabs
@@ -59,8 +65,35 @@ export function RootNavigator(): React.ReactElement {
    * screen around it, and it needs no navigation of its own — the only ways out
    * are setting a password or signing out, both of which change auth state and
    * re-render this component.
+   *
+   * The onboarding gate is the same shape and sits above it. It needs no route
+   * either: the only way out is finishing or skipping, both of which set the
+   * stored flag and re-render this component — so there is no back gesture into
+   * it and nothing to deep-link at.
    */
   const mustChangePassword = status === 'signedIn' && claims?.mustChangePassword === true;
+
+  /**
+   * First run, and only when signed out.
+   *
+   * The `status` half is not belt-and-braces, it is the upgrade path. This flag
+   * ships to phones that have been running the app for months, where it reads
+   * absent — so without it, every existing user would be handed a tour of an
+   * app they already use, in the middle of a shift.
+   *
+   * `markSeen()` below closes the other end of that: a device with a live
+   * session has plainly seen the app, so the flag is written the first time one
+   * is observed. Otherwise the panels would appear at the *next* sign-out, which
+   * on a `branch_user` shift account is the same evening.
+   */
+  const seenOnboarding = useOnboardingStore(s => s.seen);
+  const markSeen = useOnboardingStore(s => s.markSeen);
+  const showOnboarding = shouldShowOnboarding(seenOnboarding, status);
+
+  useEffect(() => {
+    // Idempotent, and a no-op once the flag is set — see `markSeen`.
+    if (status === 'signedIn') markSeen();
+  }, [status, markSeen]);
 
   return (
     // The background is set here as well as on the navigation theme: the
@@ -68,7 +101,9 @@ export function RootNavigator(): React.ReactElement {
     // between the native splash tearing down and the first navigator frame
     // shows through as white — jarring in dark mode.
     <View style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
-      {mustChangePassword ? (
+      {showOnboarding ? (
+        <FirstRunScreen />
+      ) : mustChangePassword ? (
         <ChangePasswordScreen />
       ) : (
         <NavigationContainer ref={navigationRef} theme={navTheme}>

@@ -54,6 +54,9 @@ const REQUIRED = [
   'MBTrendChart',
   'MBFilterChips',
   'MBSectionHeader',
+  // The 44px stepper with a typed field, shared by the new-order table and
+  // both tills' cart lines.
+  'MBQtyStepper',
 ] as const;
 
 describe('component surface', () => {

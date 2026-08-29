@@ -3,17 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "adb reverse tcp:3001 tcp:3001; react-native run-android",
     "start": "react-native start",
     "lint": "eslint .",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "shared:check": "bash scripts/check-shared-mirror.sh",
     "theme:check": "bash scripts/check-theme-tokens.sh",
-    "verify": "npm run typecheck && npm run shared:check && npm run theme:check && npm run splash:check && npm test",
+    "verify": "npm run typecheck && npm run shared:check && npm run theme:check && npm run splash:check && npm run fonts:check && npm test",
     "build:android": "cd android && ./gradlew assembleRelease",
     "clean:android": "cd android && ./gradlew clean",
-    "splash:check": "bash scripts/check-splash-colour.sh"
+    "splash:check": "bash scripts/check-splash-colour.sh",
+    "fonts:check": "bash scripts/check-fonts.sh"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",

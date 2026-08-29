@@ -18,7 +18,8 @@ What is implemented:
 Bottom tabs   →  up to 4 daily operations + More.  Five equal cells, no centre button.
 More tab      →  everything else — a real screen, scrollable, grouped
 Drawer        →  opened from the header avatar. A GROUPED INDEX OF BOTH,
-                 derived from them, plus a pinned account footer.
+                 derived from them, under a plum profile header and over a
+                 pinned Logout.
 ```
 
 ### The rule that replaced "no destination on two surfaces"
@@ -50,16 +51,59 @@ That is a stronger invariant than the old one. The old rule could only be
 checked by comparing three lists; this one is true by construction and checked
 anyway, because "true by construction" is a claim about code somebody will edit.
 
-### The account footer is still not navigation
+### The account panel is still not navigation
 
 `ACCOUNT_PANEL` in `roleConfig.ts` — identity, branch, connection, appearance,
-sign-out — is what the drawer's **pinned footer** carries, and none of it may be
-a tab, a More row or a drawer row for any role. That assertion survived the
-reversal unchanged, and it should: a row goes somewhere, a button does something,
-and a sign-out that scrolls with a growing menu is one somebody hits by accident.
+sign-out — is what the drawer carries **outside its list of rows**, and none of
+it may be a tab, a More row or a drawer row for any role. That assertion survived
+the reversal unchanged, and it should: a row goes somewhere, a button does
+something, and a sign-out that scrolls with a growing menu is one somebody hits
+by accident.
 
-Appearance moved out of the footer to Settings when the drawer became a menu — it
+**v6 splits the panel across both ends of the drawer, and that is a change of
+arrangement rather than of rule.** v5 kept all of it in one pinned footer. v6's
+screen 04 heads the drawer with a plum profile block — logo, role, branch,
+presence — and pins only Logout beneath the scroller. The material is the same
+and so is the invariant: the panel holds no destinations, and the one control a
+mis-tap costs something by still cannot scroll. What the split fixes is that v5
+answered "who am I signed in as" in two places at opposite ends of a scrolling
+list, the mark and the branch at the top and the role and the dot at the bottom.
+
+Appearance moved out of the panel to Settings when the drawer became a menu — it
 was the one *control* sitting in what is now a list of destinations.
+
+### The drawer's rows, and what a selection is made of
+
+v6's screen 04 draws eleven destinations as one hairline-separated list with no
+groups. The hairlines are adopted; the groups stay. Eleven is one role's count —
+the admin carries roughly twice that — and `drawerSectionsFor` returns *titled*
+sections because the More index it derives from is grouped, which is also what
+assertion 4 above checks. A flat render would throw that away and leave the test
+asserting headings nothing shows.
+
+A selected row is **three signals**, the same three `MBTabBar` uses and for the
+same reason: the ember as a 3dp bar down the left edge, `accent` for the glyph
+and the label, and a `primarySoft` tint behind the row. `primary` is 3.04:1 on a
+card — enough for a graphical object under WCAG 1.4.11, nowhere near the 4.5:1 a
+15dp label needs — so the brand goes in the bar and the type takes the mark. The
+row also reports `selected` to the screen reader, because colour is the one
+signal a reader cannot use.
+
+The edge is **reserved on every row and painted on one** (`layout.drawerEdgeW`).
+A mark that appeared on selection would shift the label of the row you just
+tapped by 3dp, which is small and exactly the amount that reads as the list
+flinching.
+
+Tapping the active row **closes and navigates nowhere**. Re-navigating to where
+you already are resets that tab's stack to its root, so the row for the screen in
+front of you would silently discard a half-filled form. Which row is active is
+walked out of the navigator state rather than stored — the drawer wraps one
+screen, so the answer is two levels down and three for a More destination, and
+`null` (the More index itself, or any pushed detail screen) is a real answer.
+
+The panel is `min(340, 78% of the screen)`. It never covers the full width, which
+is what keeps the scrim a real dismiss target; the cap matters on a tablet, where
+78% of a 10" screen is a menu wider than the content it opens.
 
 ## What `roleConfig.ts` exports, and what it deliberately does not
 
@@ -146,10 +190,10 @@ about whether to warn you before stranding a shift's takings is a defect.
 
 Resolved:
 
-- Sign-out is in the **account footer only** as far as navigation is concerned.
-  It is an action on the session, not a secondary feature, and the footer is
-  where identity and session live — pinned below the menu rather than scrolling
-  with it, so it does not drift under a thumb as the drawer grows. The two auth screens that also offer it —
+- Sign-out is in the **account panel only** as far as navigation is concerned.
+  It is an action on the session, not a secondary feature, and it is pinned
+  below the menu rather than scrolling with it, so it does not drift under a
+  thumb as the drawer grows. The two auth screens that also offer it —
   `ChangePasswordScreen` and `PlaceholderScreen` — are escape hatches from a
   screen you cannot otherwise leave, not menu entries, and they call the same
   hook.
@@ -192,6 +236,8 @@ the server. Navigation config decides only what is convenient to reach.
 
 ```
 RootNavigator                     auth state decides the tree, never navigate()
+├── FirstRunScreen                the onboarding panels — first run, signed out
+├── ChangePasswordScreen          forced change — signed in, mustChangePassword
 ├── AuthNavigator                 SignIn · FinanceSignIn · ForgotPassword
 └── AppNavigator                  resolves the AccessProfile once
     └── AccountDrawer             grouped menu + account footer
@@ -199,6 +245,22 @@ RootNavigator                     auth state decides the tree, never navigate()
             ├── <tab>  → native stack per tab
             └── More   → MoreStack (index + every secondary destination)
 ```
+
+The first two are **gates, not routes**. Both sit outside `NavigationContainer`
+entirely, both apply before any navigator mounts, and neither can be navigated to
+or away from: the only way out of each is the thing it exists to collect — a new
+password, or a dismissal of the panels — and both change state that re-renders
+`RootNavigator`. So there is no back gesture into either and nothing to deep-link
+at. `shouldShowOnboarding()` and the `mustChangePassword` expression are the whole
+of the precedence, in that order.
+
+The onboarding gate carries one condition that is not about onboarding: it also
+requires the user to be **signed out**. The stored flag ships to phones that have
+been running the app for months, where it reads absent, so a check on the flag
+alone would hand a tour of the app to every existing user in the middle of a
+shift. `RootNavigator` closes the other end by writing the flag the first time it
+observes a live session — otherwise the panels would appear at the *next*
+sign-out, which on a `branch_user` shift account is the same evening.
 
 Each tab owns a native stack, so detail and create screens push **inside** the
 tab that owns the resource and keep a real back path to their list.
@@ -532,10 +594,11 @@ unmount. Reduce Motion swaps it for the static glyph — the label still says
 "Syncing…", so only the movement is lost. `motion.spin` is the one token in
 `motion.ts` that describes a loop rather than a transition, and it says so.
 
-### The account footer shows no identifiers
+### The account panel shows no identifiers
 
 The real Mountain Bakes mark (`MBLogo`, which picks the variant for the scheme
-through `logoFor()`), an avatar, the role, the branch and a connection dot. No
+through `logoFor()`), an avatar, the role, the branch and a connection dot — all
+five in v6's plum profile header. No
 e-mail, no phone, no user ID, no token — a shared branch handset is read over
 shoulders, and none of those is needed to answer "who am I signed in as".
 

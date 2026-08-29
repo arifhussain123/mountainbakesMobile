@@ -1,6 +1,7 @@
 import type {
   BranchProductionOrder,
   BranchProductionOrderStatus,
+  ProductionBalanceDoc,
 } from '@/shared/types/production-order.types';
 import type { StockRow } from '@/shared/types/stock.types';
 import type { CancelProductionOrderInput } from '@/shared/schemas/production-order.schemas';
@@ -11,8 +12,13 @@ import { api } from '../client';
 /**
  * Production endpoints.
  *
- * Every route here is restricted to `super_admin` and `production_user`
- * server-side. The mobile Production role is the latter.
+ * MOST routes here are restricted to `super_admin` and `production_user`
+ * server-side, and the mobile Production role is the latter. The exceptions are
+ * the ones a branch acts on its own demand through — cancelling it, verifying
+ * what arrived, and reading `getProductionBalances()` — which the server gates
+ * with `BRANCH_ROLES` or, in the balances case, with nothing beyond
+ * authentication plus its own branch scoping. Do not read this file as a
+ * role boundary; the route is the boundary.
  */
 
 export interface ProductionOverviewCards {
@@ -192,6 +198,27 @@ export function getBranchStock(): Promise<BranchStockMatrix> {
 
 export function getPreviousBalance(orderId: string): Promise<PreviousBalance> {
   return api.get<PreviousBalance>(`/api/production-orders/${orderId}/previous-balance`);
+}
+
+/**
+ * `GET /api/production-orders/balances` — outstanding demand per product: what a
+ * branch has asked for that Production has approved and not yet delivered.
+ *
+ * One of the few routes in this file a BRANCH may call. It carries no
+ * `requireRole` at all, only the router's `authenticate`, and the handler scopes
+ * a branch role to its own shop from the JWT — so a branch manager asks for
+ * "balances" and receives its own and nothing else. No `branchId` is sent, for
+ * the same reason it is not sent anywhere else.
+ *
+ * **A product with nothing outstanding is ABSENT from the response, not present
+ * with a zero.** The query is `pending_qty > 0`. That makes the empty array a
+ * real and common answer — Production owes this branch nothing — and it is why
+ * the caller must keep "the request failed" separate from "the answer was
+ * none": rendering a missing product as 0 waiting is correct only once the
+ * request has actually succeeded.
+ */
+export function getProductionBalances(): Promise<{ balances: ProductionBalanceDoc[] }> {
+  return api.get<{ balances: ProductionBalanceDoc[] }>('/api/production-orders/balances');
 }
 
 // ---------------------------------------------------------------------------

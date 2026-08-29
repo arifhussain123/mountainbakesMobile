@@ -3,6 +3,7 @@ import {
   lineAmount,
   resolveDiscount,
   saleTotals,
+  discountFromPct,
   type CartLine,
 } from '../saleTotals';
 
@@ -133,5 +134,42 @@ describe('resolveDiscount', () => {
     expect(resolveDiscount('abc', 500)).toBe(0);
     expect(resolveDiscount('-20', 500)).toBe(20); // sign stripped, then clamped
     expect(resolveDiscount('0', 500)).toBe(0);
+  });
+});
+
+/**
+ * A percentage discount, resolved to rupees.
+ *
+ * The line stores both: `discount` is what the payload carries, because
+ * `OrderItemSchema.discount` is a number of rupees, and the percentage is kept
+ * beside it so `useCart` can re-apply it when the quantity moves. Freezing the
+ * rupee figure is how "10%" quietly becomes 5% on the second unit.
+ */
+describe('discountFromPct', () => {
+  it('takes the percentage of the gross', () => {
+    expect(discountFromPct(200, 10)).toBe(20);
+  });
+
+  it('rounds to paisa the way every other total does', () => {
+    expect(discountFromPct(333, 10)).toBe(33.3);
+  });
+
+  it('is nothing at zero, and everything at a hundred', () => {
+    expect(discountFromPct(200, 0)).toBe(0);
+    expect(discountFromPct(200, 100)).toBe(200);
+  });
+
+  /**
+   * Clamped to 0-100 rather than to the gross, which is the stronger guarantee:
+   * a percentage above 100 is a typo, and resolving it to "the whole line" would
+   * accept it silently as a giveaway instead of capping at one.
+   */
+  it('clamps a typo rather than making the line negative', () => {
+    expect(discountFromPct(200, 500)).toBe(200);
+    expect(discountFromPct(200, -10)).toBe(0);
+  });
+
+  it('is nothing on a line with no gross', () => {
+    expect(discountFromPct(0, 50)).toBe(0);
   });
 });

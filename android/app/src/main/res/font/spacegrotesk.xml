@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Space Grotesk — one of the two alternate typefaces the Settings font picker
+  offers. v6 names it as a whole mood: when chosen it is BOTH the UI face and the
+  display face, so there is no serif alongside it.
+
+  It ships 300–700 and no italic, so two of the scale's variants do not exist
+  here and Android resolves each to the nearest declared one:
+
+    800 (h1/h2/h3, cardTitle, money) -> 700
+    400 italic (type.tagline)        -> 400 upright, or a synthesised oblique
+
+  That is the honest consequence of offering a face with a shorter range, not a
+  defect to chase. It is also why `check-fonts.sh` holds only the DEFAULT family
+  to declaring every weight the scale uses — see the comment there.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/spacegrotesk_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/spacegrotesk_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/spacegrotesk_medium"
+        android:fontStyle="normal"
+        android:fontWeight="500"
+        app:font="@font/spacegrotesk_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500" />
+    <font
+        android:font="@font/spacegrotesk_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        app:font="@font/spacegrotesk_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+    <font
+        android:font="@font/spacegrotesk_bold"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        app:font="@font/spacegrotesk_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+</font-family>

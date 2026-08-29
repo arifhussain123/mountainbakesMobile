@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The UI face, in the five weights the type scale declares.
+
+  This file exists because `assets/fonts/` cannot express it. React Native's
+  ReactFontManager resolves an asset font by FILENAME and knows exactly four
+  variants — `""`, `_bold`, `_italic`, `_bold_italic` — collapsing every numeric
+  weight to NORMAL or BOLD on the way (see `nearestStyle`). The scale here uses
+  400, 600, 700 and 800 as four distinct steps, and v6's hierarchy is built on
+  the gap between 400 body copy and 800 headings; through the asset path 600 and
+  800 would both render as plain bold and that gap would close.
+
+  ReactFontManager's own docstring names the way out: "To support multiple font
+  styles or weights, you must provide a font in XML format." Registered in
+  MainApplication with `addCustomFont`, which routes lookups through
+  `Typeface.create(typeface, weight, italic)` and honours the weights below.
+
+  Both the `android:` and `app:` attributes are required and are not redundant:
+  `android:` is read from API 26, `app:` is the androidx backport that carries
+  API 24 and 25, which this app still supports (`minSdkVersion = 24`).
+
+  500 is declared although no token uses it today, because `weight.medium` is a
+  public token in `typography.ts` — a declared weight that silently renders as
+  400 is exactly the kind of quiet wrongness this scale is documented against.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/plusjakartasans_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/plusjakartasans_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/plusjakartasans_medium"
+        android:fontStyle="normal"
+        android:fontWeight="500"
+        app:font="@font/plusjakartasans_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500" />
+    <font
+        android:font="@font/plusjakartasans_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        app:font="@font/plusjakartasans_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+    <font
+        android:font="@font/plusjakartasans_bold"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        app:font="@font/plusjakartasans_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+    <font
+        android:font="@font/plusjakartasans_extrabold"
+        android:fontStyle="normal"
+        android:fontWeight="800"
+        app:font="@font/plusjakartasans_extrabold"
+        app:fontStyle="normal"
+        app:fontWeight="800" />
+</font-family>

@@ -412,3 +412,82 @@ conflict when they differ, so an affected sale names itself in the Sync Center
 instead of turning up as an unexplained variance at reconciliation. Detection is
 not a fix: the sale is still committed at the server's total, because money is
 the server's to decide.
+
+---
+
+## Known defect: no geofence position is ever sent, and the conflict it raises is mislabelled
+
+**Latent.** It does nothing today and stops every guarded write from this app on
+the day an admin turns geofencing on. Recorded here because the symptom is a
+queue full of conflicts, which reads as a sync problem and is not one.
+
+Three write endpoints on the server are wrapped in
+`requireInsideGeofence(action)` — `POST /api/stock/return` (`stock.return`),
+`sale.create` and `order.create`. It is mounted per route rather than globally
+and only ever guards writes, so reads are unaffected: a manager stuck in traffic
+can still open reports and read stock.
+
+The middleware takes the caller's position from the **`X-Geo-Position`** header
+(`GEO_POSITION_HEADER`, `shared/utils/geo.ts`). **This app never sets it.**
+`src/shared/utils/geo.ts` is mirrored here — the header name, the encoder and
+`evaluateGeofence` itself — and nothing in `src/api/` references any of it.
+
+With the feature on and the branch configured, `evaluateGeofence` reaches
+
+```
+if (!isValidGeoPoint(position)) return deny('no_position');
+```
+
+and the middleware answers **403**. `geofencing_enabled` defaults to `false`
+(`20260802000048_branch_geofencing.sql`), which is the only reason writes work
+today.
+
+### What the queue does with it, which is mostly right
+
+A 403 is a **conflict**, not a `failed` row — see *Failure classification*. The
+row parks as `conflict`, both sides are recorded in `sync_conflicts`, and it
+surfaces in the Sync Center rather than dying quietly. `classifyConflict` sends
+it to `permission_changed`, whose `mayHaveLanded: false` is **correct**: the
+middleware runs before the route handler, so nothing was written and there is
+nothing to double-post. The transaction is still on the device.
+
+So the queue's safety properties hold. What fails is the explanation.
+
+### Why it is worse than a plain refusal
+
+`permission_changed` says *"Your role or branch changed after this was entered,
+and the server will not accept it from this account."* None of that is true — a
+branch manager standing in their own shop is told their permissions changed, and
+sent to an admin who will find nothing wrong with the account.
+
+The policy then offers `retry`, which is the right resolution for a real
+geofence denial (walk back inside and send again) and is unreachable here: the
+app cannot produce a position at any point, so every retry returns the same 403.
+That is an invitation to keep tapping a button that cannot work, which is worse
+than a refusal that says so.
+
+The server's own wording does not rescue it either. `geofenceMessage` for
+`no_position` reads *"Allow location access for this site and try again"* —
+written for the browser, and pointing at a permission prompt this app never
+raises.
+
+### The fix
+
+Client-side, and it is not a patch:
+
+1. A location permission and a library to read a fix.
+2. Capture at **send** time, in the API client's interceptor — never stored on
+   the queue row. This is the same rule the `Authorization` header already
+   follows and for a sharper reason: a fix written when the row was created is
+   stale against the server's `geofenceMaxPositionAgeSec` by the time an
+   overnight retry drains, and `evaluateGeofence` denies `'stale'` as firmly as
+   it denies `'no_position'`.
+3. A decision, before any of the above, about what an offline write does when no
+   fix is available — the case the queue exists for is a basement shop, which is
+   also where GPS is worst.
+
+Two things are worth doing whether or not that ships. `classifyConflict` can
+recognise a geofence 403 by its `geofence` response body, which carries
+`outcome`, `distanceKm` and `radiusKm`, and name it as its own conflict type
+instead of borrowing `permission_changed`'s wording. And a `no_position` verdict
+should not offer `retry` from this app until the app can send one.

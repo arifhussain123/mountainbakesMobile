@@ -113,6 +113,22 @@ export const layout = {
   navInset: 16,
   navPillH: 62,
   /**
+   * The drawer panel, and the selection mark down the left of one of its rows.
+   *
+   * `min(drawerPanelMaxW, drawerPanelRatio × screen width)` — the panel never
+   * covers the full width, which is what keeps the scrim a real dismiss target
+   * rather than a 4dp strip. The cap matters on a tablet, where 78% of a 10"
+   * screen is a menu wider than the content it opens.
+   *
+   * `drawerEdgeW` is reserved on **every** row, active or not, and only
+   * painted on the active one. A mark that appears on selection would shift
+   * the labels of the row you just tapped by 3dp — small, and exactly the
+   * amount that reads as the list flinching.
+   */
+  drawerPanelMaxW: 340,
+  drawerPanelRatio: 0.78,
+  drawerEdgeW: 3,
+  /**
    * The one breakpoint, in **logical dp**, not pixels.
    *
    * 600 is where Android's own `sw600dp` bucket starts, which is the line every

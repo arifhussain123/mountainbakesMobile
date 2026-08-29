@@ -3,9 +3,9 @@
  *
  * It used to live in the encrypted MMKV, whose instance is created with a key
  * read out of the Keychain — an async read, so the store could only be filled
- * from inside the bootstrap effect. Until that resolved, `themeMode` was
- * `'system'` regardless of what the user had chosen, and a device in dark mode
- * with the app set to Light rendered the dark palette and then flipped.
+ * from inside the bootstrap effect. Until that resolved, `themeMode` was the
+ * default regardless of what the user had chosen, and a device in dark mode with
+ * the app set to Light rendered the dark palette and then flipped.
  *
  * These tests are about that ordering guarantee, which is why they re-import the
  * module rather than calling `hydrate()`: a fresh import is the closest thing to
@@ -14,6 +14,7 @@
  */
 import { PreferenceKeys, prefs } from '@/common/storage/preferences';
 import { DEFAULT_ACCENT } from '@/common/theme/accents';
+import { DEFAULT_THEME_MODE } from '@/common/theme/themes';
 import { StorageKeys } from '@/common/storage/secureStorage';
 
 // The encrypted store is stubbed so these tests exercise the preference path and
@@ -52,9 +53,22 @@ beforeEach(() => {
 });
 
 describe('themeMode on cold start', () => {
-  it('defaults to system when nothing is stored', () => {
+  /**
+   * Pinned as a value, once, because it is a product decision rather than an
+   * implementation detail — and because the obvious "fix" is to put it back.
+   *
+   * `system` is the conventional default and it is wrong here: v6 draws
+   * twenty-one light screens and no dark ones, so `system` hands a night-mode
+   * phone a scheme that was never designed. That is not hypothetical — it is the
+   * first thing reported from the device. See `DEFAULT_THEME_MODE`.
+   */
+  it('opens in the design, which means light rather than system', () => {
+    expect(DEFAULT_THEME_MODE).toBe('light');
+  });
+
+  it('defaults to the default when nothing is stored', () => {
     const store = freshStore();
-    expect(store.getState().themeMode).toBe('system');
+    expect(store.getState().themeMode).toBe(DEFAULT_THEME_MODE);
   });
 
   it('is already correct on the first read, with no hydrate() call', () => {
@@ -66,10 +80,10 @@ describe('themeMode on cold start', () => {
     expect(store.getState().themeMode).toBe('dark');
   });
 
-  it('falls back to system rather than throwing on a corrupt value', () => {
+  it('falls back to the default rather than throwing on a corrupt value', () => {
     prefs.set(PreferenceKeys.themeMode, 'chartreuse');
     const store = freshStore();
-    expect(store.getState().themeMode).toBe('system');
+    expect(store.getState().themeMode).toBe(DEFAULT_THEME_MODE);
   });
 });
 
@@ -85,14 +99,14 @@ describe('setThemeMode', () => {
 
 describe('migration off the encrypted store', () => {
   /**
-   * Without this, every user who had already chosen a theme is silently reset
-   * to `system` by the update that moved the key.
+   * Without this, every user who had already chosen a theme is silently reset to
+   * the default by the update that moved the key.
    */
   it('moves an existing choice across on first hydrate', () => {
     mockLegacy.set(StorageKeys.themeMode, 'dark');
 
     const store = freshStore();
-    expect(store.getState().themeMode).toBe('system'); // not yet migrated
+    expect(store.getState().themeMode).toBe(DEFAULT_THEME_MODE); // not yet migrated
 
     store.getState().hydrate();
 

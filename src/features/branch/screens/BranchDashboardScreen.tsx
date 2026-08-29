@@ -7,10 +7,13 @@ import {
   MBAccountButton,
   MBBudgetCard,
   MBCard,
+  MBColumnChart,
   MBDataRow,
+  MBDateStepper,
   MBErrorState,
   MBFilterChips,
   MBHeader,
+  MBLedgerTable,
   MBMoney,
   MBPressable,
   MBQuickActions,
@@ -23,6 +26,8 @@ import {
   MBSyncStatus,
   MBTrendChart,
 } from '@/common/ui';
+import type { LedgerColumn, LedgerRow } from '@/common/ui';
+import { LoginHistoryCard } from '@/features/branch/components';
 import { useAccessProfile } from '@/common/hooks/useAccessProfile';
 import { useCatalogSettings } from '@/common/hooks/useCatalogSettings';
 import { getReportSummary } from '@/api/services/reportsService';
@@ -30,7 +35,11 @@ import { getBranchStockDay } from '@/api/services/stockHistoryService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
 import { qk } from '@/api/queryKeys';
 import type { ReportPeriod, ReportSummary } from '@/shared/types/report.types';
-import { businessDateStr, karachiMinutesOfDay } from '@/shared/utils/timezone';
+import {
+  businessDateStr,
+  businessDaysAgoStr,
+  karachiMinutesOfDay,
+} from '@/shared/utils/timezone';
 import { useAuthStore } from '@/state/authStore';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { formatBusinessDate } from '@/common/helpers/businessDay';
@@ -68,6 +77,19 @@ import { contentColumnWide, space } from '@/common/theme/spacing';
  *   would be a third number that reconciles with neither. Profit is reported
  *   under its own name in Breakdown.
  */
+
+/**
+ * Stock detail columns.
+ *
+ * Three, and the movement name is one of them rather than a `heading`: unlike
+ * the ledger's day rows, these lines all belong to ONE day, so the name is a
+ * column and the date is the card's subtitle.
+ */
+const STOCK_DETAIL_COLUMNS: readonly LedgerColumn[] = [
+  { key: 'movement', title: 'Movement', align: 'left' },
+  { key: 'qty', title: 'Qty', align: 'right' },
+  { key: 'value', title: 'Value', align: 'right' },
+];
 
 const PERIODS: ReadonlyArray<{ key: ReportPeriod; label: string }> = [
   { key: 'daily', label: 'Today' },
@@ -164,6 +186,64 @@ export function BranchDashboardScreen(): React.ReactElement {
   });
 
   /**
+   * Stock detail — one chosen business day, with its own date and its own query.
+   *
+   * Deliberately separate from `stockDay` above rather than a date on it. That
+   * one answers "what is on the shelf now" and must not move when a control is
+   * touched; this one answers "what moved on the day I picked". Same route, two
+   * questions, and collapsing them would make the strip at the top of the screen
+   * change meaning when someone stepped the date down here.
+   *
+   * When the two dates coincide they share a query key, so this costs no extra
+   * request on first load — TanStack dedupes them.
+   */
+  const [detailDate, setDetailDate] = useState(today);
+  const stockDetail = useQuery({
+    queryKey: qk.stock.day(null, detailDate),
+    queryFn: () => getBranchStockDay({ date: detailDate }),
+    staleTime: LIVE_STALE_TIME_MS,
+  });
+
+  /** The ledger only walks back a year; stop the arrow rather than let it error. */
+  const detailMinDate = useMemo(() => businessDaysAgoStr(364), []);
+
+  /**
+   * The day's movement as lines.
+   *
+   * `balanceQty` is the SERVER's closing figure, printed rather than derived.
+   * The row reconciles as `opening + new − sold − returned + adjustment`, and
+   * recomputing it here would put a second answer on the screen that disagrees
+   * with the ledger the moment an adjustment lands late — the branch would be
+   * reading a balance nobody else has.
+   */
+  const stockLines: readonly LedgerRow[] = useMemo(() => {
+    const row = stockDetail.data?.row;
+    if (!row) return [];
+    const line = (
+      key: string,
+      label: string,
+      qty: number,
+      amount: number,
+      tone?: 'muted' | 'success' | 'danger' | 'warning',
+    ): LedgerRow => ({
+      key,
+      cells: [
+        { value: label, tone: 'muted' },
+        { value: formatQty(qty), ...(tone ? { tone } : {}) },
+        { value: formatCurrency(amount, currencySymbol), tone: 'muted' },
+      ],
+    });
+    return [
+      line('opening', 'Opening', row.openingQty, row.openingAmount),
+      line('new', 'Added', row.newQty, row.newAmount, 'success'),
+      line('sold', 'Sold', row.soldQty, row.soldAmount, 'danger'),
+      line('returned', 'Returned', row.returnedQty, row.returnedAmount, 'warning'),
+      line('adjustment', 'Adjustment', row.adjustmentQty, row.adjustmentAmount),
+      line('balance', 'Balance', row.balanceQty, row.balanceAmount),
+    ];
+  }, [stockDetail.data, currencySymbol]);
+
+  /**
    * One trend card serves Daily / Weekly / Monthly: the chips change the range
    * the server buckets, and `dailyData` comes back already bucketed for it.
    */
@@ -186,6 +266,28 @@ export function BranchDashboardScreen(): React.ReactElement {
         : [],
     [days],
   );
+
+  /**
+   * Sales against expenses, paired per day.
+   *
+   * Seven days, not the fourteen the trends use, and that is the component's own
+   * constraint rather than a preference: `MBColumnChart` draws real views and
+   * warns that a 360dp phone cannot carry many columns per group. Two series
+   * across fourteen groups is twenty-eight bars, at which point each is a tick.
+   *
+   * Gated on the same condition as `expenseTrend` — absent is not zero. A paired
+   * chart is worse than a missing one here: a day the server did not report on
+   * would draw a full sales column beside an empty expense column, which reads
+   * as a day that took money and spent nothing.
+   */
+  const salesVsExpenses = useMemo(() => {
+    const recent = days.slice(-7);
+    if (!recent.some(d => d.expenses !== undefined)) return [];
+    return recent.map(d => ({
+      label: formatBusinessDate(d.date),
+      values: [toNumber(d.totalRevenue), toNumber(d.expenses ?? 0)] as const,
+    }));
+  }, [days]);
 
   const productShare = useMemo(
     () =>
@@ -328,6 +430,20 @@ export function BranchDashboardScreen(): React.ReactElement {
               currencySymbol={currencySymbol}
               subtitle="Sales less expenses"
             />
+            {/* Discounts as a tile as well as a Breakdown row, because it is one
+                of the five figures the branch is measured on — and captioned
+                with the one thing that stops it being read twice: the server has
+                ALREADY taken it off `totalRevenue`, so Sales above is net of
+                this. Subtracting it again to reach "net" is the mistake the
+                caption exists to prevent. */}
+            <MBStatCard
+              label="Discounts"
+              icon="expenses"
+              tone="warning"
+              value={toNumber(data?.totalDiscount)}
+              currencySymbol={currencySymbol}
+              subtitle="Already off Sales"
+            />
           </MBStatScroller>
 
           {/* 2 — Orders, with a way through to the list. */}
@@ -394,6 +510,7 @@ export function BranchDashboardScreen(): React.ReactElement {
                 <MBTrendChart
                   data={salesTrend}
                   accessibilityLabel={`Sales trend, ${periodLabel.toLowerCase()}, ${salesTrend.length} days.`}
+                  formatValue={v => formatCurrency(v, currencySymbol)}
                 />
               </MBCard>
             </>
@@ -406,6 +523,56 @@ export function BranchDashboardScreen(): React.ReactElement {
                 <MBTrendChart
                   data={expenseTrend}
                   accessibilityLabel={`Expense trend, ${periodLabel.toLowerCase()}, ${expenseTrend.length} days.`}
+                  formatValue={v => formatCurrency(v, currencySymbol)}
+                />
+              </MBCard>
+            </>
+          ) : null}
+
+          {/* 6 — One day's movement, on a date of its own. */}
+          <MBSectionHeader
+            title="Stock detail"
+            subtitle="Movement on a single business day"
+          />
+          <MBCard>
+            <MBDateStepper
+              value={detailDate}
+              onChange={setDetailDate}
+              minDate={detailMinDate}
+              testID="stock-detail-date"
+            />
+            {stockDetail.isPending ? (
+              <MBSkeletonList rows={3} />
+            ) : stockDetail.isError ? (
+              /* A date the ledger cannot reach comes back as an error naming
+                 the reason. Shown, not swallowed: "nothing moved that day" and
+                 "we cannot get back that far" are both a table of zeroes if the
+                 failure is hidden. */
+              <MBErrorState
+                error={stockDetail.error}
+                onRetry={() => {
+                  stockDetail.refetch();
+                }}
+                retrying={stockDetail.isFetching}
+              />
+            ) : (
+              <MBLedgerTable
+                columns={STOCK_DETAIL_COLUMNS}
+                rows={stockLines}
+                testID="stock-detail-table"
+              />
+            )}
+          </MBCard>
+
+          {salesVsExpenses.length > 0 ? (
+            <>
+              <MBSectionHeader title="Sales vs expenses" subtitle="Last 7 days" />
+              <MBCard>
+                <MBColumnChart
+                  series={['Sales', 'Expenses']}
+                  groups={salesVsExpenses}
+                  accessibilityLabel={`Sales against expenses over the last ${salesVsExpenses.length} days.`}
+                  formatValue={v => formatCurrency(v, currencySymbol)}
                 />
               </MBCard>
             </>
@@ -461,6 +628,13 @@ export function BranchDashboardScreen(): React.ReactElement {
               />
             ) : null}
           </MBCard>
+
+          {/* Last, and deliberately so. It is the only card on this screen that
+              is not about the shop's trading — it answers "was that me?" rather
+              than "how did we do?" — so it sits below everything a manager opens
+              the dashboard to read. It also loads on its own query and cannot
+              blank the page if that fails. */}
+          <LoginHistoryCard />
         </ScrollView>
       )}
     </View>

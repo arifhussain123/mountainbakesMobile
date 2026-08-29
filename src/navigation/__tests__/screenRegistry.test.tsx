@@ -5,7 +5,7 @@
  * hook rather than the library so nothing here depends on the shape of a
  * third-party spec — resolution never calls it either way.
  */
-jest.mock('@/features/admin/hooks/useExportReport', () => ({
+jest.mock('@/common/hooks/useExportReport', () => ({
   useExportReport: () => ({ exportReport: jest.fn(), isExporting: false, error: null }),
 }));
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { DEFAULT_ACCENT, type AccentKey } from './accents';
+import { DEFAULT_TYPEFACE, type TypefaceKey } from './typography';
 import { themeFor, type ResolvedScheme, type Theme, type ThemeMode } from './themes';
 
 /**
@@ -16,6 +17,7 @@ interface ThemeContextValue {
   scheme: ResolvedScheme;
   mode: ThemeMode;
   accent: AccentKey;
+  typeface: TypefaceKey;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -23,6 +25,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({
   mode,
   accent = DEFAULT_ACCENT,
+  typeface = DEFAULT_TYPEFACE,
   children,
 }: {
   mode: ThemeMode;
@@ -32,6 +35,12 @@ export function ThemeProvider({
    * it had before accents existed.
    */
   accent?: AccentKey;
+  /**
+   * Defaulted for the same reason as `accent`: a test or story rendering a bare
+   * `<ThemeProvider mode=...>` keeps the scale it had before the face was
+   * selectable, so no existing snapshot moves.
+   */
+  typeface?: TypefaceKey;
   children: React.ReactNode;
 }): React.ReactElement {
   const systemScheme = useColorScheme();
@@ -39,8 +48,14 @@ export function ThemeProvider({
   const value = useMemo<ThemeContextValue>(() => {
     const scheme: ResolvedScheme =
       mode === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : mode;
-    return { theme: themeFor(scheme, accent), scheme, mode, accent };
-  }, [mode, accent, systemScheme]);
+    return {
+      theme: themeFor(scheme, accent, typeface),
+      scheme,
+      mode,
+      accent,
+      typeface,
+    };
+  }, [mode, accent, typeface, systemScheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
