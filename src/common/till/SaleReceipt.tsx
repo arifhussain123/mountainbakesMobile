@@ -1,9 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
-import { MBButton, MBCard, MBDataRow, MBHeader, MBMoney } from '@/common/ui';
-import { PrintError, printErrorMessage, printSale, printingSupported } from '@/common/printing';
+import { MBButton, MBCard, MBDataRow, MBHeader, MBMoney, MBModal } from '@/common/ui';
+import {
+  PrintError,
+  ReceiptPreview,
+  preview,
+  printErrorMessage,
+  printSale,
+  printingSupported,
+  saleReceiptBlocks,
+} from '@/common/printing';
 import { useSettings } from '@/api/hooks/useCatalogApi';
+import { usePrinterStore } from '@/state';
 import { paymentMethodLabel } from '@/common/constants/paymentMethods';
 import { lineAmount } from '@/common/helpers/saleTotals';
 import { formatCurrency, formatQty } from '@/common/utils/money';
@@ -80,11 +89,36 @@ export function SaleReceipt({
 }: SaleReceiptProps): React.ReactElement {
   const theme = useTheme();
   const settings = useSettings();
+  const profile = usePrinterStore(s => s.profile);
   const [shared, setShared] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const queued = !sale.confirmed;
   const symbol = sale.currencySymbol;
   const canPrint = printingSupported();
+
+  /**
+   * What the receipt will say, built once and used for both jobs.
+   *
+   * The preview draws these lines and `printSale` re-derives the same blocks
+   * from the same inputs, so the two cannot disagree about wrapping or about a
+   * column. Memoised because the slip re-renders on every button press and
+   * re-laying out a receipt to draw the same paper is work with no output.
+   */
+  const receiptContext = useMemo(
+    () => ({
+      branchName,
+      companyName: settings.data?.companyName,
+      footer: settings.data?.receiptFooter,
+      profile,
+    }),
+    [branchName, profile, settings.data],
+  );
+
+  const previewLines = useMemo(
+    () => (previewing ? preview(saleReceiptBlocks(sale, receiptContext), profile.columns) : []),
+    [previewing, profile.columns, receiptContext, sale],
+  );
 
   /**
    * Send the slip to the paired printer.
@@ -94,6 +128,11 @@ export function SaleReceipt({
    * way to make a queue at the counter. Failures do alert, because they are the
    * only case where nothing visible happened.
    *
+   * The preview closes only on success. A failed print leaves it open with the
+   * receipt still on screen, because every failure it can report is one the
+   * user fixes and retries — dropping them back to the slip would make them
+   * find the Print button again to do the same thing.
+   *
    * `printSale` throws `PrintError` for every path including "no printer chosen
    * on this device", so there is one branch here rather than a check before the
    * call and a catch after it.
@@ -101,11 +140,8 @@ export function SaleReceipt({
   const onPrint = useCallback(async () => {
     setPrinting(true);
     try {
-      await printSale(sale, {
-        branchName,
-        companyName: settings.data?.companyName,
-        footer: settings.data?.receiptFooter,
-      });
+      await printSale(sale, receiptContext);
+      setPreviewing(false);
     } catch (error) {
       Alert.alert(
         'Not printed',
@@ -116,7 +152,7 @@ export function SaleReceipt({
     } finally {
       setPrinting(false);
     }
-  }, [branchName, sale, settings.data]);
+  }, [receiptContext, sale]);
 
   const onShare = useCallback(async () => {
     try {
@@ -263,8 +299,7 @@ export function SaleReceipt({
           <MBButton
             label="Print"
             variant="secondary"
-            loading={printing}
-            onPress={onPrint}
+            onPress={() => setPreviewing(true)}
             style={styles.grow}
             testID="print-slip"
           />
@@ -278,6 +313,32 @@ export function SaleReceipt({
         />
         <MBButton label="Done" onPress={onDone} style={styles.grow} testID="slip-done" />
       </View>
+
+      {/*
+        Print opens the paper, not the printer.
+
+        A thermal receipt is cheap but not free, and the mistakes it can carry —
+        the wrong tenant name, a customer line on a walk-in sale, a total worth
+        a second look — are all invisible until it has been cut. The preview
+        also shows where the lines break, which is the one thing the cards above
+        cannot: they are a screen layout, and the paper is 48 monospace columns.
+
+        Mounted only while open. `ReceiptPreview` measures the mono advance on
+        layout, and a permanently-mounted copy would do that measuring behind
+        every sale that is never printed.
+      */}
+      <MBModal visible={previewing} onRequestClose={() => setPreviewing(false)}>
+        {previewing ? (
+          <ReceiptPreview
+            lines={previewLines}
+            columns={profile.columns}
+            subtitle={`${profile.label} · ${profile.paperWidthMm}mm roll`}
+            busy={printing}
+            onPrint={onPrint}
+            onCancel={() => setPreviewing(false)}
+          />
+        ) : null}
+      </MBModal>
     </View>
   );
 }

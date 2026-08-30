@@ -1,12 +1,17 @@
 /**
  * Printing to a Bluetooth thermal receipt printer.
  *
- * Four layers, and each can be read without the one below it:
+ * Five layers, and each can be read without the one below it:
  *
- *   escpos.ts        the command language, as pure functions over `number[]`
- *   profiles.ts      what differs between models — the column count, really
- *   receipt.ts       a `SaleSlip` as blocks, and blocks as bytes
- *   printService.ts  permission, transport and every named failure
+ *   escpos.ts          the command language, as pure functions over `number[]`
+ *   profiles.ts        what differs between models — the column count, really
+ *   receipt.ts         a `SaleSlip` as blocks, and blocks as bytes
+ *   printService.ts    permission, transport and every named failure
+ *   ReceiptPreview.tsx the same lines on screen, before they are on paper
+ *
+ * Only the last is React. It draws `escpos.preview` of the very blocks about
+ * to be sent, so the preview cannot drift from the paper by having a layout of
+ * its own.
  *
  * The transport itself is `specs/NativeThermalPrinter.ts`, and which printer
  * this handset uses is `state/printerStore.ts`. Nothing outside this folder
@@ -47,3 +52,6 @@ export {
   printingSupported,
   requestBluetoothPermission,
 } from './printService';
+
+export type { ReceiptPreviewProps } from './ReceiptPreview';
+export { ReceiptPreview } from './ReceiptPreview';
