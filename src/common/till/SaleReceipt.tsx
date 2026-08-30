@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { MBButton, MBCard, MBDataRow, MBHeader, MBMoney } from '@/common/ui';
+import { PrintError, printErrorMessage, printSale, printingSupported } from '@/common/printing';
+import { useSettings } from '@/api/hooks/useCatalogApi';
 import { paymentMethodLabel } from '@/common/constants/paymentMethods';
 import { lineAmount } from '@/common/helpers/saleTotals';
 import { formatCurrency, formatQty } from '@/common/utils/money';
@@ -21,15 +23,31 @@ export interface SaleReceiptProps {
  * The till slip for a sale that has just been rung up.
  *
  * ---------------------------------------------------------------------------
- * "Share", not "Print", and that is a capability statement rather than a choice
+ * Print and Share are two different documents, not two buttons for one
  * ---------------------------------------------------------------------------
- * Nothing in this app prints. `react-native-print` is unusable here — its
- * `react-native-windows` peer is mandatory and pins RN 0.84.1 — and rendering a
- * real PDF belongs on the server, which already depends on `pdfkit` and has no
- * endpoint for it. `OrderPrintPreview` reached the same wall for the production
- * slip and settled on `Share.share` with plain text; this is the same answer for
- * the same reason, so there is one story about printing in this app rather than
- * two.
+ * **Print** goes to the Bluetooth thermal printer this handset is paired with —
+ * an 80mm roll, laid out by `common/printing/receipt.ts` and sent as ESC/POS.
+ * That is what a customer walks out with.
+ *
+ * **Share** hands the same sale to WhatsApp as plain text. It is a different
+ * rendering on purpose: `asPlainText` below is deliberately unaligned, because
+ * a receipt padded to a monospace column wraps into nonsense in a chat bubble,
+ * while on paper an unaligned column of amounts is what makes a receipt look
+ * improvised. Both go through the same `lineAmount` / `formatCurrency` /
+ * `formatQty`, so the figures cannot disagree even though the layouts do.
+ *
+ * This file used to open by saying nothing in the app printed, and the reason
+ * it gave was sound at the time: `react-native-print` pins RN 0.84.1 through a
+ * mandatory `react-native-windows` peer, and it targets the OS print dialog —
+ * which a serial link to a roll of paper is not. The answer was not that
+ * library; it was `specs/NativeThermalPrinter.ts`, which is three methods over
+ * a Bluetooth socket. `OrderPrintPreview` still shares text only, and that is
+ * now a gap rather than a policy.
+ *
+ * The button is drawn only where printing can work at all — Android with the
+ * native module present. With no printer chosen it still appears and says where
+ * to choose one, because a button that is simply absent teaches nobody that the
+ * feature exists.
  *
  * ---------------------------------------------------------------------------
  * Two things this slip will not pretend
@@ -61,9 +79,44 @@ export function SaleReceipt({
   onDone,
 }: SaleReceiptProps): React.ReactElement {
   const theme = useTheme();
+  const settings = useSettings();
   const [shared, setShared] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const queued = !sale.confirmed;
   const symbol = sale.currencySymbol;
+  const canPrint = printingSupported();
+
+  /**
+   * Send the slip to the paired printer.
+   *
+   * No success alert. The paper coming out of the printer is the confirmation,
+   * and a dialog the cashier has to dismiss between every sale is the fastest
+   * way to make a queue at the counter. Failures do alert, because they are the
+   * only case where nothing visible happened.
+   *
+   * `printSale` throws `PrintError` for every path including "no printer chosen
+   * on this device", so there is one branch here rather than a check before the
+   * call and a catch after it.
+   */
+  const onPrint = useCallback(async () => {
+    setPrinting(true);
+    try {
+      await printSale(sale, {
+        branchName,
+        companyName: settings.data?.companyName,
+        footer: settings.data?.receiptFooter,
+      });
+    } catch (error) {
+      Alert.alert(
+        'Not printed',
+        error instanceof PrintError
+          ? printErrorMessage(error.code)
+          : 'The printer did not respond.',
+      );
+    } finally {
+      setPrinting(false);
+    }
+  }, [branchName, sale, settings.data]);
 
   const onShare = useCallback(async () => {
     try {
@@ -203,8 +256,21 @@ export function SaleReceipt({
             padding: theme.layout.screenPad,
           },
         ]}>
+        {/* Three across on a phone, so the labels are one word each. "Share
+            slip" was two while it shared the row with Done alone; it loses the
+            noun rather than the button. */}
+        {canPrint ? (
+          <MBButton
+            label="Print"
+            variant="secondary"
+            loading={printing}
+            onPress={onPrint}
+            style={styles.grow}
+            testID="print-slip"
+          />
+        ) : null}
         <MBButton
-          label={shared ? 'Share again' : 'Share slip'}
+          label={shared ? 'Shared' : 'Share'}
           variant="secondary"
           onPress={onShare}
           style={styles.grow}

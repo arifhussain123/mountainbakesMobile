@@ -241,6 +241,9 @@ describe('navigation surface', () => {
     // The counter till. A More row and never a tab: the four tabs are the
     // stages of the floor's day, and the counter sells between them.
     expect(routes).toContain('Sales');
+    // And the printer that till prints on. It follows Sales rather than
+    // standing on its own: the row exists because this account rings sales up.
+    expect(routes).toContain('Printer');
   });
 
   /**
@@ -309,6 +312,11 @@ describe('navigation surface', () => {
       'Categories',
       'Vendors',
       'Branches',
+      // Not a backend refusal — the Printer screen reads no endpoint at all.
+      // It is here for the same reason the others are: a finance account never
+      // rings up a sale, so a printer it chose would never print anything, and
+      // a row that leads nowhere useful teaches staff to distrust the menu.
+      'Printer',
     ];
 
     for (const role of FINANCE_ROLES) {
@@ -350,6 +358,10 @@ describe('navigation surface', () => {
       // Claims against a delivery. Behind BRANCH_ROLES server-side, so both
       // branch roles get it.
       'Discounts',
+      // The counter's Bluetooth receipt printer. Ungated: both branch roles
+      // work the till, the choice never leaves the handset, and there is no
+      // endpoint behind it to authorise against.
+      'Printer',
       'Reports',
       'SyncCenter',
       'Notifications',

@@ -1,6 +1,36 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.INTERNET" />
 
+  <!--
+    Talking to a paired ESC/POS receipt printer over Bluetooth Classic.
+
+    Two eras, and both have to be declared. From API 31 the single runtime
+    permission BLUETOOTH_CONNECT covers reading the bonded set and opening a
+    socket; before it, the pair below are install-time and never prompt. The
+    maxSdkVersion="30" is what stops the old pair being requested on a modern
+    phone, where they no longer exist.
+
+    Deliberately ABSENT: BLUETOOTH_SCAN and ACCESS_FINE_LOCATION. This app never
+    discovers a printer — pairing happens once in Android's own Bluetooth
+    settings and the app reads the bonded list. Asking a cashier for location
+    access to find a printer the phone is already paired with is a prompt with
+    no honest explanation. See src/specs/NativeThermalPrinter.ts.
+
+    usesPermissionFlags="neverForLocation" is not needed here for the same
+    reason: it qualifies BLUETOOTH_SCAN, which is not requested.
+  -->
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+  <!--
+    Not required: a phone without a Bluetooth radio still runs every other
+    surface in the app, and only the Printer screen and the slip's Print button
+    are unavailable. Marking it required would make the app uninstallable on
+    such a device to protect one optional feature.
+  -->
+  <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
   <application
     android:name=".MainApplication"
     android:label="@string/app_name"

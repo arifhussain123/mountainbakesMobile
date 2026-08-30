@@ -53,6 +53,7 @@ import Menu from 'lucide-react-native/icons/menu';
 import Minus from 'lucide-react-native/icons/minus';
 import Package from 'lucide-react-native/icons/package';
 import Plus from 'lucide-react-native/icons/plus';
+import Printer from 'lucide-react-native/icons/printer';
 import ReceiptText from 'lucide-react-native/icons/receipt-text';
 import RefreshCw from 'lucide-react-native/icons/refresh-cw';
 import Search from 'lucide-react-native/icons/search';
@@ -119,6 +120,10 @@ export const ICONS = {
 
   // Account panel + utility
   settings: Settings,
+  // The receipt printer this handset is paired with. A printer rather than a
+  // Bluetooth glyph: the row is about what comes out of it, and Bluetooth is
+  // how it happens to be attached.
+  printer: Printer,
   help: CircleQuestionMark,
   support: LifeBuoy,
   sync: RefreshCw,

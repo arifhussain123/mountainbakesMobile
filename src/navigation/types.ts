@@ -223,6 +223,19 @@ export type MoreStackParamList = {
   Notifications: undefined;
   Settings: undefined;
   /**
+   * Which paired Bluetooth receipt printer THIS HANDSET prints to.
+   *
+   * Device-local and nothing to do with the server, like Appearance — but a
+   * screen of its own rather than a card on Settings, because it has to list
+   * the phone's bonded devices and print a test page, neither of which belongs
+   * beside a form that writes `PUT /api/settings` for every branch.
+   *
+   * Offered to the branch and production roles only. It is not a permission —
+   * there is nothing to authorise — but those are the two that ring up a sale,
+   * and a Printer row on a finance menu is a row that leads nowhere useful.
+   */
+  Printer: undefined;
+  /**
    * Special events. A More row for **every** role, not an admin screen:
    * `GET /api/special-events` is behind `authenticate` alone and scopes its rows
    * server-side, so a branch sees the events it takes part in and nothing else.

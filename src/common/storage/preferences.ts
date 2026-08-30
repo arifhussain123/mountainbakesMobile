@@ -53,4 +53,21 @@ export const PreferenceKeys = {
    * back off. It is a record that something happened.
    */
   onboardingSeen: 'onboarding.seen',
+  /**
+   * The Bluetooth address of the receipt printer this device prints to, and the
+   * name to show for it (`common/printing/printerStore.ts`).
+   *
+   * Here rather than in `secureStorage` on both of this file's tests. It is not
+   * a secret — a MAC address of a printer on the counter is not worth a Keychain
+   * round trip — and it is read at module scope for the same reason the theme
+   * is: the slip's Print button has to know whether a printer exists on the
+   * first frame, and a button that appears one render late is a button the
+   * cashier has already decided is not there.
+   *
+   * Namespaced `printer.` rather than `settings.`: the Settings screen does not
+   * offer it, and it is a property of this phone's pairing rather than a
+   * preference about how the app looks.
+   */
+  printerAddress: 'printer.address',
+  printerName: 'printer.name',
 } as const;

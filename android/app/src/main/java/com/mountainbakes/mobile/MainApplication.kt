@@ -16,9 +16,10 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here.
-          // AppThemePackage lives in this app rather than a node module, so it
-          // has nothing to autolink from.
+          // Both of these live in this app rather than a node module, so they
+          // have nothing to autolink from.
           add(AppThemePackage())
+          add(ThermalPrinterPackage())
         },
     )
   }

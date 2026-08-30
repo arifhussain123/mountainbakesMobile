@@ -305,6 +305,7 @@ branch PUT /cancel         → cancelled  (before review; cancelReason mandatory
 | `zod` pinned to **v3** | Matches the shared schemas; v4 would break them |
 | npm, not pnpm | RN autolinking is most reliable on npm's flat layout. Siblings use pnpm; this is a deliberate divergence. |
 | `react-native-print` **not installed** | Its `react-native-windows` peer is mandatory and pins RN 0.84.1, forcing `--legacy-peer-deps` across all 1,000+ packages. Production slips will be rendered server-side (the server already depends on `pdfkit`) and shared via the native share sheet — which is also what §51 of the master prompt prefers. |
+| Receipt printing is a **TurboModule of our own**, not a library | *Superseded the row above for the till slip; `react-native-print` is still not installed and still should not be.* That library targets the OS print dialog, which a Bluetooth serial link to an 80mm roll is not, and the ESC/POS packages on npm are unmaintained old-architecture bridge modules. `src/specs/NativeThermalPrinter.ts` is three methods over a Bluetooth Classic socket — list bonded devices, is the adapter on, write these bytes — with the command stream, the 48-column layout and the Black Copper BC-89AC profile as plain TypeScript in `common/printing/`, testable with no device attached. The production slip (`OrderPrintPreview`) still shares text only; that is now a gap rather than a policy. |
 | Offline engine **before** role screens | Resolves the phase-ordering contradiction between `phases.md` and `mountain-bakes-rn-agentic-prompt.md`, per approval |
 
 ---

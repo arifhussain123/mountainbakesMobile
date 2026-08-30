@@ -151,6 +151,7 @@ export const NAV_LABELS = {
   events: 'Events',
   help: 'Help & Support',
   settings: 'Settings',
+  printer: 'Printer',
   profile: 'Profile',
   logout: 'Sign out',
 } as const;
@@ -440,6 +441,19 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
          * from the read itself.
          */
         { route: 'Returns', icon: 'delivery', label: 'returns', requires: ['production'] },
+        /**
+         * The receipt printer this handset is paired with — beside the till it
+         * prints for. Gated with `production` for the same reason Sales is:
+         * the row exists because this account rings sales up, and a counter
+         * that cannot sell has nothing to print.
+         *
+         * NOT in `MORE_COMMON`, even though it is device-local and
+         * server-independent like Appearance. The four finance roles never ring
+         * up a sale — `POST /api/orders/pos` and `/production-sale` both refuse
+         * them — so a Printer row on their menu is a row that leads nowhere
+         * useful, which is the test a common row has to pass.
+         */
+        { route: 'Printer', icon: 'printer', label: 'printer', requires: ['production'] },
         { route: 'Reports', icon: 'reports', label: 'reports' },
       ],
     },
@@ -493,6 +507,13 @@ function branchMore(): readonly MoreSection[] {
          * correct their own — this is not an admin surface with a branch view.
          */
         { route: 'Discounts', icon: 'payments', label: 'discounts' },
+        /**
+         * The counter's receipt printer. Ungated: both branch roles work the
+         * till, and a shift account is exactly the one that needs to fix a
+         * printer at seven in the morning without a manager present. There is
+         * nothing to authorise here — the choice never leaves the handset.
+         */
+        { route: 'Printer', icon: 'printer', label: 'printer' },
         { route: 'Reports', icon: 'reports', label: 'reports', requires: ['reports'] },
       ],
     },

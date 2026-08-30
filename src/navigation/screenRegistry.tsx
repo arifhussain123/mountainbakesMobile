@@ -28,6 +28,7 @@ import { BranchReturnsScreen } from '@/features/branch';
 import { ProductionSalesScreen } from '@/features/production';
 import { ProductionReturnsScreen } from '@/features/production';
 import { HelpScreen } from '@/features/support';
+import { PrinterScreen } from '@/features/printer';
 import { ProductionOrdersScreen } from '@/features/production';
 import { ProductionStockScreen } from '@/features/production';
 import { isBranchRole, isFinanceRole } from './roleNavigation';
@@ -241,6 +242,18 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
        */
       if (isBranchRole(role)) return BranchReturnsScreen;
       return role === 'production_user' || admin ? ProductionReturnsScreen : null;
+    case 'Printer':
+      /*
+       * Branch and production only, gated here as well as in `roleConfig` so a
+       * deep link cannot land a finance or admin session on it.
+       *
+       * Not because the screen would fail — it reads no endpoint and would
+       * render perfectly — but because it would be a lie about what that
+       * account does. Neither role rings up a sale, so a printer they chose
+       * here would never print anything.
+       */
+      if (branch || role === 'production_user') return PrinterScreen;
+      return null;
     case 'Events':
       // Every role, deliberately. The endpoint is authenticated-only and scopes
       // its own rows, so there is nothing here for the client to gate — and
