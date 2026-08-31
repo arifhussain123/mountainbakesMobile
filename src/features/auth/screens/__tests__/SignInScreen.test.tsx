@@ -98,4 +98,33 @@ describe('SignInScreen', () => {
       screen.getByRole('button', { name: 'Sign in' }).props.accessibilityState.disabled,
     ).toBe(true);
   });
+
+  /**
+   * v6 draws its masthead on every screen with no exception for forms or for
+   * the two auth screens, and this was the last one still on a bare field —
+   * Reset password and the Finance sign-in already carried it, so the first
+   * screen of the app was the only place the brand did not appear.
+   *
+   * Asserted on the wave's own layers rather than on a colour: `MBWave` is two
+   * mirrored shapes, and it is the crossing that reads as a wave. The layers are
+   * decorative, so they are hidden from the accessibility tree and have to be
+   * asked for explicitly.
+   */
+  it('wears the brand masthead, like every other screen', async () => {
+    const screen = await renderScreen(<SignInScreen />);
+
+    expect(screen.getByTestId('wave-back', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByTestId('wave-front', { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it('keeps the greeting as the header\u2019s one heading', async () => {
+    const screen = await renderScreen(<SignInScreen />);
+
+    // Moved into the header rather than duplicated below it — a second copy on
+    // the field would give the screen two headings for one thing.
+    expect(screen.getByText('Welcome back')).toBeTruthy();
+    expect(screen.getAllByText('Welcome back')).toHaveLength(1);
+    expect(screen.getByText('Sign in to continue')).toBeTruthy();
+  });
+
 });

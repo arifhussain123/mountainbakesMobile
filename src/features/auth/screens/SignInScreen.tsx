@@ -7,7 +7,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { MBButton, MBCheckbox, MBInput, MBLogo, MBPressable } from '@/common/ui';
+import { MBButton, MBCheckbox, MBHeader, MBInput, MBLogo, MBPressable } from '@/common/ui';
 import type { AuthStackParamList } from '@/navigation/AuthNavigator';
 import {
   forgetIdentity,
@@ -26,6 +26,37 @@ import { contentColumn, space } from '@/common/theme/spacing';
  * branch then come from the returned session's `app_metadata`, never from this
  * form. An account with no recognised role is signed straight back out by the
  * auth store rather than being given a default.
+ *
+ * ---------------------------------------------------------------------------
+ * This screen wears the wave, like every other one
+ * ---------------------------------------------------------------------------
+ * v6 draws its masthead on all 21 screens with no exception for forms or for
+ * the two auth screens, and this was the only one still on a bare field — its
+ * two neighbours, Reset password and the Finance sign-in, already carried it.
+ * The result was that the first screen of the app was the one place the brand
+ * did not appear.
+ *
+ * `MBHeader` supplies it: `tone` defaults to `brand`, so the plum pair and the
+ * crossing radii come from `MBWave` rather than being drawn again here. The
+ * greeting moves INTO the header — it is the screen's one heading, and leaving a
+ * second copy on the field below would give the screen two.
+ *
+ * No `onBack`. This is the root of the auth stack and there is nowhere behind
+ * it; `MBHeader` simply draws no chevron when none is passed.
+ *
+ * ---------------------------------------------------------------------------
+ * The mark sits below the wave, and Sign in with it
+ * ---------------------------------------------------------------------------
+ * Both are on the field on purpose. `contrast.test.ts` holds the accent fills to
+ * the bar on the CARD and the FIELD and nowhere else — an ember button drawn on
+ * the plum block is 2.31:1 for Pine and 1:1 for Plum, whose fill *is* the
+ * secondary colour. So the action goes below the masthead, which is the same
+ * arrangement `FirstRunScreen` uses and the reason v6's white pill on the purple
+ * is not transcribed literally.
+ *
+ * The logo also steps down from 150 to 108: the header now occupies the top of
+ * the screen, and at the old size the password field fell under the fold on a
+ * 720×1600 phone with the keyboard up.
  */
 
 const SignInSchema = z.object({
@@ -81,21 +112,22 @@ export function SignInScreen(): React.ReactElement {
   };
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
+    <SafeAreaView
+      style={[styles.flex, { backgroundColor: theme.colors.bg }]}
+      /* The header owns the top inset — it reads `useSafeAreaInsets` itself and
+         paints the wave up into the status bar. Claiming `top` here as well
+         would push the plum down and leave a lilac band above it. */
+      edges={['bottom']}>
+      <MBHeader title="Welcome back" subtitle="Sign in to continue" />
+
       <ScrollView
         contentContainerStyle={[contentColumn, styles.content, { padding: theme.layout.screenPad }]}
         keyboardShouldPersistTaps="handled">
-        {/* v4 leads with the mark, not the wordmark: the logo carries the brand
-            and the two lines under it say what this screen is for. A 30pt
-            wordmark plus a heading was the same information twice. */}
+        {/* The mark, on the field under the masthead. The greeting that used to
+            sit beneath it is now the header's, so this is the brand and nothing
+            else — the same information twice was the thing v4 removed. */}
         <View style={styles.brand}>
-          <MBLogo size={150} />
-          <Text style={[theme.type.h1, styles.center, { color: theme.colors.text }]}>
-            Welcome back
-          </Text>
-          <Text style={[theme.type.body, styles.center, { color: theme.colors.textMuted }]}>
-            Sign in to continue
-          </Text>
+          <MBLogo size={108} />
         </View>
 
         <View style={[styles.form, { gap: theme.space.lg }]}>
@@ -210,8 +242,7 @@ export function SignInScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', gap: space.xxl },
-  brand: { alignItems: 'center', gap: space.hair },
-  center: { textAlign: 'center' },
+  brand: { alignItems: 'center' },
   assist: { flexDirection: 'row', alignItems: 'flex-start' },
   footer: { width: '100%' },
   form: { width: '100%' },
