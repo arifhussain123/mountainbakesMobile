@@ -2,9 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The sibling `mountainbakes-server/` (Express + Supabase) and `mountainbakes-frontend/`
+The sibling `backend/` (Express + Supabase) and `frontend/`
 (Next.js static export) each have their own `.claude/CLAUDE.md`; the parent folder's
 `CLAUDE.md` covers what spans all three. Read this one for anything in this tree.
+
+Whenever working with any third-party library or something similar, you MUST look up the official documentation to ensure that you're working with up-to-date information.
+Use the DocsExplorer subagent for efficient documentation lookup.
 
 ## Commands
 
@@ -34,7 +37,7 @@ npx jest src/api/sync/__tests__/syncManager.test.ts
 npx jest -t 'names the date field per endpoint'
 ```
 
-The API has to be running alongside: `cd ../mountainbakes-server && pnpm dev` (port
+The API has to be running alongside: `cd ../backend && pnpm dev` (port
 3001). Nothing starts both. Android cannot reach your machine's `localhost` on its
 own: `.env.development` points at `localhost:3001` and relies on
 **`adb reverse tcp:3001 tcp:3001`**, which works on a physical device *and* an
@@ -118,7 +121,7 @@ Two deliberate departures from that skill, both load-bearing:
 ### A third client of the same API — never a second backend
 
 ```
-this app ──REST──> mountainbakes-server ──> Supabase
+this app ──REST──> backend ──> Supabase
 ```
 
 The server holds the service-role key and owns every privileged write. This app holds
@@ -236,8 +239,8 @@ fail. The server bounds it (no future dates, ≤7 business days, closed days ref
 
 ### `src/shared/` is a mirror of two other trees
 
-It is byte-identical to `mountainbakes-server/src/shared/`, which
-`mountainbakes-frontend/` also mirrors. Nothing enforces it mechanically — separate
+It is byte-identical to `backend/src/shared/`, which
+`frontend/` also mirrors. Nothing enforces it mechanically — separate
 repos, no shared package, no failing build. Editing a schema here means making the
 identical edit in **both** other trees, and `npm run shared:check` is what catches a
 slip. A stale copy of `timezone.ts` bills sales to the wrong day.
