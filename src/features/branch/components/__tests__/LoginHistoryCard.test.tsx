@@ -18,9 +18,9 @@ const fetchHistory = getLoginHistory as jest.Mock;
  * Typed as the real `LoginSession` rather than a loose object on purpose: it is
  * what caught migration 98 widening the type under this file, which is exactly
  * the drift the mirrored `src/shared` tree is prone to. Note `userEmail` is
- * MASKED here, because the list endpoint masks it for every caller — a fixture
- * carrying a real address would be testing against a response the server does
- * not send.
+ * MASKED here: the list endpoint reveals the address only to a super admin, and
+ * this card is the shop floor's own history — so a fixture carrying a real
+ * address would be testing against a response these callers never receive.
  */
 function session(over: Partial<LoginSession> = {}): LoginSession {
   return {
@@ -41,11 +41,19 @@ function session(over: Partial<LoginSession> = {}): LoginSession {
     os: 'Android',
     osVersion: '13',
     deviceType: 'mobile',
+    deviceName: 'SM-A546E',
+    screenSize: '412x915',
     country: 'Pakistan',
     countryCode: 'PK',
     city: 'Rawalpindi',
     region: 'Punjab',
     timezone: 'Asia/Karachi',
+    // Migration 99 widened the row again — the fixture names the provenance
+    // explicitly rather than leaning on a default, because 'IP' vs 'UNKNOWN' is
+    // the distinction the column exists to carry.
+    locationSource: 'IP',
+    latitude: 33.5651,
+    longitude: 73.0169,
     loginAt: '2026-08-28T04:10:00.000Z',
     lastSeenAt: '2026-08-28T06:40:00.000Z',
     endedAt: null,

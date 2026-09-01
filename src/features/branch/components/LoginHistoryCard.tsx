@@ -110,6 +110,10 @@ export function formatWhere(session: LoginSession): string {
 
 const STATE_TONE = {
   active: 'success',
+  // Warning, like `expired`: the tab has gone quiet, which is the same fact one
+  // step earlier. Not `success`, or a session nobody is at reads as one somebody
+  // is.
+  idle: 'warning',
   ended: 'muted',
   expired: 'warning',
   // The only state somebody else caused. Warning rather than muted for that
@@ -120,6 +124,7 @@ const STATE_TONE = {
 
 const STATE_LABEL = {
   active: 'Active',
+  idle: 'Idle',
   ended: 'Signed out',
   expired: 'Expired',
   // Named for what happened, from the reader's side. This card is the account's
