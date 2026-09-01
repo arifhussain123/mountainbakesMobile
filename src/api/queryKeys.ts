@@ -150,8 +150,12 @@ export const qk = {
    */
   loginHistory: {
     all: () => ['loginHistory'] as const,
-    window: (days: number, limit: number) =>
-      ['loginHistory', 'window', days, limit] as const,
+    // Keyed by the page asked for, not by a day window: the endpoint took
+    // `{ days, limit }` until migration 98 and takes `{ page, pageSize }` now.
+    // A key naming a parameter the request no longer sends is a cache entry that
+    // cannot be invalidated by anything that knows what it holds.
+    page: (page: number, pageSize: number) =>
+      ['loginHistory', 'page', page, pageSize] as const,
   },
 
   reports: {

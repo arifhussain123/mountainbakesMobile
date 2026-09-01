@@ -26,18 +26,24 @@ import { api } from '../client';
  * reader assume the shop is covered.
  *
  * ---------------------------------------------------------------------------
- * There is no `offset`, so there is no server-side pagination
+ * The endpoint is PAGED now, and `total` changed meaning with it
  * ---------------------------------------------------------------------------
- * `listSessions` takes `{ userId, days, limit }` and reads
- * `.range(0, limit - 1)` — always from the top. A caller asking for "the next
- * page" has no way to express it, and widening `limit` re-fetches everything.
+ * Migration 98 replaced `{ days, limit }` with `{ page, pageSize }` plus filters
+ * applied in SQL, and `total` is now the count of rows MATCHING THE FILTER in
+ * the database — not the length of the array returned. The old field could never
+ * exceed `limit` and said nothing about what lay beyond the window; the new one
+ * is the honest answer to "how many sign-ins are there".
  *
- * There is no search parameter either. So a filter over this data is a filter
- * over **the rows already fetched**, done on the device, and the window it
- * covers is exactly `days`/`limit` — which is what `LoginHistoryResult.total`
- * reports and what a screen has to show beside any "no matches" state. Saying
- * "nothing found" when the answer is "nothing found in the last 90 days, capped
- * at 500 rows" is the difference between a clean result and a wrong one.
+ * `days` is gone entirely. The server's Zod schema strips unknown query keys
+ * rather than rejecting them, so a caller still sending `days=30` gets no error
+ * and no filtering — silently the whole history, one page at a time. That is
+ * precisely the failure this file exists to prevent, which is why the parameter
+ * is not accepted here at all: use `from` / `to` business dates instead.
+ *
+ * There is still no search parameter reachable from a branch account worth
+ * using — `search` matches the staff code and name, and a branch account's rows
+ * all carry its own — so the filter on this screen remains a filter over the
+ * page already fetched.
  */
 
 /**
@@ -50,36 +56,47 @@ import { api } from '../client';
  * assumed.
  */
 export interface LoginHistoryResult {
-  /** Newest login first. */
+  /** Newest login first. One page of them. */
   sessions: LoginSession[];
   /**
-   * `sessions.length`, NOT a total in the database.
+   * Rows MATCHING THE FILTER in the database — not `sessions.length`.
    *
-   * The handler sets it from the array it is about to return, so it can never
-   * exceed `limit` and says nothing about how many rows exist beyond the window.
-   * Do not render it as "N sessions in total" — it is the size of this answer.
+   * Changed meaning in migration 98; it used to be the size of the answer. It is
+   * now safe to render as "N sign-ins", and `total > sessions.length` simply
+   * means there are more pages.
    */
   total: number;
+  page: number;
+  pageSize: number;
   /** `'self'` when the rows are one user's, `'all'` when an admin read everyone. */
   scope: 'self' | 'all';
 }
 
-/** The server's own bounds, so a screen can label its window honestly. */
-export const LOGIN_HISTORY_MAX_ROWS = 500;
-export const LOGIN_HISTORY_DEFAULT_DAYS = 90;
+/**
+ * The server's cap on a page.
+ *
+ * Asking for more is clamped, not refused — so a screen that wants a bigger page
+ * gets a smaller one silently. Named here so a caller can stay inside it.
+ */
+export const LOGIN_HISTORY_MAX_PAGE_SIZE = 100;
 
 /**
- * A window of sign-ins, newest first.
+ * One page of sign-ins, newest first.
  *
- * `days` is clamped to 1–365 and `limit` to 1–500 on the server, and a junk
- * value falls back to the default rather than 400-ing the screen — so this
- * sends what it was given and lets the server be the authority on the bound.
+ * `from` / `to` are BUSINESS dates ('YYYY-MM-DD'), matching the column the
+ * server filters on — so a sign-in at half past midnight belongs to the day the
+ * staff member was working, not the calendar day after it.
  */
 export function getLoginHistory(options: {
-  days: number;
-  limit?: number;
+  page?: number;
+  pageSize?: number;
+  from?: string;
+  to?: string;
 }): Promise<LoginHistoryResult> {
-  const params: Record<string, string> = { days: String(options.days) };
-  if (options.limit != null) params.limit = String(options.limit);
+  const params: Record<string, string> = {};
+  if (options.page != null) params.page = String(options.page);
+  if (options.pageSize != null) params.pageSize = String(options.pageSize);
+  if (options.from) params.from = options.from;
+  if (options.to) params.to = options.to;
   return api.get<LoginHistoryResult>('/api/login-history', { params });
 }

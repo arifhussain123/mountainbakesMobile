@@ -12,30 +12,60 @@ import { LoginHistoryCard, formatDuration, formatWhere } from '../LoginHistoryCa
 
 const fetchHistory = getLoginHistory as jest.Mock;
 
+/**
+ * A session as the API returns it.
+ *
+ * Typed as the real `LoginSession` rather than a loose object on purpose: it is
+ * what caught migration 98 widening the type under this file, which is exactly
+ * the drift the mirrored `src/shared` tree is prone to. Note `userEmail` is
+ * MASKED here, because the list endpoint masks it for every caller — a fixture
+ * carrying a real address would be testing against a response the server does
+ * not send.
+ */
 function session(over: Partial<LoginSession> = {}): LoginSession {
   return {
     id: 'sess-1',
     userId: 'u1',
-    userEmail: 'shift@mountainbakes.pk',
+    userCode: 'MBU-000125',
+    userEmail: 's***@mountainbakes.pk',
+    emailMasked: true,
     userName: 'Shift User',
     userRole: 'branch_user',
     branchId: 'b1',
     branchName: 'Committee Chowk',
+    authSessionId: 'auth-sess-1',
     ipAddress: '203.0.113.9',
     userAgent: 'Android 13',
+    browser: 'Chrome',
+    browserVersion: '140',
+    os: 'Android',
+    osVersion: '13',
+    deviceType: 'mobile',
     country: 'Pakistan',
     countryCode: 'PK',
     city: 'Rawalpindi',
     region: 'Punjab',
+    timezone: 'Asia/Karachi',
     loginAt: '2026-08-28T04:10:00.000Z',
     lastSeenAt: '2026-08-28T06:40:00.000Z',
     endedAt: null,
     endReason: null,
+    revokedAt: null,
+    revokedByName: null,
+    revokeReason: null,
+    isSuspicious: false,
+    suspiciousReason: null,
     date: '2026-08-28',
     state: 'active',
     durationMs: 9_000_000,
+    canRevoke: true,
     ...over,
   };
+}
+
+/** The paged envelope the endpoint returns since migration 98. */
+function page(sessions: LoginSession[], total = sessions.length) {
+  return { sessions, total, page: 1, pageSize: 100, scope: 'self' as const };
 }
 
 beforeEach(() => {
@@ -49,27 +79,29 @@ beforeEach(() => {
  * rather than a broken render — the kind that ships because the screen looks
  * fine:
  *
- *   - an empty result that does not name its window reads as "you have never
- *     signed in" when it means "not in the last 30 days"
- *   - a filter that silently refetched would be a query against an endpoint
- *     that has no search parameter
- *   - `total` is the size of the answer, never a count in the database
+ *   - an empty result that does not name what it searched reads as "you have
+ *     never signed in" when it means "nothing on this page"
+ *   - a filter that silently refetched would be a query against a `search`
+ *     parameter that matches nothing a branch account can distinguish
+ *   - `total` is the count in the DATABASE since migration 98, not the size of
+ *     the answer — so "older ones are not listed" is now a real comparison
+ *     rather than an equality against a row ceiling
  */
 describe('LoginHistoryCard', () => {
   it('names the window when there is nothing, rather than saying only "none"', async () => {
-    fetchHistory.mockResolvedValue({ sessions: [], total: 0, scope: 'self' });
+    fetchHistory.mockResolvedValue(page([]));
 
     const screen = await renderScreen(<LoginHistoryCard />);
 
     await waitFor(() => {
       expect(screen.getByText('No sign-ins recorded')).toBeTruthy();
     });
-    // The window is the other half of the answer.
-    expect(screen.getByText(/last 30 days/i)).toBeTruthy();
+    // What was searched is the other half of the answer.
+    expect(screen.getByText(/all sign-ins/i)).toBeTruthy();
   });
 
   it('says whose sign-ins these are, because the endpoint scopes to self', async () => {
-    fetchHistory.mockResolvedValue({ sessions: [session()], total: 1, scope: 'self' });
+    fetchHistory.mockResolvedValue(page([session()]));
 
     const screen = await renderScreen(<LoginHistoryCard />);
 
@@ -81,14 +113,9 @@ describe('LoginHistoryCard', () => {
   });
 
   it('filters the rows already fetched, without going back to the server', async () => {
-    fetchHistory.mockResolvedValue({
-      sessions: [
-        session({ id: 'a', city: 'Rawalpindi' }),
-        session({ id: 'b', city: 'Lahore' }),
-      ],
-      total: 2,
-      scope: 'self',
-    });
+    fetchHistory.mockResolvedValue(
+      page([session({ id: 'a', city: 'Rawalpindi' }), session({ id: 'b', city: 'Lahore' })]),
+    );
 
     const screen = await renderScreen(<LoginHistoryCard />);
     await waitFor(() => expect(screen.getByText(/Rawalpindi/)).toBeTruthy());
@@ -100,24 +127,38 @@ describe('LoginHistoryCard', () => {
       expect(screen.queryByText(/Rawalpindi/)).toBeNull();
     });
     expect(screen.getByText(/Lahore/)).toBeTruthy();
-    // The endpoint takes no search parameter — a refetch here would mean the
-    // filter was written as a query it cannot answer.
+    // The endpoint's `search` matches the staff code and name, and every row a
+    // branch account sees carries its own — a refetch here would mean the filter
+    // was written as a query that cannot answer it.
     expect(fetchHistory.mock.calls.length).toBe(callsBefore);
   });
 
-  it('says rows were left behind when the window hit its ceiling', async () => {
-    // `total` is `sessions.length` and can never exceed `limit`, so equality is
-    // the only signal that older sign-ins exist and are not shown.
-    fetchHistory.mockResolvedValue({
-      sessions: Array.from({ length: 100 }, (_, i) => session({ id: `s${i}` })),
-      total: 100,
-      scope: 'self',
-    });
+  it('says rows were left behind when the database holds more than this page', async () => {
+    // `total` counts matching rows in the database since migration 98, so a page
+    // of 100 out of 412 is a real comparison — not the equality-against-a-ceiling
+    // guess this assertion used to make.
+    fetchHistory.mockResolvedValue(
+      page(Array.from({ length: 100 }, (_, i) => session({ id: `s${i}` })), 412),
+    );
 
     const screen = await renderScreen(<LoginHistoryCard />);
 
     await waitFor(() => {
       expect(screen.getByText(/Older ones are not listed/i)).toBeTruthy();
+    });
+  });
+
+  it('names an admin sign-out for what it was, not as an ordinary one', async () => {
+    // The account holder needs to know somebody else ended the session; an
+    // ordinary "Signed out" would read as their own action.
+    fetchHistory.mockResolvedValue(
+      page([session({ state: 'revoked', endedAt: '2026-08-28T07:00:00.000Z', endReason: 'revoked' })]),
+    );
+
+    const screen = await renderScreen(<LoginHistoryCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Signed out by admin')).toBeTruthy();
     });
   });
 });

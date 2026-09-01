@@ -43,20 +43,29 @@ import { formatBusinessDate } from '@/common/helpers/businessDay';
  * ---------------------------------------------------------------------------
  * The search filters what was fetched — it is not a query
  * ---------------------------------------------------------------------------
- * The endpoint takes `days` and `limit` and nothing else: no search parameter,
- * and no `offset`, so there is no pagination to page through either. The filter
- * below therefore runs over the rows already on the device.
+ * The endpoint gained a `search` parameter in migration 98, but it matches the
+ * staff code and the display name — and every row a branch account can see
+ * carries its own. So it would filter nothing here, and the filter below still
+ * runs over the rows already on the device: place, device and status.
  *
- * The consequence is stated in the UI rather than hidden: an empty result says
- * "no matches in the last N days" and names the window, because "no matches" on
- * its own is indistinguishable from "you have never signed in" and one of those
- * is alarming. `capped` does the same job when the window hit the row ceiling.
+ * What DID change is that the endpoint is paged, and `total` is now the count of
+ * rows in the database rather than the length of the answer. This card asks for
+ * one page and says so; `more` below is that comparison, replacing the old
+ * `capped` check against a row ceiling that no longer exists.
+ *
+ * The consequence is stated in the UI rather than hidden: an empty result names
+ * what was searched, because "no matches" on its own is indistinguishable from
+ * "you have never signed in" and one of those is alarming.
  */
 
-const DAYS = 30;
-
-/** Deliberately below the server's 500 ceiling. See `capped` below. */
-const LIMIT = 100;
+/**
+ * One page, and the server's maximum.
+ *
+ * Asking for more is CLAMPED rather than refused, so a larger number here would
+ * silently get 100 back and the "more sign-ins" note would then be wrong in the
+ * one direction that matters — claiming there is nothing further when there is.
+ */
+const PAGE_SIZE = 100;
 
 const COLUMNS: readonly LedgerColumn[] = [
   { key: 'duration', title: 'Duration', align: 'left' },
@@ -103,12 +112,20 @@ const STATE_TONE = {
   active: 'success',
   ended: 'muted',
   expired: 'warning',
+  // The only state somebody else caused. Warning rather than muted for that
+  // reason: a session an admin ended is something the account holder should
+  // notice, where their own sign-out is not.
+  revoked: 'warning',
 } as const satisfies Record<LoginSession['state'], 'success' | 'muted' | 'warning'>;
 
 const STATE_LABEL = {
   active: 'Active',
   ended: 'Signed out',
   expired: 'Expired',
+  // Named for what happened, from the reader's side. This card is the account's
+  // own history, so "signed out by an admin" is the fact they need — not the
+  // word the column stores.
+  revoked: 'Signed out by admin',
 } as const satisfies Record<LoginSession['state'], string>;
 
 /** The time of day a session opened, in the reader's locale. */
@@ -143,8 +160,8 @@ export function LoginHistoryCard(): React.ReactElement {
   const needle = debounced.trim().toLowerCase();
 
   const history = useQuery({
-    queryKey: qk.loginHistory.window(DAYS, LIMIT),
-    queryFn: () => getLoginHistory({ days: DAYS, limit: LIMIT }),
+    queryKey: qk.loginHistory.page(1, PAGE_SIZE),
+    queryFn: () => getLoginHistory({ page: 1, pageSize: PAGE_SIZE }),
     staleTime: LIVE_STALE_TIME_MS,
   });
 
@@ -165,17 +182,16 @@ export function LoginHistoryCard(): React.ReactElement {
   }, [sessions, needle]);
 
   /**
-   * The window hit the ceiling, so "the last 30 days" is not what is on screen.
+   * There are older sign-ins than the page on screen.
    *
-   * `total` is the length of the answer and never exceeds `limit`, so equality
-   * is the only signal available that rows were left behind — the endpoint
-   * reports no database total. Said out loud rather than inferred by the reader.
+   * `total` counts the rows in the database now, not the length of this answer,
+   * so this is a real comparison rather than the old equality-against-a-ceiling
+   * guess. Said out loud: a card showing the most recent hundred must not read
+   * as the whole history.
    */
-  const capped = (history.data?.total ?? 0) >= LIMIT;
+  const more = (history.data?.total ?? 0) > (sessions?.length ?? 0);
 
-  const windowNote = capped
-    ? `Most recent ${LIMIT} sign-ins`
-    : `Last ${DAYS} days`;
+  const windowNote = more ? `Most recent ${PAGE_SIZE} sign-ins` : 'All sign-ins';
 
   return (
     <View>
@@ -229,9 +245,9 @@ export function LoginHistoryCard(): React.ReactElement {
           <View style={styles.body}>
             <MBLedgerTable columns={COLUMNS} rows={rows} testID="login-history-table" />
             <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
-              {capped
-                ? `Showing the most recent ${LIMIT} sign-ins. Older ones are not listed.`
-                : `${rows.length} of ${sessions?.length ?? 0} sign-ins · last ${DAYS} days`}
+              {more
+                ? `Showing the most recent ${PAGE_SIZE} of ${history.data?.total ?? 0} sign-ins. Older ones are not listed.`
+                : `${rows.length} of ${sessions?.length ?? 0} sign-ins`}
             </Text>
           </View>
         )}
