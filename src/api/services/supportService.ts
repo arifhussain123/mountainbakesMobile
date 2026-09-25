@@ -9,9 +9,9 @@ import { api } from '../client';
  * A query is always *about* something, and the something is snapshotted
  * ---------------------------------------------------------------------------
  * A ticket carries exactly one reference ID — a sale `MB-######`, a demand
- * `DMD-######`, an expense `EXP-######`, or a product's stock `STK-######` — and
- * the server writes that record's figures onto the ticket at submit time. That
- * snapshot is the point: by the time an admin reads the query the underlying row
+ * `DMD-######`, an expense `EXP-######`, a product's stock `STK-######`, or a
+ * cash deposit `CT-######` — and the server writes that record's figures onto
+ * the ticket at submit time. That snapshot is the point: by the time an admin reads the query the underlying row
  * may have moved, and "this is wrong" is unanswerable without knowing what was
  * on screen when it was said.
  *
