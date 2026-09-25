@@ -77,7 +77,7 @@ import { contentColumn } from '@/common/theme/spacing';
  * each one means, and a client-side pattern check would refuse a fifth the day
  * it is added.
  */
-const REFERENCE_HINT = 'Sale MB-…, demand DMD-…, expense EXP-… or stock STK-…';
+const REFERENCE_HINT = 'Sale MB-…, demand DMD-…, expense EXP-…, stock STK-… or cash deposit CT-…';
 
 /** Short answers to the questions branches actually ask, in this app's words. */
 const FAQ: readonly { q: string; a: string }[] = [
