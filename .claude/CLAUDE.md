@@ -318,9 +318,9 @@ and the edge is *reserved* on every row so selecting one does not shift its labe
 `docs/navigation.md` is the full account, including why New Order is a modal on
 `OrdersStack` rather than a tab.
 
-`branch_user` is a **shift account carrying its manager's `branchId`**, not a branch of
-its own — branch-scoped code must treat it and `branch_manager` identically
-(`isBranchRole`) or the shift user sees an empty shop.
+The shift account (`branch_user`) was removed by backend migration 122 — every such
+login was deleted and the role can no longer be assigned. Branch-scoped code uses
+`isBranchRole`, which is now just `branch_manager`.
 
 **Two gates sit above every navigator, outside `NavigationContainer`**, and
 neither is a route: the first-run panels (`features/onboarding`) and the forced
@@ -339,7 +339,7 @@ onboarding: **signed out as well as unseen**. The stored flag reads absent on
 every phone that installed the app before it existed, so the flag alone would
 hand a tour of the app to the whole shop mid-shift; `RootNavigator` writes it the
 first time it sees a live session, or the panels would appear at the next
-sign-out — the same evening, on a shift account. `PANELS` is the single source
+sign-out. `PANELS` is the single source
 the dots are counted from, so three dots over four panels is not expressible.
 
 ### Local database

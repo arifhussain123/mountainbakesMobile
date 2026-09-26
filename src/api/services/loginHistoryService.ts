@@ -21,9 +21,9 @@ import { api } from '../client';
  * does nothing on seven roles out of eight.
  *
  * The practical consequence for the branch dashboard: this card is **"your
- * sign-ins", not "the branch's"**. A branch manager cannot see their shift
- * users' logins through it, and the card has to say so rather than let the
- * reader assume the shop is covered.
+ * sign-ins", not "the branch's"**. A branch manager cannot see anyone else's
+ * logins through it, and the card has to say so rather than let the reader
+ * assume the shop is covered.
  *
  * ---------------------------------------------------------------------------
  * The endpoint is PAGED now, and `total` changed meaning with it

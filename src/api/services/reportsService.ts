@@ -4,8 +4,8 @@ import { api } from '../client';
 /**
  * Reports.
  *
- * `GET /api/reports/summary` is restricted to `super_admin` and `branch_manager`
- * — a `branch_user` receives 403, which is why that role has no dashboard tab.
+ * `GET /api/reports/summary` is restricted to `super_admin` and `branch_manager`;
+ * every other role receives 403.
  *
  * A branch manager is auto-scoped to their own branch server-side and must not
  * send `branchId`; an admin may pass one to scope the figures.

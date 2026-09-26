@@ -1,7 +1,7 @@
 import type { UserRole } from '@/shared/types/user.types';
 
 /**
- * Human labels for the eight `user_role` values.
+ * Human labels for the seven `user_role` values.
  *
  * Deliberately NOT in `src/shared/`. That directory is a byte-identical mirror
  * of the server's and the web client's copies, so anything added there has to be
@@ -15,7 +15,6 @@ import type { UserRole } from '@/shared/types/user.types';
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   super_admin: 'Super Admin',
   branch_manager: 'Branch Manager',
-  branch_user: 'Branch Staff',
   production_user: 'Production',
   finance_admin: 'Finance Admin',
   finance_manager: 'Finance Manager',

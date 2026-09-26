@@ -76,7 +76,7 @@ describe('claimsFromSession', () => {
   });
 
   it('ignores a non-string branchId rather than trusting it', () => {
-    const claims = claimsFromSession(session({ role: 'branch_user', branchId: 42 }));
+    const claims = claimsFromSession(session({ role: 'branch_manager', branchId: 42 }));
     expect(claims?.branchId).toBeNull();
   });
 });

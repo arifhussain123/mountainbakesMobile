@@ -281,9 +281,6 @@ const UserRow = React.memo(function UserRowView({
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
             {roleLabel(user.role)}
             {user.branchName ? ` · ${user.branchName}` : ''}
-            {/* A shift is set only on `branch_user` — the account that carries
-                its manager's branch rather than one of its own. */}
-            {user.shift ? ` · ${user.shift} shift` : ''}
           </Text>
 
           {user.mustChangePassword ? (

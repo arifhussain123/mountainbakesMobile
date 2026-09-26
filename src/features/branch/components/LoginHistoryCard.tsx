@@ -36,8 +36,8 @@ import { formatBusinessDate } from '@/common/helpers/businessDay';
  *
  * That makes the heading load-bearing. A card titled "Login history" on a branch
  * manager's dashboard reads as *the shop's* logins, and a manager checking
- * whether their shift user signed in this morning would find nothing and
- * conclude nobody did. The subtitle names the scope for that reason, and it is
+ * whether someone else signed in on the shop's phone this morning would find
+ * nothing and conclude nobody did. The subtitle names the scope for that reason, and it is
  * not decoration to be tidied away.
  *
  * ---------------------------------------------------------------------------

@@ -337,11 +337,7 @@ describe('navigation surface', () => {
     }
   });
 
-  /**
-   * The branch set, which both branch roles share. A shift account is its
-   * manager's counter, not a lesser branch, so the two differ only where the
-   * server does.
-   */
+  /** The branch set. */
   it('gives a branch manager Home · Sales · Orders · Stock, then More', () => {
     const tabs = tabsFor(profileFor('branch_manager'));
     expect(tabs.map(t => t.name)).toEqual(['Home', 'Sales', 'Orders', 'Stock', 'More']);
@@ -355,12 +351,11 @@ describe('navigation surface', () => {
       // The day's takings and spending, summed from two lists this role already
       // reaches. Ungated, unlike Reports beneath it: it adds no endpoint.
       'Closing',
-      // Claims against a delivery. Behind BRANCH_ROLES server-side, so both
-      // branch roles get it.
+      // Claims against a delivery. Behind BRANCH_ROLES server-side.
       'Discounts',
-      // The counter's Bluetooth receipt printer. Ungated: both branch roles
-      // work the till, the choice never leaves the handset, and there is no
-      // endpoint behind it to authorise against.
+      // The counter's Bluetooth receipt printer. Ungated: the choice never
+      // leaves the handset, and there is no endpoint behind it to authorise
+      // against.
       'Printer',
       'Reports',
       'SyncCenter',
@@ -373,29 +368,6 @@ describe('navigation surface', () => {
       'Help',
       'Settings',
     ]);
-  });
-
-  /**
-   * The one place the two branch roles diverge, and it is not a style choice:
-   * `reports.routes.ts` mounts every `/api/reports` route behind
-   * `requireRole('super_admin', 'branch_manager')`, and `GET /summary` is the
-   * branch dashboard's only data source. A Home tab for a shift account would be
-   * a 403 error state as the first screen of the shift, so it opens on Orders.
-   */
-  it('withholds Home and Reports from a shift account, which the API 403s', () => {
-    const shift = profileFor('branch_user');
-    expect(shift.capabilities.has('reports')).toBe(false);
-    /* Sales first, not Orders. v5 swaps the two, so a shift account without a
-       Home tab now opens on the till — which is the screen it is standing at,
-       and a better landing than a list of demands it rarely raises. */
-    expect(tabsFor(shift).map(t => t.name)).toEqual(['Sales', 'Orders', 'Stock', 'More']);
-    expect(landingTabFor(shift)).toBe('Sales');
-
-    const routes = moreSectionsFor(shift)
-      .flatMap(s => s.items)
-      .flatMap(i => (i.route ? [i.route as string] : []));
-    expect(routes).not.toContain('Reports');
-    expect(routes).toContain('Expenses');
   });
 
   it('grants the reports capability exactly where the API does', () => {
@@ -608,13 +580,14 @@ describe('capability filtering', () => {
     }
   });
 
+
   /**
-   * A shift account carries its manager's branchId. Without one it is broken
-   * upstream, and branch-scoped screens would open an empty shop.
+   * A branch account without a branchId is broken upstream, and branch-scoped
+   * screens would open an empty shop.
    */
-  it('treats a branch_user as branch-scoped only when it carries a branchId', () => {
-    expect(accessProfileFor('branch_user', 'branch-1').capabilities.has('branch')).toBe(true);
-    expect(accessProfileFor('branch_user', null).capabilities.has('branch')).toBe(false);
+  it('treats a branch role as branch-scoped only when it carries a branchId', () => {
+    expect(accessProfileFor('branch_manager', 'branch-1').capabilities.has('branch')).toBe(true);
+    expect(accessProfileFor('branch_manager', null).capabilities.has('branch')).toBe(false);
   });
 });
 
@@ -679,13 +652,8 @@ describe('quick actions', () => {
    * the design — these are the jobs of a shift in the sequence they happen.
    */
   it('gives a branch the six jobs of a shift, in order', () => {
-    for (const role of ['branch_manager', 'branch_user'] as const) {
-      const labels = quickActionsFor(profileFor(role)).map(a => a.label);
-      expect({ role, labels }).toEqual({
-        role,
-        labels: ['newSale', 'newOrder', 'orders', 'stock', 'addExpense', 'returns'],
-      });
-    }
+    const labels = quickActionsFor(profileFor('branch_manager')).map(a => a.label);
+    expect(labels).toEqual(['newSale', 'newOrder', 'orders', 'stock', 'addExpense', 'returns']);
   });
 
   /**

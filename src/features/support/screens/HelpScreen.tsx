@@ -50,8 +50,8 @@ import { contentColumn } from '@/common/theme/spacing';
  * Who may raise one, and why the button is conditional
  * ---------------------------------------------------------------------------
  * `POST /api/support` is `requireRole('branch_manager', 'production_user')`.
- * Everyone else — a `branch_user` shift account, the finance roles, and the
- * admin who answers these — may read their own tickets and may not raise one.
+ * Everyone else — the finance roles, and the admin who answers these — may read
+ * their own tickets and may not raise one.
  *
  * So the button is offered only to the two roles that have it. Showing it to
  * everyone and letting the server refuse means an operator types a paragraph

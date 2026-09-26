@@ -30,10 +30,8 @@ import { getDb } from '@/common/database/localDb';
  * change is permanent on every device that runs it, so it should be spent on
  * something with rows worth indexing.
  *
- * Keyed by branch because `branch_user` is a shift account carrying its
- * manager's `branchId` — two people on two devices share the branch, but each
- * device keeps its own copy, and a device moved to another branch must not
- * inherit the previous one's half-written demand.
+ * Keyed by branch because a device moved to another branch must not inherit the
+ * previous one's half-written demand. Each device keeps its own copy.
  */
 
 /**

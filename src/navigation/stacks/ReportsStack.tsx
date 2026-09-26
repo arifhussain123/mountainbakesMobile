@@ -41,10 +41,9 @@ export const REPORT_DETAIL_COMPONENTS: Record<string, ScreenComponent> = {
  * every one of the three reads `GET /api/reports/summary`, which is the same
  * endpoint the index reads and is mounted behind
  * `requireRole('super_admin', 'branch_manager')`. A role that cannot open the
- * index cannot reach these, because the index is the only way in. A
- * `branch_user` never gets the tab or the More row at all — `roleConfig`'s
- * `reports` capability mirrors that same `requireRole` — so the statements are
- * unreachable for exactly the accounts the server would 403.
+ * index cannot reach these, because the index is the only way in, and
+ * `roleConfig`'s `reports` capability mirrors that same `requireRole` — so the
+ * statements are unreachable for exactly the accounts the server would 403.
  *
  * `SalesVsExpenses` additionally reads `GET /api/expenses`, which both admitted
  * roles may read for their own scope, and degrades to a message rather than an

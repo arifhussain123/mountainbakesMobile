@@ -157,7 +157,6 @@ Reanimated 4 needs `resolver: 'react-native-worklets/jest/resolver.js'` in `jest
 - **There is no `{success, data}` envelope.** Bodies are resource-keyed (`{orders, total}`, `{user}`). Type each endpoint individually.
 - **No endpoint paginates.** Constrain lists by date range and branch, or you transfer the whole table.
 - **Role and branch come from the JWT**, never from a form or an API response. An unrecognised role gets *no* session — fail closed.
-- **`branch_user` carries its manager's `branchId`.** Treat it as `branch_manager` for branch-scoped data or the shift user sees an empty shop.
 - **Never say "Sale successful" for a locally-saved transaction.** Say "Saved offline — will sync automatically."
 
 ## Status

@@ -1176,8 +1176,7 @@ The screen is v6's screen 20 and it is three blocks, in this order:
 - **The order's own facts, stated not asked** — branch, ordered by, business day,
   Karachi time, and "Order no.: assigned on submit". Every cell comes from the
   session or the clock. `branchId` is never *sent* — the server derives it from
-  the token — but the person filing a demand should see whose name it goes under,
-  and on a `branch_user` shift account this is the only place the shop is named.
+  the token — but the person filing a demand should see whose name it goes under.
   An order number is deliberately not generated here: the server assigns it, and
   one invented on the device is a second identity for a demand that already has
   `client_operation_id`, shown to someone who would then quote it to Production.

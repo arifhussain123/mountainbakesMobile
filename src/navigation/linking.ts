@@ -98,11 +98,10 @@ export function buildLinking(profile: AccessProfile): LinkingOptions<AppTabParam
      * a role that cannot use it, nothing to see. Those links resolve to the
      * role's landing tab instead.
      *
-     * **Not a literal `Home`.** A `branch_user` has no Home tab — the branch
-     * dashboard's only source is `/api/reports/summary`, which the API refuses a
-     * shift account — so resolving to `Home` would target a route that role's
-     * navigator does not contain, and the link would land nowhere at all. The
-     * fallback has to be computed from the same config that built the tabs.
+     * **Not a literal `Home`.** Home is capability-gated, so a profile may not
+     * have it, and resolving to a route that role's navigator does not contain
+     * would land the link nowhere at all. The fallback has to be computed from
+     * the same config that built the tabs.
      *
      * This is still not authorization. The API re-authorises every request; a
      * caller who hand-crafts a link gains nothing but a screen that returns 403.

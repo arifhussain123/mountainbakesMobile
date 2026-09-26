@@ -72,12 +72,10 @@ import { formatCurrency, formatQty, toNumber } from '@/common/utils/money';
  * ---------------------------------------------------------------------------
  * The figures are a sum of what is listed, and the screen says so
  * ---------------------------------------------------------------------------
- * `GET /api/reports/summary` is the authoritative day total, and **a
- * `branch_user` may not call it** — the server mounts every `/api/reports` route
- * behind `requireRole('super_admin', 'branch_manager')`. A register that read it
- * would 403 for the shift account this screen exists for, so the totals here are
- * derived from the day's own records, exactly as the admin's money view derives
- * its own (`AdminSalesScreen`). The design's "Charged, after discount" caption
+ * `GET /api/reports/summary` is the authoritative day total. The totals here are
+ * instead derived from the day's own records, exactly as the admin's money view
+ * derives its own (`AdminSalesScreen`), so the figures always agree with the list
+ * beneath them. The design's "Charged, after discount" caption
  * on the Total tile is therefore worded as where the figure came from: a branch
  * manager comparing this against Daily Sales must be able to see which of the
  * two has the audit behind it.

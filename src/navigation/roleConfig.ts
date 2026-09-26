@@ -59,7 +59,7 @@ export type Capability =
    * May read `/api/reports/*`.
    *
    * Not a guess: `reports.routes.ts` mounts the whole router behind
-   * `requireRole('super_admin', 'branch_manager')`, so a `branch_user` gets a
+   * `requireRole('super_admin', 'branch_manager')`, so every other role gets a
    * 403 from every route under it — including `/summary`, which is the branch
    * dashboard's only data source. This is a capability rather than a role check
    * at the call site because two different surfaces depend on it (the Home tab
@@ -246,7 +246,6 @@ export const ROLE_TABS: Record<UserRole, readonly TabConfig[]> = {
     { name: 'Reports', icon: 'reports', label: 'reports' },
   ],
   branch_manager: branchTabs(),
-  branch_user: branchTabs(),
   /**
    * The production floor's day, in the order it happens: what came in, what is
    * being made, what goes out.
@@ -270,21 +269,13 @@ export const ROLE_TABS: Record<UserRole, readonly TabConfig[]> = {
 };
 
 /**
- * The branch tab set: Home · Orders · Sales · Stock, then More.
+ * The branch tab set: Home · Sales · Orders · Stock, then More.
  *
- * Declared once for both branch roles on purpose. A `branch_user` is a shift
- * account carrying its manager's `branchId` — the same shop, a different pair of
- * hands — so the two must not drift into two hand-maintained lists. Every
- * difference between them comes from a capability the server actually enforces.
- *
- * Home is the one such difference, and it is gated rather than omitted: the
- * branch dashboard's only data source is `GET /api/reports/summary`, and the
- * server mounts every `/api/reports` route behind
- * `requireRole('super_admin', 'branch_manager')`. Giving a shift account a Home
- * tab would land it on a 403 error state as the first thing it sees at open, so
- * the tab is filtered out and the shift opens on Orders — the first tab it can
- * reach. When a shift dashboard exists that reads something a `branch_user` may
- * actually fetch, drop the `requires` here and both roles land on it.
+ * Home is gated on `reports` rather than granted outright: the branch
+ * dashboard's only data source is `GET /api/reports/summary`, and the server
+ * mounts every `/api/reports` route behind
+ * `requireRole('super_admin', 'branch_manager')`, so the tab follows the same
+ * capability as the Reports row and the two cannot disagree.
  */
 function branchTabs(): readonly TabConfig[] {
   return [
@@ -412,7 +403,6 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
     },
   ],
   branch_manager: branchMore(),
-  branch_user: branchMore(),
   production_user: [
     {
       title: 'Operations',
@@ -465,8 +455,7 @@ export const MORE_SECTIONS: Record<UserRole, readonly MoreSection[]> = {
 };
 
 /**
- * The branch More list, shared by both branch roles for the same reason
- * `branchTabs` is.
+ * The branch More list.
  *
  * Reports carries the same `reports` gate as the Home tab — one capability, both
  * surfaces, so they cannot disagree about who may read `/api/reports`. A branch
@@ -496,22 +485,20 @@ function branchMore(): readonly MoreSection[] {
          * no capability gate because it fetches nothing a branch cannot already
          * reach: it sums `GET /api/orders` and `GET /api/expenses`, both of
          * which this role uses on its own Sales and Expenses surfaces. Gating it
-         * behind `reports` would hide a shop's own till from the shift that ran
-         * it while leaving both underlying lists open.
+         * behind `reports` would tie a shop's own till to a capability it does
+         * not need while leaving both underlying lists open.
          */
         { route: 'Closing', icon: 'closing', label: 'closing' },
         /**
          * Claims a branch raises when a delivery arrives damaged, short or
          * wrong. Ungated for the same reason Closing is: `/api/branch-discounts`
-         * is mounted behind `BRANCH_ROLES`, so both branch roles may raise and
-         * correct their own — this is not an admin surface with a branch view.
+         * is mounted behind `BRANCH_ROLES`, so a branch may raise and correct
+         * its own — this is not an admin surface with a branch view.
          */
         { route: 'Discounts', icon: 'payments', label: 'discounts' },
         /**
-         * The counter's receipt printer. Ungated: both branch roles work the
-         * till, and a shift account is exactly the one that needs to fix a
-         * printer at seven in the morning without a manager present. There is
-         * nothing to authorise here — the choice never leaves the handset.
+         * The counter's receipt printer. Ungated: there is nothing to
+         * authorise here — the choice never leaves the handset.
          */
         { route: 'Printer', icon: 'printer', label: 'printer' },
         { route: 'Reports', icon: 'reports', label: 'reports', requires: ['reports'] },
@@ -721,9 +708,8 @@ export const QUICK_ACTIONS: Record<RoleGroup, readonly QuickAction[]> = {
  *
  * Both halves of the reachability test matter: the tab has to survive
  * `tabsFor`, and a `screen` naming a More row has to survive the capability
- * filter in `moreSectionsFor`. A `branch_user` with no `reports` capability is
- * the case that makes this real — it must never be offered a card into a screen
- * the API will 403.
+ * filter in `moreSectionsFor`. A profile must never be offered a card into a
+ * screen the API will 403.
  */
 export function quickActionsFor(profile: AccessProfile): readonly QuickAction[] {
   const tabs = new Set(tabsFor(profile).map(t => t.name));

@@ -26,7 +26,7 @@ describe('deep link permission guard', () => {
   });
 
   it('always allows More, which every role has', () => {
-    expect(isTabAvailable(profileFor('branch_user'), 'More')).toBe(true);
+    expect(isTabAvailable(profileFor('branch_manager'), 'More')).toBe(true);
     expect(isTabAvailable(profileFor('finance_auditor'), 'More')).toBe(true);
   });
 });
@@ -63,7 +63,7 @@ describe('notification routing', () => {
   });
 
   it('sends a sync failure to the Sync Center', () => {
-    expect(routeForNotification(profileFor('branch_user'), { type: 'sync_failed' })).toEqual({
+    expect(routeForNotification(profileFor('branch_manager'), { type: 'sync_failed' })).toEqual({
       tab: 'More',
       screen: 'SyncCenter',
     });
@@ -78,10 +78,9 @@ describe('notification routing', () => {
 /**
  * Where an unpermitted link actually lands.
  *
- * The guard used to resolve to a literal `Home`, which is a route a
- * `branch_user`'s navigator does not contain — the API refuses a shift account
- * every `/api/reports` route, so it has no Home tab, so the link went nowhere at
- * all. The fallback has to come from the same config that built the tabs.
+ * The guard must not resolve to a literal `Home`: Home is capability-gated, so a
+ * navigator may not contain it, and the link would go nowhere at all. The
+ * fallback has to come from the same config that built the tabs.
  */
 describe('unpermitted deep link fallback', () => {
   function fallbackTabFor(role: UserRole, path: string): string | undefined {
@@ -98,7 +97,6 @@ describe('unpermitted deep link fallback', () => {
    * is not being redirected at all.
    */
   const UNREACHABLE: ReadonlyArray<[UserRole, string]> = [
-    ['branch_user', 'reports'],
     ['production_user', 'reports'],
     ['accountant', 'products'],
     ['branch_manager', 'products'],
@@ -109,13 +107,6 @@ describe('unpermitted deep link fallback', () => {
       const landing = landingTabFor(profileFor(role));
       expect({ role, to: fallbackTabFor(role, path) }).toEqual({ role, to: landing });
     }
-  });
-
-  it('lands a shift account on Sales, since it has no Home tab at all', () => {
-    expect(isTabAvailable(profileFor('branch_user'), 'Home')).toBe(false);
-    // Sales, not Orders: v5 puts the till in the second cell, so it is the first
-    // tab a shift account can reach once Home is filtered out.
-    expect(fallbackTabFor('branch_user', 'reports')).toBe('Sales');
   });
 
   it('leaves a permitted link alone', () => {

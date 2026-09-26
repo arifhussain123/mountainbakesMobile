@@ -47,7 +47,6 @@ describe('resolveMoreScreen', () => {
   /** A branch reaches its own Sales as a tab (the register), never from More. */
   it('offers no More Sales screen to a branch', () => {
     expect(resolveMoreScreen('branch_manager', 'Sales')).toBeNull();
-    expect(resolveMoreScreen('branch_user', 'Sales')).toBeNull();
   });
 
   /**
@@ -76,7 +75,6 @@ describe('resolveMoreScreen — Settings', () => {
   it('gives every role a Settings screen, not a placeholder', () => {
     for (const role of [
       'branch_manager',
-      'branch_user',
       'production_user',
       'super_admin',
       'finance_admin',
@@ -121,12 +119,6 @@ describe('resolveMoreScreen — Returns', () => {
     expect(branch).not.toBe(production);
   });
 
-  it('gives both branch roles the same screen', () => {
-    expect(resolveMoreScreen('branch_user', 'Returns')).toBe(
-      resolveMoreScreen('branch_manager', 'Returns'),
-    );
-  });
-
   it('offers no Returns screen to a finance role', () => {
     expect(resolveMoreScreen('finance_admin', 'Returns')).toBeNull();
   });
@@ -146,11 +138,8 @@ describe('resolveTabScreen', () => {
   });
 
   /** The branch register is the one Sales that is a tab. */
-  it('gives both branch roles the register as a tab', () => {
+  it('gives a branch the register as a tab', () => {
     expect(resolveTabScreen('branch_manager', 'Sales')).not.toBeNull();
-    expect(resolveTabScreen('branch_user', 'Sales')).toBe(
-      resolveTabScreen('branch_manager', 'Sales'),
-    );
   });
 
   /**
@@ -164,8 +153,6 @@ describe('resolveTabScreen', () => {
     expect(resolveNewSaleScreen('branch_manager')).not.toBe(
       resolveTabScreen('branch_manager', 'Sales'),
     );
-    // A shift account sells from the same shop through the same endpoint.
-    expect(resolveNewSaleScreen('branch_user')).toBe(resolveNewSaleScreen('branch_manager'));
   });
 
   /**

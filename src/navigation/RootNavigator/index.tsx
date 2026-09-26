@@ -84,7 +84,7 @@ export function RootNavigator(): React.ReactElement {
    * `markSeen()` below closes the other end of that: a device with a live
    * session has plainly seen the app, so the flag is written the first time one
    * is observed. Otherwise the panels would appear at the *next* sign-out, which
-   * on a `branch_user` shift account is the same evening.
+   * on a shared branch handset can be the same evening.
    */
   const seenOnboarding = useOnboardingStore(s => s.seen);
   const markSeen = useOnboardingStore(s => s.markSeen);

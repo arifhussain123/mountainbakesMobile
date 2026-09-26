@@ -293,7 +293,7 @@ describe('StockScreen', () => {
 
   it('does not send a branchId for a branch role', async () => {
     // Branch roles are scoped server-side to their own branch.
-    signInAs('branch_user', 'b-1');
+    signInAs('branch_manager', 'b-1');
     await renderScreen(<StockScreen />);
 
     await waitFor(() => expect(getStock).toHaveBeenCalled());

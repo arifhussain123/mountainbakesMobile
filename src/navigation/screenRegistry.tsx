@@ -271,9 +271,7 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
       // `/api/reports` is mounted behind
       // `requireRole('super_admin', 'branch_manager')`, and a branch manager is
       // auto-scoped to their own branch server-side without sending a
-      // `branchId` — so the admin's screen shows one shop unmodified. A
-      // `branch_user` would get a 403 from every route under it, which is why
-      // `roleConfig` gates the row and this call never sees that role.
+      // `branchId` — so the admin's screen shows one shop unmodified.
       //
       // Production's reports are a narrower resource that is not built, so it
       // stays a placeholder rather than being handed an admin screen.
@@ -291,9 +289,7 @@ export function resolveCreateOrderScreen(role: UserRole): ScreenComponent | null
 /**
  * The till, presented as a modal over the branch register.
  *
- * Branch roles only, and it is the same screen for both: a `branch_user` is a
- * shift account carrying its manager's `branchId`, so it sells from the same
- * shop through the same endpoint. The production counter's till is a different
+ * Branch roles only. The production counter's till is a different
  * resource (`POST /api/orders/production-sale`, its own pool, a `staff` method
  * that takes no money) and is reached from its own More row.
  */

@@ -1,5 +1,7 @@
 # Mountain Bakes — Mobile Architecture Audit
 
+> **Note (2026-09-26):** the `branch_user` shift account described below was removed by backend migration 122. The findings about it are historical.
+
 **Date:** 2026-08-18 · **re-inspected 2026-08-19**
 **Scope:** `mountainbakes-server/` (Express + Supabase), `mountainbakes-frontend/` (Next.js static export), and the mobile design docs under `mountain mobile app/desing file for mobile app/`.
 **Purpose:** establish the real backend contract before writing mobile feature code, per Phase 1.

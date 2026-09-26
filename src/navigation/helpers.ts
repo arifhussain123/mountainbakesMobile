@@ -61,10 +61,9 @@ export function navigateIfReady<Name extends keyof AppTabParamList>(
 /**
  * Reset to a tab, clearing the stack behind it.
  *
- * Takes the tab rather than assuming `Home`, which is the bug this replaced: a
- * `branch_user` has no Home tab, so resetting to a literal `'Home'` targeted a
- * route that role's navigator does not contain and the reset went nowhere. Pass
- * `landingTabFor(profile)`.
+ * Takes the tab rather than assuming `Home`: not every profile has a Home tab
+ * (it is capability-gated), and resetting to a route a navigator does not
+ * contain goes nowhere. Pass `landingTabFor(profile)`.
  */
 export function resetToTab(tab: AppTabName): boolean {
   if (!navigationRef.isReady()) return false;

@@ -10,7 +10,7 @@ import type { UserRole } from '@/shared/types/user.types';
 
 export type RoleGroup = 'admin' | 'branch' | 'production' | 'finance';
 
-const BRANCH_ROLES: readonly UserRole[] = ['branch_manager', 'branch_user'];
+const BRANCH_ROLES: readonly UserRole[] = ['branch_manager'];
 const FINANCE_ROLES: readonly UserRole[] = [
   'finance_admin',
   'finance_manager',
@@ -18,7 +18,7 @@ const FINANCE_ROLES: readonly UserRole[] = [
   'finance_auditor',
 ];
 
-/** Branch scoping treats a shift account exactly like its manager. */
+/** True for a shop-floor role — one scoped to its own branch. */
 export function isBranchRole(role: UserRole): boolean {
   return BRANCH_ROLES.includes(role);
 }
@@ -39,8 +39,7 @@ export function roleGroupFor(role: UserRole): RoleGroup {
  *
  * This file now holds only the role *predicates*, which are about who someone is
  * rather than what they can reach — `isBranchRole` in particular is a domain
- * rule, not a navigation one: a `branch_user` is a shift account carrying its
- * manager's `branchId`, so branch-scoped queries must treat the two identically
- * or the shift user opens an empty shop. It is used by screens and hooks that
- * have nothing to do with navigation, which is why it did not move.
+ * rule, not a navigation one: it decides whether queries are scoped to the
+ * caller's own branch. It is used by screens and hooks that have nothing to do
+ * with navigation, which is why it did not move.
  */

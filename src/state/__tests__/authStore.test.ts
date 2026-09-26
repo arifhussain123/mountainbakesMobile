@@ -331,7 +331,7 @@ describe('signOut', () => {
  *   qk.productionOrders.list({status}) "the caller's own branch"
  *   qk.stock.byBranch(null, date)      literally keyed 'self'
  *
- * So without this, a manager signing out and a shift user signing in on the same
+ * So without this, one account signing out and another signing in on the same
  * phone could be shown the previous account's takings, demands and balances —
  * and with staleTime up to ten minutes on settings, branches and categories,
  * possibly without a refetch to correct it.

@@ -11,7 +11,7 @@ import { useBranches } from '@/api/hooks/useCatalogApi';
 import { useCreateUser, useResetUserPassword, useUpdateUser, useUsers } from '@/api/hooks/useUsersApi';
 import type { MoreStackParamList } from '@/navigation/types';
 import { CreateUserSchema } from '@/shared/schemas/user.schemas';
-import { BRANCH_SHIFTS, USER_ROLES, type UserRole } from '@/shared/types/user.types';
+import { USER_ROLES, type UserRole } from '@/shared/types/user.types';
 import { isBranchRole } from '@/navigation/roleNavigation';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { contentColumn } from '@/common/theme/spacing';
@@ -25,19 +25,11 @@ import { contentColumn } from '@/common/theme/spacing';
  * Identity is set once
  * ---------------------------------------------------------------------------
  * Email, username and password exist only when creating. `UpdateUserSchema`
- * accepts `displayName`, `phone`, `role`, `branchId`, `status` and `shift` —
- * and nothing else. Changing an email is changing which Supabase auth identity
+ * accepts `displayName`, `phone`, `role`, `branchId` and `status` — and
+ * nothing else. Changing an email is changing which Supabase auth identity
  * an account IS; the server does not offer it here, and a field that silently
  * did nothing would be worse than its absence. Resetting a password is a
  * separate, audited action with its own route.
- *
- * ---------------------------------------------------------------------------
- * Branch and shift follow the role
- * ---------------------------------------------------------------------------
- * `CreateUserSchema` carries a refinement — a shift belongs only to a
- * `branch_user`, the shift account that borrows its manager's branch. The form
- * mirrors that by showing the field only for that role, so the refinement
- * becomes a thing you cannot do rather than an error you read after submitting.
  */
 
 type FormRoute = RouteProp<MoreStackParamList, 'UserForm'>;
@@ -48,7 +40,6 @@ const EditUserFormSchema = z.object({
   phone: z.string().min(10, 'Invalid phone number'),
   role: z.enum(USER_ROLES),
   branchId: z.string().nullable(),
-  shift: z.enum(BRANCH_SHIFTS).nullable().optional(),
 });
 
 type EditValues = z.infer<typeof EditUserFormSchema>;
@@ -78,7 +69,6 @@ export function UserFormScreen(): React.ReactElement {
     handleSubmit,
     reset,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<CreateValues | EditValues>({
     resolver: zodResolver(isEdit ? EditUserFormSchema : CreateUserSchema) as never,
@@ -87,13 +77,11 @@ export function UserFormScreen(): React.ReactElement {
       phone: '',
       role: 'branch_manager',
       branchId: null,
-      shift: null,
       ...(isEdit ? {} : { email: '', username: '', password: '' }),
     } as never,
   });
 
   const role = watch('role') as UserRole;
-  const showShift = role === 'branch_user';
   const needsBranch = isBranchRole(role);
 
   useEffect(() => {
@@ -103,16 +91,8 @@ export function UserFormScreen(): React.ReactElement {
       phone: existing.phone,
       role: existing.role,
       branchId: existing.branchId,
-      shift: existing.shift,
     } as never);
   }, [isEdit, existing, reset]);
-
-  // A shift on anything but a shift account is rejected by the schema's
-  // refinement. Clearing it as the role changes keeps the form from carrying a
-  // value the user cannot see and cannot remove.
-  useEffect(() => {
-    if (!showShift) setValue('shift', null as never);
-  }, [showShift, setValue]);
 
   const branchOptions = useMemo(
     () => [
@@ -135,7 +115,6 @@ export function UserFormScreen(): React.ReactElement {
               phone: v.phone,
               role: v.role,
               branchId: v.branchId,
-              shift: v.shift ?? null,
             },
           });
         } else {
@@ -319,25 +298,6 @@ export function UserFormScreen(): React.ReactElement {
                   tone="accent"
                   scroll
                   testIDPrefix="user-branch"
-                />
-              )}
-            />
-          </View>
-        ) : null}
-
-        {showShift ? (
-          <View style={{ gap: theme.space.sm }}>
-            <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>Shift</Text>
-            <Controller
-              control={control}
-              name="shift"
-              render={({ field }) => (
-                <MBFilterChips
-                  options={BRANCH_SHIFTS.map(s => ({ key: s, label: s }))}
-                  selectedKey={field.value ?? ''}
-                  onSelect={field.onChange}
-                  tone="accent"
-                  testIDPrefix="user-shift"
                 />
               )}
             />

@@ -24,7 +24,6 @@ export * from './types/closing-notifications.types';
 export * from './types/special-event.types';
 export * from './types/geofence.types';
 export * from './types/finance.types';
-export * from './types/branch-user-request.types';
 export * from './types/attachment.types';
 export * from './types/login-session.types';
 
@@ -50,7 +49,6 @@ export * from './schemas/geofence.schemas';
 export * from './schemas/login-session.schemas';
 export * from './schemas/finance.schemas';
 export * from './schemas/finance-ticket.schemas';
-export * from './schemas/branch-user-request.schemas';
 export * from './schemas/attachment.schemas';
 
 // Utils

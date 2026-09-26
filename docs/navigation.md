@@ -260,7 +260,7 @@ been running the app for months, where it reads absent, so a check on the flag
 alone would hand a tour of the app to every existing user in the middle of a
 shift. `RootNavigator` closes the other end by writing the flag the first time it
 observes a live session — otherwise the panels would appear at the *next*
-sign-out, which on a `branch_user` shift account is the same evening.
+sign-out.
 
 Each tab owns a native stack, so detail and create screens push **inside** the
 tab that owns the resource and keep a real back path to their list.
@@ -298,7 +298,6 @@ underneath a pushed detail screen intact.
 |---|---|---|
 | `super_admin` | Home · Orders · Products · Reports · More | Users · Categories · Vendors · Branches · Sales · Stock · Expenses · Production · Returns |
 | `branch_manager` | Home · Sales · Orders · Stock · More | Expenses · Returns · Reports |
-| `branch_user` | Sales · Orders · Stock · More | Expenses · Returns |
 | `production_user` | Home · Orders · Preparation · Delivery · More | Sales · Stock · Returns · Reports |
 | `finance_*` (4 roles) | Home · Income · Expenses · Reports · More | Partner Expenses |
 
@@ -326,13 +325,10 @@ them apart.
 
 Two entries in that table are easy to get wrong from memory:
 
-- **`branch_user` has no Home tab.** The branch dashboard's only source is
-  `GET /api/reports/summary`, and the server mounts every `/api/reports` route
-  behind `requireRole('super_admin', 'branch_manager')`. A shift account would
-  land on a 403 as the first thing it sees, so the tab is filtered by the
-  `reports` capability and the shift opens on **Sales** — v5 puts it in the
-  second cell, so it is the first tab a shift account can reach. Same reason
-  Reports is not in its More list.
+- **Home and Reports need the `reports` capability.** The branch dashboard's
+  only source is `GET /api/reports/summary`, mounted behind
+  `requireRole('super_admin', 'branch_manager')`, and the capability mirrors
+  that grant. (It was added for the shift account, removed by migration 122.)
 - **Finance has no Ledger tab.** The ledger is reached through Income, Expenses
   and Reports. And finance's "Reports" is `/api/finance/reports`, *not* the
   admin's `/api/reports` — same tab name, different resource, which is exactly
@@ -430,9 +426,8 @@ offered different statements from the same index.
 
 Both are gated by the index rather than per screen: all three read
 `GET /api/reports/summary`, the same endpoint the index reads, mounted behind
-`requireRole('super_admin', 'branch_manager')`. A `branch_user` never gets the
-tab or the row, so the statements are unreachable for exactly the accounts the
-server would refuse.
+`requireRole('super_admin', 'branch_manager')`, so the statements are
+unreachable for exactly the accounts the server would refuse.
 
 ### Stock pushes the ledger
 
@@ -619,10 +614,8 @@ screen does not call.
 decision table testable without mounting a navigator.
 
 **An unpermitted link resolves to the role's own landing tab — not to `Home`.**
-It used to resolve to a literal `Home`, and for one role that meant nowhere at
-all: a `branch_user` has no Home tab (the API refuses a shift account every
-`/api/reports` route, and the branch dashboard has no other source), so the
-redirect named a route that role's navigator does not contain. The fallback is
+It used to resolve to a literal `Home`, which names a route a role without the
+`reports` capability does not contain. The fallback is
 `landingTabFor(profile)` — computed from the same config that built the tabs, so
 it cannot name a tab the role lacks. `navigationRef.resetToTab` takes the tab for
 the same reason, rather than assuming one.

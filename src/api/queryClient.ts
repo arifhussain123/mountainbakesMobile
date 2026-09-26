@@ -57,8 +57,8 @@ export const queryClient = new QueryClient({
  *   qk.expenses.list({...})             branchId optional; absent means "mine"
  *   qk.stock.byBranch(null, date)       keyed literally as 'self'
  *
- * A branch handset is shared. Without this, a manager signing out and a shift
- * user signing in on the same phone could be shown the previous account's
+ * A branch handset is shared. Without this, one account signing out and another
+ * signing in on the same phone could be shown the previous account's
  * takings, demands and balances — and with staleTime up to ten minutes on
  * settings, branches and categories, possibly with no refetch to correct it.
  *

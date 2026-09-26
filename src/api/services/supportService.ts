@@ -27,8 +27,8 @@ import { api } from '../client';
  * within the caller's own scope.
  *
  * `POST /api/support` is `requireRole('branch_manager', 'production_user')`.
- * A `branch_user` shift account may read its tickets and may not raise one; so
- * may an admin, who answers them instead. A screen must ask before it offers the
+ * Every other role may read its tickets and may not raise one — including an
+ * admin, who answers them instead. A screen must ask before it offers the
  * button — the alternative is a form that 403s on submit after the operator has
  * typed the paragraph.
  *

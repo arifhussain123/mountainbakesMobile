@@ -85,11 +85,7 @@ describe('orderDraftRepository', () => {
     expect((await readOrderDraft('b-1'))?.lines).toEqual([ROLL]);
   });
 
-  /**
-   * `branch_user` is a shift account carrying its manager's branchId, so two
-   * devices share a branch — but a device moved to another branch must not
-   * inherit the previous one's half-written demand.
-   */
+  /** A device moved to another branch must not inherit the previous one's half-written demand. */
   it('keeps one branch’s draft out of another’s', async () => {
     await saveOrderDraft('b-1', { lines: [RUSK], requiredDate: '' });
 

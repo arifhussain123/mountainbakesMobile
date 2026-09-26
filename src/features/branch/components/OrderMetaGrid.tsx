@@ -25,11 +25,7 @@ export interface OrderMetaGridProps {
  *
  * - **Branch** — `branchId` is never sent (the server derives it from the
  *   token), but the person filing a demand should see whose name it goes under.
- *   `branch_user` is a shift account carrying its manager's branch, so on that
- *   account this is the only place the shop is named.
- * - **Ordered by** — the account, not the person, and that is the honest
- *   version: a shared shift account files under one name whoever is holding the
- *   phone.
+ * - **Ordered by** — the account that files the demand.
  * - **Business day / Time** — Karachi, not the device. The day rolls at 02:00,
  *   and the order window is judged against this clock rather than the phone's.
  * - **Order no.** — deliberately not generated here. The server assigns it, and
