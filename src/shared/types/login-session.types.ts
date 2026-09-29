@@ -47,6 +47,19 @@ import type { UserRole } from './user.types';
  */
 export type LoginSessionState = 'active' | 'idle' | 'ended' | 'expired' | 'revoked';
 
+/**
+ * Whether the sign-in this row records succeeded.
+ *
+ * Always 'SUCCESS' today, and deliberately still a field: `login_sessions` only
+ * ever receives a row AFTER Supabase has issued a session, so every row in it is
+ * a successful login by construction. A refused attempt has no session and is
+ * recorded in `login_attempts` (the Failed Logins board) instead. Carrying the
+ * status on the row anyway lets the Login History table show "Login status" and
+ * "Session status" as the two different facts they are — one is whether the
+ * password was right, the other is whether the tab is still open.
+ */
+export type LoginStatus = 'SUCCESS';
+
 /** Coarse device class, parsed from the user agent at insert. */
 export type LoginDeviceType = 'desktop' | 'mobile' | 'tablet' | 'bot' | 'unknown';
 
@@ -71,16 +84,39 @@ export interface LoginSession {
   /** Mountain Bakes staff ID, `MBU-000125`. Null only for a pre-migration-98 row. */
   userCode: string | null;
   /**
-   * The activated account — the address the session actually authenticated as,
-   * read off the verified token, never off a form.
+   * The activated account — the email address the session actually
+   * authenticated as. Read off the VERIFIED Supabase Auth token on the server,
+   * never off a form or a request body, and a different fact from `userCode`:
+   * the code is the Mountain Bakes staff ID, this is the sign-in address. The
+   * two are never substituted for each other.
    *
-   * MAY ARRIVE MASKED (`u***@example.com`). The API decides per caller: an admin
-   * reading the detail view gets the real address, every other reader gets it
-   * masked. So this field is for display only — never compare two of them, and
-   * never use one as a key. `userCode` is the key.
+   * MAY ARRIVE MASKED (`u***@example.com`). The API decides per caller: a super
+   * admin sees every address in full, and every caller sees the address on
+   * their OWN sessions in full; a non-admin reading somebody else's row (no
+   * endpoint offers that today) would get it masked. So this field is for
+   * display only — never compare two of them, and never use one as a key.
+   * `userCode` is the key.
+   *
+   * Empty string when the row never recorded one. The UI shows "Not recorded"
+   * for that — never the staff code in its place.
    */
   userEmail: string;
-  /** True when `userEmail` above was masked before it was sent. */
+  /**
+   * The Google account the session was signed in WITH, when it was signed in
+   * with Google; null otherwise. A different fact from `userEmail` again: that
+   * is the Mountain Bakes account, this is the Google identity that vouched
+   * for it at sign-in — arifsiksavi@gmail.com beside ahmed@mountainbakes.com.
+   *
+   * Filled by the API from the verified token's identities, only for a session
+   * whose `amr` claim says it was opened through OAuth. A password login, an
+   * account with no Google identity, or a project with the Google provider off
+   * all give null — shown as "Not recorded". A website cannot read which Google
+   * account the browser profile is signed into, and nothing here pretends to.
+   *
+   * Masked under the same rule as `userEmail` (see `emailMasked`).
+   */
+  browserEmail: string | null;
+  /** True when `userEmail` / `browserEmail` above were masked before being sent. */
   emailMasked: boolean;
   userName: string;
   userRole: UserRole | null;
@@ -130,6 +166,14 @@ export interface LoginSession {
   countryCode: string | null;
   city: string | null;
   region: string | null;
+  /**
+   * Neighbourhood / suburb — 'Manzoor Colony' — from reverse-geocoding the
+   * device's own position. Present ONLY when `locationSource` is 'DEVICE_GPS';
+   * an IP lookup places an address in the middle of a city at best, and a
+   * neighbourhood written from it would be invented. The UI composes
+   * `area, city, country` and drops whatever is null.
+   */
+  area: string | null;
   /** IANA zone of where the IP resolves, e.g. 'Asia/Karachi'. Not the browser's own. */
   timezone: string | null;
   /**
@@ -177,6 +221,8 @@ export interface LoginSession {
   // ── Derived server-side, so every client agrees ──
   /** See LoginSessionState. Computed on read from endedAt / revokedAt / lastSeenAt. */
   state: LoginSessionState;
+  /** Whether the sign-in succeeded. Always 'SUCCESS' here — see `LoginStatus`. */
+  loginStatus: LoginStatus;
   /** `coalesce(endedAt, lastSeenAt) - loginAt`, in milliseconds. Never stored. */
   durationMs: number;
   /**

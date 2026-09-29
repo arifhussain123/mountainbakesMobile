@@ -22,8 +22,10 @@ import type { ProductionStockFigures } from './production-ops.types';
 // referenceSnapshot is null and the failure detail lives in `message`.
 //
 // 'cash_transfer' is a branch's cash deposit (cash_transfers.transfer_no, CT-).
-// Always `readOnly` here: the transfer is corrected or deleted on the Finance
-// Help Desk (migration 120), which owns its RV- receipt in the ledger.
+// Its amount, method and note are corrected through PATCH /:id/figures, which
+// calls amend_finance_record — the Finance Help Desk's function — so an
+// approved deposit's RV- receipt is reversed and re-posted with it. A rejected
+// deposit is final and read-only.
 export type SupportReferenceType = 'sale' | 'demand' | 'expense' | 'stock' | 'cash_transfer' | 'system';
 export type SupportTicketStatus = 'open' | 'resolved' | 'rejected';
 
@@ -120,8 +122,8 @@ export interface SupportReference {
    *                          edit_sale_items reconciles branch `stock`. Applying
    *                          one would invent branch inventory (the sentinel
    *                          branch has no stock rows) and leave the pool wrong.
-   *   · cash deposits      — CT- transfers are corrected on the Finance Help
-   *                          Desk, which reverses or amends their ledger receipt.
+   *   · rejected deposits  — a rejected CT- transfer is final; nothing was
+   *                          booked, and the branch records a new one.
    *   · rejected/cancelled — a demand that was refused committed to nothing and
    *     demands             moved nothing; editing its lines would produce a
    *                          document claiming otherwise. correct_production_order
@@ -184,6 +186,13 @@ export interface SupportReference {
    * Support Center can warn the admin that an edit will move real stock.
    */
   demandStockMoved?: boolean;
+  /**
+   * For cash deposit references: whether the deposit is approved, i.e. has an
+   * RV- receipt in the Daily Ledger. Changing its amount or method then
+   * reverses that receipt and posts a fresh one, which the Support Center
+   * warns about before applying.
+   */
+  cashTransferApproved?: boolean;
   /** Internal uuid of the underlying row, used when applying a figure edit. */
   entityId: string;
   /** For expenses: which table the row lives in, so the figure edit hits the right one. */
