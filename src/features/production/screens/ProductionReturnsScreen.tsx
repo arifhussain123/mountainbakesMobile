@@ -36,7 +36,7 @@ import { contentColumn, space } from '@/common/theme/spacing';
  * branch returns stopped being auto-approved. A branch return now takes the
  * units off the shop's balance as it is raised and waits here for a decision:
  *
- *   accept  the units go into the production pool
+ *   accept  the units go into Branch Return Stock (never production stock)
  *   reject  the units go back onto the branch's balance
  *
  * Neither is free, and a mis-tapped reject is no longer something the branch can
@@ -121,11 +121,11 @@ function confirmMessage(r: ProductionReturn, status: 'accepted' | 'rejected'): s
   const fromBranch = r.source === 'branch';
   if (status === 'accepted') {
     return fromBranch
-      ? `The units go into the production pool. ${r.branchName} has already had them taken off their balance, so nothing changes at the branch. This cannot be undone from here.`
-      : `The units go into the production pool and out of ${r.branchName}'s stock straight away. This cannot be undone from here.`;
+      ? `The units go into Branch Return Stock, not production stock. ${r.branchName} has already had them taken off their balance, so nothing changes at the branch. This cannot be undone from here.`
+      : `The units go into Branch Return Stock, not production stock, and out of ${r.branchName}'s stock straight away. This cannot be undone from here.`;
   }
   return fromBranch
-    ? `The units go back onto ${r.branchName}'s balance and nothing enters the production pool. The branch cannot change the return afterwards. This cannot be undone from here.`
+    ? `The units go back onto ${r.branchName}'s balance and nothing enters return stock. The branch cannot change the return afterwards. This cannot be undone from here.`
     : `The return is refused. No stock moves. This cannot be undone from here.`;
 }
 
@@ -147,7 +147,7 @@ export function ProductionReturnsScreen(): React.ReactElement {
     mutationFn: (input: { id: string; status: 'accepted' | 'rejected' }) =>
       reviewProductionReturn(input.id, input.status),
     onSuccess: () => {
-      // Every outcome moves stock somewhere — the pool on an accept, the branch
+      // Every outcome moves stock somewhere — return stock on an accept, the branch
       // ledger on a reject — so both are stale the moment this returns.
       // Invalidating the return list alone would leave the Stock tab showing a
       // balance that has moved.
@@ -197,7 +197,7 @@ export function ProductionReturnsScreen(): React.ReactElement {
             currency={false}
             icon="stock"
             tone="info"
-            subtitle="to put back"
+            subtitle="awaiting review"
           />
         </MBStatGrid>
 

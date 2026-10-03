@@ -32,8 +32,9 @@ import { useSyncStore } from '@/state/syncStore';
  * ---------------------------------------------------------------------------
  * What the server does with it, and why the result is not "saved"
  * ---------------------------------------------------------------------------
- * `POST /api/stock/return` applies immediately — branch balance down, production
- * pool up — and commits **product by product**, not as one transaction. The
+ * `POST /api/stock/return` applies immediately — branch balance down; the return
+ * then waits for Production, and on approval lands in Branch Return Stock, never
+ * in production stock — and commits **product by product**, not as one transaction. The
  * route pre-validates the whole batch against balances first, so the realistic
  * failure (returning more than is on hand) is caught before anything moves; a
  * sale landing between validate and commit can still fail a later line, and its

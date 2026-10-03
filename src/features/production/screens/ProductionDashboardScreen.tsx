@@ -193,6 +193,13 @@ export function ProductionDashboardScreen(): React.ReactElement {
             <MBDataRow label="Open demand" value={formatQty(cards?.totalDemandQty)} />
           </MBCard>
 
+          {/* Its own card, not a row of Pool: returned goods are a separate
+              inventory and are not counted in available production stock. */}
+          <MBCard>
+            <Text style={[theme.type.h3, { color: theme.colors.text }]}>Branch return stock</Text>
+            <MBDataRow label="Returned goods on hand" value={formatQty(cards?.branchReturnStock)} />
+          </MBCard>
+
           {demandTrend.length > 0 ? (
             <MBCard>
               <Text style={[theme.type.h3, { color: theme.colors.text }]}>Demand by day</Text>

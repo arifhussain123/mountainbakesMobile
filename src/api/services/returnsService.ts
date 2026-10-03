@@ -10,7 +10,7 @@ import { api } from '../client';
  * `production_returns` holds every return, whoever raised it. A branch handing
  * unsold stock back posts `POST /api/stock/return`; production can also record
  * one against a branch. Either way the row sits `pending` until the counter
- * accepts or rejects it — accepting moves the units into the pool, rejecting
+ * accepts or rejects it — accepting moves the units into Branch Return Stock (not production stock), rejecting
  * puts them back on the branch's balance.
  *
  * The two routers differ in **who** and **how far back**:

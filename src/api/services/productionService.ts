@@ -34,6 +34,8 @@ export interface ProductionOverviewCards {
   totalProducts: number;
   totalDemandQty: number;
   availableProductionStock: number;
+  /** Branch Return Stock on hand. A separate inventory — never part of the figure above. */
+  branchReturnStock: number;
 }
 
 export interface ProductionOverview {
