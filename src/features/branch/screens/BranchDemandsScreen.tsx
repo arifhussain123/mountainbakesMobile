@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import {
   MBAccountButton,
+  MBButton,
   MBCard,
   MBEmptyState,
   MBFab,
@@ -230,6 +231,27 @@ export function BranchDemandsScreen(): React.ReactElement {
         />
       </View>
 
+      {/* The secondary action, and deliberately not a second FAB or a chip.
+
+          A Special Order is a different document from everything this list
+          shows — its own endpoint, its own SO number — so it is named in full
+          and kept apart from "New order", which stays the one obvious action.
+          It sits above the list rather than inside it so it is on screen in
+          all four states, including the two that draw no list at all. */}
+      <View style={[styles.secondary, { paddingHorizontal: theme.layout.screenPad }]}>
+        <Text style={[theme.type.caption, styles.flex, { color: theme.colors.textMuted }]}>
+          A one-off item made to order is not a demand.
+        </Text>
+        <MBButton
+          label="Special Order"
+          variant="secondary"
+          size="sm"
+          onPress={() => navigation.navigate('SpecialOrder')}
+          accessibilityHint="Raises a Special Order, sent straight to Production"
+          testID="special-order"
+        />
+      </View>
+
       {orders.isPending ? (
         <MBSkeletonList rows={6} />
       ) : orders.isError ? (
@@ -442,6 +464,7 @@ function ListSeparator(): React.ReactElement {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  secondary: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 8 },
   listContent: { paddingHorizontal: 16, paddingVertical: 16 },
   separator: { height: 8 },
   row: { flexDirection: 'row', gap: 12, alignItems: 'center' },

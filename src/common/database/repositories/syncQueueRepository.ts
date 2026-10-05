@@ -19,7 +19,8 @@ export type SyncEntity =
   | 'order'
   | 'expense'
   | 'stock_movement'
-  | 'production_order';
+  | 'production_order'
+  | 'special_order';
 
 export type SyncAction = 'create' | 'update';
 
@@ -220,7 +221,12 @@ export async function markSyncing(id: number, now = Date.now()): Promise<void> {
   );
 }
 
-/** Which local table mirrors each entity. Mirrors `offlineWriteRepository`. */
+/**
+ * Which local table mirrors each entity. Mirrors `offlineWriteRepository`.
+ *
+ * `order` and `special_order` are absent on purpose — neither has a mirror, so
+ * every function below that reads this map moves the queue row alone for them.
+ */
 const DOMAIN_TABLE: Partial<Record<SyncEntity, string>> = {
   sale: 'local_sales',
   expense: 'local_expenses',

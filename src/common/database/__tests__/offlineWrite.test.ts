@@ -152,6 +152,27 @@ describe('writeOffline', () => {
     expect(fake.inTransaction[1]!.sql).toContain('INSERT INTO sync_queue');
   });
 
+  /**
+   * A Special Order has no mirror table, so the queue row is the whole of the
+   * write — still inside the one transaction, and carrying the payload itself.
+   */
+  it('queues a special order as a queue row alone', async () => {
+    const payload = {
+      items: [{ name: 'Birthday cake', qty: 3, amount: 1500, description: '', attachmentIds: [] }],
+    };
+    const result = await writeOffline({ entity: 'special_order', branchId: 'b-1', payload });
+
+    expect(fake.transactionCount).toBe(1);
+    expect(fake.outsideTransaction).toHaveLength(0);
+    expect(fake.inTransaction).toHaveLength(1);
+
+    const queueRow = fake.inTransaction[0]!;
+    expect(queueRow.sql).toContain('INSERT INTO sync_queue');
+    expect(queueRow.params[0]).toBe(result.clientOperationId);
+    expect(queueRow.params[1]).toBe('special_order');
+    expect(JSON.parse(String(queueRow.params[3]))).toEqual(payload);
+  });
+
   it('records a dependency so ordering is preserved', async () => {
     const result = await writeOffline({
       entity: 'sale',
@@ -176,5 +197,17 @@ describe('writeOffline', () => {
 
     // Orders sync before sales.
     expect(Number(orderPriority)).toBeLessThan(Number(salePriority));
+
+    // A Special Order drains right after a demand, and before any sale.
+    const priorityOf = async (entity: 'production_order' | 'special_order') => {
+      fake = fakeDb();
+      (getDb as jest.Mock).mockReturnValue(fake.db);
+      await writeOffline({ entity, branchId: 'b-1', payload: {} });
+      return Number(fake.inTransaction.at(-1)!.params[6]);
+    };
+    const demandPriority = await priorityOf('production_order');
+    const specialPriority = await priorityOf('special_order');
+    expect(specialPriority).toBeGreaterThan(demandPriority);
+    expect(specialPriority).toBeLessThan(Number(salePriority));
   });
 });

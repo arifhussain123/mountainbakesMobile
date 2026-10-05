@@ -69,6 +69,19 @@ describe('notification routing', () => {
     });
   });
 
+  /**
+   * A Special Order is not a demand and has no detail screen here, so its push
+   * opens the Orders tab rather than `OrderDetail` with an id that cannot load.
+   */
+  it('routes a Special Order push to the Orders tab, not to an order detail', () => {
+    expect(
+      routeForNotification(profileFor('branch_manager'), { type: 'special_order', orderId: 'so1' }),
+    ).toEqual({ tab: 'Orders' });
+    expect(
+      routeForNotification(profileFor('accountant'), { type: 'special_order', orderId: 'so1' }),
+    ).toBeNull();
+  });
+
   it('ignores an unrecognised payload type', () => {
     expect(routeForNotification(profileFor('super_admin'), { type: 'promo' })).toBeNull();
     expect(routeForNotification(profileFor('super_admin'), {})).toBeNull();

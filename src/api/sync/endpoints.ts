@@ -37,6 +37,14 @@ const CREATE: Record<SyncEntity, EntityEndpoint> = {
     priority: 20,
     businessDateField: 'businessDate',
   },
+  // Its own document on its own endpoint — never a demand. `/api/production-orders`
+  // refuses a non-empty `specialItems`, so this must not be folded into the row above.
+  special_order: {
+    path: '/api/special-orders',
+    method: 'post',
+    priority: 25,
+    businessDateField: 'businessDate',
+  },
   sale: { path: '/api/orders/pos', method: 'post', priority: 30, businessDateField: 'businessDate' },
   expense: { path: '/api/expenses', method: 'post', priority: 40, businessDateField: 'date' },
   stock_movement: {
@@ -57,6 +65,7 @@ const CREATE: Record<SyncEntity, EntityEndpoint> = {
  *   POST /api/orders, /api/orders/pos   `{ id, orderNumber, … }`
  *   POST /api/expenses                  `{ id }`
  *   POST /api/production-orders         `{ id }`
+ *   POST /api/special-orders            `{ id, orderNumber }`
  *   POST /api/stock/return              `{ ids: [...] }` — a return commits one
  *                                       row per product, so the first id is the
  *                                       handle; the queue row is the operation.

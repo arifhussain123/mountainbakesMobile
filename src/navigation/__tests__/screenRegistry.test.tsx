@@ -9,7 +9,13 @@ jest.mock('@/common/hooks/useExportReport', () => ({
   useExportReport: () => ({ exportReport: jest.fn(), isExporting: false, error: null }),
 }));
 
-import { resolveMoreScreen, resolveNewSaleScreen, resolveTabScreen } from '../screenRegistry';
+import {
+  resolveCreateOrderScreen,
+  resolveMoreScreen,
+  resolveNewSaleScreen,
+  resolveSpecialOrderScreen,
+  resolveTabScreen,
+} from '../screenRegistry';
 
 /**
  * (role, route) → component.
@@ -165,5 +171,26 @@ describe('resolveTabScreen', () => {
     expect(resolveNewSaleScreen('production_user')).toBeNull();
     expect(resolveNewSaleScreen('super_admin')).toBeNull();
     expect(resolveNewSaleScreen('finance_admin')).toBeNull();
+  });
+});
+
+describe('resolveSpecialOrderScreen', () => {
+  /**
+   * `POST /api/special-orders` is a branch endpoint. The registry decides
+   * whether the `orders/special` route exists for a role at all, so a deep link
+   * cannot hand the form to an account the server would refuse.
+   */
+  it('gives the Special Order form to a branch and to nobody else', () => {
+    expect(resolveSpecialOrderScreen('branch_manager')).not.toBeNull();
+    expect(resolveSpecialOrderScreen('production_user')).toBeNull();
+    expect(resolveSpecialOrderScreen('super_admin')).toBeNull();
+    expect(resolveSpecialOrderScreen('finance_admin')).toBeNull();
+  });
+
+  /** Its own document, so its own screen — never the demand form in a mode. */
+  it('keeps it apart from the demand form', () => {
+    expect(resolveSpecialOrderScreen('branch_manager')).not.toBe(
+      resolveCreateOrderScreen('branch_manager'),
+    );
   });
 });

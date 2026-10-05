@@ -7,5 +7,6 @@ export { ClosingScreen } from './ClosingScreen';
 export { ExpensesScreen } from './ExpensesScreen';
 export { NewOrderScreen } from './NewOrderScreen';
 export { NewSaleScreen } from './NewSaleScreen';
+export { SpecialOrderScreen } from './SpecialOrderScreen';
 export { SalesScreen, summariseDay, matchesSale } from './SalesScreen';
 export type { PaymentTotal, ProductTotal, DaySummary } from './SalesScreen';

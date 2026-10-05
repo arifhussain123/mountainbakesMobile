@@ -80,4 +80,30 @@ describe('writeOutcomeCopy', () => {
     expect(copy.detail).toMatch(/Your return is stored on this device/);
     expect(copy.detail).toMatch(/The stock has not moved yet\./);
   });
+
+  /**
+   * A write raised beside another kind of write names itself in the queued
+   * title. Everything else about the queued case — the tone, the sentence, the
+   * status — is unchanged, and it still may not claim to have been sent.
+   */
+  it('lets a subject name itself in the queued title, and only there', () => {
+    const subject: WriteSubject = {
+      noun: 'Special Order',
+      confirmed: 'Special Order sent to Production.',
+      queuedTitle: 'Special Order Saved Offline',
+      refusedNote: 'do not send it again',
+    };
+
+    const queued = writeOutcomeCopy('queued', subject);
+    expect(queued.tone).toBe('queued');
+    expect(queued.title).toBe('Special Order Saved Offline');
+    expect(queued.title).not.toMatch(/sent|submitted/i);
+    expect(queued.detail).toBe(
+      'Your Special Order is stored on this device and syncs on its own when the connection returns.',
+    );
+    expect(queued.status).toBe('Waiting to sync');
+
+    expect(writeOutcomeCopy('synced', subject).title).toBe('Special Order sent to Production.');
+    expect(writeOutcomeCopy('refused', subject).title).toBe('Not accepted');
+  });
 });

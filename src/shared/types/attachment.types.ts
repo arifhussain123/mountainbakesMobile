@@ -18,12 +18,20 @@ export const ATTACHMENT_ENTITIES = [
   'production_order_demand',
   'production_order_verification',
   'production_order_special_item',
+  // Special Orders (migration 142): the branch's proof of the finished item,
+  // bound to the special ORDER. Deliberately not the entity the request photo
+  // uses, so the two can never be confused or overwrite one another.
+  'special_order_verification',
   // Finance Help Desk (migration 94): the supporting document a raiser attaches
   // to a query, and to each reply in its conversation. Two entities rather than
   // one — a photo posted mid-thread belongs to the message that explains it, and
   // flattening both onto the query would lose which reply it arrived with.
   'finance_ticket',
   'finance_ticket_message',
+  // Cash transfers (migration 118): the photo of the slip or handover a branch
+  // attaches when it records money sent to the company. Read by Finance from
+  // the transfer and again from the RV- voucher it becomes.
+  'cash_transfer',
 ] as const;
 
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number];
@@ -39,8 +47,10 @@ export const ATTACHMENT_ENTITY_LABELS: Record<AttachmentEntity, string> = {
   production_order_demand: 'Demand',
   production_order_verification: 'Delivery verification',
   production_order_special_item: 'Special order item',
+  special_order_verification: 'Special order verification',
   finance_ticket: 'Finance Help Desk query',
   finance_ticket_message: 'Help Desk reply',
+  cash_transfer: 'Branch cash transfer',
 };
 
 /**

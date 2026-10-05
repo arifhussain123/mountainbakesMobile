@@ -67,6 +67,8 @@ export type OrdersStackParamList = {
   OrdersList: undefined;
   OrderDetail: { orderId: string };
   CreateOrder: undefined;
+  /** A Special Order — its own document, raised from the demands list. Branch roles only. */
+  SpecialOrder: undefined;
   OrderPrintPreview: { orderId: string };
 };
 

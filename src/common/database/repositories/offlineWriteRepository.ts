@@ -123,6 +123,11 @@ export async function writeOffline(input: OfflineWriteInput): Promise<OfflineWri
      * this app either: a branch's "orders" are production demands, and customer
      * orders are raised on the web. A table for it would be a schema commitment
      * to a shape nothing has been designed against yet.
+     *
+     * `special_order` has no mirror either, and it DOES have a producer
+     * (`useCreateSpecialOrder`). No screen lists a branch's unsent Special
+     * Orders, so the queue row below is the durable local record — it carries
+     * the whole payload and is never deleted on failure.
      */
 
     await tx.execute(

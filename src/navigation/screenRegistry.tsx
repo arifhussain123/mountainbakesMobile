@@ -8,6 +8,7 @@ import { ExpensesScreen } from '@/features/branch';
 import { ClosingScreen } from '@/features/branch';
 import { DiscountsScreen } from '@/features/discounts';
 import { NewOrderScreen } from '@/features/branch';
+import { SpecialOrderScreen } from '@/features/branch';
 import { SalesScreen } from '@/features/branch';
 import { NewSaleScreen } from '@/features/branch';
 import { AdminDashboardScreen } from '@/features/admin';
@@ -284,6 +285,16 @@ export function resolveMoreScreen(role: UserRole, route: MoreRouteName): ScreenC
 /** The branch create-order form, reached as a modal from OrdersStack. */
 export function resolveCreateOrderScreen(role: UserRole): ScreenComponent | null {
   return isBranchRole(role) ? NewOrderScreen : null;
+}
+
+/**
+ * The Special Order form, a second modal on OrdersStack.
+ *
+ * Branch roles only, like the demand form beside it — `POST /api/special-orders`
+ * is a branch endpoint, and Production's side of the workflow is not this screen.
+ */
+export function resolveSpecialOrderScreen(role: UserRole): ScreenComponent | null {
+  return isBranchRole(role) ? SpecialOrderScreen : null;
 }
 
 /**

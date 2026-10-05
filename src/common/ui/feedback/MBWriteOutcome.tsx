@@ -45,6 +45,12 @@ export interface WriteSubject {
   /** Shown verbatim when the server confirmed inside the drain. */
   confirmed: string;
   /**
+   * Replaces "Saved offline" as the queued title, for a write whose own name
+   * has to be in it — a Special Order raised beside a demand, where a bare
+   * "Saved offline" does not say which of the two is on the device.
+   */
+  queuedTitle?: string;
+  /**
    * An extra truth for the queued case, when "saved" could still be misread as
    * "done" — a stock return is saved but the units have not moved.
    */
@@ -85,7 +91,7 @@ export function writeOutcomeCopy(
 
   return {
     tone: 'queued',
-    title: 'Saved offline',
+    title: subject.queuedTitle ?? 'Saved offline',
     detail:
       `Your ${subject.noun} is stored on this device and syncs on its own when the connection returns.` +
       (subject.queuedNote ? ` ${subject.queuedNote}` : ''),

@@ -1,6 +1,11 @@
 import React from 'react';
 import { fireEvent, waitFor } from '@testing-library/react-native';
 
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn() }),
+}));
 jest.mock('@/api/services/productionService', () => ({
   getProductionOrders: jest.fn(),
   cancelProductionOrder: jest.fn(),
@@ -131,6 +136,31 @@ describe('BranchDemandsScreen', () => {
     // Through the card's own label, because the bare word "Approved" is also the
     // text of the chip that filters for it.
     expect(screen.getByLabelText('DMD-000102, Approved')).toBeTruthy();
+  });
+
+  /**
+   * A Special Order is a different document from a demand, so it is a second,
+   * separately named action — on screen whether or not there is a list, and
+   * never a replacement for "New order".
+   */
+  it('offers Special Order as its own action beside New order', async () => {
+    const screen = await renderScreen(<BranchDemandsScreen />);
+    await waitFor(() => expect(screen.getByText('DMD-000101')).toBeTruthy());
+
+    expect(screen.getByText('Special Order')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('special-order'));
+    expect(mockNavigate).toHaveBeenCalledWith('SpecialOrder');
+
+    await fireEvent.press(screen.getByTestId('new-demand'));
+    expect(mockNavigate).toHaveBeenLastCalledWith('CreateOrder');
+  });
+
+  it('still offers Special Order when there are no demands at all', async () => {
+    getOrders.mockResolvedValue([]);
+    const screen = await renderScreen(<BranchDemandsScreen />);
+
+    await waitFor(() => expect(screen.getByText('No demands')).toBeTruthy());
+    expect(screen.getByTestId('special-order')).toBeTruthy();
   });
 
   /** Only a demand Production has not touched can be withdrawn. */

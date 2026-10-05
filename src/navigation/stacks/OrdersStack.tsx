@@ -5,6 +5,7 @@ import { NAV_LABELS } from '../roleConfig';
 import {
   placeholderFor,
   resolveCreateOrderScreen,
+  resolveSpecialOrderScreen,
   resolveTabScreen,
   type ScreenComponent,
 } from '../screenRegistry';
@@ -29,6 +30,12 @@ export function makeOrdersStack(role: UserRole): React.ComponentType {
   const CreateOrder = resolveCreateOrderScreen(role);
   if (CreateOrder) {
     extra.push({ name: 'CreateOrder', component: CreateOrder, presentation: 'modal' });
+  }
+  // A separate document from a demand, so a separate route rather than a mode
+  // of `CreateOrder`. Registered for the same roles, presented the same way.
+  const SpecialOrder = resolveSpecialOrderScreen(role);
+  if (SpecialOrder) {
+    extra.push({ name: 'SpecialOrder', component: SpecialOrder, presentation: 'modal' });
   }
 
   /**

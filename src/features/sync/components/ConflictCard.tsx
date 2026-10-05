@@ -24,6 +24,7 @@ const ENTITY_LABEL: Record<string, string> = {
   expense: 'Expense',
   stock_movement: 'Stock return',
   production_order: 'Production order',
+  special_order: 'Special order',
 };
 
 export interface ConflictCardProps {

@@ -143,7 +143,7 @@ pending → syncing → synced
 `claimReady()` excludes any row whose `depends_on` has not reached `synced` —
 never send a dependent before its prerequisite exists. Ordering is `priority`
 then `created_at`; priority defaults per entity (orders 10 → production orders 20
-→ sales 30 → expenses 40 → stock 50).
+→ special orders 25 → sales 30 → expenses 40 → stock 50).
 
 **Nothing is ever deleted on failure.** A `failed` or `conflict` row is still the
 only copy of a transaction the server never accepted. Only `synced` rows are

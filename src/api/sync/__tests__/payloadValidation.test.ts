@@ -7,6 +7,7 @@ import {
 } from '@/shared/schemas/order.schemas';
 import { CreateProductionOrderSchema } from '@/shared/schemas/production-order.schemas';
 import { CreateBranchReturnSchema } from '@/shared/schemas/production-ops.schemas';
+import { CreateSpecialOrderSchema } from '@/shared/schemas/special-order.schemas';
 import { endpointFor } from '../endpoints';
 
 /**
@@ -244,6 +245,67 @@ describe('production demand', () => {
     };
     expect(CreateProductionOrderSchema.safeParse(packingOnly).success).toBe(true);
   });
+
+  /**
+   * The demand flow still sends `specialItems: []` explicitly, and that must
+   * keep validating now that a Special Order is its own document.
+   */
+  it('still accepts the empty specialItems the demand flow sends', () => {
+    const asQueued = { ...demand, packingItems: [], specialItems: [] };
+    expect(CreateProductionOrderSchema.safeParse(asQueued).success).toBe(true);
+  });
+});
+
+describe('special order', () => {
+  /** The shape `useCreateSpecialOrder` queues: rows only, and no `branchId`. */
+  const order = {
+    items: [
+      { name: 'Birthday cake', qty: 3, amount: 1500, description: 'Blue icing', attachmentIds: [] },
+    ],
+  };
+  const withLine = (line: Record<string, unknown>) => ({
+    items: [{ ...order.items[0], ...line }],
+  });
+
+  it('accepts what useCreateSpecialOrder queues', () => {
+    expect(CreateSpecialOrderSchema.safeParse(order).success).toBe(true);
+  });
+
+  it('accepts the optional required date the hook may add', () => {
+    expect(
+      CreateSpecialOrderSchema.safeParse({ ...order, requiredDate: '2026-08-20' }).success,
+    ).toBe(true);
+  });
+
+  /** A replacement made free of charge — required is not the same as non-zero. */
+  it('accepts an amount of 0 and refuses a missing one', () => {
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ amount: 0 })).success).toBe(true);
+
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ amount: undefined })).success).toBe(false);
+  });
+
+  it('refuses a negative amount or one with more than two decimals', () => {
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ amount: -1 })).success).toBe(false);
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ amount: 10.125 })).success).toBe(false);
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ amount: 10.12 })).success).toBe(true);
+  });
+
+  it('requires a name and a whole positive quantity', () => {
+    expect(CreateSpecialOrderSchema.safeParse(withLine({ name: '  ' })).success).toBe(false);
+    for (const qty of [0, -1, 1.5]) {
+      expect(CreateSpecialOrderSchema.safeParse(withLine({ qty })).success).toBe(false);
+    }
+  });
+
+  it('refuses an order with no rows', () => {
+    expect(CreateSpecialOrderSchema.safeParse({ items: [] }).success).toBe(false);
+  });
+
+  it('still validates once the business date is merged in, and keeps it', () => {
+    const field = endpointFor('special_order', 'create')!.businessDateField;
+    const parsed = CreateSpecialOrderSchema.safeParse({ ...order, [field]: BUSINESS_DATE });
+    expect(parsed.success && parsed.data.businessDate).toBe(BUSINESS_DATE);
+  });
 });
 
 /**
@@ -294,7 +356,13 @@ describe('business date', () => {
 describe('the merged payload the drain sends', () => {
   it('names the date field per endpoint', () => {
     expect(endpointFor('expense', 'create')!.businessDateField).toBe('date');
-    for (const entity of ['sale', 'order', 'production_order', 'stock_movement'] as const) {
+    for (const entity of [
+      'sale',
+      'order',
+      'production_order',
+      'special_order',
+      'stock_movement',
+    ] as const) {
       expect(endpointFor(entity, 'create')!.businessDateField).toBe('businessDate');
     }
   });

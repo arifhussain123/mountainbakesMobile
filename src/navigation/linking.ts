@@ -41,6 +41,7 @@ export const linkingConfig: LinkingOptions<AppTabParamList>['config'] = {
         OrdersList: 'orders',
         OrderDetail: 'orders/:orderId',
         CreateOrder: 'orders/new',
+        SpecialOrder: 'orders/special',
       },
     },
     Sales: { screens: { SalesList: 'sales', NewSale: 'sales/new' } },
@@ -157,6 +158,12 @@ export function routeForNotification(
       if (!isTabAvailable(profile, 'Orders')) return null;
       return { tab: 'Orders', screen: 'OrderDetail', params: { orderId: payload.orderId } };
     }
+    case 'special_order':
+      // A Special Order is not a demand and has no detail screen in this app, so
+      // the push opens the Orders tab rather than `OrderDetail` with an id that
+      // screen cannot resolve.
+      if (!isTabAvailable(profile, 'Orders')) return null;
+      return { tab: 'Orders' };
     case 'sync_failed':
       return { tab: 'More', screen: 'SyncCenter' };
     default:
