@@ -1336,15 +1336,69 @@ not prices.
 the only independent record Production gets of a delivery it can no longer
 inspect.
 
-This app has no attachment upload and no camera or image-picker dependency at
-all, so calling it would 400 every time. The demand card says so on the affected
-rows — *"Count this in on the web app to receive the stock"* — rather than
-offering a button that cannot work.
+The pieces it needs now exist, because the stock return needed them first: a
+camera / gallery picker (`react-native-image-picker`, behind
+`common/utils/image/returnPhoto.ts`), a multipart upload service
+(`api/services/attachmentsService.ts` against `/api/attachments`), and the
+`MBPhotoPicker` / `MBAttachmentThumb` / `MBImageViewer` components. **The verify
+screen itself is still not built**, so calling the endpoint from here would
+still 400 every time, and the demand card still says so on the affected rows —
+*"Count this in on the web app to receive the stock"* — rather than offering a
+button that cannot work.
 
-Building it means: an image-picker or camera dependency, Android camera and media
-permissions, a multipart upload service against `/api/attachments`, and then the
-verify screen. That is its own piece of work, and it is the one thing standing
-between this app and completing the production-order workflow end to end.
+What is left is the screen, and two decisions the return did not have to make:
+verification uses the receipt profile (`ATTACHMENT_*`, 2000px) rather than the
+return one (`RETURN_PHOTO_*`, 1280px), and it is a write about a record other
+people are acting on — whether it may be queued at all is the same question the
+production returns review answered with "no".
+
+### The return photo
+
+`StockReturnScreen` carries one **required** photo per return — per submission,
+not per product. `docs/offline-sync.md` ("Return photos") has the storage and
+drain account; what belongs here is how the screen behaves.
+
+- **The field is in the list footer, beside Reason**, for the reason Reason is:
+  it is form state the product rows never read, so choosing a photo re-renders
+  no memoised `ReturnLine`.
+- **`MBPhotoPicker` draws; the screen picks.** The component reports "camera" or
+  "gallery" and the screen calls `pickReturnPhoto`. That keeps `common/ui` free
+  of native modules and keeps the rule for what counts as an acceptable photo
+  with the form that has the rule.
+- **Nothing uploads on selection.** The photo is shrunk by the picker and held
+  as a local file until the return is confirmed.
+- **Required means blocked, with a reason.** *Return to production* is disabled
+  until a photo is chosen and the bar says *"Add a photo of the returned items
+  to continue."* — the field that unblocks it can be a screen and a half of
+  products away. The server would refuse a photo-less return with
+  `photo_required` anyway; offline, that refusal would arrive hours later as a
+  parked row.
+- **The confirm sheet shows the photo** as a thumbnail, next to the lines and
+  the business day: it is the last moment it can still be changed.
+- **A cancel is not an error.** Backing out of the camera changes nothing and
+  shows nothing. A refused permission shows *"Camera permission is required to
+  capture a return photo."* with an **Open settings** action; a photo that
+  cannot be used shows *"Unable to process this photo. Please try another
+  image."* The picker never throws into the screen.
+- **On `synced` the photo clears with the rest of the form.** On `queued` and
+  `refused` it stays with its lines, as they do, and the queued sentence says
+  the return *and its photo* are saved offline.
+
+The two returns lists (`BranchReturnsScreen`, `ProductionReturnsScreen`) show a
+56px `MBAttachmentThumb` on rows that have a photo and none on rows that do not
+— returns older than the rule, and ones Production recorded itself. Tapping it
+opens `MBImageViewer` with the return's quantity and product, a short
+reference, the branch, the business day and time, and the reason.
+
+The thumbnail's source is keyed on `photo.id`, not on `photo.url`: the URL is
+re-signed on every fetch, so handing each new one to `<Image>` would re-download
+and blank every thumbnail on every pull-to-refresh. `stableAttachmentUri` keeps
+the first URL seen per id for 45 minutes (inside the one-hour signature) and
+adopts the fresh one immediately if a load fails. The cache is in memory only —
+a signed URL is never persisted.
+
+There is no return *detail* screen, and the viewer is not one: it is a modal
+over the list, and it shows a photo, not a record to act on.
 
 ## Not built, and what it needs
 

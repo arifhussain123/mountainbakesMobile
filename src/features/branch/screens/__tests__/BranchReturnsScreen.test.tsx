@@ -231,4 +231,54 @@ describe('BranchReturnsScreen', () => {
     // reader would take for a refund.
     expect(screen.queryByText(/Rs\./)).toBeNull();
   });
+
+  /**
+   * The photo the branch took, on the row it belongs to.
+   *
+   * Only where there is one: returns from before the rule, and ones Production
+   * recorded itself, have none, and an empty frame there would read as a photo
+   * that failed to load.
+   */
+  describe('return photo', () => {
+    const PHOTO = {
+      id: 'att-1',
+      entity: 'branch_return',
+      entityId: null,
+      url: 'https://storage.test/att-1?sig=1',
+      mimeType: 'image/jpeg',
+      sizeBytes: 148000,
+      width: 1280,
+      height: 960,
+      uploadedBy: 'u1',
+      uploadedByName: 'Saddar',
+      createdAt: '2026-08-25T16:00:00.000Z',
+    };
+
+    it('shows no thumbnail on a return without a photo', async () => {
+      const screen = await renderScreen(<BranchReturnsScreen />);
+
+      await waitFor(() => expect(screen.getByTestId('return-r1')).toBeTruthy());
+      expect(screen.queryByTestId('return-photo-r1')).toBeNull();
+    });
+
+    it('opens the photo with the return it belongs to', async () => {
+      getReturns.mockResolvedValue([
+        { ...RETURN, createdAt: '2026-08-25T16:05:00.000Z', photo: PHOTO } as ProductionReturn,
+      ]);
+      const screen = await renderScreen(<BranchReturnsScreen />);
+      await waitFor(() => expect(screen.getByTestId('return-photo-r1')).toBeTruthy());
+
+      await fireEvent.press(screen.getByTestId('return-photo-r1'));
+
+      await waitFor(() => expect(screen.getByTestId('return-photo-viewer-image')).toBeTruthy());
+      expect(screen.getByTestId('return-photo-viewer-image').props.source).toEqual({
+        uri: PHOTO.url,
+      });
+      expect(screen.getByText('12 × Cream Puff')).toBeTruthy();
+      expect(screen.getByText('Committee Chowk')).toBeTruthy();
+      expect(screen.getByText('Reason: Unsold at close')).toBeTruthy();
+      // 16:05 UTC is 21:05 in Karachi.
+      expect(screen.getByText(/25 Aug.*21:05/)).toBeTruthy();
+    });
+  });
 });

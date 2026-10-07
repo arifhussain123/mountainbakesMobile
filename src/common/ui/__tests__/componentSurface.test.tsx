@@ -57,6 +57,9 @@ const REQUIRED = [
   // The 44px stepper with a typed field, shared by the new-order table and
   // both tills' cart lines.
   'MBQtyStepper',
+  'MBPhotoPicker',
+  'MBAttachmentThumb',
+  'MBImageViewer',
 ] as const;
 
 describe('component surface', () => {

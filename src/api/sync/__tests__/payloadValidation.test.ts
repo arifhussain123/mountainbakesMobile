@@ -196,6 +196,45 @@ describe('stock return', () => {
     expect(CreateBranchReturnSchema.safeParse(payload).success).toBe(true);
   });
 
+  /**
+   * What the drain actually POSTS for a return with a photo: the queued payload
+   * with `localPhoto` stripped and the uploaded attachment's id filled in.
+   */
+  it('accepts the body the drain sends once the photo is uploaded', () => {
+    const body = {
+      items: [{ productId: 'p-1', qty: 3 }],
+      reason: 'Unsold at close',
+      attachmentIds: ['7f0c1a52-9d0e-4b7a-8a53-0a4f6d1c2b3e'],
+      businessDate: BUSINESS_DATE,
+    };
+    const parsed = CreateBranchReturnSchema.safeParse(body);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.attachmentIds).toEqual(body.attachmentIds);
+  });
+
+  it('allows one photo per return, not one per product', () => {
+    const two = {
+      items: [{ productId: 'p-1', qty: 3 }],
+      attachmentIds: [
+        '7f0c1a52-9d0e-4b7a-8a53-0a4f6d1c2b3e',
+        '0b9d7c66-3f4e-4c1d-9a7b-5e2f8a1c4d6f',
+      ],
+    };
+    expect(CreateBranchReturnSchema.safeParse(two).success).toBe(false);
+  });
+
+  /**
+   * A return queued by a build that predates the photo has no `attachmentIds`
+   * at all. The SCHEMA must still pass it — the route is what refuses it, by
+   * name (`photo_required`) — or it would park as malformed with nothing a
+   * person could act on.
+   */
+  it('still parses a photo-less return queued by an older build', () => {
+    const legacy = { items: [{ productId: 'p-1', qty: 3 }], reason: '' };
+    const parsed = CreateBranchReturnSchema.safeParse(legacy);
+    expect(parsed.success && parsed.data.attachmentIds).toEqual([]);
+  });
+
   it('requires at least one line', () => {
     expect(CreateBranchReturnSchema.safeParse({ items: [] }).success).toBe(false);
   });

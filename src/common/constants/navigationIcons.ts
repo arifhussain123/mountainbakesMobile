@@ -30,6 +30,7 @@ import Boxes from 'lucide-react-native/icons/boxes';
 import Building2 from 'lucide-react-native/icons/building-2';
 import ChartColumn from 'lucide-react-native/icons/chart-column';
 import Check from 'lucide-react-native/icons/check';
+import Camera from 'lucide-react-native/icons/camera';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
@@ -44,6 +45,9 @@ import Ellipsis from 'lucide-react-native/icons/ellipsis';
 import Factory from 'lucide-react-native/icons/factory';
 import FileText from 'lucide-react-native/icons/file-text';
 import Funnel from 'lucide-react-native/icons/funnel';
+import ImageIcon from 'lucide-react-native/icons/image';
+import ImageOff from 'lucide-react-native/icons/image-off';
+import Images from 'lucide-react-native/icons/images';
 import House from 'lucide-react-native/icons/house';
 import LayoutGrid from 'lucide-react-native/icons/layout-grid';
 import LifeBuoy from 'lucide-react-native/icons/life-buoy';
@@ -153,6 +157,14 @@ export const ICONS = {
   // `trendFlat` even though both draw Minus: the two are unrelated meanings,
   // and a later change to either must not silently move the other.
   remove: Minus,
+  // Photo attachments. `camera` and `gallery` are the two ways in; `image` is
+  // the placeholder a thumbnail shows while it loads and `imageBroken` what it
+  // shows when it cannot — two glyphs, because "not here yet" and "not coming"
+  // are different things to tell someone looking for proof of a return.
+  camera: Camera,
+  gallery: Images,
+  image: ImageIcon,
+  imageBroken: ImageOff,
   chevron: ChevronRight,
   // Disclosure. Two static glyphs rather than one rotated on a timer: the
   // direction IS the state ("there is more below" / "it is open"), and a

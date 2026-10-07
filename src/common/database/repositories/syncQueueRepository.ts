@@ -602,3 +602,43 @@ export async function reissueOperation(
     }
   });
 }
+
+/**
+ * Rewrite a queued operation's payload in place, keeping its identity.
+ *
+ * Unlike `reissueOperation` this changes NOTHING else: same
+ * `client_operation_id`, same status, same attempt count, same business date.
+ * It exists for one job — a pre-send step that has just obtained something the
+ * request must carry on every later attempt. The return photo is the case: the
+ * upload returns an attachment id, and that id has to be on the stored row
+ * before the return is posted, or a retry after an ambiguous failure would
+ * upload a second photo and send a different body under the same
+ * `Idempotency-Key` (which the server refuses as a mismatch).
+ *
+ * The domain row's copy of the payload moves in the same transaction, so the
+ * two never describe different requests.
+ */
+export async function updatePayload(
+  id: number,
+  operation: { entity: SyncEntity; clientOperationId: string },
+  payload: unknown,
+  now = Date.now(),
+): Promise<void> {
+  const db = getDb();
+  const table = DOMAIN_TABLE[operation.entity];
+  const payloadJson = JSON.stringify(payload);
+
+  await db.transaction(async tx => {
+    await tx.execute(`UPDATE sync_queue SET payload = ?, updated_at = ? WHERE id = ?`, [
+      payloadJson,
+      now,
+      id,
+    ]);
+    if (table) {
+      await tx.execute(
+        `UPDATE ${table} SET payload = ?, updated_at = ? WHERE client_operation_id = ?`,
+        [payloadJson, now, operation.clientOperationId],
+      );
+    }
+  });
+}

@@ -4,16 +4,19 @@ import { FlashList } from '@shopify/flash-list';
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  MBAttachmentThumb,
   MBCard,
   MBEmptyState,
   MBErrorState,
   MBFilterChips,
   MBHeader,
+  MBImageViewer,
   MBSkeletonList,
   MBStatCard,
   MBStatGrid,
   MBStatusTag,
   MBSyncStatus,
+  stableAttachmentUri,
 } from '@/common/ui';
 import { getBranchReturns } from '@/api/services/returnsService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
@@ -24,6 +27,7 @@ import { useTheme } from '@/common/theme/ThemeProvider';
 import { businessDateLabel } from '@/common/helpers/businessDay';
 import { formatQty } from '@/common/utils/money';
 import { dataAsOfFrom } from '@/common/helpers/dataAsOf';
+import { returnPhotoCaptions } from '@/common/helpers/returnPhotoCaptions';
 import { contentColumn, space } from '@/common/theme/spacing';
 
 /**
@@ -223,9 +227,24 @@ export function BranchReturnsScreen(): React.ReactElement {
     [all, filter],
   );
 
+  /**
+   * The return whose photo is open, or null.
+   *
+   * The ROW is held rather than its photo URL: the viewer's caption is built
+   * from the return, and the URL it shows is resolved through the same
+   * id-keyed cache the thumbnail used, so opening it does not download the
+   * picture a second time under a freshly signed address.
+   */
+  const [viewing, setViewing] = useState<ProductionReturn | null>(null);
+
+  // `setViewing` is stable, so this is one function for the life of the screen
+  // and `ReturnRow`'s memoisation survives it — the same reason `StockReturn`
+  // hands its rows a whole setter rather than a closure per row.
+  const openPhoto = useCallback((row: ProductionReturn) => setViewing(row), []);
+
   const renderItem = useCallback(
-    ({ item }: { item: ProductionReturn }) => <ReturnRow row={item} />,
-    [],
+    ({ item }: { item: ProductionReturn }) => <ReturnRow row={item} onOpenPhoto={openPhoto} />,
+    [openPhoto],
   );
 
   return (
@@ -351,6 +370,15 @@ export function BranchReturnsScreen(): React.ReactElement {
           }
         />
       )}
+
+      <MBImageViewer
+        visible={viewing !== null}
+        uri={viewing?.photo ? stableAttachmentUri(viewing.photo.id, viewing.photo.url) : null}
+        onClose={() => setViewing(null)}
+        title="Return photo"
+        captions={viewing ? returnPhotoCaptions(viewing) : []}
+        testID="return-photo-viewer"
+      />
     </View>
   );
 }
@@ -370,11 +398,15 @@ function ListSeparator(): React.ReactElement {
  */
 const ReturnRow = React.memo(function ReturnRowView({
   row,
+  onOpenPhoto,
 }: {
   row: ProductionReturn;
+  /** The whole row, so the screen keeps one stable handler for the list. */
+  onOpenPhoto: (row: ProductionReturn) => void;
 }): React.ReactElement {
   const theme = useTheme();
   const status = STATUS_LABEL[row.status] ?? row.status;
+  const openPhoto = useCallback(() => onOpenPhoto(row), [onOpenPhoto, row]);
 
   return (
     <MBCard
@@ -383,6 +415,18 @@ const ReturnRow = React.memo(function ReturnRowView({
         row.reason ? `, ${row.reason}` : ''
       }`}>
       <View style={styles.head}>
+        {/* Only where the return has one: rows older than the photo rule, and
+            ones Production recorded itself, carry none, and an empty frame on
+            those would read as a photo that failed to load. */}
+        {row.photo ? (
+          <MBAttachmentThumb
+            id={row.photo.id}
+            url={row.photo.url}
+            onPress={openPhoto}
+            accessibilityLabel={`View photo of ${row.productName} return`}
+            testID={`return-photo-${row.id}`}
+          />
+        ) : null}
         <Text
           numberOfLines={1}
           style={[theme.type.cardTitle, styles.flex, { color: theme.colors.text }]}>

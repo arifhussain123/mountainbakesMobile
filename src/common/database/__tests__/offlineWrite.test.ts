@@ -153,6 +153,32 @@ describe('writeOffline', () => {
   });
 
   /**
+   * A return's photo rides in the payload as a client-only field — no column,
+   * no table. Both rows must carry it: the queue row is what the drain uploads
+   * from, and the domain row is the record that outlives the queue row's prune.
+   */
+  it('carries a return photo in the payload of both rows', async () => {
+    const payload = {
+      items: [{ productId: 'p-1', qty: 3 }],
+      reason: 'Damaged',
+      attachmentIds: [],
+      localPhoto: {
+        uri: 'file:///data/user/0/test/files/return-photos/abc.jpg',
+        mimeType: 'image/jpeg',
+        width: 1280,
+        height: 960,
+        sizeBytes: 148000,
+      },
+    };
+
+    await writeOffline({ entity: 'stock_movement', branchId: 'b-1', payload });
+
+    const json = JSON.stringify(payload);
+    expect(fake.inTransaction[0]!.params).toContain(json);
+    expect(fake.inTransaction[1]!.params).toContain(json);
+  });
+
+  /**
    * A Special Order has no mirror table, so the queue row is the whole of the
    * write — still inside the one transaction, and carrying the payload itself.
    */

@@ -258,6 +258,142 @@ differently succeeded, and the disagreement is about what it became.
 
 ---
 
+## Return photos
+
+A stock return carries one **required** photo — one per submission, not one per
+product. It is the only queued write that is two requests, and the first of
+them has no idempotency, so the order and the bookkeeping are the design.
+
+### What is stored, and where
+
+Nothing is uploaded when the photo is chosen, and nothing is uploaded at submit
+either — online or not. One code path, as everywhere else.
+
+- **The picker shrinks it.** `react-native-image-picker` is asked for
+  `maxWidth` / `maxHeight` = `RETURN_PHOTO_MAX_DIMENSION` (1280) and `quality` =
+  `RETURN_PHOTO_QUALITY` (0.7), and resizes and re-encodes natively. It never
+  upscales. **When its resize fails it returns the original file and reports
+  success**, so `common/utils/image/returnPhoto.ts` refuses anything over
+  `RETURN_PHOTO_MAX_BYTES` (1 MB) — that check is the only thing standing
+  between a failed resize and a 6 MB frame in the queue. The original is never
+  sent as a fallback.
+- **The hook copies it out of the cache.** The picker writes into the app's
+  cache directory, which Android may empty whenever storage is short.
+  `useCreateStockReturn` copies the file to
+
+  ```
+  <DocumentDir>/return-photos/<uuid>.jpg
+  ```
+
+  *before* `writeOffline`, and deletes the copy again if that write fails. If
+  the copy itself fails nothing is queued: the photo is required, so a return
+  without one is not a return.
+- **The path rides in the payload.** No column and no table — the queued JSON
+  carries it, in both `sync_queue.payload` and `local_stock_movements.payload`:
+
+  ```jsonc
+  {
+    "items": [{ "productId": "…", "qty": 3 }],
+    "reason": "Unsold at close",
+    "attachmentIds": [],                 // filled in by the drain
+    "localPhoto": {                      // client-only, never sent
+      "uri": "file:///data/user/0/…/files/return-photos/<uuid>.jpg",
+      "mimeType": "image/jpeg",
+      "width": 1280,
+      "height": 960,
+      "sizeBytes": 148000
+    }
+  }
+  ```
+
+No permission is declared for any of this. The camera is opened through the
+system capture intent, which needs no `CAMERA` permission *as long as the app
+does not declare one* — declaring it and not holding it is what makes the
+intent throw. The gallery is the Android photo picker, which needs no storage
+permission.
+
+### Drain order
+
+`api/sync/returnPhotoStep.ts`, called from `sendOperation` for every row and a
+no-op for all but a `stock_movement` that has a `localPhoto`:
+
+```
+1. attachmentIds already filled?  → skip to 5
+2. local file missing?            → park as failed (photo_missing)
+3. POST /api/attachments          (multipart: entity=branch_return, width, height, photo)
+4. write the returned id into the row's payload   ← before anything else
+5. POST /api/stock/return         (payload minus localPhoto, plus businessDate)
+6. markSynced → delete the local file
+```
+
+**Step 4 comes before step 5, and that is the whole point.** The upload
+endpoint takes no `Idempotency-Key`, so uploading on every attempt would stage
+a new photo each time the return's response was lost. Worse, the server
+fingerprints the return's body under its key: a retry carrying a *different*
+attachment id is a different body, refused as a key mismatch (422) rather than
+replayed. With the id on the stored row, every later attempt — including one
+after the app was killed between steps 4 and 5 — uploads nothing and sends
+byte-for-byte the body the first attempt sent. `queue.updatePayload` does the
+write, moving the queue row and the domain row in one transaction and touching
+nothing else about the operation: same `client_operation_id`, same status, same
+attempt count.
+
+`localPhoto` is stripped from the body. A device path is none of the server's
+business, and leaving it in would make the fingerprint depend on it.
+
+### What each failure does
+
+| What happened | What the row does | The local file |
+|---|---|---|
+| Upload fails on network / timeout / 5xx | backs off and retries — the ordinary transient path | kept |
+| Upload gets a 401 | drain pauses, retry budget untouched | kept |
+| Upload refused by the server (400, 413) | parked as `failed` with the server's message | kept |
+| Local file missing at upload time | parked as `failed`, code `photo_missing`; **no photo-less return is sent** | — |
+| Id could not be written back (step 4) | the upload is discarded (`DELETE /api/attachments/:id`, best-effort), the return is **not** posted, the row retries | kept |
+| Return fails on network / timeout / 5xx | backs off; the retry re-sends the same body and key, no second upload | kept |
+| Return answers 409 `attachment_unavailable` | stored `attachmentIds` cleared, ordinary backoff, next attempt re-uploads from the file. **Not** a conflict | kept |
+| Return answers any other 409 / 403 / 404 | recorded as a conflict, exactly as before | kept |
+| Return answers 400 (`photo_required`, validation) | parked as `failed` | kept |
+| Return accepted | `synced` | **deleted** |
+
+`attachment_unavailable` is the server saying the staged upload is gone — it
+sweeps unused ones after 14 days — and it says so before moving any stock and
+without keeping the idempotency key. That is not something a person can
+resolve, so it is the one 409 that is not raised as a conflict. It is still
+bounded: it spends the same retry budget as a network failure, so a server that
+keeps answering it parks the row rather than looping. A row with a stale id and
+**no** `localPhoto` has nothing to re-upload from and is a conflict like any
+other.
+
+**The file is deleted in exactly one place**: after `markSynced`. Never on a
+failure, because until the server has accepted the return that file is the only
+copy of the photo — the same rule the queue row itself lives by.
+
+### Rows queued by an older build
+
+A `stock_movement` with no `localPhoto` passes through the step as the same
+object and is sent as one POST, exactly as before. Whether the server still
+accepts it is the server's decision: with `RETURN_PHOTO_REQUIRED` on it answers
+400 `photo_required` and the row parks as `failed`, which is correct — the
+branch has to raise it again with a photo, and the Sync Center row is how they
+find out.
+
+### What is not handled
+
+- **A conflict closed with `keep_server`, or a row left parked forever, leaves
+  its file behind.** Nothing sweeps `return-photos/`. The files are ~150 KB
+  each and a parked return is rare, but it is a leak with no bound. The fix is
+  a sweep at boot that deletes any file no unsynced row points at.
+- **A photo-less row cannot be given a photo.** Sync Center offers Retry, which
+  re-sends the payload as stored; there is no "attach a photo to this queued
+  return" action.
+- **Compressed sizes are not measured.** `RETURN_PHOTO_TARGET_MAX_BYTES`
+  (200 KB) is a budget the picker's single pass is expected to land near at
+  1280px and quality 0.7, not one this app enforces: the picker has no
+  iterate-to-budget mode, and the only hard line is the 1 MB ceiling. In
+  `__DEV__` the utility logs original vs optimised size and the reduction;
+  release builds strip `console`.
+
 ## Conflicts
 
 A conflict is not "the request failed". It is the server saying **the world moved

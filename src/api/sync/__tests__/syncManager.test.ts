@@ -177,6 +177,31 @@ describe('successful send', () => {
     expect(post.mock.calls[0][1]).not.toHaveProperty('date');
   });
 
+  /**
+   * A return queued by a build that predates return photos has no `localPhoto`.
+   * The photo step must be invisible to it: one POST, the payload as stored,
+   * and no attempt to rewrite the row. (`updatePayload` is deliberately absent
+   * from this file's repository mock, so reaching for it would throw.) The
+   * with-photo path is covered against a real database in
+   * `returnPhotoFlow.test.ts`.
+   */
+  it('sends a photo-less return as one unchanged POST', async () => {
+    claimReady.mockResolvedValue([
+      row({ entity: 'stock_movement', payload: { items: [{ productId: 'p1', qty: 2 }] } }),
+    ]);
+    post.mockResolvedValue({ ids: ['ret-1'] });
+
+    const result = await drainQueue(opts);
+
+    expect(result.synced).toBe(1);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith(
+      '/api/stock/return',
+      { items: [{ productId: 'p1', qty: 2 }], businessDate: '2026-08-18' },
+      { idempotencyKey: '01a0116b-61c6-71ee-8038-5ce7ed3fd39a' },
+    );
+  });
+
   it('routes each entity to its real endpoint', async () => {
     claimReady.mockResolvedValue([
       row({ id: 1, entity: 'order' }),

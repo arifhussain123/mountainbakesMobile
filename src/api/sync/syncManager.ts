@@ -7,6 +7,13 @@ import { getAccessToken } from '@/api/supabase/client';
 import { backoffMs, hasExhaustedRetries } from './backoff';
 import { classifyConflict, detectPriceDrift, isConflictError } from './conflicts';
 import { endpointFor, serverIdFrom } from './endpoints';
+import {
+  clearStaleAttachment,
+  isAttachmentUnavailable,
+  localPhotoOf,
+  prepareReturnPhoto,
+  releaseReturnPhoto,
+} from './returnPhotoStep';
 
 /**
  * The sync manager.
@@ -100,8 +107,13 @@ function emptyResult(reason: DrainStopReason): DrainResult {
  * day the request ARRIVES unless told otherwise, so a 9pm sale synced at 7am
  * would otherwise be filed against the following morning. The server bounds and
  * closure-checks whatever is sent (server migration 84).
+ *
+ * A stock return with a queued photo uploads it first — see
+ * `returnPhotoStep.ts`, which also explains why the attachment id is written
+ * back onto the row before this function posts anything. Every other row, and
+ * a return queued before photos existed, passes through that step unchanged.
  */
-async function sendOperation(row: SyncQueueRow): Promise<unknown> {
+async function sendOperation(row: SyncQueueRow, now: number): Promise<unknown> {
   const endpoint = endpointFor(row.entity, row.action);
   if (!endpoint) {
     throw new ApiError({
@@ -113,13 +125,15 @@ async function sendOperation(row: SyncQueueRow): Promise<unknown> {
   // The date field is named per endpoint — `date` on expenses, `businessDate`
   // everywhere else. Sending the wrong key is silently ignored, which is
   // exactly how a queued 9pm transaction quietly lands on the wrong day.
+  const body = await prepareReturnPhoto(row, now);
+
   const payload =
-    row.businessDate && row.payload && typeof row.payload === 'object'
+    row.businessDate && body && typeof body === 'object'
       ? {
-          ...(row.payload as Record<string, unknown>),
+          ...(body as Record<string, unknown>),
           [endpoint.businessDateField]: row.businessDate,
         }
-      : row.payload;
+      : body;
 
   // The response is returned rather than discarded: it carries the server's id
   // for the record this operation created, which is what closes the loop back
@@ -221,13 +235,16 @@ async function sendBatch(
     await queue.markSyncing(row.id, now());
 
     try {
-      const response = await sendOperation(row);
+      const response = await sendOperation(row, now());
       await queue.markSynced(row.id, now(), {
         entity: row.entity,
         clientOperationId: row.clientOperationId,
         serverId: serverIdFrom(row.entity, response),
       });
       result.synced += 1;
+      // Only now, with the return on the server, is the device copy of its
+      // photo redundant. Never throws, and never runs on any failure path.
+      await releaseReturnPhoto(row);
       // The sale WAS accepted; this is a discrepancy inside a success, not a
       // failure, so the row stays synced and only the record is written.
       await recordPriceDrift(row, response, now());
@@ -246,12 +263,24 @@ async function sendBatch(
         return 'stop';
       }
 
+      // The staged photo this return points at is gone from the server (swept
+      // after sitting unused). No stock moved and the key was not kept, so
+      // this is a retry rather than a conflict: forget the stale id and the
+      // next attempt uploads again from the local file. Bounded by the same
+      // retry budget as any transient failure. Without a local file there is
+      // nothing to upload, and it falls through to be recorded as a conflict.
+      const staleAttachment =
+        apiError !== null && isAttachmentUnavailable(apiError) && localPhotoOf(row) !== null;
+      if (staleAttachment) {
+        await clearStaleAttachment(row, now());
+      }
+
       // The world moved while this sat in the queue. Not a failure of the
       // request — a disagreement about what is true — so both sides are kept
       // and a person decides. Never resolved automatically: the server is
       // authoritative for money and stock, but silently discarding the
       // operator's entry is how a till comes up short with no explanation.
-      if (apiError && isConflictError(apiError)) {
+      if (apiError && !staleAttachment && isConflictError(apiError)) {
         const type = classifyConflict(apiError, row.entity);
         await storeConflict(row, type, apiError, now());
         await queue.markConflict(row.id, {
@@ -263,7 +292,7 @@ async function sendBatch(
       }
 
       // Retryable: network, timeout, or a server fault.
-      if (!apiError || apiError.isRetryable) {
+      if (!apiError || apiError.isRetryable || staleAttachment) {
         const attempts = row.attemptCount + 1;
         if (hasExhaustedRetries(attempts)) {
           await queue.markFailed(row.id, {
@@ -276,7 +305,7 @@ async function sendBatch(
             row.id,
             now() + backoffMs(attempts, random),
             {
-              code: apiError?.code ?? 'network',
+              code: staleAttachment ? 'attachment_unavailable' : apiError?.code ?? 'network',
               message: apiError?.message ?? 'Network error',
             },
             now(),

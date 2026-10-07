@@ -89,6 +89,50 @@ jest.mock('react-native-bootsplash', () => ({
 
 // react-native-config reads .env at build time; tests get fixed values so a
 // developer's local .env cannot change what the suite asserts.
+/**
+ * The camera / photo picker. Native on both ends, so there is nothing to run:
+ * each call resolves a cancel by default, which is the answer that changes no
+ * state, and a suite that needs a photo or an error code sets its own with
+ * `mockResolvedValueOnce`.
+ */
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn(async () => ({ didCancel: true })),
+  launchImageLibrary: jest.fn(async () => ({ didCancel: true })),
+}));
+
+/**
+ * File access, as an in-memory set of paths.
+ *
+ * Enough of `fs` for the return-photo store — `exists`, `mkdir`, `cp`,
+ * `unlink`, `stat` — backed by a Set on `global` so a test can seed a file or
+ * assert one was removed (`global.__blobFiles`). Anything else on the module is
+ * left out on purpose: a call to it should fail loudly rather than pretend.
+ */
+jest.mock('react-native-blob-util', () => {
+  const files = global.__blobFiles ?? (global.__blobFiles = new Set());
+  const strip = p => String(p).replace(/^file:\/\//, '');
+  const fs = {
+    dirs: { DocumentDir: '/data/user/0/test/files', CacheDir: '/data/user/0/test/cache' },
+    exists: jest.fn(async p => files.has(strip(p))),
+    mkdir: jest.fn(async p => {
+      files.add(strip(p));
+    }),
+    cp: jest.fn(async (from, to) => {
+      if (!files.has(strip(from))) throw new Error(`ENOENT: ${from}`);
+      files.add(strip(to));
+    }),
+    unlink: jest.fn(async p => {
+      files.delete(strip(p));
+    }),
+    stat: jest.fn(async p => {
+      if (!files.has(strip(p))) throw new Error(`ENOENT: ${p}`);
+      return { size: 0, path: strip(p) };
+    }),
+  };
+  const mod = { fs, config: jest.fn(() => ({ fetch: jest.fn() })) };
+  return { __esModule: true, default: mod, ...mod };
+});
+
 jest.mock('react-native-config', () => ({
   __esModule: true,
   default: {

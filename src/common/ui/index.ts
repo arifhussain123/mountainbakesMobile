@@ -140,3 +140,11 @@ export type { MBBadgeProps } from './feedback/MBBadge';
 
 export { MBAccountButton } from './common/MBAccountButton';
 export type { MBAccountButtonProps } from './common/MBAccountButton';
+
+export { MBPhotoPicker } from './common/MBPhotoPicker';
+export type { MBPhotoPickerProps, MBPhotoSource } from './common/MBPhotoPicker';
+export { MBAttachmentThumb } from './common/MBAttachmentThumb';
+export type { MBAttachmentThumbProps } from './common/MBAttachmentThumb';
+export { stableAttachmentUri } from './common/attachmentUriCache';
+export { MBImageViewer } from './feedback/MBImageViewer';
+export type { MBImageViewerProps } from './feedback/MBImageViewer';

@@ -6,6 +6,7 @@
  * caching, retry and the offline queue stay in one place.
  */
 
+export * as attachments from './attachmentsService';
 export * as auth from './authService';
 export * as catalog from './catalogService';
 export * as categories from './categoriesService';

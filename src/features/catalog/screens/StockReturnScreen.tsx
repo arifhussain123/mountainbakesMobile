@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 
@@ -11,6 +11,7 @@ import {
   MBHeader,
   MBIcon,
   MBInput,
+  MBPhotoPicker,
   MBPressable,
   MBSkeletonList,
   MBWriteOutcome,
@@ -24,6 +25,12 @@ import type { WriteSubject } from '@/common/ui';
 import { formatQty } from '@/common/utils/money';
 import { formatBusinessDate } from '@/common/helpers/businessDay';
 import { businessDateStr } from '@/shared/utils/timezone';
+import {
+  PHOTO_MESSAGES,
+  pickReturnPhoto,
+  type LocalPhoto,
+  type PhotoSource,
+} from '@/common/utils/image/returnPhoto';
 
 /**
  * Hand unsold or damaged stock back to production.
@@ -61,6 +68,19 @@ import { businessDateStr } from '@/shared/utils/timezone';
  * compensating movement. So the last cheap moment to catch a miscount is before
  * this sheet is confirmed, and that is why it names every product and its count
  * rather than showing a total the reader cannot check.
+ *
+ * ---------------------------------------------------------------------------
+ * One photo, required, for the whole return
+ * ---------------------------------------------------------------------------
+ * Production decides on a return it cannot see, so the branch sends a picture
+ * of what it is handing back — one per submission, not one per product. The
+ * server refuses a return without it (`photo_required`), and finding that out
+ * from a refusal hours later, after a night offline, is the wrong moment: the
+ * button stays disabled, and says why, until a photo is chosen.
+ *
+ * Nothing uploads when the photo is picked. It is shrunk by the picker, held
+ * as a local file, and travels in the same queued row as the return — see
+ * `useCreateStockReturn` and `api/sync/returnPhotoStep.ts`.
  *
  * The sheet stays up while the write is in flight. `MBConfirmDialog` carries the
  * spinner, so the confirm cannot be tapped twice — and a double tap here is not
@@ -109,6 +129,46 @@ export function StockReturnScreen(): React.ReactElement {
   const [reason, setReason] = useState('');
   const [result, setResult] = useState<CreateStockReturnResult | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [photo, setPhoto] = useState<LocalPhoto | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [photoError, setPhotoError] = useState<{ message: string; canOpenSettings: boolean } | null>(
+    null,
+  );
+
+  /**
+   * Run the picker and take its answer.
+   *
+   * `pickReturnPhoto` never throws — every failure is a typed result — so
+   * there is no catch here to forget. A cancel changes nothing at all: the
+   * photo already chosen stays, and no error appears for someone who simply
+   * backed out of the camera.
+   */
+  const onPickPhoto = useCallback(async (source: PhotoSource) => {
+    setPicking(true);
+    try {
+      const picked = await pickReturnPhoto(source);
+      if (picked.status === 'cancelled') return;
+      if (picked.status === 'error') {
+        setPhotoError({ message: picked.message, canOpenSettings: picked.canOpenSettings });
+        return;
+      }
+      setPhotoError(null);
+      setPhoto(picked.photo);
+    } finally {
+      setPicking(false);
+    }
+  }, []);
+
+  const onRemovePhoto = useCallback(() => {
+    setPhoto(null);
+    setPhotoError(null);
+  }, []);
+
+  const openSettings = useCallback(() => {
+    // Best-effort: a device that refuses the intent leaves the message on
+    // screen, which still says what is needed.
+    Linking.openSettings().catch(() => {});
+  }, []);
 
   const available = useMemo(
     () => (stock.data?.rows ?? []).filter(row => row.balance > 0),
@@ -147,8 +207,21 @@ export function StockReturnScreen(): React.ReactElement {
   );
 
   const onConfirm = useCallback(async () => {
-    if (items.length === 0) return;
-    const outcome = await createReturn({ items, reason });
+    // The button is disabled without a photo; this is the same rule held at
+    // the point the write is made, where it cannot be routed around.
+    if (items.length === 0 || !photo) return;
+
+    let outcome: CreateStockReturnResult;
+    try {
+      outcome = await createReturn({ items, reason, photo });
+    } catch {
+      // Thrown before anything was queued — in practice the photo could not be
+      // copied into app storage. Nothing was written and no stock moved, so
+      // the form stays as it is and the photo field says what to do.
+      setConfirming(false);
+      setPhotoError({ message: PHOTO_MESSAGES.unprocessable, canOpenSettings: false });
+      return;
+    }
     setResult(outcome);
     // The sheet stays up for the whole write rather than closing on tap, so the
     // spinner is on the button that was pressed and a second tap is impossible
@@ -162,8 +235,12 @@ export function StockReturnScreen(): React.ReactElement {
       // The reason described THIS return. Carrying it to the next one silently
       // mislabels a different batch of stock.
       setReason('');
+      // And so did the photo. It is on the server now; the device copy the
+      // queue held has already been removed by the drain.
+      setPhoto(null);
+      setPhotoError(null);
     }
-  }, [createReturn, items, reason]);
+  }, [createReturn, items, reason, photo]);
 
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
 
@@ -225,7 +302,23 @@ export function StockReturnScreen(): React.ReactElement {
           ItemSeparatorComponent={LineSeparator}
           keyboardShouldPersistTaps="handled"
           ListFooterComponent={
-            <View style={{ paddingTop: theme.space.md }}>
+            /* The photo field sits here for the reason Reason does: it is form
+               state the product rows never read, and in the footer a change to
+               it re-renders no memoised row. */
+            <View style={{ paddingTop: theme.space.md, gap: theme.space.lg }}>
+              <MBPhotoPicker
+                title="Return Photo"
+                helperText="Capture or upload a photo of the returned item"
+                required
+                photoUri={photo?.uri ?? null}
+                onPick={onPickPhoto}
+                onRemove={onRemovePhoto}
+                busy={picking || isSaving}
+                error={photoError?.message}
+                errorActionLabel={photoError?.canOpenSettings ? 'Open settings' : undefined}
+                onErrorAction={photoError?.canOpenSettings ? openSettings : undefined}
+                testID="return-photo"
+              />
               <MBInput
                 label="Reason"
                 value={reason}
@@ -249,20 +342,32 @@ export function StockReturnScreen(): React.ReactElement {
               padding: theme.layout.screenPad,
             },
           ]}>
-          <View style={styles.summary}>
-            <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
-              {items.length} {items.length === 1 ? 'product' : 'products'}
-            </Text>
-            <Text style={[theme.type.number, { color: theme.colors.text }]}>
-              {formatQty(totalUnits)} units
-            </Text>
+          <View style={styles.barRow}>
+            <View style={styles.summary}>
+              <Text style={[theme.type.label, { color: theme.colors.textMuted }]}>
+                {items.length} {items.length === 1 ? 'product' : 'products'}
+              </Text>
+              <Text style={[theme.type.number, { color: theme.colors.text }]}>
+                {formatQty(totalUnits)} units
+              </Text>
+            </View>
+            <MBButton
+              label="Return to production"
+              onPress={() => setConfirming(true)}
+              disabled={isSaving || !photo}
+              testID="submit-return"
+            />
           </View>
-          <MBButton
-            label="Return to production"
-            onPress={() => setConfirming(true)}
-            disabled={isSaving}
-            testID="submit-return"
-          />
+          {/* A disabled button with no reason is a dead end, and the field that
+              unblocks it is at the far end of the list — possibly a screen and
+              a half of products away. */}
+          {!photo ? (
+            <Text
+              testID="return-photo-required"
+              style={[theme.type.caption, { color: theme.colors.textMuted }]}>
+              Add a photo of the returned items to continue.
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -298,6 +403,31 @@ export function StockReturnScreen(): React.ReactElement {
           <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
             Books to {formatBusinessDate(businessDate, { weekday: true })}
           </Text>
+          {/* The picture that goes with it, on the last screen that can still
+              change it: Production reviews the return against this photo. */}
+          {photo ? (
+            <View style={[styles.confirmPhoto, { gap: theme.space.md }]}>
+              <Image
+                source={{ uri: photo.uri }}
+                resizeMethod="resize"
+                resizeMode="cover"
+                accessibilityRole="image"
+                accessibilityLabel="Return photo"
+                testID="confirm-return-photo"
+                style={[
+                  styles.confirmThumb,
+                  {
+                    borderRadius: theme.radius.sm,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surfaceSunken,
+                  },
+                ]}
+              />
+              <Text style={[theme.type.caption, styles.flex, { color: theme.colors.textMuted }]}>
+                This photo is sent with the return.
+              </Text>
+            </View>
+          ) : null}
           {reason.trim().length > 0 ? (
             <Text style={[theme.type.caption, { color: theme.colors.textMuted }]}>
               Reason: {reason.trim()}
@@ -329,7 +459,10 @@ const RETURN_SUBJECT: WriteSubject = {
   // "Saved" reads as "done" on a stock screen, and the units are still on the
   // branch's shelf. This is the sentence that keeps a shelf and a system
   // agreeing while the queue drains.
-  queuedNote: 'The stock has not moved yet.',
+  // The photo is named because it is the part people doubt: a return they can
+  // picture being queued, a picture they took a minute ago less so.
+  queuedNote:
+    'The return and its photo are both saved offline and will sync automatically. The stock has not moved yet.',
   refusedNote: 'do not send it again',
 };
 
@@ -438,8 +571,11 @@ const styles = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   step: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   qty: { minWidth: 28, textAlign: 'center' },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1 },
+  bar: { gap: 8, borderTopWidth: 1 },
+  barRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   summary: { gap: 2 },
   confirmLines: { gap: 8 },
+  confirmPhoto: { flexDirection: 'row', alignItems: 'center' },
+  confirmThumb: { width: 56, height: 56, borderWidth: 1 },
   confirmLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
 });

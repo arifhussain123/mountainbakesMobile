@@ -6,6 +6,11 @@ import { resolveWriteOutcome, type WriteOutcome } from '@/api/sync/writeOutcome'
 import type { CreateBranchReturnInput } from '@/shared/schemas/production-ops.schemas';
 import { useAuthStore } from '@/state/authStore';
 import { useSyncStore } from '@/state/syncStore';
+import {
+  deletePersistedPhoto,
+  persistPhoto,
+  type LocalPhoto,
+} from '@/common/utils/image/returnPhoto';
 
 /**
  * Return unsold or damaged stock from a branch to production, offline-first.
@@ -46,6 +51,17 @@ import { useSyncStore } from '@/state/syncStore';
  * refused — the realistic case here, asking for more units than the branch holds
  * — is reported as refused rather than as "on its way". A refusal never clears
  * by waiting, and a branch told its return is queued will not go looking for it.
+ *
+ * ---------------------------------------------------------------------------
+ * The photo rides in the same queued row
+ * ---------------------------------------------------------------------------
+ * One photo is required per return. Nothing is uploaded here, online or not:
+ * the picked file is COPIED out of the cache into app storage and its path goes
+ * into the payload as `localPhoto`, a client-only field, beside an empty
+ * `attachmentIds`. The drain uploads it and fills the id in before posting the
+ * return — `api/sync/returnPhotoStep.ts` has the order and the reasons. That
+ * keeps the one-code-path rule: a return made with full signal takes exactly
+ * the route a return made in a basement does.
  */
 
 export type SaveOutcome = WriteOutcome;
@@ -59,8 +75,14 @@ export interface CreateStockReturnResult {
   businessDate: string;
 }
 
+/** What the screen hands over: the lines, the reason, and the picked photo. */
+export interface CreateStockReturnInput
+  extends Pick<CreateBranchReturnInput, 'items' | 'reason'> {
+  photo: LocalPhoto;
+}
+
 export function useCreateStockReturn(): {
-  createReturn: (input: CreateBranchReturnInput) => Promise<CreateStockReturnResult>;
+  createReturn: (input: CreateStockReturnInput) => Promise<CreateStockReturnResult>;
   isSaving: boolean;
 } {
   const branchId = useAuthStore(s => s.claims?.branchId);
@@ -69,7 +91,7 @@ export function useCreateStockReturn(): {
   const [isSaving, setIsSaving] = useState(false);
 
   const createReturn = useCallback(
-    async (input: CreateBranchReturnInput): Promise<CreateStockReturnResult> => {
+    async (input: CreateStockReturnInput): Promise<CreateStockReturnResult> => {
       if (!branchId) {
         throw new Error('No branch is associated with this account.');
       }
@@ -80,11 +102,38 @@ export function useCreateStockReturn(): {
         // `services/sync/endpoints.ts`, where its business date is sent as
         // `businessDate`. The field name is per endpoint and sending the wrong
         // one is silently ignored by the server.
-        const written = await writeOffline({
-          entity: 'stock_movement',
-          branchId,
-          payload: { ...input },
-        });
+        const { photo, ...fields } = input;
+
+        // Out of the cache first: Android may empty that directory at any time,
+        // and this file has to outlive a night with no signal. If it cannot be
+        // copied there is no return to queue — the photo is required — so this
+        // throws before anything is written.
+        const storedUri = await persistPhoto(photo.uri, photo.mimeType);
+
+        let written;
+        try {
+          written = await writeOffline({
+            entity: 'stock_movement',
+            branchId,
+            payload: {
+              ...fields,
+              // Filled in by the drain once the photo is uploaded.
+              attachmentIds: [],
+              // Client-only; stripped before the request is sent.
+              localPhoto: {
+                uri: storedUri,
+                mimeType: photo.mimeType,
+                width: photo.width,
+                height: photo.height,
+                sizeBytes: photo.sizeBytes,
+              },
+            },
+          });
+        } catch (error) {
+          // No row points at the copy, so nothing would ever clean it up.
+          await deletePersistedPhoto(storedUri);
+          throw error;
+        }
 
         // A failure to send now is not an error the user needs to see: the
         // return is queued and will retry. What they do need is the difference

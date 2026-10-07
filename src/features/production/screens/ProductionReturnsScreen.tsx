@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 
 import {
+  MBAttachmentThumb,
   MBButton,
   MBCard,
   MBConfirmDialog,
@@ -11,10 +12,12 @@ import {
   MBErrorState,
   MBFilterChips,
   MBHeader,
+  MBImageViewer,
   MBSkeletonList,
   MBStatCard,
   MBStatGrid,
   MBStatusTag,
+  stableAttachmentUri,
 } from '@/common/ui';
 import { getProductionReturns, reviewProductionReturn } from '@/api/services/returnsService';
 import { LIVE_STALE_TIME_MS } from '@/api/queryClient';
@@ -22,6 +25,7 @@ import { qk } from '@/api/queryKeys';
 import type { ProductionReturn } from '@/shared/types/production-ops.types';
 import { useTheme } from '@/common/theme/ThemeProvider';
 import { businessDateLabel } from '@/common/helpers/businessDay';
+import { returnPhotoCaptions } from '@/common/helpers/returnPhotoCaptions';
 import { formatQty } from '@/common/utils/money';
 import { contentColumn, space } from '@/common/theme/spacing';
 
@@ -137,6 +141,11 @@ export function ProductionReturnsScreen(): React.ReactElement {
   const [filter, setFilter] = useState<string>('pending');
   const [confirming, setConfirming] = useState<{ row: ProductionReturn; status: 'accepted' | 'rejected' } | null>(null);
 
+  // The return whose photo is open. The row, not a URL: the caption comes from
+  // the return and the URL is resolved through the id-keyed cache the thumbnail
+  // already filled, so the viewer shows the picture that is already downloaded.
+  const [viewing, setViewing] = useState<ProductionReturn | null>(null);
+
   const returns = useQuery({
     queryKey: qk.productionReturns.list(),
     queryFn: getProductionReturns,
@@ -251,6 +260,18 @@ export function ProductionReturnsScreen(): React.ReactElement {
           {shown.map(item => (
             <MBCard key={item.id}>
               <View style={[styles.head, { gap: theme.space.md }]}>
+                {/* The picture the branch took of what it is handing back —
+                    the thing this review is deciding on. Absent on returns
+                    Production recorded itself and on ones older than the rule. */}
+                {item.photo ? (
+                  <MBAttachmentThumb
+                    id={item.photo.id}
+                    url={item.photo.url}
+                    onPress={() => setViewing(item)}
+                    accessibilityLabel={`View photo of ${item.productName} return from ${item.branchName}`}
+                    testID={`return-photo-${item.id}`}
+                  />
+                ) : null}
                 <Text style={[theme.type.cardTitle, styles.flex, { color: theme.colors.text }]}>
                   {item.productName}
                 </Text>
@@ -312,6 +333,15 @@ export function ProductionReturnsScreen(): React.ReactElement {
           if (confirming) review.mutate({ id: confirming.row.id, status: confirming.status });
           setConfirming(null);
         }}
+      />
+
+      <MBImageViewer
+        visible={viewing !== null}
+        uri={viewing?.photo ? stableAttachmentUri(viewing.photo.id, viewing.photo.url) : null}
+        onClose={() => setViewing(null)}
+        title="Return photo"
+        captions={viewing ? returnPhotoCaptions(viewing) : []}
+        testID="return-photo-viewer"
       />
     </View>
   );
