@@ -1,0 +1,1 @@
+export { getAnalyticsWindow } from './periodWindow';

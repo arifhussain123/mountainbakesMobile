@@ -1,24 +1,47 @@
-/**
- * Transport barrel — one namespace per domain.
- *
- * These are plain async functions over `@/api/client`. Screens and
- * components must not import them directly; go through `@/api/hooks` so
- * caching, retry and the offline queue stay in one place.
- */
+import * as attachmentService from './attachmentService';
+import * as authService from './authService';
+import * as branchClosingService from './branchClosingService';
+import * as branchService from './branchService';
+import * as cashTransferService from './cashTransferService';
+import * as dailySaleService from './dailySaleService';
+import * as dashboardService from './dashboardService';
+import * as discountService from './discountService';
+import * as expenseService from './expenseService';
+import * as packingMaterialService from './packingMaterialService';
+import * as productService from './productService';
+import * as productionDiscountService from './productionDiscountService';
+import * as productionOrderService from './productionOrderService';
+import * as productionReturnService from './productionReturnService';
+import * as productionSaleService from './productionSaleService';
+import * as productionStockService from './productionStockService';
+import * as reportService from './reportService';
+import * as salesService from './salesService';
+import * as specialEventService from './specialEventService';
+import * as stockService from './stockService';
+import * as stockReturnService from './stockReturnService';
+import * as supportService from './supportService';
 
-export * as auth from './authService';
-export * as catalog from './catalogService';
-export * as categories from './categoriesService';
-export * as events from './eventsService';
-export * as expenses from './expensesService';
-export * as finance from './financeService';
-export * as loginHistory from './loginHistoryService';
-export * as index from './index';
-export * as production from './productionService';
-export * as products from './productsService';
-export * as reports from './reportsService';
-export * as returns from './returnsService';
-export * as settings from './settingsService';
-export * as stockHistory from './stockHistoryService';
-export * as support from './supportService';
-export * as users from './usersService';
+export {
+  attachmentService,
+  authService,
+  branchClosingService,
+  branchService,
+  cashTransferService,
+  dailySaleService,
+  dashboardService,
+  discountService,
+  expenseService,
+  packingMaterialService,
+  productService,
+  productionDiscountService,
+  productionOrderService,
+  productionReturnService,
+  productionSaleService,
+  productionStockService,
+  reportService,
+  salesService,
+  specialEventService,
+  stockService,
+  stockReturnService,
+  supportService,
+};

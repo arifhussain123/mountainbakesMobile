@@ -1,1 +1,0 @@
-export { FirstRunScreen } from './FirstRunScreen';

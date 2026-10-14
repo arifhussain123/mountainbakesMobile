@@ -1,8 +1,3 @@
-/**
- * Public API of the `auth` feature.
- *
- * Cross-feature imports go through this barrel only — never reach into
- * `features/auth/screens/…` from another slice.
- */
-
-export * from './screens';
+export { LoginScreen } from './screens/LoginScreen';
+export { ONBOARDING_SEEN_KEY, OnboardingScreen } from './screens/OnboardingScreen';
+export { useLoginForm } from './hooks';
