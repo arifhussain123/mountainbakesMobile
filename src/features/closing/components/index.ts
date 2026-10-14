@@ -1,0 +1,1 @@
+export { DailySaleRecordCard } from './DailySaleRecordCard';

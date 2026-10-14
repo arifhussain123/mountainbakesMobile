@@ -1,0 +1,29 @@
+import type { ReportPeriod } from './types';
+
+/** Centralized query key factory — no inline string arrays at call sites. */
+export const queryKeys = {
+  reportSummary: (period: ReportPeriod) => ['reportSummary', period] as const,
+  salesAnalytics: (from: string, to: string) => ['salesAnalytics', from, to] as const,
+  stockHistoryDay: (date: string) => ['stockHistoryDay', date] as const,
+  stockHistorySeries: (days: number) => ['stockHistorySeries', days] as const,
+  stock: (date?: string) => ['stock', date ?? 'today'] as const,
+  branchClosing: (date?: string) => ['branchClosing', date ?? 'today'] as const,
+  products: () => ['products'] as const,
+  orders: (params?: { status?: string; from?: string; to?: string }) => ['orders', params ?? {}] as const,
+  productionOrders: () => ['productionOrders'] as const,
+  packingMaterials: () => ['packingMaterials'] as const,
+  branchReturns: (params?: { days?: number; status?: string }) => ['branchReturns', params ?? {}] as const,
+  branchDiscounts: (params?: { days?: number; status?: string }) => ['branchDiscounts', params ?? {}] as const,
+  cashTransfers: (params?: { days?: number; status?: string }) => ['cashTransfers', params ?? {}] as const,
+  expenses: () => ['expenses'] as const,
+  specialEvents: (year?: number) => ['specialEvents', year ?? 'current'] as const,
+  myEventDemand: (eventId: string) => ['myEventDemand', eventId] as const,
+  dailySaleRecords: (params?: { from?: string; to?: string }) => ['dailySaleRecords', params ?? {}] as const,
+  packingUsage: (from: string, to: string) => ['packingUsage', from, to] as const,
+  supportTickets: () => ['supportTickets'] as const,
+  productionStock: (date?: string) => ['productionStock', date ?? 'today'] as const,
+  productionSales: (params?: { from?: string; to?: string }) => ['productionSales', params ?? {}] as const,
+  productionReturns: (params?: { status?: string; search?: string }) => ['productionReturns', params ?? {}] as const,
+  productionDiscounts: (params?: { status?: string; search?: string }) => ['productionDiscounts', params ?? {}] as const,
+  branches: () => ['branches'] as const,
+};
