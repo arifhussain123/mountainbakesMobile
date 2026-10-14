@@ -2,6 +2,8 @@ export { NewProductionReturnScreen } from './screens/NewProductionReturnScreen';
 export { ProductionDashboardScreen } from './screens/ProductionDashboardScreen';
 export { ProductionDiscountDetailScreen } from './screens/ProductionDiscountDetailScreen';
 export { ProductionDiscountsListScreen } from './screens/ProductionDiscountsListScreen';
+export { ProductionEventDemandScreen } from './screens/ProductionEventDemandScreen';
+export { ProductionEventsListScreen } from './screens/ProductionEventsListScreen';
 export { ProductionNewSaleScreen } from './screens/ProductionNewSaleScreen';
 export { ProductionOrderDetailScreen } from './screens/ProductionOrderDetailScreen';
 export { ProductionOrdersListScreen } from './screens/ProductionOrdersListScreen';

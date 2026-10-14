@@ -100,6 +100,9 @@ export const Routes = {
   PRODUCTION_DISCOUNT_DETAIL: 'ProductionDiscountDetail',
 
   PRODUCTION_EVENTS_STACK: 'ProductionEventsStack',
+  PRODUCTION_EVENTS_LIST: 'ProductionEventsList',
+  PRODUCTION_EVENT_DEMAND: 'ProductionEventDemand',
+
   PRODUCTION_REPORTS_STACK: 'ProductionReportsStack',
   PRODUCTION_HELP_DESK_STACK: 'ProductionHelpDeskStack',
 } as const;

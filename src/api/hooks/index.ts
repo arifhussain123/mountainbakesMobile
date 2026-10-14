@@ -20,7 +20,18 @@ export { useBranchReturns, useCreateBranchReturn, useReviseBranchReturn, useWith
 export { useBranchDiscounts, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
 export { useCashTransfers, useCreateCashTransfer } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses } from './useExpensesApi';
-export { useMyEventDemand, useSaveEventDemand, useSpecialEvents, useSubmitEventDemand } from './useSpecialEventsApi';
+export {
+  useConsolidatedDemand,
+  useEventDemands,
+  useEventProductionStatus,
+  useEventsSummary,
+  useMyEventDemand,
+  useReviewEventDemand,
+  useSaveEventDemand,
+  useSpecialEvents,
+  useSubmitEventDemand,
+  useUpdateEventStage,
+} from './useSpecialEventsApi';
 export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
 export { usePackingUsage } from './useReportsApi';
 export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';

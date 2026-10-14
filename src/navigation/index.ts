@@ -24,4 +24,5 @@ export type {
   ProductionStockStackParamList,
   ProductionReturnsStackParamList,
   ProductionDiscountsStackParamList,
+  ProductionEventsStackParamList,
 } from './types';

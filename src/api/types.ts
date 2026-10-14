@@ -635,6 +635,10 @@ export interface EventBranchDemand {
   expectedCustomers: number | null;
   notes: string | null;
   submittedAt: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewRemarks?: string | null;
   items: EventBranchDemandItem[];
 }
 
@@ -648,6 +652,73 @@ export interface SaveEventDemandInput {
   items: SaveEventDemandItemInput[];
   expectedCustomers?: number | null;
   notes?: string;
+}
+
+/** Production's dashboard/stats view of Special Events — `GET /special-events/summary`. */
+export interface EventDashboardSummary {
+  upcomingEvents: number;
+  activeEvents: number;
+  branchesSubmitted: number;
+  branchesPending: number;
+  notificationsSent: number;
+  notificationsPending: number;
+  nextEvent: {
+    id: string;
+    name: string;
+    eventDate: string | null;
+    daysRemaining: number | null;
+    readinessPercentage: number;
+  } | null;
+}
+
+/** One product's roll-up across every branch's demand for an event — what Production plans against. */
+export interface ConsolidatedDemandRow {
+  productId: string | null;
+  productName: string;
+  requestedQty: number;
+  approvedQty: number;
+  branchCount: number;
+  estimatedValue: number;
+}
+
+/** The four manual preparation stages — no BOM/raw-materials table exists to derive them. */
+export type EventProductionStage = 'raw_materials' | 'packing_materials' | 'finished_products' | 'staff_assigned';
+
+export const EVENT_STAGE_LABELS: Record<EventProductionStage, string> = {
+  raw_materials: 'Raw Materials',
+  packing_materials: 'Packing Materials',
+  finished_products: 'Finished Products',
+  staff_assigned: 'Staff Assigned',
+};
+
+export const EVENT_STAGES: readonly EventProductionStage[] = [
+  'raw_materials',
+  'packing_materials',
+  'finished_products',
+  'staff_assigned',
+];
+
+export interface EventProductionStatusRow {
+  id: string;
+  eventId: string;
+  stage: EventProductionStage;
+  completionPercentage: number;
+  remarks: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  updatedBy: string | null;
+  updatedByName: string | null;
+}
+
+export interface ReviewEventDemandInput {
+  status: 'approved' | 'rejected';
+  approvedItems?: { productId: string; approvedQty: number }[];
+  remarks?: string;
+}
+
+export interface UpdateEventStageInput {
+  completionPercentage: number;
+  remarks?: string;
 }
 
 // ─── Branch Closing ─────────────────────────────────────────────────────────

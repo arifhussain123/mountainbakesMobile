@@ -43,9 +43,40 @@ this is one RN codebase serving three role-specific app shells, not three separa
 | P5 | Branch Stock (09) | Blocked — endpoint access needs re-confirming (see table above) |
 | P6 | Returns (10) | **Done** |
 | P7 | Discounts (11) | **Done** |
-| P8 | Special Events (12) | Not started — backend not yet read for this role's view |
+| P8 | Special Events (12) + event demand/preparation detail | **Done** |
 | P9 | Production Reports (13) | Blocked — no confirmed endpoint for this role |
-| P10 | Help Desk (14) / New Query (15) | Not started — same `supportService` as Branch, needs its own screen |
+| P10 | Help Desk (14) / New Query (15) | **Done** — reuses `HelpDeskListScreen`/`supportService` as-is |
+
+## Slice P8 detail (done)
+
+- Confirmed endpoints: `GET /special-events` (list), `GET /special-events/summary` (role-shaped
+  dashboard counts), `GET /special-events/:id/demands` (every branch's demand,
+  `super_admin`/`production_user`), `GET /special-events/:id/demands/consolidated`
+  (product-wise roll-up), `GET`/`PUT /special-events/:id/production-status[/:stage]`
+  (the four manual stages), `PUT /special-events/demands/:demandId/review` (approve/reject
+  a submitted branch demand) — all in `special-events.routes.ts`.
+- `ProductionEventsListScreen` (12): matches the mockup frame — stat grid (Upcoming / Days
+  to next / Demands received / Readiness from `/summary`), upcoming event cards
+  (`ProductionEventCard`, extends Branch's `EventCard` shape with the branch-progress and
+  readiness rows the mockup's card has but Branch's doesn't need), and the "Nothing to
+  consolidate yet" placeholder when no event has one yet.
+- `ProductionEventDemandScreen`: tapped from a card — not a literal mockup frame (12 only
+  shows the list), but required for the screen to do anything: per-branch demand cards
+  with Approve/Reject (`submitted` only, same confirm-before-reject pattern as the
+  Discounts detail screen), the consolidated product roll-up, and the four preparation
+  stages as a progress bar + preset 0/25/50/75/100 buttons (no slider library in this repo).
+- `specialEventService`/`useSpecialEventsApi` extended with `getEventsSummary`,
+  `getEventDemands`, `getConsolidatedDemand`, `getEventProductionStatus`,
+  `updateEventProductionStage`, `reviewEventDemand` — reusing the existing
+  `EventBranchDemand`/`SpecialEvent` types from the Branch build, not duplicating them.
+
+## Slice P10 detail (done)
+
+- `ProductionHelpDeskStackNavigator` wires the Branch build's own `HelpDeskListScreen`
+  straight in — `GET/POST /support` already scopes by caller server-side and
+  `POST /support` explicitly allows `production_user`; the reference-ID prefixes it looks
+  up (MB-/DMD-/EXP-/STK-/CT-) are the same ones Production's sales/demands/stock already
+  use. No new screen code needed, just the wiring.
 
 ## Slice P1 detail (done)
 
