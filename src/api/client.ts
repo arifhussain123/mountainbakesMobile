@@ -131,4 +131,21 @@ export const apiClient = {
       throw toApiError(error);
     }
   },
+  async patch<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
+    try {
+      const response = await axiosInstance.patch<T>(url, body, { headers: mutationHeaders(options) });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+  /** For the rare DELETE that carries a reason in its body (e.g. `DELETE /finance/ledger/:id`) — `delete` above stays body-less for its existing offline-queue callers. */
+  async deleteWithBody<T>(url: string, body: unknown, options?: MutationOptions): Promise<T> {
+    try {
+      const response = await axiosInstance.delete<T>(url, { data: body, headers: mutationHeaders(options) });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
 };

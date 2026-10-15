@@ -1233,6 +1233,245 @@ export interface FinanceSettings {
   updatedBy: string;
 }
 
+// ─── Finance: Daily Ledger (screen 02) ──────────────────────────────────────
+// `/api/finance/ledger` — strictly read-only from the UI's point of view; a
+// correction is one of the three `adjust`-gated actions below, never a plain edit.
+
+export interface LedgerQuery {
+  from?: string;
+  to?: string;
+  branchId?: string;
+  ledgerHeadId?: string;
+  type?: LedgerHeadType;
+  account?: FinanceAccount;
+  status?: LedgerEntryStatus;
+  sourceType?: LedgerSourceType;
+  voucherNo?: string;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LedgerPage {
+  entries: LedgerEntry[];
+  total: number;
+  openingBalance: number;
+  closingBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+}
+
+export interface LedgerSummary {
+  businessDate: string;
+  monthStart: string;
+  openingBalance: number;
+  totalReceived: number;
+  totalExpense: number;
+  balance: number;
+}
+
+/** `adjust` permission only — reverses, and optionally re-posts corrected. */
+export interface AdjustLedgerEntryInput {
+  reason: string;
+  correctedAmount?: number;
+  correctedDescription?: string;
+}
+
+export interface EditLedgerEntryChanges {
+  amount?: number;
+  entryDate?: string;
+  ledgerHeadId?: string;
+  branchId?: string;
+  paymentMethod?: string;
+  account?: FinanceAccount;
+  description?: string;
+}
+
+/** `adjust` permission — edits the SAME voucher in place (no reversal, no new entry). */
+export interface EditLedgerEntryInput {
+  reason: string;
+  changes: EditLedgerEntryChanges;
+  expected?: Partial<Record<keyof EditLedgerEntryChanges, string>>;
+}
+
+// ─── Finance: Ledger Heads (screens 16–17) ──────────────────────────────────
+
+export interface LedgerHead {
+  id: string;
+  code: string;
+  name: string;
+  type: LedgerHeadType;
+  description: string | null;
+  groupName: string | null;
+  isActive: boolean;
+  isSystem: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLedgerHeadInput {
+  code: string;
+  name: string;
+  type: LedgerHeadType;
+  description?: string | null;
+  groupName?: string | null;
+  sortOrder?: number;
+}
+
+export interface UpdateLedgerHeadInput {
+  name?: string;
+  description?: string | null;
+  groupName?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+// ─── Finance: Daily Closing (screen 18) ─────────────────────────────────────
+
+export interface FinanceDayClosing {
+  businessDate: string;
+  openingBalance: number;
+  openingCash: number;
+  openingBank: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netBalance: number;
+  cashInHand: number;
+  bankBalance: number;
+  closingBalance: number;
+  entryCount: number;
+  status: 'open' | 'closed';
+  closedBy: string | null;
+  closedByName: string | null;
+  closedAt: string | null;
+}
+
+// ─── Finance: Reports (screen 19) ───────────────────────────────────────────
+// One shape for all ten reports — the screen is a single generic viewer driven
+// by `type`, not ten bespoke ones.
+
+export const FINANCE_REPORT_TYPES = [
+  'daily_cash_book',
+  'general_ledger',
+  'income_statement',
+  'expense_report',
+  'profit_loss',
+  'company_share',
+  'branch_share',
+  'salary',
+  'partner_expense',
+  'trial_balance',
+] as const;
+export type FinanceReportType = (typeof FINANCE_REPORT_TYPES)[number];
+
+export const FINANCE_REPORT_LABELS: Record<FinanceReportType, string> = {
+  daily_cash_book: 'Daily Cash Book',
+  general_ledger: 'General Ledger',
+  income_statement: 'Income Statement',
+  expense_report: 'Expense Report',
+  profit_loss: 'Profit & Loss',
+  company_share: 'Company Share Report',
+  branch_share: 'Branch Share Report',
+  salary: 'Salary Report',
+  partner_expense: 'Partner Expense Report',
+  trial_balance: 'Trial Balance',
+};
+
+export type ReportCellFormat = 'text' | 'money' | 'number' | 'date';
+
+export interface FinanceReportColumn {
+  key: string;
+  label: string;
+  format?: ReportCellFormat;
+  align?: 'left' | 'right' | 'center';
+  width?: number;
+}
+
+export interface FinanceReportQuery {
+  type: FinanceReportType;
+  from?: string;
+  to?: string;
+  branchId?: string;
+  ledgerHeadId?: string;
+  partnerName?: string;
+  employeeId?: string;
+  department?: string;
+  salaryMonth?: string;
+}
+
+export interface FinanceReport {
+  type: FinanceReportType;
+  title: string;
+  subtitle: string;
+  periodFrom: string;
+  periodTo: string;
+  generatedAt: string;
+  generatedBy: string;
+  columns: FinanceReportColumn[];
+  rows: Record<string, string | number | null>[];
+  totals: Record<string, number>;
+  summary: { label: string; value: number; format?: ReportCellFormat }[];
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number; hasNext: boolean; hasPrevious: boolean };
+}
+
+// ─── Finance: Audit Trail (screen 20) ───────────────────────────────────────
+
+export type FinanceAuditAction =
+  | 'created' | 'updated' | 'submitted' | 'verified' | 'approved' | 'rejected'
+  | 'posted' | 'reversed' | 'adjusted' | 'locked' | 'imported' | 'settings_updated'
+  | 'salary_revised' | 'resigned' | 'resignation_cancelled' | 'resolved'
+  | 'reopened' | 'reopen_requested' | 'deleted' | 'amended' | 'restored' | 'recreated';
+
+export type FinanceAuditEntity =
+  | 'ledger_entry' | 'ledger_head' | 'finance_transaction' | 'income_approval'
+  | 'salary_payment' | 'employee_advance' | 'partner_expense' | 'employee'
+  | 'day_closing' | 'settings' | 'branch_share_payment' | 'finance_partner'
+  | 'finance_ticket' | 'cash_transfer';
+
+export interface FinanceAuditLog {
+  id: string;
+  entity: FinanceAuditEntity;
+  entityId: string | null;
+  entityRef: string | null;
+  action: FinanceAuditAction;
+  actorId: string | null;
+  actorName: string;
+  actorRole: string | null;
+  previousValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+  ipAddress: string | null;
+  deviceInfo: string | null;
+  createdAt: string;
+}
+
+export interface FinanceAuditQuery {
+  entity?: string;
+  entityId?: string;
+  action?: string;
+  actorId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'createdAt' | 'action' | 'entity' | 'entityRef' | 'actorName';
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface UpdateFinanceSettingsInput {
+  companySharePct?: number;
+  branchSharePct?: number;
+  shareBasis?: ShareBasis;
+  openingCashBalance?: number;
+  openingBankBalance?: number;
+  openingBalanceDate?: string | null;
+  autoImportBranchIncome?: boolean;
+  requireAdminVerification?: boolean;
+  allowSuperAdminWrite?: boolean;
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {

@@ -1,5 +1,6 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { comingSoonPane } from '@/features/placeholder';
+import { FinanceAuditTrailScreen, FinanceReportsScreen, FinanceSettingsScreen } from '@/features/finance';
 import { FinanceBottomTabNavigator } from '../FinanceBottomTabNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
@@ -12,15 +13,13 @@ const FinancePartnersScreen = comingSoonPane('Partner Transactions');
 const FinanceCompanyTransactionDetailsScreen = comingSoonPane('Company Transaction Details');
 const FinanceLedgerHeadsScreen = comingSoonPane('Ledger Heads');
 const FinanceClosingScreen = comingSoonPane('Daily Closing');
-const FinanceReportsScreen = comingSoonPane('Finance Reports');
-const FinanceAuditTrailScreen = comingSoonPane('Audit Trail');
 const FinanceHelpDeskScreen = comingSoonPane('Finance Help Desk');
-const FinanceSettingsScreen = comingSoonPane('Finance Settings');
 
 /**
  * mountainbakesFinance.html — the four finance roles' app shell
  * (finance_admin/finance_manager/accountant/finance_auditor). 23 screens are
- * scoped in `docs/mobile-finance-plan.md`; Dashboard (01) is built this slice,
+ * scoped in `docs/mobile-finance-plan.md`. Dashboard (01), Daily Ledger (02,
+ * view-only), Reports (19), Audit Trail (20) and Settings (23) are built;
  * everything else is a "coming soon" placeholder wired into real navigation so
  * every area is reachable and ready for its own slice.
  */

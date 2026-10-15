@@ -89,10 +89,19 @@ confirms the shapes above.
 ## Build order (unchanged reasoning from the original audit, now backed by full contracts)
 
 1. **Navigation scaffold** — routes/types for all 23 screens, drawer + stacks, up front
-   (same pattern as Branch/Production's own Slice 1).
-2. **Dashboard (01)** — needs only already-confirmed `view`-level endpoints.
+   (same pattern as Branch/Production's own Slice 1). **Done.**
+2. **Dashboard (01)** — needs only already-confirmed `view`-level endpoints. **Done**
+   (today's composite from `GET /finance/dashboard`; the mockup's monthly multi-chart view
+   is deliberately deferred — see below).
 3. **Daily Ledger (02) / Reports (19) / Audit Trail (20) / Settings (23)** — same, all
-   `view`/`configure`-only reads plus one simple settings form.
+   `view`/`configure`-only reads plus one simple settings form. **Done.** Ledger is
+   view-only this slice (list + entry detail sheet) — the three `adjust`-gated correction
+   actions (reverse/edit/delete) are `finance_admin`-only and deferred to their own pass.
+   Reports renders all ten `FinanceReport` types from one generic viewer (chip picker +
+   fixed date-range presets, no date-picker library in this app); PDF/Excel/CSV export is
+   deferred — no file-download/share library exists yet. Settings is read-only unless the
+   signed-in user's permission (`financeCan(role, 'configure', allowSuperAdminWrite)`)
+   allows writes.
 4. **Cash Transfers (03)** — view/approve, small and self-contained.
 5. **Ledger Heads (16–17) / Daily Closing (18)** — `configure`/`approve`, small.
 6. **Income & Expense (04–05)** — `view/create/approve`, moderate (duplicate-detection UX).
