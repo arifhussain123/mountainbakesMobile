@@ -1,4 +1,5 @@
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import { Text } from 'react-native';
 import type { Theme } from '@/shared/theme';
 
 /**
@@ -29,10 +30,11 @@ export function tabBarScreenOptions(theme: Theme): BottomTabNavigationOptions {
       height: 62,
       paddingTop: 8,
     },
-    tabBarLabelStyle: {
-      fontSize: 10,
-      fontWeight: '700',
-      marginTop: 2,
-    },
+    // A custom renderer rather than `tabBarLabelStyle` alone: the reference
+    // screenshot bolds only the ACTIVE tab's label, the rest sit at a lighter
+    // weight — a single shared style object can't express that difference.
+    tabBarLabel: ({ focused, color, children }) => (
+      <Text style={{ fontSize: 10, fontWeight: focused ? '700' : '500', marginTop: 2, color }}>{children}</Text>
+    ),
   };
 }
