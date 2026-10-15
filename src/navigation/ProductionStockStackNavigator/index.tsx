@@ -1,18 +1,14 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
+  ProductionBranchStockScreen,
   ProductionPreparedProductsScreen,
   ProductionStockAdjustmentScreen,
   ProductionStockOverviewScreen,
 } from '@/features/production';
-import { comingSoonPane } from '@/features/placeholder';
 import { Routes } from '../routes';
 import type { ProductionStockStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<ProductionStockStackParamList>();
-
-// Screen 09 — see mobile-production-plan.md's open items: the obvious endpoint
-// (`GET /stock/history/branches`) is super_admin-only, not yet buildable for this role.
-const ProductionBranchStockScreen = comingSoonPane('Branch Stock');
 
 /** mountainbakesProduction.html screens 07/08 — the central pool and its own prepare/adjustment actions. */
 export function ProductionStockStackNavigator() {

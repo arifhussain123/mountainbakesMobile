@@ -629,6 +629,71 @@ export interface ProductionBranchStockResponse {
   rows: ProductionBranchStockRow[];
 }
 
+// ─── Production Reports (mountainbakesProduction.html screen 13) ──────────
+// `GET /api/production-reports/summary` — its own reporting surface,
+// deliberately separate from `/api/reports` (sales/financials), which refuses
+// `production_user`. Ten report types sharing one generic
+// title/headers/rows shape — mirrors `backend/src/routes/production-reports.routes.ts`.
+
+export const PRODUCTION_REPORT_TYPES = [
+  'production',
+  'prepared-detail',
+  'branch-demand',
+  'approved-orders',
+  'pending-balance',
+  'returned-products',
+  'production-stock',
+  'branch-return-stock',
+  'branch-stock',
+  'collections',
+] as const;
+export type ProductionReportType = (typeof PRODUCTION_REPORT_TYPES)[number];
+
+export const PRODUCTION_REPORT_LABELS: Record<ProductionReportType, string> = {
+  production: 'Production',
+  'prepared-detail': 'Prepared Detail',
+  'branch-demand': 'Branch Demand',
+  'approved-orders': 'Approved Orders',
+  'pending-balance': 'Pending Balance',
+  'returned-products': 'Returned Products',
+  'production-stock': 'Production Stock',
+  'branch-return-stock': 'Branch Return Stock',
+  'branch-stock': 'Branch Stock',
+  collections: 'Collections',
+};
+
+/** Reports driven by an explicit from/to window instead of the period dropdown — mirrors `usesDateRange` server-side. */
+export const PRODUCTION_REPORT_USES_DATE_RANGE = new Set<ProductionReportType>(['prepared-detail', 'collections']);
+
+export type ProductionReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface ProductionReportPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface ProductionReportSummary {
+  title: string;
+  headers: string[];
+  rows: (string | number)[][];
+  specialRowCount?: number;
+  pagination?: ProductionReportPagination;
+}
+
+export interface GetProductionReportParams {
+  report: ProductionReportType;
+  period?: ProductionReportPeriod;
+  from?: string;
+  to?: string;
+  branchId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // ─── Packing materials ──────────────────────────────────────────────────────
 
 export interface PackingMaterial {

@@ -46,7 +46,7 @@ export function ProductionReturnCard({ item, onPress }: ProductionReturnCardProp
           <StatusBadge label={STATUS_LABEL[item.status] ?? item.status} variant={STATUS_VARIANT[item.status] ?? 'neutral'} />
         </View>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>
-          {formatDisplayDate(item.date)} · {item.source === 'branch' ? 'Branch' : 'Production'}
+          {item.id.slice(0, 8).toUpperCase()} · {formatDisplayDate(item.date)} · {item.source === 'branch' ? 'Branch' : 'Production'}
         </Text>
       </Card>
     </Pressable>

@@ -61,6 +61,7 @@ export function ProductionStockOverviewScreen() {
           <View>
             <View style={styles.actionsRow}>
               <SecondaryButton label="Adjustment" onPress={() => navigation.navigate(Routes.PRODUCTION_STOCK_ADJUSTMENT)} />
+              <SecondaryButton label="Branch Stock" onPress={() => navigation.navigate(Routes.PRODUCTION_BRANCH_STOCK)} />
             </View>
             <View style={{ marginTop: 8 }}>
               <PrimaryButton
