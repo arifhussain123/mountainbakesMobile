@@ -35,6 +35,7 @@ export const queryKeys = {
   financeAudit: (query: unknown) => ['financeAudit', query] as const,
   financeCashTransfers: (query: unknown) => ['financeCashTransfers', query] as const,
   financeCashTransfer: (id: string) => ['financeCashTransfer', id] as const,
+  financeTransactions: (query: unknown) => ['financeTransactions', query] as const,
   dailySaleRecords: (params?: { from?: string; to?: string }) => ['dailySaleRecords', params ?? {}] as const,
   packingUsage: (from: string, to: string) => ['packingUsage', from, to] as const,
   supportTickets: () => ['supportTickets'] as const,

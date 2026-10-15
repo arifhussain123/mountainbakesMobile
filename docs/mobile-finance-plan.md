@@ -111,6 +111,16 @@ confirms the shapes above.
    only), create/edit as one bottom sheet (code/type locked once created). Closing: today's
    figures + a Close Day action (gated on `approve`) + 30-day history.
 6. **Income & Expense (04–05)** — `view/create/approve`, moderate (duplicate-detection UX).
+   **Done** — this covers exactly what mockup screen 04 shows: the manual documents queue
+   (`entriesRouter`) with All/Pending Approval/Posted/Draft/Rejected tabs, inline View/
+   Approve/Reject, and a New Entry sheet (type → filters ledger-head chips, business date
+   fixed to today, amount, description, account, payment method, notes, a required receipt
+   photo, Save as Draft / Submit for Approval). **Not built, and NOT shown in this mockup
+   frame**: the separate three-step Branch Income approval queue
+   (`pending_verification → pending_approval → approved/rejected`, `GET/POST
+   /finance/income`) and its duplicate-detection confirm-resubmit flow on manual-entry
+   create (409 `duplicate_income`) — flagged for its own pass if/when the owner wants it
+   surfaced on mobile (today it's web-only).
 7. **Payroll (06–11)** — the largest single group: employees, resignations, salary
    revisions, payslips (with advance recovery picking), advances, salary ledger.
 8. **Partners (12–14) / Company Transaction Details (15)** — partner profile, partner

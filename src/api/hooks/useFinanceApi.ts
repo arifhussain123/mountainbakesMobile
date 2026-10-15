@@ -3,13 +3,16 @@ import { queryKeys } from '../queryKeys';
 import { financeService } from '../services';
 import type {
   ApproveCashTransferInput,
+  CreateFinanceTransactionInput,
   CreateLedgerHeadInput,
   FinanceAuditQuery,
   FinanceCashTransferQuery,
   FinanceReportQuery,
+  FinanceTransactionQuery,
   LedgerQuery,
   RejectCashTransferInput,
   UpdateFinanceSettingsInput,
+  UpdateFinanceTransactionInput,
   UpdateLedgerHeadInput,
 } from '../types';
 
@@ -94,6 +97,60 @@ export function useUpdateLedgerHead() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateLedgerHeadInput }) => financeService.updateLedgerHead(id, input),
     onSuccess: () => invalidateLedgerHeads(queryClient),
+  });
+}
+
+// ─── Income & Expense (04–05) ────────────────────────────────────────────────
+
+export function useFinanceTransactions(query: FinanceTransactionQuery) {
+  return useQuery({
+    queryKey: queryKeys.financeTransactions(query),
+    queryFn: () => financeService.listFinanceTransactions(query),
+  });
+}
+
+function invalidateFinanceTransactions(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['financeTransactions'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.pendingApprovals() });
+}
+
+export function useCreateFinanceTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateFinanceTransactionInput) => financeService.createFinanceTransaction(input),
+    onSuccess: () => invalidateFinanceTransactions(queryClient),
+  });
+}
+
+export function useUpdateFinanceTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateFinanceTransactionInput }) => financeService.updateFinanceTransaction(id, input),
+    onSuccess: () => invalidateFinanceTransactions(queryClient),
+  });
+}
+
+export function useSubmitFinanceTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeService.submitFinanceTransaction(id),
+    onSuccess: () => invalidateFinanceTransactions(queryClient),
+  });
+}
+
+export function useApproveFinanceTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) => financeService.approveFinanceTransaction(id, notes),
+    onSuccess: () => invalidateFinanceTransactions(queryClient),
+  });
+}
+
+export function useRejectFinanceTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => financeService.rejectFinanceTransaction(id, reason),
+    onSuccess: () => invalidateFinanceTransactions(queryClient),
   });
 }
 

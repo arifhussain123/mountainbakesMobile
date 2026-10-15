@@ -363,10 +363,10 @@ export interface PackingMaterialListResponse {
 
 // ─── Attachments (photo capture) ───────────────────────────────────────────
 // Extend this union only as a slice actually uploads against a new entity —
-// the full server-side list (`attachment.types.ts`) covers finance entities
-// this app never touches.
+// the full server-side list (`attachment.types.ts`) covers more than this app
+// touches.
 
-export type AttachmentEntity = 'branch_return' | 'cash_transfer';
+export type AttachmentEntity = 'branch_return' | 'cash_transfer' | 'finance_transaction';
 
 export interface Attachment {
   id: string;
@@ -1154,6 +1154,18 @@ export const FINANCE_ACCOUNT_LABELS: Record<FinanceAccount, string> = { cash: 'C
 
 export type FinancePaymentMethod = 'cash' | 'easypaisa' | 'bank_transfer' | 'cheque' | 'foodpanda' | 'online' | 'other';
 
+export const FINANCE_PAYMENT_METHODS: readonly FinancePaymentMethod[] = ['cash', 'easypaisa', 'bank_transfer', 'cheque', 'foodpanda', 'online', 'other'];
+
+export const FINANCE_PAYMENT_METHOD_LABELS: Record<FinancePaymentMethod, string> = {
+  cash: 'Cash',
+  easypaisa: 'Easypaisa',
+  bank_transfer: 'Bank Transfer',
+  cheque: 'Cheque',
+  foodpanda: 'Foodpanda',
+  online: 'Online',
+  other: 'Other',
+};
+
 export type LedgerHeadType = 'income' | 'expense';
 
 export type FinanceDocStatus = 'draft' | 'pending_approval' | 'approved' | 'posted' | 'locked' | 'rejected';
@@ -1484,6 +1496,74 @@ export interface FinanceAuditQuery {
   sortBy?: 'createdAt' | 'action' | 'entity' | 'entityRef' | 'actorName';
   sortDir?: 'asc' | 'desc';
 }
+
+// ─── Finance: Income & Expense (screens 04–05) ──────────────────────────────
+// `/api/finance/income/entries` — manual documents. `txnType` is NEVER
+// client-sent; it is derived server-side from the chosen ledger head.
+
+export interface FinanceTransaction {
+  id: string;
+  txnNo: string;
+  txnType: LedgerHeadType;
+  ledgerHeadId: string;
+  ledgerHeadName: string;
+  branchId: string | null;
+  branchName: string | null;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  businessDate: string;
+  status: FinanceDocStatus;
+  referenceNo: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export type FinanceTransactionSortKey = 'txnNo' | 'businessDate' | 'ledgerHeadName' | 'description' | 'branchName' | 'notes' | 'amount' | 'paymentMethod' | 'status';
+
+export interface FinanceTransactionQuery {
+  status?: FinanceDocStatus | 'pending';
+  type?: LedgerHeadType;
+  branchId?: string;
+  ledgerHeadId?: string;
+  paymentMethod?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  limit?: number;
+  offset?: number;
+  sortBy?: FinanceTransactionSortKey;
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface CreateFinanceTransactionInput {
+  ledgerHeadId: string;
+  branchId?: string | null;
+  description: string;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  businessDate?: string;
+  referenceNo?: string | null;
+  notes?: string | null;
+  asDraft?: boolean;
+  confirmDuplicate?: boolean;
+  attachmentIds: string[];
+}
+
+export type UpdateFinanceTransactionInput = Partial<Omit<CreateFinanceTransactionInput, 'asDraft' | 'confirmDuplicate' | 'attachmentIds'>>;
 
 export interface UpdateFinanceSettingsInput {
   companySharePct?: number;

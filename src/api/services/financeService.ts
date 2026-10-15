@@ -4,6 +4,7 @@ import type {
   ApproveCashTransferInput,
   CashTransfer,
   CashTransferListResponse,
+  CreateFinanceTransactionInput,
   CreateLedgerHeadInput,
   EditLedgerEntryInput,
   FinanceAuditLog,
@@ -15,6 +16,8 @@ import type {
   FinanceReport,
   FinanceReportQuery,
   FinanceSettings,
+  FinanceTransaction,
+  FinanceTransactionQuery,
   LedgerEntry,
   LedgerHead,
   LedgerPage,
@@ -22,6 +25,7 @@ import type {
   LedgerSummary,
   RejectCashTransferInput,
   UpdateFinanceSettingsInput,
+  UpdateFinanceTransactionInput,
   UpdateLedgerHeadInput,
 } from '../types';
 
@@ -146,4 +150,34 @@ export async function approveFinanceCashTransfer(id: string, input: ApproveCashT
 
 export async function rejectFinanceCashTransfer(id: string, input: RejectCashTransferInput): Promise<{ transfer: CashTransfer }> {
   return apiClient.put<{ transfer: CashTransfer }>(`/finance/cash-transfers/${id}/reject`, input);
+}
+
+// ─── Income & Expense (screens 04–05) — manual documents, `/finance/income/entries` ──
+
+export async function listFinanceTransactions(query: FinanceTransactionQuery): Promise<{ entries: FinanceTransaction[]; total: number }> {
+  return apiClient.get<{ entries: FinanceTransaction[]; total: number }>('/finance/income/entries', query as unknown as Record<string, unknown>);
+}
+
+export async function createFinanceTransaction(input: CreateFinanceTransactionInput): Promise<FinanceTransaction> {
+  const { entry } = await apiClient.post<{ entry: FinanceTransaction }>('/finance/income/entries', input);
+  return entry;
+}
+
+/** Only editable while `draft`/`rejected` — `EDITABLE_DOC_STATUSES`. */
+export async function updateFinanceTransaction(id: string, input: UpdateFinanceTransactionInput): Promise<FinanceTransaction> {
+  const { entry } = await apiClient.put<{ entry: FinanceTransaction }>(`/finance/income/entries/${id}`, input);
+  return entry;
+}
+
+export async function submitFinanceTransaction(id: string): Promise<FinanceTransaction> {
+  const { entry } = await apiClient.post<{ entry: FinanceTransaction }>(`/finance/income/entries/${id}/submit`);
+  return entry;
+}
+
+export async function approveFinanceTransaction(id: string, notes?: string): Promise<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }> {
+  return apiClient.post<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }>(`/finance/income/entries/${id}/approve`, { notes });
+}
+
+export async function rejectFinanceTransaction(id: string, reason: string): Promise<{ entry: FinanceTransaction }> {
+  return apiClient.post<{ entry: FinanceTransaction }>(`/finance/income/entries/${id}/reject`, { reason });
 }

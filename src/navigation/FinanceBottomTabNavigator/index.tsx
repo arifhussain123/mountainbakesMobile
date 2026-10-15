@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DrawerActions } from '@react-navigation/native';
-import { comingSoonPane } from '@/features/placeholder';
+import { FinanceIncomeExpenseListScreen } from '@/features/finance';
 import { NoopScreen } from '../BottomTabNavigator/NoopScreen';
 import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStackNavigator';
 import { FinanceHomeStackNavigator } from '../FinanceHomeStackNavigator';
@@ -11,8 +11,6 @@ import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<FinanceBottomTabParamList>();
-
-const FinanceIncomeExpenseScreen = comingSoonPane('Income & Expense');
 
 const TAB_ICON: Record<string, IconName> = {
   [Routes.FINANCE_DASHBOARD_TAB]: 'menu',
@@ -38,7 +36,7 @@ export function FinanceBottomTabNavigator() {
       <Tab.Screen name={Routes.FINANCE_DASHBOARD_TAB} component={FinanceHomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.FINANCE_LEDGER_TAB} component={FinanceLedgerStackNavigator} options={{ title: 'Ledger' }} />
       <Tab.Screen name={Routes.FINANCE_CASH_TRANSFERS_TAB} component={FinanceCashTransfersStackNavigator} options={{ title: 'Cash Transfers' }} />
-      <Tab.Screen name={Routes.FINANCE_INCOME_EXPENSE_TAB} component={FinanceIncomeExpenseScreen} options={{ title: 'Income' }} />
+      <Tab.Screen name={Routes.FINANCE_INCOME_EXPENSE_TAB} component={FinanceIncomeExpenseListScreen} options={{ title: 'Income' }} />
       <Tab.Screen
         name={Routes.FINANCE_MORE_TAB}
         component={NoopScreen}
