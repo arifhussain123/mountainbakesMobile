@@ -169,7 +169,7 @@ export type FinanceDrawerParamList = {
 };
 
 export type RootStackParamList = {
-  [Routes.LOGIN]: undefined;
+  [Routes.AUTH]: undefined;
   [Routes.DRAWER]: NavigatorScreenParams<DrawerParamList> | undefined;
   [Routes.PRODUCTION_DRAWER]: NavigatorScreenParams<ProductionDrawerParamList> | undefined;
   [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;

@@ -1,6 +1,7 @@
 /** Every route name used anywhere in the app — never a hardcoded string elsewhere. */
 export const Routes = {
   // Root stack
+  AUTH: 'Auth',
   DRAWER: 'Drawer',
   PRODUCTION_DRAWER: 'ProductionDrawer',
   FINANCE_DRAWER: 'FinanceDrawer',

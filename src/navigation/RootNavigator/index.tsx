@@ -48,7 +48,7 @@ export function RootNavigator() {
         {status === 'signedIn' ? (
           <Stack.Screen name={mainScreen.name} component={mainScreen.component} />
         ) : (
-          <Stack.Screen name={Routes.LOGIN} component={AuthNavigator} />
+          <Stack.Screen name={Routes.AUTH} component={AuthNavigator} />
         )}
         <Stack.Screen name={Routes.COMING_SOON} component={ComingSoonScreen} options={{ presentation: 'modal', headerShown: false }} />
       </Stack.Navigator>
