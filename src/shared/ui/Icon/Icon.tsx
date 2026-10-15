@@ -32,7 +32,11 @@ export type IconName =
   | 'orders'
   | 'sales'
   | 'stock'
-  | 'more';
+  | 'more'
+  | 'dashboard-grid'
+  | 'ledger'
+  | 'transfer'
+  | 'bar-chart';
 
 export interface IconProps {
   name: IconName;
@@ -282,6 +286,38 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" {...common} />
+        </Svg>
+      );
+    // Finance bottom-tab icons (Dashboard/Ledger/Transfers/Reports/More) — the
+    // other four tabs reuse icons already above ('home', 'wallet', 'more').
+    case 'dashboard-grid':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={3} y={3} width={8} height={8} rx={1.5} {...common} />
+          <Rect x={13} y={3} width={8} height={8} rx={1.5} {...common} />
+          <Rect x={3} y={13} width={8} height={8} rx={1.5} {...common} />
+          <Rect x={13} y={13} width={8} height={8} rx={1.5} {...common} />
+        </Svg>
+      );
+    case 'ledger':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" {...common} strokeLinejoin="round" />
+          <Path d="M14 3v5h5M8.5 12.5h7M8.5 16h7" {...common} />
+        </Svg>
+      );
+    case 'transfer':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 8h13M12 4l4 4-4 4" {...common} />
+          <Path d="M21 16H8m5 4-4-4 4-4" {...common} />
+        </Svg>
+      );
+    case 'bar-chart':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M5 21V12M12 21V7M19 21v-8" {...common} />
+          <Path d="M4 6l5-2 6 2 5-3" {...common} />
         </Svg>
       );
     default:

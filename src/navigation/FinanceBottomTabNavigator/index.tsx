@@ -13,15 +13,13 @@ import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<FinanceBottomTabParamList>();
 
-// Same glass tab bar and "Home"/"More" icons as the Branch/Production shells
-// (mountainbakesBranch.html design line ~1273); Ledger/Cash Transfers/Income
-// have no equivalent there, so they keep the closest existing icons instead
-// of inventing new ones the design never specifies.
+// Dashboard/Ledger/Transfers/Reports/More, matching the reference screenshot
+// exactly (grid / document / swap-arrows / bar-chart / hamburger).
 const TAB_ICON: Record<string, IconName> = {
-  [Routes.FINANCE_DASHBOARD_TAB]: 'home',
-  [Routes.FINANCE_LEDGER_TAB]: 'file-spreadsheet',
-  [Routes.FINANCE_CASH_TRANSFERS_TAB]: 'wallet',
-  [Routes.FINANCE_INCOME_EXPENSE_TAB]: 'sales',
+  [Routes.FINANCE_DASHBOARD_TAB]: 'dashboard-grid',
+  [Routes.FINANCE_LEDGER_TAB]: 'ledger',
+  [Routes.FINANCE_CASH_TRANSFERS_TAB]: 'transfer',
+  [Routes.FINANCE_INCOME_EXPENSE_TAB]: 'bar-chart',
   [Routes.FINANCE_MORE_TAB]: 'more',
 };
 
@@ -33,12 +31,13 @@ export function FinanceBottomTabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...tabBarScreenOptions(theme),
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'home'} color={color} size={size} />,
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'dashboard-grid'} color={color} size={size} />,
       })}>
       <Tab.Screen name={Routes.FINANCE_DASHBOARD_TAB} component={FinanceHomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.FINANCE_LEDGER_TAB} component={FinanceLedgerStackNavigator} options={{ title: 'Ledger' }} />
-      <Tab.Screen name={Routes.FINANCE_CASH_TRANSFERS_TAB} component={FinanceCashTransfersStackNavigator} options={{ title: 'Cash Transfers' }} />
-      <Tab.Screen name={Routes.FINANCE_INCOME_EXPENSE_TAB} component={FinanceIncomeExpenseListScreen} options={{ title: 'Income' }} />
+      {/* Tab label only — matches the reference screenshot's "Transfers"/"Reports" text; the routes/screens underneath are unchanged. */}
+      <Tab.Screen name={Routes.FINANCE_CASH_TRANSFERS_TAB} component={FinanceCashTransfersStackNavigator} options={{ title: 'Transfers' }} />
+      <Tab.Screen name={Routes.FINANCE_INCOME_EXPENSE_TAB} component={FinanceIncomeExpenseListScreen} options={{ title: 'Reports' }} />
       <Tab.Screen
         name={Routes.FINANCE_MORE_TAB}
         component={NoopScreen}
