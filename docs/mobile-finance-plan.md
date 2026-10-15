@@ -102,7 +102,10 @@ confirms the shapes above.
    deferred — no file-download/share library exists yet. Settings is read-only unless the
    signed-in user's permission (`financeCan(role, 'configure', allowSuperAdminWrite)`)
    allows writes.
-4. **Cash Transfers (03)** — view/approve, small and self-contained.
+4. **Cash Transfers (03)** — view/approve, small and self-contained. **Done** — list
+   (Pending/Approved/Rejected tabs) + detail (amount breakdown, proof-of-deposit photo,
+   approve-with-note or reject-with-reason). Approve/reject actions are gated by the
+   signed-in user's actual `approve` permission, not their role name.
 5. **Ledger Heads (16–17) / Daily Closing (18)** — `configure`/`approve`, small.
 6. **Income & Expense (04–05)** — `view/create/approve`, moderate (duplicate-detection UX).
 7. **Payroll (06–11)** — the largest single group: employees, resignations, salary

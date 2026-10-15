@@ -525,6 +525,31 @@ export interface CreateCashTransferInput {
   businessDate?: string;
 }
 
+// Finance's own review side — `/api/finance/cash-transfers` (screen 03).
+
+export type CashTransferSortKey = 'date' | 'createdAt' | 'approvedAt' | 'transferNo' | 'voucherNo' | 'branchName' | 'amount' | 'fuelCharges' | 'status';
+
+export interface FinanceCashTransferQuery {
+  branchId?: string;
+  from?: string;
+  to?: string;
+  status?: CashTransferStatus;
+  paymentMethod?: CashTransferMethod;
+  search?: string;
+  sortBy?: CashTransferSortKey;
+  sortDir?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
+export interface ApproveCashTransferInput {
+  note?: string;
+}
+
+export interface RejectCashTransferInput {
+  reason: string;
+}
+
 // ─── Shop expenses ──────────────────────────────────────────────────────────
 // `/api/expenses` — cash/easypaisa only, today-only date for a branch role,
 // no edit/delete.

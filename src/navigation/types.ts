@@ -131,10 +131,15 @@ export type FinanceLedgerStackParamList = {
   [Routes.FINANCE_LEDGER_LIST]: undefined;
 };
 
+export type FinanceCashTransfersStackParamList = {
+  [Routes.FINANCE_CASH_TRANSFERS_LIST]: undefined;
+  [Routes.FINANCE_CASH_TRANSFER_DETAIL]: { transferId: string };
+};
+
 export type FinanceBottomTabParamList = {
   [Routes.FINANCE_DASHBOARD_TAB]: undefined;
   [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
-  [Routes.FINANCE_CASH_TRANSFERS_TAB]: undefined;
+  [Routes.FINANCE_CASH_TRANSFERS_TAB]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
   [Routes.FINANCE_INCOME_EXPENSE_TAB]: undefined;
   [Routes.FINANCE_MORE_TAB]: undefined;
 };

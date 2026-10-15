@@ -1,9 +1,13 @@
 import { apiClient } from '../client';
 import type {
   AdjustLedgerEntryInput,
+  ApproveCashTransferInput,
+  CashTransfer,
+  CashTransferListResponse,
   EditLedgerEntryInput,
   FinanceAuditLog,
   FinanceAuditQuery,
+  FinanceCashTransferQuery,
   FinanceDashboard,
   FinanceDayClosing,
   FinancePendingApproval,
@@ -15,6 +19,7 @@ import type {
   LedgerPage,
   LedgerQuery,
   LedgerSummary,
+  RejectCashTransferInput,
   UpdateFinanceSettingsInput,
 } from '../types';
 
@@ -108,4 +113,23 @@ export async function getFinanceReport(query: FinanceReportQuery): Promise<Finan
 
 export async function listFinanceAudit(query: FinanceAuditQuery): Promise<{ logs: FinanceAuditLog[]; total: number }> {
   return apiClient.get<{ logs: FinanceAuditLog[]; total: number }>('/finance/audit', query as unknown as Record<string, unknown>);
+}
+
+// ─── Cash Transfers (screen 03) — Finance's review side of the Branch app's Cash Deposit ──
+
+export async function listFinanceCashTransfers(query: FinanceCashTransferQuery): Promise<CashTransferListResponse> {
+  return apiClient.get<CashTransferListResponse>('/finance/cash-transfers', query as unknown as Record<string, unknown>);
+}
+
+export async function getFinanceCashTransfer(id: string): Promise<CashTransfer> {
+  return apiClient.get<CashTransfer>(`/finance/cash-transfers/${id}`);
+}
+
+/** `approve` permission — posts an RV- receipt under INC-BRANCH-CASH (+ a second under INC-FUEL if fuel charges were entered). */
+export async function approveFinanceCashTransfer(id: string, input: ApproveCashTransferInput): Promise<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }> {
+  return apiClient.put<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }>(`/finance/cash-transfers/${id}/approve`, input);
+}
+
+export async function rejectFinanceCashTransfer(id: string, input: RejectCashTransferInput): Promise<{ transfer: CashTransfer }> {
+  return apiClient.put<{ transfer: CashTransfer }>(`/finance/cash-transfers/${id}/reject`, input);
 }

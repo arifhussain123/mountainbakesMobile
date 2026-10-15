@@ -2,9 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryKeys';
 import { financeService } from '../services';
 import type {
+  ApproveCashTransferInput,
   FinanceAuditQuery,
+  FinanceCashTransferQuery,
   FinanceReportQuery,
   LedgerQuery,
+  RejectCashTransferInput,
   UpdateFinanceSettingsInput,
 } from '../types';
 
@@ -114,5 +117,43 @@ export function useFinanceAudit(query: FinanceAuditQuery) {
   return useQuery({
     queryKey: queryKeys.financeAudit(query),
     queryFn: () => financeService.listFinanceAudit(query),
+  });
+}
+
+// ─── Cash Transfers (03) ─────────────────────────────────────────────────────
+
+export function useFinanceCashTransfers(query: FinanceCashTransferQuery) {
+  return useQuery({
+    queryKey: queryKeys.financeCashTransfers(query),
+    queryFn: () => financeService.listFinanceCashTransfers(query),
+  });
+}
+
+export function useFinanceCashTransfer(id: string) {
+  return useQuery({
+    queryKey: queryKeys.financeCashTransfer(id),
+    queryFn: () => financeService.getFinanceCashTransfer(id),
+    enabled: !!id,
+  });
+}
+
+function invalidateCashTransfers(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['financeCashTransfers'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.pendingApprovals() });
+}
+
+export function useApproveFinanceCashTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ApproveCashTransferInput }) => financeService.approveFinanceCashTransfer(id, input),
+    onSuccess: () => invalidateCashTransfers(queryClient),
+  });
+}
+
+export function useRejectFinanceCashTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RejectCashTransferInput }) => financeService.rejectFinanceCashTransfer(id, input),
+    onSuccess: () => invalidateCashTransfers(queryClient),
   });
 }

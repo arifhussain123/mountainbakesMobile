@@ -28,4 +28,5 @@ export type {
   FinanceDrawerParamList,
   FinanceBottomTabParamList,
   FinanceLedgerStackParamList,
+  FinanceCashTransfersStackParamList,
 } from './types';

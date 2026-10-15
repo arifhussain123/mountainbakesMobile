@@ -122,6 +122,9 @@ export const Routes = {
   FINANCE_LEDGER_STACK: 'FinanceLedgerStack',
   FINANCE_LEDGER_LIST: 'FinanceLedgerList',
 
+  FINANCE_CASH_TRANSFERS_LIST: 'FinanceCashTransfersList',
+  FINANCE_CASH_TRANSFER_DETAIL: 'FinanceCashTransferDetail',
+
   FINANCE_PAYROLL_STACK: 'FinancePayrollStack',
   FINANCE_PARTNERS_STACK: 'FinancePartnersStack',
   FINANCE_COMPANY_TRANSACTION_DETAILS_STACK: 'FinanceCompanyTransactionDetailsStack',
