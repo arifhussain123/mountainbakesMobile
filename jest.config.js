@@ -1,26 +1,25 @@
 module.exports = {
   preset: '@react-native/jest-preset',
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    // See jest/lucideIconStub.js for why icons are stubbed rather than loaded.
-    '^lucide-react-native/icons/.*$': '<rootDir>/jest/lucideIconStub.js',
-  },
-  setupFiles: ['<rootDir>/jest.setup.js'],
-  // Native mocks must be registered before the framework loads; anything needing
-  // a live test runtime (React act environment, timers) goes in the after-env file.
-  setupFilesAfterEnv: ['<rootDir>/jest.after-env.js'],
-  // Reanimated 4 loads worklets through `.native` entrypoints that call into a
-  // native module and throw under Jest. This resolver, shipped by
-  // react-native-worklets, strips the `.native` extension so the plain
-  // implementation resolves instead.
-  resolver: 'react-native-worklets/jest/resolver.js',
-  // The default preset only whitelists react-native itself. These ship
-  // untranspiled ESM/Flow and fail to parse without it.
+  // These ship untranspiled ESM and must go through Babel too — the preset's
+  // default ignore pattern only allows `react-native` itself through.
   transformIgnorePatterns: [
-    // `lucide-react-native` is listed explicitly: it ships ESM, and the
-    // `react-native-.*` alternative above does not match it — the package name
-    // starts with `lucide-`, not `react-native-`.
-    'node_modules/(?!(?:@react-native|react-native|@react-navigation|react-native-.*|lucide-react-native|@shopify/.*|@gorhom/.*|uuid)/)',
+    'node_modules/(?!(' +
+      [
+        '@react-native',
+        'react-native',
+        '@react-navigation',
+        'react-native-gesture-handler',
+        'react-native-reanimated',
+        'react-native-worklets',
+        'react-native-screens',
+        'react-native-safe-area-context',
+        'react-native-svg',
+        'react-native-bootsplash',
+        'react-native-keychain',
+        '@react-native-async-storage',
+        '@react-native-community',
+      ].join('|') +
+      ')/)',
   ],
-  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/shared/**', '!src/**/*.d.ts'],
+  setupFiles: ['./jest.setup.js'],
 };

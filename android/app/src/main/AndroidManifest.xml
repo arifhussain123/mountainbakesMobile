@@ -1,35 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.INTERNET" />
-
-  <!--
-    Talking to a paired ESC/POS receipt printer over Bluetooth Classic.
-
-    Two eras, and both have to be declared. From API 31 the single runtime
-    permission BLUETOOTH_CONNECT covers reading the bonded set and opening a
-    socket; before it, the pair below are install-time and never prompt. The
-    maxSdkVersion="30" is what stops the old pair being requested on a modern
-    phone, where they no longer exist.
-
-    Deliberately ABSENT: BLUETOOTH_SCAN and ACCESS_FINE_LOCATION. This app never
-    discovers a printer — pairing happens once in Android's own Bluetooth
-    settings and the app reads the bonded list. Asking a cashier for location
-    access to find a printer the phone is already paired with is a prompt with
-    no honest explanation. See src/specs/NativeThermalPrinter.ts.
-
-    usesPermissionFlags="neverForLocation" is not needed here for the same
-    reason: it qualifies BLUETOOTH_SCAN, which is not requested.
-  -->
-  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-
-  <!--
-    Not required: a phone without a Bluetooth radio still runs every other
-    surface in the app, and only the Printer screen and the slip's Print button
-    are unavailable. Marking it required would make the app uninstallable on
-    such a device to protect one optional feature.
-  -->
-  <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+  <!-- CLAUDE.md Section 31: a sale must prove it was made from inside the branch. -->
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
   <application
     android:name=".MainApplication"
@@ -51,20 +24,6 @@
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
-      <!-- Deep links. Without this the linking config in src/navigation/linking.ts
-           is inert: React Navigation can map a URL to a route, but nothing ever
-           hands it one. launchMode is already singleTask, so a link delivers to
-           the running task via onNewIntent rather than stacking a second copy of
-           the app on top of unsynced work.
-           The https:// prefix in linking.ts is deliberately NOT claimed here — an
-           App Link needs a verified assetlinks.json on the domain, and claiming
-           it unverified shows a disambiguation dialog on every tap. -->
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="mountainbakes" />
       </intent-filter>
     </activity>
   </application>

@@ -1,0 +1,116 @@
+# Mobile Finance app — build plan
+
+Source: `design UIandUX/mountainbakesFinance.html` (23 screens). Scope: the four finance
+roles (`finance_admin`, `finance_manager`, `accountant`, `finance_auditor`), gated by a
+real permission model — this is a materially bigger, higher-stakes domain than Branch or
+Production (money is posted to an immutable ledger, and the Help Desk can directly amend
+or soft-delete a posted financial record). The full backend audit below is now done;
+building proceeds slice by slice, same discipline as `mobile-production-plan.md`.
+`navigation/FinanceDrawerNavigator` currently renders a single "coming soon" shell for all
+four roles so a finance login lands somewhere coherent; role dispatch in
+`RootNavigator` already routes every finance role there.
+
+## The permission model
+
+Two layers, not one role check:
+
+1. **`requireFinance(permission)`** — `FinancePermission = 'view' | 'create' | 'approve' |
+   'adjust' | 'configure'`, via `financeCan(role, permission, allowSuperAdminWrite)`:
+
+   | Role | Permissions |
+   |---|---|
+   | `finance_admin` | view, create, approve, adjust, configure (everything) |
+   | `finance_manager` | view, create, approve |
+   | `accountant` | view, create |
+   | `finance_auditor` | view only |
+   | `super_admin` | view always; every other permission ONLY if Finance Settings' `allowSuperAdminWrite` is on (off by default) |
+   | anything else (branch_manager, production_user, …) | nothing, including view |
+
+2. **Three narrower guards that do NOT follow the table above**, each a deliberate
+   divergence — build the mobile UI's per-action visibility off these, not off
+   `FinancePermission`:
+   - **`requireIncomeVerifier()`** (income approval's verify step only): a fixed allow-list
+     `['super_admin', 'finance_admin', 'finance_manager']` — notably excludes `accountant`
+     (who otherwise has `create`) and ignores `allowSuperAdminWrite` entirely (verification
+     posts no money, so it's deliberately not locked behind the write toggle).
+   - **`requireFinanceHelpDeskAdmin()`** (administer a Finance Help Desk query — edit,
+     amend, respond, assign, change status, restore, recreate, correct/delete the
+     underlying record): passes for **`super_admin` only** — not even `finance_admin`. This
+     is a deliberate reversal from an earlier migration; the Help Desk is the one sanctioned,
+     fully-audited channel for `super_admin` to touch finance records, so it is NOT gated by
+     `allowSuperAdminWrite`.
+   - **`requireFinanceHelpDeskParticipant()`** (post a message, request a reopen): passes for
+     `super_admin`, `finance_admin`, `finance_manager`, `accountant` — excludes
+     `finance_auditor` (read-only) and is, again, not gated by `allowSuperAdminWrite`.
+
+**The mobile UI must check the actual permission/guard for the action on screen, never
+infer it from the role name** — e.g. a "Verify" button checks the verifier allow-list, not
+`create`/`approve`; a Help Desk "Edit"/"Respond"/"Delete Record" action is `super_admin`-only
+regardless of how senior a Finance role appears.
+
+## Screen → endpoint map (every endpoint read in full; nothing invented)
+
+| # | Screen | Endpoint(s) | Guard | Notes |
+|---|---|---|---|---|
+| 01 | Finance Dashboard | `GET /finance/dashboard`, `/pending-approvals`, `/dashboard/monthly`, `/dashboard/records` | view | `finance.routes.ts`. Monthly dashboard composites production figures (demand/share/received/return/discount) against ledger income/expense per branch per month — two different data families shown side by side, never summed into one number (the dashboard's own note: "Production figures are not combined into a single net figure"). |
+| 02 | Daily Ledger | `GET /finance/ledger`, `/ledger/summary`, `/ledger/:id` | view | **Strictly read-only from the UI's point of view** — a correction is `POST /ledger/:id/adjust` (`adjust`, reverses and optionally re-posts), `PATCH /ledger/:id` (`adjust`, edits the same voucher in place) or `DELETE /ledger/:id` (`adjust`). All three need `adjust` (finance_admin only, or super_admin+toggle). |
+| 03 | Cash Transfers | `GET /finance/cash-transfers`, `GET /:id`, `PUT /:id/approve`, `PUT /:id/reject` | view / approve | Finance's review side of the Branch app's Cash Deposit. Approval posts an RV- receipt under `INC-BRANCH-CASH` (+ a second one under `INC-FUEL` if fuel charges were entered). |
+| 04–05 | Income & Expense / New Entry | `finance-income.routes.ts`'s `entriesRouter` — `GET/POST /income/entries`, `PUT/:id`, `/:id/submit`, `/:id/approve`, `/:id/reject` | view/create/approve | One form for both income and expense — **type is never client-sent**, it's derived server-side from the chosen ledger head. Duplicate-income detection on create (409 `duplicate_income`, resubmit with `confirmDuplicate:true`). |
+| — | *(Branch Income approvals — a separate three-step queue, not its own numbered screen but belongs beside 04–05)* | `GET/POST /income`, `/import`, `/:id`, `/:id/verify`, `/:id/approve`, `/:id/reject` | view / **verifier allow-list** / approve | `pending_verification → pending_approval → approved/rejected` (verify step only exists while Finance Settings' `requireAdminVerification` is on). |
+| 06–11 | Payroll / New Payslip / New Advance / Add Employee / Resignation / Salary Ledger | `finance-payroll.routes.ts` — employees, resignations, salary revisions, salaries, advances, salary ledger (`GET /ledger`, `/ledger/payments`) | view/create/approve/configure | **Ledger is read-only** (405 on any write). `baseSalary` is NEVER directly editable — only via `POST /employees/:id/salary-revisions`. Payslip creation lets the user pick specific outstanding advances to recover (`recoverAdvanceIds`, prefilled from `/employees/:id/advance-summary`) — not inferred. A resignation blocks creating/approving any payslip for a month after it. |
+| 12–14 | Partner Transactions / New Partner Advance / Partner Detail | `finance-partners.routes.ts` (`/api/finance/partner-expenses`) — partners, partner expenses (advance/draw), share summary | view/create/approve/configure | Partner profile fields (`name`, `sharePct`) are fixed at seed time, not editable — only biodata fields are. "Partner Detail" = `GET /share-summary`, a computed view (ledger balance × sharePct − advances/draws paid), not a stored document. |
+| 15 | Company Transaction Details | `finance-partners.routes.ts`'s `/ledger`, `/ledger/transactions` AND `finance-branch-share.routes.ts`'s `/balances`, `/` (list), create/update/submit/approve/reject | view/create/approve | Two distinct things share this one screen slot: the partner × month ledger grid (read-only), and Branch Share payments (a real document workflow — approval can post **two** ledger entries: the share payout and, separately, a bonus). `listBranchSharePayments`'s `total` is just `payments.length`, not a true count — pagination UI must account for that. |
+| 16–17 | Ledger Heads / New Ledger Head | `GET/POST /finance/heads`, `PUT /:id` | view/configure | A head is never deleted, only deactivated (FK is `ON DELETE RESTRICT`) — no delete action exists or should be built. |
+| 18 | Daily Closing | `GET /finance/closing`, `/closing/history`, `POST /closing` | view/**approve** (not configure — closing a day is a sign-off, same class of act as approving a voucher) | 409 if pending approvals exist for that date — the UI should surface *which* approvals are blocking, if feasible, rather than just the generic conflict message. |
+| 19 | Finance Reports | `GET /finance-reports`, `/export?format=pdf\|excel\|csv` | view | **Ten reports, one shared shape** (`FinanceReport`: columns/rows/totals/summary) — the screen can be ONE generic report viewer driven by `type`, not ten bespoke ones. `type ∈ ['daily_cash_book','general_ledger','income_statement','expense_report','profit_loss','company_share','branch_share','salary','partner_expense','trial_balance']`. |
+| 20 | Audit Trail | `GET /finance/audit` | view | Read-only log of every write across the whole module (ledger, heads, settings, closings) — not ticket-specific (that's its own `auditTrail` on a ticket, see below). |
+| 21–22 | Finance Help Desk / Finance New Query | `finance-tickets.routes.ts` (`/api/finance/tickets`) | view / `requireFinanceHelpDeskParticipant` / **`requireFinanceHelpDeskAdmin` (super_admin only)** | A SEPARATE ticket system from the Branch/Production Help Desk (`support.routes.ts`) — different table, different reference types (`ledger_entry`, `income_approval`, `finance_transaction`, `salary_payment`, `employee_advance`, `partner_expense`, `branch_share_payment`, `order`, `cash_transfer`), optimistic-concurrency versioning on nearly every mutation. A Finance role (even `finance_admin`) can only report/view/discuss/request-reopen — never administer, amend a query, correct/delete the underlying record, or truly reopen one. Only `super_admin` can. |
+| 23 | Finance Settings | `GET/PUT /finance/settings` | view/configure | This is where `allowSuperAdminWrite` itself lives — a `finance_admin` can flip the one toggle that changes what `super_admin` may do everywhere else in the module. |
+
+## Shared vocabulary this build reuses everywhere
+
+`FinanceAccount` (`cash`/`bank`), `FinancePaymentMethod` (7 values), `FinanceDocStatus`
+(`draft→pending_approval→approved/rejected`, plus `posted`/`locked` for what's in the
+ledger), `EDITABLE_DOC_STATUSES = ['draft','rejected']` (the one rule every document
+list/detail screen enforces identically: an edit action only renders in these two
+statuses), `LedgerEntry`/`LedgerSourceType` (what every approval ultimately posts),
+`Attachment` (two-step upload: `POST /api/attachments` first for an id, then pass it in
+`attachmentIds`; `url` is a ~1hr signed URL, never cached).
+
+## What this build will NOT attempt to literally reproduce
+
+The Dashboard mockup (screen 01) includes a 31-day dual-bar chart and a 6-month
+multi-series SVG line chart (Demand/Company Share/Received/Balance). Per this repo's own
+UI rule (CLAUDE.md §14/§26 — never reproduce the desktop screenshot literally, and never
+display fake values), these render as the same touch-interactive bar style already built
+for Branch's `SalesChart`/`SalesVsExpensesBar`, not a pixel clone, and only once real data
+confirms the shapes above.
+
+## Build order (unchanged reasoning from the original audit, now backed by full contracts)
+
+1. **Navigation scaffold** — routes/types for all 23 screens, drawer + stacks, up front
+   (same pattern as Branch/Production's own Slice 1).
+2. **Dashboard (01)** — needs only already-confirmed `view`-level endpoints.
+3. **Daily Ledger (02) / Reports (19) / Audit Trail (20) / Settings (23)** — same, all
+   `view`/`configure`-only reads plus one simple settings form.
+4. **Cash Transfers (03)** — view/approve, small and self-contained.
+5. **Ledger Heads (16–17) / Daily Closing (18)** — `configure`/`approve`, small.
+6. **Income & Expense (04–05)** — `view/create/approve`, moderate (duplicate-detection UX).
+7. **Payroll (06–11)** — the largest single group: employees, resignations, salary
+   revisions, payslips (with advance recovery picking), advances, salary ledger.
+8. **Partners (12–14) / Company Transaction Details (15)** — partner profile, partner
+   advance/draw workflow, share summary, branch share payments (two-entry approval).
+9. **Finance Help Desk (21–22)** — by far the most complex screen pair: reference-first
+   query creation, drafts, messaging with auto status-flip, optimistic concurrency
+   throughout, and (super_admin only) edit/amend/respond/assign/status/restore/recreate/
+   correct-record/delete-record/reopen. Deliberately last — it reads and can MODIFY the
+   records every other slice above will have already built.
+
+## Open items worth a decision before Slice 9 (Help Desk) is built
+
+- Should the mobile Help Desk even expose the `super_admin`-only admin actions (edit,
+  amend, correct-record, delete-record, restore, recreate, assign, status change), or
+  should a `super_admin` on mobile be pointed at the web app for those? They are the most
+  destructive actions in the entire Finance module (one of them soft-deletes a posted
+  financial record), and a phone screen is a meaningfully worse surface for a
+  multi-field correction form with optimistic-concurrency conflicts to resolve.

@@ -32,7 +32,7 @@ local.properties
 *.hprof
 .cxx/
 *.keystore
-!debug.keystoreu86
+!debug.keystore
 .kotlin/
 
 # node.js
@@ -73,16 +73,3 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-# Environment — values are baked into the binary at build time.
-# .env.example is committed as the template; real files are not.
-.env
-.env.*
-!.env.example
-
-# Local database / build artefacts
-*.sqlite
-*.sqlite-journal
-
-# Stray empty clone of this repo, accidentally created inside the project root
-mountainbakesMobile/

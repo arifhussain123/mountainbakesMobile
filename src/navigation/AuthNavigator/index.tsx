@@ -1,37 +1,27 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ForgotPasswordScreen } from '@/features/auth';
-import { FinanceSignInScreen } from '@/features/auth';
-import { SignInScreen } from '@/features/auth';
-
-export type AuthStackParamList = {
-  SignIn: undefined;
-  FinanceSignIn: undefined;
-  ForgotPassword: undefined;
-};
+import { LoginScreen, ONBOARDING_SEEN_KEY, OnboardingScreen } from '@/features/auth';
+import { Routes } from '../routes';
+import type { AuthStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-/**
- * Unauthenticated stack.
- *
- * Finance is a separate sign-in rather than a mode of the main one: it takes a
- * Finance User ID instead of an email, may require TOTP, and admits only the
- * finance roles.
- *
- * There is no ChangePassword route here — that gate applies to an already
- * authenticated session and lives in RootNavigator.
- */
-export function AuthNavigator(): React.ReactElement {
+export function AuthNavigator() {
+  const [initialRoute, setInitialRoute] = useState<keyof AuthStackParamList | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_SEEN_KEY)
+      .then((seen) => setInitialRoute(seen === 'true' ? Routes.LOGIN : Routes.ONBOARDING))
+      .catch(() => setInitialRoute(Routes.LOGIN));
+  }, []);
+
+  if (!initialRoute) return null;
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="SignIn" component={SignInScreen} />
-      <Stack.Screen name="FinanceSignIn">
-        {({ navigation }) => <FinanceSignInScreen onBack={() => navigation.goBack()} />}
-      </Stack.Screen>
-      <Stack.Screen name="ForgotPassword">
-        {({ navigation }) => <ForgotPasswordScreen onBack={() => navigation.goBack()} />}
-      </Stack.Screen>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+      <Stack.Screen name={Routes.ONBOARDING} component={OnboardingScreen} />
+      <Stack.Screen name={Routes.LOGIN} component={LoginScreen} />
     </Stack.Navigator>
   );
 }

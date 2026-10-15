@@ -1,161 +1,134 @@
-import axios, {
-  type AxiosInstance,
-  type AxiosRequestConfig,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { env } from '@/config/env';
-import { getAccessToken, supabase } from '@/api/supabase/client';
-import { ApiError, normalizeError } from './errors';
+import { logger } from '@/shared/utils';
+import { GEO_POSITION_HEADER, encodeGeoPosition, type GeoPosition } from './geo';
+import type { ApiError } from './types';
 
-/**
- * The Mountain Bakes API client.
- *
- * Contract, all of it verified against the running server rather than assumed:
- *
- * - Base URL is the Express origin; every path is mounted under `/api`.
- * - Auth is `Authorization: Bearer <supabase access token>`, attached per request.
- * - There is NO `{success, data}` envelope. Bodies are resource-keyed
- *   (`{user}`, `{orders, total}`, `{success: true}`), so callers unwrap their own
- *   shape. Nothing is unwrapped here.
- * - Errors are `{error, details?}`; see ./errors.ts.
- * - A 401 triggers exactly one refresh-and-replay, mirroring the web client.
- *
- * `Idempotency-Key` is sent on mutations that supply one, and the server now
- * honours it (server migration 84 + src/middleware/idempotency.ts) on the five
- * offline-capable writes: order create, POS sale, production demand, expense and
- * branch return. A repeat of a request that already succeeded returns the
- * ORIGINAL response rather than acting again; a repeat that is still in flight
- * gets a 503 to retry shortly; a key reused with a different body gets a 422.
- * The key is the row's `client_operation_id`, minted once on device and never
- * regenerated across attempts — see services/sync/syncManager.ts.
- */
+// ─── Wiring to auth state, without api/ importing state/ directly ──────────
+// (the folder-structure skill's import direction: state → api, never the other
+// way — so the access token and the refresh/logout actions are injected here by
+// authStore at startup, exactly like the reference app's `setTokenAccessor`.)
 
-/**
- * Two deadlines, because a read and a write are not waiting for the same thing.
- *
- * A **write** gets the long one. It is a sale, an expense or a demand, it is
- * already queued locally, and every extra second is another chance it lands now
- * rather than on the next drain — nothing is lost either way, so patience is
- * free.
- *
- * A **read** gets the short one, because there is usually a better answer
- * already on the device. `readThrough` falls back to the SQLite mirror the
- * moment the request fails, so a long timeout does not buy fresher data — it
- * buys a longer skeleton in front of data the phone is already holding. On a
- * 2G-ish signal in a basement shop that is the difference between a screen that
- * feels slow and one that feels broken.
- *
- * Eight seconds is well past a healthy round trip on a bad connection and well
- * short of a user deciding the app has hung. A read that is merely slow still
- * completes; one that is not going to complete stops pretending sooner.
- */
-const REQUEST_TIMEOUT_MS = 20_000;
-const READ_TIMEOUT_MS = 8_000;
+let getAccessToken: () => string | null = () => null;
+let refreshTokens: () => Promise<boolean> = async () => false;
+let onSessionExpired: () => void = () => {};
 
-/** Methods with no side effect, and therefore a mirror to fall back to. */
-const READ_METHODS = new Set(['get', 'head']);
-
-export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
-
-interface RetryableConfig extends InternalAxiosRequestConfig {
-  /** Guards the refresh-and-replay so a persistent 401 cannot loop. */
-  _mbRetried?: boolean;
+export function setTokenAccessor(fn: () => string | null): void {
+  getAccessToken = fn;
+}
+export function setRefreshHandler(fn: () => Promise<boolean>): void {
+  refreshTokens = fn;
+}
+export function setSessionExpiredHandler(fn: () => void): void {
+  onSessionExpired = fn;
 }
 
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: env.apiUrl,
-  timeout: REQUEST_TIMEOUT_MS,
-  headers: { 'Content-Type': 'application/json' },
-});
+export function isApiError(value: unknown): value is ApiError {
+  return typeof value === 'object' && value !== null && 'status' in value && 'message' in value;
+}
 
-apiClient.interceptors.request.use(async config => {
-  // Only when the call site has not asked for something specific — the report
-  // export and any future long poll must keep their own budget.
-  if (config.timeout === REQUEST_TIMEOUT_MS && READ_METHODS.has((config.method ?? 'get').toLowerCase())) {
-    config.timeout = READ_TIMEOUT_MS;
-  }
+const axiosInstance = axios.create({ baseURL: env.apiBaseUrl, timeout: 20_000 });
 
-  const token = await getAccessToken();
-  if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`);
-  }
-  // FormData sets its own multipart boundary; leaving a JSON content-type on it
-  // makes the server reject the upload.
-  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-    config.headers.delete('Content-Type');
-  }
+axiosInstance.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
   return config;
 });
 
-apiClient.interceptors.response.use(
-  response => response,
-  async error => {
-    const config = error?.config as RetryableConfig | undefined;
-    const status = error?.response?.status;
-
-    if (status === 401 && config && !config._mbRetried) {
-      config._mbRetried = true;
-      const { data, error: refreshError } = await supabase.auth.refreshSession();
-      if (!refreshError && data.session?.access_token) {
-        config.headers.set('Authorization', `Bearer ${data.session.access_token}`);
-        return apiClient.request(config);
-      }
-      // Refresh failed. Do NOT sign out here — offline, an unreachable refresh
-      // endpoint is indistinguishable from a real sign-out, and signing out would
-      // strand any unsynced local work behind a login screen. The auth store
-      // decides, using connectivity.
+function toApiError(error: unknown): ApiError {
+  if (axios.isAxiosError(error)) {
+    const err = error as AxiosError<{ error?: string; code?: string; details?: unknown }>;
+    if (!err.response) {
+      return { status: null, message: 'No internet connection. Please check your network and try again.' };
     }
+    return {
+      status: err.response.status,
+      message: err.response.data?.error ?? 'Something went wrong. Please try again.',
+      code: err.response.data?.code,
+      details: err.response.data?.details,
+    };
+  }
+  logger.error('unexpected API client error', error);
+  return { status: null, message: 'Something went wrong. Please try again.' };
+}
 
-    return Promise.reject(normalizeError(error));
+// Endpoints where a 401 means "this request was rejected" (bad credentials, a
+// dead/reused refresh token), never "an authenticated session's access token
+// expired mid-use" — attempting a silent refresh here would be pointless, and
+// forcing a sign-out would wipe a refresh token that was never implicated.
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh'];
+
+// A 401 is retried exactly once, after a successful refresh — never in a loop.
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const original = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
+    const isAuthEndpoint = !!original?.url && AUTH_ENDPOINTS.some((path) => original.url!.includes(path));
+    if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
+      original._retried = true;
+      const refreshed = await refreshTokens();
+      if (refreshed) return axiosInstance.request(original);
+      onSessionExpired();
+    }
+    return Promise.reject(error);
   },
 );
 
-export interface RequestOptions extends Omit<AxiosRequestConfig, 'url' | 'method'> {
+export interface MutationOptions {
   /**
-   * Client-generated operation id (UUIDv7). Pass for every mutation that can be
-   * created offline; it is the same value stored on the sync_queue row, and it
-   * must never be regenerated across retries.
+   * Resend the SAME key on every retry of one logical operation (a UUID minted
+   * once when the user taps Save) — never a new one, or the server's replay
+   * protection cannot tell a retry from a second sale.
    */
   idempotencyKey?: string;
+  /** Attached as `X-Geo-Position` for geofenced mutations (sale/order/return create). */
+  geoPosition?: GeoPosition | null;
 }
 
-function withIdempotency(options: RequestOptions = {}): AxiosRequestConfig {
-  const { idempotencyKey, ...rest } = options;
-  if (!idempotencyKey) return rest;
-  return {
-    ...rest,
-    headers: { ...(rest.headers ?? {}), [IDEMPOTENCY_HEADER]: idempotencyKey },
-  };
+function mutationHeaders(options?: MutationOptions): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (options?.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
+  if (options?.geoPosition) headers[GEO_POSITION_HEADER] = encodeGeoPosition(options.geoPosition);
+  return headers;
 }
 
-async function request<T>(
-  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
-  path: string,
-  body?: unknown,
-  options: RequestOptions = {},
-): Promise<T> {
-  try {
-    const config = withIdempotency(options);
-    const response =
-      method === 'get' || method === 'delete'
-        ? await apiClient.request<T>({ ...config, url: path, method })
-        : await apiClient.request<T>({ ...config, url: path, method, data: body });
-    return response.data;
-  } catch (error) {
-    throw normalizeError(error);
-  }
+/** A client-generated key matching the server's `^[A-Za-z0-9._:-]{8,200}$` pattern. */
+export function generateIdempotencyKey(prefix: string): string {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${prefix}-${Date.now()}-${random}`;
 }
 
-export const api = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>('get', path, undefined, options),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>('post', path, body, options),
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>('put', path, body, options),
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>('patch', path, body, options),
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>('delete', path, undefined, options),
+export const apiClient = {
+  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+    try {
+      const response = await axiosInstance.get<T>(url, { params });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+  async post<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
+    try {
+      const response = await axiosInstance.post<T>(url, body, { headers: mutationHeaders(options) });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+  async put<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
+    try {
+      const response = await axiosInstance.put<T>(url, body, { headers: mutationHeaders(options) });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+  async delete<T>(url: string, options?: MutationOptions): Promise<T> {
+    try {
+      const response = await axiosInstance.delete<T>(url, { headers: mutationHeaders(options) });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
 };
-
-export { ApiError };
