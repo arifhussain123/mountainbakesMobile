@@ -64,26 +64,29 @@ no fake/static display values found.
 ## Production (`mountainbakesProduction.html`, 15 screens)
 
 15 catalogued entries (01–16, skipping 04; 16 is drawer chrome, not a distinct screen).
-**Match: 8 · Partial: 4 · Missing (intentional/blocked): 2 · Missing (unintentional): 0.** All
-colors route through theme; all built screens wire real `@/api` hooks; no orphaned screens.
+**Match: 13 · Partial: 2 · Missing (intentional/blocked): 0 · Missing (unintentional): 0.**
+All colors route through theme; all built screens wire real `@/api` hooks; no orphaned
+screens. Updated 2026-10-15: screens 01/02/03 rebuilt, screens 09/13 un-blocked (both had a
+genuinely accessible backend endpoint an earlier pass missed — see each row), two small
+reference-id gaps fixed on 10/11.
 
 | # | Design Screen | RN File | Nav Route | Structural | Theme/Components | Real Data | Notes |
 |---|---|---|---|---|---|---|---|
-| 01 | Production Dashboard | `features/production/screens/ProductionDashboardScreen` | `ProductionDashboardTab` | **partial** | yes | yes | Mockup has ~10 sections (filters, total-demand hero, donut, 12-month trend chart, branch comparison, top-10 products, production plan, heatmap, recent demands); RN screen has 2 stat boxes + 1 stock card. Justified by the plan doc's own note (no dashboard-summary endpoint; `/reports/*` refuses the role), but a large structural gap vs. the mockup that the plan's "Done" status doesn't fully convey. |
-| 02 | Production Orders | `ProductionOrdersListScreen` | `ProductionOrdersStack` | partial | yes | yes | Core list/tabs/search match. Mockup's "Special Orders" sub-section and "Demand Summary — Waiting Orders" table have no RN equivalent. |
-| 03 | Order Detail | `ProductionOrderDetailScreen` | modal, from OrdersStack | partial | yes | yes | Products + Reject/Send/Final-Approve match. Missing: "Previous Order Balance" grid, "Returned since last order" section, and **POP Print / A4 Challan buttons** — confirmed zero printer-integration code exists anywhere in the repo, so this isn't partial, it's wholly unbuilt. Not flagged in the plan doc's own open items — a genuine undocumented gap. |
-| 05 | Sales | `ProductionSalesListScreen` | `ProductionSalesStack` | match | yes | yes | |
-| 06 | New Sale | `ProductionNewSaleScreen` | modal, from SalesStack | match | yes | yes | "Save & Print" collapsed into one submit button (no print feature app-wide). |
-| 07 | Production Stock | `ProductionStockOverviewScreen` | `ProductionStockStack` | match | yes | yes | "Prepared Detail" button intentionally not built (no endpoint, per plan doc); "Adjustment" is built. |
-| 08 | Prepared Products | `ProductionPreparedProductsScreen` | modal, from StockStack | match | yes | yes | |
-| 09 | Branch Stock | — none | `ProductionBranchStock` → `comingSoonPane` | missing (intentional) | n/a | blocked | `GET /stock/history/branches` is `super_admin`-only; re-confirmed still blocked, not silently built. |
-| 10 | Returns | `ProductionReturnsListScreen` + detail + new | `ProductionReturnsStack` | match | yes | yes | `Rejected` tab buckets both `rejected`+`returned` (mockup has no 5th tab) — documented. |
-| 11 | Discounts | `ProductionDiscountsListScreen` + detail | `ProductionDiscountsStack` | match | yes | yes | Same bucketing choice as Returns. |
-| 12 | Special Events | `ProductionEventsListScreen` + `ProductionEventDemandScreen` | `ProductionEventsStack` | match | yes | yes | 4-stat grid + event cards + "Nothing to consolidate yet" match mockup exactly. |
-| 13 | Production Reports | — none | `ProductionReportsStack` → `blockedPane` | missing (intentional) | n/a | blocked | `/reports/*` genuinely refuses `production_user`; no fake table/export built. Needs an owner decision (add an endpoint, or descope) — still open. |
-| 14 | Help Desk | `features/support/screens/HelpDeskListScreen` (shared with Branch) | `ProductionHelpDeskStack` | match | yes | yes | |
+| 01 | Production Dashboard | `features/production/screens/ProductionDashboardScreen` | `ProductionDashboardTab` | match | yes | yes | Rebuilt from `GET /api/production/overview` (SQL-aggregated server-side, migrations 112/140/141 — this endpoint already existed, it was not added this pass): period/branch chips, total-demand hero + Produced%/Fulfilment-rate, 3 stat boxes, order-status donut, 12-month dual-line chart, today demand-vs-production bars, tap-to-filter branch comparison, top-10 products, production plan (chip filter + coverage bar), branch×product heatmap, recent branch demands. |
+| 02 | Production Orders | `ProductionOrdersListScreen` | `ProductionOrdersStack` | match | yes | yes | Added "Special Orders" sub-section (its own `/api/special-orders` resource — not a flag on `production-orders`, see migration 143) with a Mark Prepared action, and "Demand Summary — Waiting Orders" derived client-side from already-fetched pending orders + production stock balance. |
+| 03 | Order Detail | `ProductionOrderDetailScreen` | modal, from OrdersStack | match | yes | yes | Added "Previous Order Balance" grid + "Returned since last order" (both from `GET /production-orders/:id/previous-balance`), Appr./Amount/Totals on the products list, and POP Print / A4 Challan buttons (React Native `Share` — no native printer SDK in this app; see code comment and `pop-printer-setup` memory). |
+| 05 | Sales | `ProductionSalesListScreen` | `ProductionSalesStack` | match | yes | yes | Spot-checked this pass — no new findings. |
+| 06 | New Sale | `ProductionNewSaleScreen` | modal, from SalesStack | match | yes | yes | Spot-checked this pass — no new findings. "Save & Print" collapsed into one submit button (no print feature app-wide). |
+| 07 | Production Stock | `ProductionStockOverviewScreen` | `ProductionStockStack` | match | yes | yes | Spot-checked this pass — no new findings. Added a "Branch Stock" button (reaches screen 09). "Prepared Detail" still intentionally not built (no endpoint). |
+| 08 | Prepared Products | `ProductionPreparedProductsScreen` | modal, from StockStack | match | yes | yes | Spot-checked this pass — no new findings. |
+| 09 | Branch Stock | `ProductionBranchStockScreen` | `ProductionBranchStock`, pushed from Stock | match | yes | yes | **Un-blocked.** `GET /api/production/branch-stock` (`production.routes.ts`) is `production_user`/`super_admin`-accessible — a different route from the `super_admin`-only `GET /stock/history/branches` in `stock.routes.ts` the earlier pass had checked. Product×Branch matrix, search, color-coded legend. |
+| 10 | Returns | `ProductionReturnsListScreen` + detail + new | `ProductionReturnsStack` | match | yes | yes | Fixed: card was missing the mockup's short reference id (now `item.id.slice(0,8).toUpperCase()`). `Rejected` tab still buckets both `rejected`+`returned` (mockup has no 5th tab) — documented. |
+| 11 | Discounts | `ProductionDiscountsListScreen` + detail | `ProductionDiscountsStack` | match | yes | yes | Same reference-id fix as Returns. Same tab-bucketing choice. |
+| 12 | Special Events | `ProductionEventsListScreen` + `ProductionEventDemandScreen` | `ProductionEventsStack` | match | yes | yes | Spot-checked this pass — no new findings. |
+| 13 | Production Reports | `ProductionReportsScreen` | `ProductionReportsStack` | partial | yes | yes | **Un-blocked.** `GET /api/production-reports/summary` (`production-reports.routes.ts`) is Production's own reporting surface, deliberately separate from `/api/reports` (which does refuse `production_user`) — the earlier pass only checked the latter. All 10 report types viewable on-screen. Partial because PDF/Excel/CSV export and Print (and a custom date range for the 2 range-based report types) are deferred — same precedent as Finance Reports (screen 19), no file-download/share library in this app yet. |
+| 14 | Help Desk | `features/support/screens/HelpDeskListScreen` (shared with Branch) | `ProductionHelpDeskStack` | match | yes | yes | Not re-diffed this pass (shared code, already heavily exercised) — no reason found to distrust the verdict. |
 | 15 | New Query | `features/support/screens/NewQueryScreen` (shared with Branch) | **bottom sheet, not a routed screen** | partial | yes | yes | Functionally equivalent to the mockup; structurally the mockup treats this as its own full screen/route, RN presents it as a sheet from Help Desk — reachable, just a different navigation shape. |
-| 16 | Drawer | `ProductionDrawerNavigator/ProductionDrawerContent` | drawer chrome | match | yes | yes | All expected links present. |
+| 16 | Drawer | `ProductionDrawerNavigator/ProductionDrawerContent` | drawer chrome | match | yes | yes | All expected links present. A read-only spot-check this pass noticed the mockup's own screen-16 frame appears to be a copy-paste of the Branch role's drawer (it lists Cash Deposits/Shop Expenses/Branch Closing/Daily Sale Record, none of which have any Production-side backing) — the built drawer's actual item list (Dashboard/Production Orders/Sales/Production Stock/Returns/Discounts/Special Events/Reports/Help Desk) was deliberately kept as the correct one rather than copying the apparent mockup error. Flagged for the project owner, not changed. |
 
 ---
 
@@ -120,23 +123,28 @@ mobile type was written — "none invented").
 | App | Screens | Match | Partial | Missing (intentional) | Missing (unbuilt) |
 |---|---|---|---|---|---|
 | Branch | 28 | 17 | 11 | 0 | 0 |
-| Production | 15 | 8 | 4 | 2 | 0 |
+| Production | 15 | 13 | 2 | 0 | 0 |
 | Finance | 23 | 7 | 3 | 1 | 12 |
-| **Total** | **66** | **32** | **18** | **3** | **12** |
+| **Total** | **66** | **37** | **16** | **1** | **12** |
 
 Most significant findings across all three apps (full detail in each section above):
 
 1. **Branch Home dashboard** — missing Payment-Methods breakdown, Last-7-Days list, full
    Stock-Detail table, expandable Stock-History cards. No component exists yet for any of
    these.
-2. **Production Order Detail** — missing printing entirely (POP/A4 Challan) and two data
-   sections (Previous Balance, Returns since last order); not previously flagged anywhere.
+2. **Production**, 2026-10-15 pass: the Dashboard (01), Orders (02) and Order Detail (03)
+   gaps recorded below were closed — Dashboard rebuilt from `GET /api/production/overview`
+   (an endpoint that already existed server-side), Orders gained Special Orders + Demand
+   Summary, Order Detail gained Previous Balance/Returns/POP-Print-and-A4-Challan (share-based,
+   no native printer SDK). Branch Stock (09) and Production Reports (13) were found to have
+   real, already-accessible backend endpoints an earlier pass missed (`GET
+   /api/production/branch-stock` and `/api/production-reports/*` respectively, both distinct
+   from the routes that pass had correctly found blocked) and are now built — Production
+   Reports stays "partial" only because file export/print is deferred, same precedent as
+   Finance Reports.
 3. **Branch "More" drawer** — 7 menu items are dead-end "coming soon" stubs (Stock History,
    Branch Demand, Products, Price List, Packaging Materials, Notifications, Support Center).
-4. **Production Reports** and **Branch Stock** — correctly left blocked (backend genuinely
-   refuses the role, no fake data built), but both need an owner decision on whether to add
-   a backend endpoint or formally descope.
-5. **Finance** is 11/23 screens into its own build, each slice individually audited and
+4. **Finance** is 11/23 screens into its own build, each slice individually audited and
    documented in `docs/mobile-finance-plan.md` as it was built — the remaining 12 are
    reachable placeholders, not orphaned or faked.
 6. **One real bug found and fixed this pass**: the Finance mutations built earlier this
