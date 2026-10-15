@@ -1577,6 +1577,328 @@ export interface UpdateFinanceSettingsInput {
   allowSuperAdminWrite?: boolean;
 }
 
+// ─── Finance: Payroll (screens 06–11) ───────────────────────────────────────
+// `finance-payroll.routes.ts`. baseSalary is NEVER directly editable — only via
+// a SalaryRevision; netSalary/totalAmount are always server-computed.
+
+export const RESIGNATION_REASONS = ['Personal reasons', 'Better opportunity', 'Relocation', 'Health', 'Further studies', 'Other'] as const;
+export type EmployeeResignationStatus = 'recorded' | 'cancelled';
+
+export interface EmployeeResignation {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  resignationDate: string;
+  resignationTime: string;
+  reason: string;
+  remarks: string | null;
+  status: EmployeeResignationStatus;
+  submittedByName: string;
+  cancelledByName: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceEmployee {
+  id: string;
+  employeeCode: string;
+  name: string;
+  department: string;
+  designation: string;
+  branchId: string | null;
+  branchName: string | null;
+  baseSalary: number;
+  pendingRevision: { newSalary: number; effectiveFrom: string; reason: string } | null;
+  phone: string | null;
+  joinedOn: string | null;
+  isActive: boolean;
+  resignation: EmployeeResignation | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalaryRevision {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  previousSalary: number;
+  newSalary: number;
+  reason: string;
+  effectiveFrom: string;
+  changedByName: string;
+  createdAt: string;
+}
+
+export interface SalaryPayment {
+  id: string;
+  salaryNo: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  salaryMonth: string;
+  grossSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  paymentDate: string | null;
+  paymentMethod: string;
+  account: FinanceAccount;
+  status: FinanceDocStatus;
+  notes: string | null;
+  createdByName: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface EmployeeAdvance {
+  id: string;
+  advanceNo: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  businessDate: string;
+  advanceAmount: number;
+  bonusAmount: number;
+  loanAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  status: FinanceDocStatus;
+  notes: string | null;
+  recoveredBySalaryId: string | null;
+  recoveredBySalaryNo: string | null;
+  recoveredAt: string | null;
+  isRecovered: boolean;
+  createdByName: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface EmployeeAdvanceSummary {
+  employeeId: string;
+  employeeName: string;
+  totalPaid: number;
+  totalRecovered: number;
+  outstanding: number;
+  outstandingBonus: number;
+  advances: EmployeeAdvance[];
+}
+
+export interface EmployeeProfile {
+  employee: FinanceEmployee;
+  resignations: EmployeeResignation[];
+  lastApprovedSalary: { salaryNo: string; salaryMonth: string; amount: number } | null;
+  allTimeApproved: number;
+}
+
+export interface ResignationImpact {
+  approvedAfter: { salaryNo: string; salaryMonth: string; amount: number }[];
+  pendingAfter: { salaryNo: string; salaryMonth: string; amount: number }[];
+}
+
+export interface CreateEmployeeInput {
+  name: string;
+  department: string;
+  designation: string;
+  branchId?: string | null;
+  baseSalary?: number;
+  phone?: string | null;
+  joinedOn?: string | null;
+}
+
+export type UpdateEmployeeInput = Partial<Omit<CreateEmployeeInput, 'baseSalary'>> & { isActive?: boolean };
+
+export interface CreateSalaryRevisionInput {
+  newSalary: number;
+  reason: string;
+  effectiveFrom: string;
+}
+
+export interface RecordResignationInput {
+  resignationDate: string;
+  resignationTime: string;
+  reason: string;
+  remarks?: string | null;
+}
+
+export interface CancelResignationInput {
+  reason: string;
+}
+
+export interface CreateSalaryPaymentInput {
+  employeeId: string;
+  salaryMonth: string;
+  grossSalary: number;
+  bonus?: number;
+  deductions?: number;
+  paymentDate?: string | null;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  notes?: string | null;
+  asDraft?: boolean;
+  recoverAdvanceIds?: string[];
+  attachmentIds: string[];
+}
+
+export interface CreateEmployeeAdvanceInput {
+  employeeId: string;
+  businessDate?: string;
+  advanceAmount?: number;
+  bonusAmount?: number;
+  loanAmount?: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  notes?: string | null;
+  asDraft?: boolean;
+  attachmentIds: string[];
+}
+
+export type SalaryQueryStatus = FinanceDocStatus | 'pending';
+
+export interface SalaryQuery {
+  status?: SalaryQueryStatus;
+  salaryMonth?: string;
+  employeeId?: string;
+  department?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdvanceQuery {
+  status?: SalaryQueryStatus;
+  employeeId?: string;
+  department?: string;
+  from?: string;
+  to?: string;
+  outstandingOnly?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Salary Ledger (screen 11) — read-only year grid, approved payslips only.
+
+export type LedgerCellState = 'paid' | 'unpaid' | 'none' | 'closed';
+
+export interface LedgerCell {
+  month: number;
+  amount: number;
+  count: number;
+  state: LedgerCellState;
+  flagged: boolean;
+  pendingCount: number;
+}
+
+export interface LedgerYearOption {
+  year: number;
+  hasRecords: boolean;
+}
+
+export const SALARY_LEDGER_STATUS_FILTERS = ['all', 'active', 'resigned', 'unpaid', 'pending'] as const;
+export type SalaryLedgerStatusFilter = (typeof SALARY_LEDGER_STATUS_FILTERS)[number];
+
+export interface SalaryLedgerRow {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  joinedOn: string | null;
+  isActive: boolean;
+  resignation: EmployeeResignation | null;
+  cells: LedgerCell[];
+  total: number;
+  unpaidMonths: number;
+  flaggedMonths: number;
+  hasPending: boolean;
+}
+
+export interface SalaryLedgerSummary {
+  totalApproved: number;
+  paymentCount: number;
+  employees: number;
+  activeEmployees: number;
+  resignedEmployees: number;
+  unpaidEmployeeMonths: number;
+  flaggedMonths: number;
+}
+
+export interface SalaryLedger {
+  year: number;
+  currentMonth: string;
+  years: LedgerYearOption[];
+  departments: string[];
+  summary: SalaryLedgerSummary;
+  rows: SalaryLedgerRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  monthTotals: number[];
+  yearTotal: number;
+}
+
+export interface SalaryLedgerQuery {
+  year?: number;
+  search?: string;
+  department?: string;
+  status?: SalaryLedgerStatusFilter;
+  sort?: 'code' | 'name' | 'total';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SalaryLedgerPayment {
+  id: string;
+  salaryNo: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  salaryMonth: string;
+  year: number;
+  month: number;
+  status: FinanceDocStatus;
+  grossSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  paymentDate: string | null;
+  paymentMethod: string;
+  account: FinanceAccount;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  voucherNo: string | null;
+  counted: boolean;
+  countedAmount: number;
+  afterResignation: boolean;
+}
+
+export interface SalaryLedgerPayments {
+  payments: SalaryLedgerPayment[];
+  total: number;
+  countedTotal: number;
+  countedCount: number;
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {

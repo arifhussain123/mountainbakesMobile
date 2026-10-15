@@ -126,6 +126,9 @@ export const Routes = {
   FINANCE_CASH_TRANSFER_DETAIL: 'FinanceCashTransferDetail',
 
   FINANCE_PAYROLL_STACK: 'FinancePayrollStack',
+  FINANCE_PAYROLL_LIST: 'FinancePayrollList',
+  FINANCE_EMPLOYEE_DETAIL: 'FinanceEmployeeDetail',
+  FINANCE_SALARY_LEDGER: 'FinanceSalaryLedger',
   FINANCE_PARTNERS_STACK: 'FinancePartnersStack',
   FINANCE_COMPANY_TRANSACTION_DETAILS_STACK: 'FinanceCompanyTransactionDetailsStack',
   FINANCE_LEDGER_HEADS_STACK: 'FinanceLedgerHeadsStack',

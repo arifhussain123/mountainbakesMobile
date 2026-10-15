@@ -123,6 +123,21 @@ confirms the shapes above.
    surfaced on mobile (today it's web-only).
 7. **Payroll (06–11)** — the largest single group: employees, resignations, salary
    revisions, payslips (with advance recovery picking), advances, salary ledger.
+   **Done.** Payroll (06): 3 tabs (Salaries/Advances/Employees), quick approve/reject on
+   pending items. New Payslip (07): employee picker, gross/bonus/deduction, computed net,
+   optional outstanding-advance recovery checklist (not in the mockup frame, added because
+   the backend's `recoverAdvanceIds` mechanism needs *some* UI to be usable — prefilled from
+   `/employees/:id/advance-summary`), required receipt photo. New Advance (08): same shape,
+   advance/bonus/loan → "Paid now" total. Add Employee (09): name/department/designation/
+   base salary (creation-only, per `UpdateEmployeeSchema` excluding it)/phone. Employee
+   Resignation (10): folded into an Employee Detail screen (profile card + resignation form
+   when active, resignation-on-file + Cancel when not) rather than its own top-level route,
+   since the backend's `GET /employees/:id` profile is the natural home for both. Salary
+   Ledger (11): read-only summary stats + per-employee 12-month cell grid, search/status
+   filters. `baseSalary` is never directly edited anywhere in the UI — only via the
+   create-employee form (once) or a future Salary Revision screen (not built this pass;
+   `createSalaryRevision`/`listSalaryRevisions` are wired in the API layer but have no screen
+   yet — flagged as a small follow-up, not silently dropped).
 8. **Partners (12–14) / Company Transaction Details (15)** — partner profile, partner
    advance/draw workflow, share summary, branch share payments (two-entry approval).
 9. **Finance Help Desk (21–22)** — by far the most complex screen pair: reference-first

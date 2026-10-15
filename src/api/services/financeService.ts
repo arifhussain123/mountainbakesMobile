@@ -123,7 +123,7 @@ export async function closeFinanceDay(businessDate: string, notes?: string, idem
 // ─── Reports (screen 19) ────────────────────────────────────────────────────
 
 export async function getFinanceReport(query: FinanceReportQuery): Promise<FinanceReport> {
-  const { report } = await apiClient.get<{ report: FinanceReport }>('/finance-reports', query as unknown as Record<string, unknown>);
+  const { report } = await apiClient.get<{ report: FinanceReport }>('/finance/reports', query as unknown as Record<string, unknown>);
   return report;
 }
 

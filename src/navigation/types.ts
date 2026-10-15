@@ -136,6 +136,12 @@ export type FinanceCashTransfersStackParamList = {
   [Routes.FINANCE_CASH_TRANSFER_DETAIL]: { transferId: string };
 };
 
+export type FinancePayrollStackParamList = {
+  [Routes.FINANCE_PAYROLL_LIST]: undefined;
+  [Routes.FINANCE_EMPLOYEE_DETAIL]: { employeeId: string };
+  [Routes.FINANCE_SALARY_LEDGER]: undefined;
+};
+
 export type FinanceBottomTabParamList = {
   [Routes.FINANCE_DASHBOARD_TAB]: undefined;
   [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
@@ -146,7 +152,7 @@ export type FinanceBottomTabParamList = {
 
 export type FinanceDrawerParamList = {
   [Routes.FINANCE_TABS]: NavigatorScreenParams<FinanceBottomTabParamList> | undefined;
-  [Routes.FINANCE_PAYROLL_STACK]: undefined;
+  [Routes.FINANCE_PAYROLL_STACK]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
   [Routes.FINANCE_PARTNERS_STACK]: undefined;
   [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
   [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;
