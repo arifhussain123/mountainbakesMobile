@@ -80,6 +80,9 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
         ) : (
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Not counted yet</Text>
         )}
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, flex: 1, marginLeft: 8 }]} numberOfLines={1}>
+          Discount {formatCurrency(record.discount)}
+        </Text>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {notGenerated ? (
             <Pressable
