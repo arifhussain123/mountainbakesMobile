@@ -127,11 +127,36 @@ export type ProductionDrawerParamList = {
   [Routes.PRODUCTION_HELP_DESK_STACK]: undefined;
 };
 
+export type FinanceLedgerStackParamList = {
+  [Routes.FINANCE_LEDGER_LIST]: undefined;
+};
+
+export type FinanceBottomTabParamList = {
+  [Routes.FINANCE_DASHBOARD_TAB]: undefined;
+  [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
+  [Routes.FINANCE_CASH_TRANSFERS_TAB]: undefined;
+  [Routes.FINANCE_INCOME_EXPENSE_TAB]: undefined;
+  [Routes.FINANCE_MORE_TAB]: undefined;
+};
+
+export type FinanceDrawerParamList = {
+  [Routes.FINANCE_TABS]: NavigatorScreenParams<FinanceBottomTabParamList> | undefined;
+  [Routes.FINANCE_PAYROLL_STACK]: undefined;
+  [Routes.FINANCE_PARTNERS_STACK]: undefined;
+  [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
+  [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;
+  [Routes.FINANCE_CLOSING_STACK]: undefined;
+  [Routes.FINANCE_REPORTS_STACK]: undefined;
+  [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
+  [Routes.FINANCE_HELP_DESK_STACK]: undefined;
+  [Routes.FINANCE_SETTINGS_STACK]: undefined;
+};
+
 export type RootStackParamList = {
   [Routes.LOGIN]: undefined;
   [Routes.DRAWER]: NavigatorScreenParams<DrawerParamList> | undefined;
   [Routes.PRODUCTION_DRAWER]: NavigatorScreenParams<ProductionDrawerParamList> | undefined;
-  [Routes.FINANCE_DRAWER]: undefined;
+  [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;
   [Routes.UNSUPPORTED_ROLE]: undefined;
   [Routes.COMING_SOON]: { title: string };
 };

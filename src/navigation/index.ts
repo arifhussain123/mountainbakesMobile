@@ -25,4 +25,7 @@ export type {
   ProductionReturnsStackParamList,
   ProductionDiscountsStackParamList,
   ProductionEventsStackParamList,
+  FinanceDrawerParamList,
+  FinanceBottomTabParamList,
+  FinanceLedgerStackParamList,
 } from './types';

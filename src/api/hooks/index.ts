@@ -32,6 +32,7 @@ export {
   useSubmitEventDemand,
   useUpdateEventStage,
 } from './useSpecialEventsApi';
+export { useFinanceDashboard, useFinanceSettings, usePendingApprovals } from './useFinanceApi';
 export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
 export { usePackingUsage } from './useReportsApi';
 export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';

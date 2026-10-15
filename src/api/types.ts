@@ -1089,6 +1089,150 @@ export interface ReviewProductionReturnInput {
   dispositionNote?: string;
 }
 
+// ─── Finance (mobile-finance-plan.md) ──────────────────────────────────────
+// Four roles (`finance_admin`/`finance_manager`/`accountant`/`finance_auditor`,
+// already part of `UserRole` above), gated by `requireFinance(permission)` — NOT
+// a plain role check. `financeCan` below mirrors the backend's own function
+// (`backend/src/shared/types/finance.types.ts`) for client-side UI gating only;
+// the server enforces this regardless of what the client shows or hides.
+
+export type FinanceRole = 'finance_admin' | 'finance_manager' | 'accountant' | 'finance_auditor';
+export type FinancePermission = 'view' | 'create' | 'approve' | 'adjust' | 'configure';
+
+export const FINANCE_ROLE_LABELS: Record<FinanceRole, string> = {
+  finance_admin: 'Finance Admin',
+  finance_manager: 'Finance Manager',
+  accountant: 'Accountant',
+  finance_auditor: 'Read Only Auditor',
+};
+
+const FINANCE_ROLE_PERMISSIONS: Record<FinanceRole, readonly FinancePermission[]> = {
+  finance_admin: ['view', 'create', 'approve', 'adjust', 'configure'],
+  finance_manager: ['view', 'create', 'approve'],
+  accountant: ['view', 'create'],
+  finance_auditor: ['view'],
+};
+
+function isFinanceRole(role: unknown): role is FinanceRole {
+  return role === 'finance_admin' || role === 'finance_manager' || role === 'accountant' || role === 'finance_auditor';
+}
+
+/** Mirrors the backend's `requireFinance(permission)` gate — for showing/hiding actions only, never trusted in place of it. */
+export function financeCan(role: UserRole | null | undefined, permission: FinancePermission, allowSuperAdminWrite = false): boolean {
+  if (role === 'super_admin') return permission === 'view' || allowSuperAdminWrite;
+  if (!isFinanceRole(role)) return false;
+  return FINANCE_ROLE_PERMISSIONS[role].includes(permission);
+}
+
+export type FinanceAccount = 'cash' | 'bank';
+export const FINANCE_ACCOUNT_LABELS: Record<FinanceAccount, string> = { cash: 'Cash in Hand', bank: 'Bank' };
+
+export type FinancePaymentMethod = 'cash' | 'easypaisa' | 'bank_transfer' | 'cheque' | 'foodpanda' | 'online' | 'other';
+
+export type LedgerHeadType = 'income' | 'expense';
+
+export type FinanceDocStatus = 'draft' | 'pending_approval' | 'approved' | 'posted' | 'locked' | 'rejected';
+/** The one rule every document list/detail screen enforces identically: an edit action only renders in these two statuses. */
+export const EDITABLE_DOC_STATUSES: readonly FinanceDocStatus[] = ['draft', 'rejected'];
+
+export type LedgerEntryStatus = 'posted' | 'locked' | 'reversed';
+
+export type LedgerSourceType =
+  | 'opening'
+  | 'manual'
+  | 'branch_income'
+  | 'company_share'
+  | 'branch_share'
+  | 'salary'
+  | 'employee_advance'
+  | 'partner_expense'
+  | 'adjustment'
+  | 'branch_share_payout'
+  | 'branch_share_bonus'
+  | 'vendor_payment'
+  | 'cash_transfer';
+
+/** What every approval across the module ultimately posts — one shape, whichever document raised it. */
+export interface LedgerEntry {
+  id: string;
+  voucherNo: string;
+  seq: number;
+  entryDate: string;
+  ledgerHeadId: string | null;
+  ledgerHeadName: string;
+  ledgerHeadType: LedgerHeadType;
+  branchId: string | null;
+  branchName: string | null;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  account: FinanceAccount;
+  paymentMethod: string | null;
+  status: LedgerEntryStatus;
+  sourceType: LedgerSourceType;
+  sourceId: string | null;
+  reversesEntryId: string | null;
+  reversedByEntryId: string | null;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  postedAt: string;
+  updatedAt?: string | null;
+  updatedByName?: string | null;
+  attachments?: Attachment[];
+}
+
+/** `GET /finance/dashboard` — today's composite, plus a trailing trend. */
+export interface FinanceDashboard {
+  businessDate: string;
+  todayIncome: number;
+  todayExpenses: number;
+  netCashBalance: number;
+  companyShare: number;
+  branchShare: number;
+  pendingIncomeApprovals: number;
+  pendingIncomeAmount: number;
+  pendingExpenseApprovals: number;
+  pendingExpenseAmount: number;
+  bankBalance: number;
+  cashInHand: number;
+  recentEntries: LedgerEntry[];
+  trend: { businessDate: string; income: number; expenses: number; net: number }[];
+}
+
+export type FinancePendingApprovalKind = 'transaction' | 'partner_expense' | 'salary' | 'advance';
+
+/** The documents behind the dashboard's "pending approval" figure, as rows — `GET /finance/pending-approvals`. */
+export interface FinancePendingApproval {
+  kind: FinancePendingApprovalKind;
+  id: string;
+  refNo: string;
+  date: string;
+  description: string;
+  amount: number;
+  status: FinanceDocStatus;
+  raisedBy: string | null;
+}
+
+export type ShareBasis = 'gross' | 'net';
+
+/** `GET /finance/settings` — this is where `allowSuperAdminWrite` itself lives. */
+export interface FinanceSettings {
+  companySharePct: number;
+  branchSharePct: number;
+  shareBasis: ShareBasis;
+  openingCashBalance: number;
+  openingBankBalance: number;
+  openingBalanceDate: string | null;
+  autoImportBranchIncome: boolean;
+  requireAdminVerification: boolean;
+  allowSuperAdminWrite: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {

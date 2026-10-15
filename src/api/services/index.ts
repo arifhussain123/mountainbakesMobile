@@ -7,6 +7,7 @@ import * as dailySaleService from './dailySaleService';
 import * as dashboardService from './dashboardService';
 import * as discountService from './discountService';
 import * as expenseService from './expenseService';
+import * as financeService from './financeService';
 import * as packingMaterialService from './packingMaterialService';
 import * as productService from './productService';
 import * as productionDiscountService from './productionDiscountService';
@@ -31,6 +32,7 @@ export {
   dashboardService,
   discountService,
   expenseService,
+  financeService,
   packingMaterialService,
   productService,
   productionDiscountService,

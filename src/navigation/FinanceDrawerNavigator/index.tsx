@@ -1,29 +1,42 @@
-import { Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, PrimaryButton, Screen } from '@/shared/ui';
-import { useAuthStore } from '@/state';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { comingSoonPane } from '@/features/placeholder';
+import { FinanceBottomTabNavigator } from '../FinanceBottomTabNavigator';
+import { Routes } from '../routes';
+import type { FinanceDrawerParamList } from '../types';
+import { FinanceDrawerContent } from './FinanceDrawerContent';
+
+const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
+
+const FinancePayrollScreen = comingSoonPane('Payroll');
+const FinancePartnersScreen = comingSoonPane('Partner Transactions');
+const FinanceCompanyTransactionDetailsScreen = comingSoonPane('Company Transaction Details');
+const FinanceLedgerHeadsScreen = comingSoonPane('Ledger Heads');
+const FinanceClosingScreen = comingSoonPane('Daily Closing');
+const FinanceReportsScreen = comingSoonPane('Finance Reports');
+const FinanceAuditTrailScreen = comingSoonPane('Audit Trail');
+const FinanceHelpDeskScreen = comingSoonPane('Finance Help Desk');
+const FinanceSettingsScreen = comingSoonPane('Finance Settings');
 
 /**
- * mountainbakesFinance.html — placeholder shell for finance roles
+ * mountainbakesFinance.html — the four finance roles' app shell
  * (finance_admin/finance_manager/accountant/finance_auditor). 23 screens are
- * scoped in `docs/mobile-finance-plan.md`; none are built yet. This exists so
- * a finance login lands somewhere coherent rather than an "unsupported role"
- * wall, which is reserved for roles this app never intends to serve
- * (super_admin).
+ * scoped in `docs/mobile-finance-plan.md`; Dashboard (01) is built this slice,
+ * everything else is a "coming soon" placeholder wired into real navigation so
+ * every area is reachable and ready for its own slice.
  */
 export function FinanceDrawerNavigator() {
-  const theme = useAppTheme();
-  const logout = useAuthStore((state) => state.logout);
-
   return (
-    <Screen>
-      <AppHeader title="Finance" subtitle="Coming soon" />
-      <View style={{ flex: 1, justifyContent: 'center', padding: theme.spacing.lg, gap: theme.spacing.md }}>
-        <Text style={[theme.typography.body, { color: theme.colors.text, textAlign: 'center' }]}>
-          The Finance app isn't built yet in this phase. See docs/mobile-finance-plan.md for the scoped screen list.
-        </Text>
-        <PrimaryButton label="Sign Out" onPress={() => void logout()} />
-      </View>
-    </Screen>
+    <Drawer.Navigator screenOptions={{ headerShown: false }} drawerContent={(props) => <FinanceDrawerContent {...props} />}>
+      <Drawer.Screen name={Routes.FINANCE_TABS} component={FinanceBottomTabNavigator} />
+      <Drawer.Screen name={Routes.FINANCE_PAYROLL_STACK} component={FinancePayrollScreen} />
+      <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={FinancePartnersScreen} />
+      <Drawer.Screen name={Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK} component={FinanceCompanyTransactionDetailsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_LEDGER_HEADS_STACK} component={FinanceLedgerHeadsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_CLOSING_STACK} component={FinanceClosingScreen} />
+      <Drawer.Screen name={Routes.FINANCE_REPORTS_STACK} component={FinanceReportsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_AUDIT_TRAIL_STACK} component={FinanceAuditTrailScreen} />
+      <Drawer.Screen name={Routes.FINANCE_HELP_DESK_STACK} component={FinanceHelpDeskScreen} />
+      <Drawer.Screen name={Routes.FINANCE_SETTINGS_STACK} component={FinanceSettingsScreen} />
+    </Drawer.Navigator>
   );
 }
