@@ -30,4 +30,5 @@ export type {
   FinanceLedgerStackParamList,
   FinanceCashTransfersStackParamList,
   FinancePayrollStackParamList,
+  FinanceHelpDeskStackParamList,
 } from './types';

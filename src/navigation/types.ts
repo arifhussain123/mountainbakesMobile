@@ -136,6 +136,11 @@ export type FinanceCashTransfersStackParamList = {
   [Routes.FINANCE_CASH_TRANSFER_DETAIL]: { transferId: string };
 };
 
+export type FinanceHelpDeskStackParamList = {
+  [Routes.FINANCE_HELP_DESK_LIST]: undefined;
+  [Routes.FINANCE_TICKET_DETAIL]: { ticketId: string };
+};
+
 export type FinancePayrollStackParamList = {
   [Routes.FINANCE_PAYROLL_LIST]: undefined;
   [Routes.FINANCE_EMPLOYEE_DETAIL]: { employeeId: string };
@@ -159,7 +164,7 @@ export type FinanceDrawerParamList = {
   [Routes.FINANCE_CLOSING_STACK]: undefined;
   [Routes.FINANCE_REPORTS_STACK]: undefined;
   [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
-  [Routes.FINANCE_HELP_DESK_STACK]: undefined;
+  [Routes.FINANCE_HELP_DESK_STACK]: NavigatorScreenParams<FinanceHelpDeskStackParamList> | undefined;
   [Routes.FINANCE_SETTINGS_STACK]: undefined;
 };
 

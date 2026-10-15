@@ -93,6 +93,17 @@ export {
   useRejectPartnerExpense,
   useUpdateFinancePartner,
 } from './useFinancePartnersApi';
+export {
+  useCreateFinanceTicket,
+  useEditFinanceDraft,
+  useFinanceTicket,
+  useFinanceTicketStats,
+  useFinanceTickets,
+  useLookupFinanceTicketReference,
+  usePostFinanceTicketMessage,
+  useRequestReopenFinanceTicket,
+  useSubmitFinanceTicket,
+} from './useFinanceTicketsApi';
 export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
 export { usePackingUsage } from './useReportsApi';
 export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';

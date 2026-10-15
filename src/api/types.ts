@@ -2092,6 +2092,151 @@ export interface PartnerLedgerTransactionsQuery {
   offset?: number;
 }
 
+// ─── Finance: Help Desk (screens 21–22) ─────────────────────────────────────
+// `finance-tickets.routes.ts` (mounted at `/finance/tickets`) — a SEPARATE
+// ticket system from the Branch/Production Help Desk (`support.routes.ts`).
+// Mobile is scoped to view/report/discuss/request-reopen only, per an explicit
+// decision this session — every super_admin-only admin action (edit a query,
+// amend/correct/delete the underlying financial record, restore, recreate,
+// assign, change status, truly reopen) stays web-only and is not built here.
+
+export type FinanceTicketStatus = 'draft' | 'open' | 'under_review' | 'waiting_for_finance' | 'amended' | 'reopened' | 'resolved' | 'rejected' | 'closed';
+
+export const FINANCE_TICKET_STATUS_LABELS: Record<FinanceTicketStatus, string> = {
+  draft: 'Draft',
+  open: 'Pending',
+  under_review: 'In Review',
+  waiting_for_finance: 'Waiting Finance',
+  amended: 'Amended',
+  reopened: 'Reopened',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+  closed: 'Closed',
+};
+
+export const FINANCE_QUERY_TYPES = [
+  'income', 'expense', 'company_transaction', 'partner_advance', 'company_share',
+  'branch_share', 'salary', 'ledger', 'payment', 'stock_finance_difference', 'other', 'calculation_issue',
+] as const;
+export type FinanceQueryType = (typeof FINANCE_QUERY_TYPES)[number];
+
+export const FINANCE_QUERY_TYPE_LABELS: Record<FinanceQueryType, string> = {
+  income: 'Income',
+  expense: 'Expense',
+  company_transaction: 'Company Transaction',
+  partner_advance: 'Partner Advance',
+  company_share: 'Company Share',
+  branch_share: 'Branch Share',
+  salary: 'Salary',
+  ledger: 'Ledger',
+  payment: 'Payment',
+  stock_finance_difference: 'Stock/Finance Difference',
+  other: 'Other',
+  calculation_issue: 'Calculation Issue',
+};
+
+export const FINANCE_QUERY_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+export type FinanceQueryPriority = (typeof FINANCE_QUERY_PRIORITIES)[number];
+
+export type FinanceTicketReferenceType = 'ledger_entry' | 'income_approval' | 'finance_transaction' | 'salary_payment' | 'employee_advance' | 'partner_expense' | 'branch_share_payment' | 'order' | 'cash_transfer';
+
+export interface FinanceTicketReferenceLookup {
+  referenceType: FinanceTicketReferenceType;
+  referenceId: string;
+  referenceNo: string;
+  label: string;
+  snapshot: Record<string, unknown>;
+}
+
+export interface FinanceTicketMessage {
+  id: string;
+  ticketId: string;
+  authorName: string;
+  authorSide: 'finance' | 'admin';
+  body: string;
+  createdAt: string;
+  attachments?: Attachment[];
+}
+
+export interface FinanceTicket {
+  id: string;
+  queryNo: string;
+  queryType: FinanceQueryType;
+  priority: FinanceQueryPriority;
+  referenceType: FinanceTicketReferenceType | null;
+  referenceNo: string | null;
+  subject: string;
+  message: string;
+  status: FinanceTicketStatus;
+  amount: number | null;
+  branchName: string | null;
+  businessDate: string | null;
+  remarks: string | null;
+  adminResponse: string | null;
+  resolutionNote: string | null;
+  raisedByName: string;
+  assignedToName: string | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  reopenReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  messages?: FinanceTicketMessage[];
+  attachments?: Attachment[];
+}
+
+export interface FinanceTicketStats {
+  total: number;
+  draft: number;
+  open: number;
+  underReview: number;
+  waiting: number;
+  amended: number;
+  reopened: number;
+  resolved: number;
+  rejected: number;
+  closed: number;
+  highPriority: number;
+  urgent: number;
+  unassigned: number;
+  recent: number;
+  deleted: number;
+}
+
+export interface FinanceTicketQuery {
+  status?: FinanceTicketStatus | 'all';
+  queryType?: FinanceQueryType | 'all';
+  priority?: FinanceQueryPriority | 'all';
+  search?: string;
+  mine?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CreateFinanceTicketInput {
+  subject?: string;
+  queryType?: FinanceQueryType;
+  priority?: FinanceQueryPriority;
+  description: string;
+  amount?: number | null;
+  branchId?: string | null;
+  businessDate?: string | null;
+  remarks?: string | null;
+  referenceNo?: string | null;
+  draft?: boolean;
+  attachmentIds?: string[];
+}
+
+export interface FinanceTicketMessageInput {
+  body: string;
+  attachmentIds?: string[];
+}
+
+export interface RequestReopenFinanceTicketInput {
+  reason: string;
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {

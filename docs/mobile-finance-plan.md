@@ -157,7 +157,30 @@ confirms the shapes above.
    query creation, drafts, messaging with auto status-flip, optimistic concurrency
    throughout, and (super_admin only) edit/amend/respond/assign/status/restore/recreate/
    correct-record/delete-record/reopen. Deliberately last — it reads and can MODIFY the
-   records every other slice above will have already built.
+   records every other slice above will have already built. **Done, scoped to
+   view/report/discuss/request-reopen** per the owner's explicit decision: mobile never
+   calls the `super_admin`-only admin actions (edit a query, amend/correct/delete the
+   underlying record, restore, recreate, assign, change status, truly reopen) — those stay
+   web-only. List (21): 6-stat grid (Pending/In Review/High Priority/Waiting
+   Finance/Resolved/My Drafts), Queue/My Drafts toggle, search. New Query (22):
+   reference-first (Reference ID + Find, auto-fills subject/queryType/amount server-side
+   when found) or Subject+QueryType when raised without one, Save Draft/Submit. Detail: the
+   message thread (own bubble color per side), a draft's own Submit action, and — only on a
+   terminal ticket (resolved/rejected/closed) — a Request Reopen form, which the UI is
+   explicit sends a REQUEST (202, status unchanged) rather than actually reopening it, since
+   this app never calls that endpoint as `super_admin`.
+
+## All 23 screens are now built
+
+This completes the Finance mobile app build started in this session. Every screen in
+`mountainbakesFinance.html` has a corresponding, wired React Native screen, verified clean
+(`tsc`/`eslint`/`jest`) after every slice. Two deliberate, documented scope decisions remain
+open for the owner, not silently resolved:
+- **Branch Share Payments** (`finance-branch-share.routes.ts`) has no mockup screen and was
+  not built (see the note under Partners/Company Transaction Details above).
+- **Finance Help Desk's `super_admin`-only admin surface** was deliberately excluded from
+  mobile per the owner's decision in this session — confirm that decision still holds before
+  considering the Help Desk "fully built" rather than "built to its agreed scope."
 
 ## Open items worth a decision before Slice 9 (Help Desk) is built
 

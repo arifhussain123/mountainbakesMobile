@@ -133,6 +133,9 @@ export const Routes = {
   FINANCE_COMPANY_TRANSACTION_DETAILS_STACK: 'FinanceCompanyTransactionDetailsStack',
   FINANCE_LEDGER_HEADS_STACK: 'FinanceLedgerHeadsStack',
   FINANCE_CLOSING_STACK: 'FinanceClosingStack',
+  FINANCE_HELP_DESK_LIST: 'FinanceHelpDeskList',
+  FINANCE_TICKET_DETAIL: 'FinanceTicketDetail',
+
   FINANCE_REPORTS_STACK: 'FinanceReportsStack',
   FINANCE_AUDIT_TRAIL_STACK: 'FinanceAuditTrailStack',
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',
