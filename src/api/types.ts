@@ -450,6 +450,185 @@ export interface PrepareSpecialOrderInput {
   items?: PrepareSpecialOrderItemInput[];
 }
 
+// ─── Production Dashboard overview (mountainbakesProduction.html screen 01)
+// ────────────────────────────────────────────────────────────────────────────
+// `GET /api/production/overview` — mirrors `backend/src/routes/production.routes.ts`
+// field-for-field. SQL-aggregated server-side (migrations 112/140/141), never
+// reduced from raw order rows on the client (CLAUDE.md §36).
+
+export type ProductionDashboardPeriod = 'today' | 'week' | 'month';
+
+export interface ProductionOverviewCards {
+  waitingOrders: number;
+  approvedOrders: number;
+  deliveredOrders: number;
+  changedOrders: number;
+  returnedProducts: number;
+  todayProduction: number;
+  weeklyProduction: number;
+  monthlyProduction: number;
+  totalBranches: number;
+  totalProducts: number;
+  totalDemandQty: number;
+  availableProductionStock: number;
+  branchReturnStock: number;
+}
+
+export interface ProductionDemandByDay {
+  date: string;
+  qty: number;
+  orders: number;
+}
+
+export interface ProductionDemandByMonth {
+  month: string;
+  qty: number;
+}
+
+export interface ProductionBranchDemand {
+  branchId: string;
+  branchName: string;
+  qty: number;
+}
+
+export interface ProductionTopProduct {
+  productId: string | null;
+  productName: string;
+  qty: number;
+}
+
+export interface ProductionOverviewBranch {
+  branchId: string;
+  branchName: string;
+}
+
+export interface ProductionKpiPair {
+  cur: number;
+  prev: number;
+}
+
+export interface ProductionWeekKpis {
+  demand: ProductionKpiPair;
+  delivered: ProductionKpiPair;
+  produced: ProductionKpiPair;
+  openOrders: ProductionKpiPair;
+  deliveredOrders: ProductionKpiPair;
+  returns: ProductionKpiPair;
+}
+
+export interface ProductionTrendPoint {
+  date: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionOrderStatusCounts {
+  pending: number;
+  awaitingVerification: number;
+  verified: number;
+  approved: number;
+  rejected: number;
+  /** Overlaps the other counts (a changed order is also verified/approved/…) — never a share of the total. */
+  changed: number;
+}
+
+export interface ProductionBranchCompare {
+  branchId: string;
+  branchName: string;
+  demand: number;
+  delivered: number;
+}
+
+export interface ProductionPlanRow {
+  productId: string | null;
+  productName: string;
+  demand: number;
+  produced: number;
+  stock: number;
+}
+
+export interface ProductionHeatmapRow {
+  branchId: string;
+  branchName: string;
+  values: number[];
+}
+
+export interface ProductionHeatmap {
+  products: { productId: string | null; productName: string }[];
+  rows: ProductionHeatmapRow[];
+}
+
+export interface ProductionRecentDemand {
+  id: string;
+  submittedAt: string;
+  branchName: string;
+  products: number;
+  units: number;
+  status: ProductionOrderStatus;
+  wasChanged: boolean;
+}
+
+export interface ProductionMonthlySeriesPoint {
+  month: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionHourlySeriesPoint {
+  hour: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionOverviewWeek {
+  period: ProductionDashboardPeriod;
+  from: string;
+  to: string;
+  prevFrom: string;
+  prevTo: string;
+  branchId: string | null;
+  kpis: ProductionWeekKpis;
+  trend: ProductionTrendPoint[];
+  orderStatus: ProductionOrderStatusCounts;
+  branchCompare: ProductionBranchCompare[];
+  plan: ProductionPlanRow[];
+  heat: ProductionHeatmap;
+  recent: ProductionRecentDemand[];
+  monthly: ProductionMonthlySeriesPoint[];
+  hourly: ProductionHourlySeriesPoint[];
+}
+
+export interface ProductionOverview {
+  cards: ProductionOverviewCards;
+  demandByDay: ProductionDemandByDay[];
+  demandByMonth: ProductionDemandByMonth[];
+  branchDemand: ProductionBranchDemand[];
+  topProducts: ProductionTopProduct[];
+  branches: ProductionOverviewBranch[];
+  week: ProductionOverviewWeek;
+}
+
+// ─── Production Dashboard — Branch Stock matrix (mountainbakesProduction.html
+// screen 09, "Branch Stock") ────────────────────────────────────────────────
+// `GET /api/production/branch-stock` — Product × Branch balance matrix,
+// `production_user`/`super_admin` only (NOT the same route as the
+// `super_admin`-only `GET /stock/history/branches` in `stock.routes.ts`).
+export interface ProductionBranchStockBranch {
+  branchId: string;
+  branchName: string;
+}
+
+export interface ProductionBranchStockRow {
+  productId: string;
+  productName: string;
+  byBranch: Record<string, number>;
+}
+
+export interface ProductionBranchStockResponse {
+  branches: ProductionBranchStockBranch[];
+  rows: ProductionBranchStockRow[];
+}
+
 // ─── Packing materials ──────────────────────────────────────────────────────
 
 export interface PackingMaterial {
