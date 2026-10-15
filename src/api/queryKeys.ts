@@ -60,4 +60,10 @@ export const queryKeys = {
   productionReturns: (params?: { status?: string; search?: string }) => ['productionReturns', params ?? {}] as const,
   productionDiscounts: (params?: { status?: string; search?: string }) => ['productionDiscounts', params ?? {}] as const,
   branches: () => ['branches'] as const,
+  productionOrderPreviousBalance: (orderId: string) => ['productionOrderPreviousBalance', orderId] as const,
+  specialOrders: () => ['specialOrders'] as const,
+  productionOverview: (period: 'today' | 'week' | 'month', branchId?: string | null) =>
+    ['productionOverview', period, branchId ?? 'all'] as const,
+  productionBranchStock: () => ['productionBranchStock'] as const,
+  productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
 };

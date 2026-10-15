@@ -7,3 +7,4 @@ export { ProductionReturnCard } from './ProductionReturnCard';
 export { ProductionSaleCard } from './ProductionSaleCard';
 export { ProductionStockRowCard } from './ProductionStockRowCard';
 export { ReturnProductPickerModal } from './ReturnProductPickerModal';
+export { SpecialOrderCard } from './SpecialOrderCard';

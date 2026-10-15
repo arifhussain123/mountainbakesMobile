@@ -41,3 +41,12 @@ export function useFinalApproveProductionOrder() {
     },
   });
 }
+
+/** mountainbakesProduction.html screen 03 — "Previous Order Balance" + "Returned since last order". */
+export function usePreviousOrderBalance(orderId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.productionOrderPreviousBalance(orderId ?? ''),
+    queryFn: () => productionOrderService.getPreviousOrderBalance(orderId!),
+    enabled: !!orderId,
+  });
+}

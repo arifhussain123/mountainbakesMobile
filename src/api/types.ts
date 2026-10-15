@@ -347,6 +347,109 @@ export interface CreateProductionOrderInput {
   businessDate?: string;
 }
 
+// ─── Previous order balance (mountainbakesProduction.html screen 03 — "Previous
+// Order Balance" + "Returned since last order") ────────────────────────────
+// `GET /production-orders/:id/previous-balance` — what the branch owes for the
+// delivery immediately before this one, and what came back since. Mirrors
+// `backend/src/services/previous-balance.service.ts`'s `PreviousOrderBalance`
+// field-for-field — a display statement, not a live ledger (see that file's
+// own comment: it reports the same figure on every reprint).
+export interface PreviousOrderBalanceItem {
+  productName: string;
+  qty: number;
+  amount: number;
+}
+
+export interface PreviousOrderBalanceDiscountItem {
+  demandNumber: string;
+  amount: number;
+}
+
+export interface PreviousOrderBalancePaymentItem {
+  transferId: string;
+  amount: number;
+  [key: string]: unknown;
+}
+
+export interface PreviousOrderBalance {
+  previous: { demandNumber: string; date: string } | null;
+  orderedValue: number;
+  deliveredValue: number;
+  companySharePct: number;
+  companyShareValue: number;
+  returnsValue: number;
+  returnItems: PreviousOrderBalanceItem[];
+  discountsValue: number;
+  discountItems: PreviousOrderBalanceDiscountItem[];
+  amountToCollect: number;
+  paymentsReceivedValue: number;
+  paymentItems: PreviousOrderBalancePaymentItem[];
+  remainingBalance: number;
+}
+
+// ─── Special Orders (mountainbakesProduction.html screen 02 — "Special
+// Orders": a branch's one-off, sent straight to Production, NOT a demand line
+// and never counted in it) ───────────────────────────────────────────────────
+// `GET/PUT /api/special-orders` — its own resource (`special_orders` /
+// `special_order_items` tables, migration 143), distinct from
+// `production_orders`. Mirrors `backend/src/routes/special-orders.routes.ts`.
+
+export type SpecialOrderStatus = 'pending' | 'awaiting_verification' | 'verified' | 'approved';
+
+export interface SpecialOrderItem {
+  id: string;
+  productId: string;
+  itemName: string;
+  qty: number;
+  preparedQty: number | null;
+  verifiedQty: number | null;
+  amount: number;
+  description: string;
+  lineNo: number;
+  stockMovementId: string | null;
+  stockTransactionNo: string | null;
+  requestPhotos?: unknown[];
+}
+
+export interface SpecialOrder {
+  id: string;
+  orderNumber: string;
+  branchId: string;
+  branchName: string;
+  date: string;
+  requiredDate: string | null;
+  status: SpecialOrderStatus;
+  items: SpecialOrderItem[];
+  totalAmount: number;
+  createdBy: string | null;
+  createdByName: string | null;
+  submittedAt: string;
+  preparedBy: string | null;
+  preparedByName: string | null;
+  preparedAt: string | null;
+  verifiedBy: string | null;
+  verifiedByName: string | null;
+  verifiedAt: string | null;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  verificationPhotos?: unknown[];
+}
+
+export interface SpecialOrderListResponse {
+  orders: SpecialOrder[];
+  total: number;
+}
+
+export interface PrepareSpecialOrderItemInput {
+  itemId: string;
+  preparedQty: number;
+}
+
+export interface PrepareSpecialOrderInput {
+  items?: PrepareSpecialOrderItemInput[];
+}
+
 // ─── Packing materials ──────────────────────────────────────────────────────
 
 export interface PackingMaterial {

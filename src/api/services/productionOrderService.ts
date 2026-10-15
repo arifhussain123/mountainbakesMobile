@@ -1,6 +1,11 @@
 import { apiClient, generateIdempotencyKey, type MutationOptions } from '../client';
 import { getBusinessDate } from '../businessDate';
-import type { CreateProductionOrderInput, ProductionOrderListResponse, ReviewProductionOrderInput } from '../types';
+import type {
+  CreateProductionOrderInput,
+  PreviousOrderBalance,
+  ProductionOrderListResponse,
+  ReviewProductionOrderInput,
+} from '../types';
 
 /** `/api/production-orders` — last 7 business days, branch-scoped server-side. */
 export async function listProductionOrders(): Promise<ProductionOrderListResponse> {
@@ -35,4 +40,13 @@ export async function reviewProductionOrder(id: string, input: ReviewProductionO
 /** `PUT /production-orders/:id/final-approve` — only once the branch has verified. */
 export async function finalApproveProductionOrder(id: string): Promise<{ success: boolean }> {
   return apiClient.put<{ success: boolean }>(`/production-orders/${id}/final-approve`);
+}
+
+/**
+ * `GET /production-orders/:id/previous-balance` — the mockup's "Previous Order
+ * Balance" + "Returned since last order" sections (screen 03). `production_user`/
+ * `super_admin` only.
+ */
+export async function getPreviousOrderBalance(id: string): Promise<PreviousOrderBalance> {
+  return apiClient.get<PreviousOrderBalance>(`/production-orders/${id}/previous-balance`);
 }
