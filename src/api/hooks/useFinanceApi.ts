@@ -3,12 +3,14 @@ import { queryKeys } from '../queryKeys';
 import { financeService } from '../services';
 import type {
   ApproveCashTransferInput,
+  CreateLedgerHeadInput,
   FinanceAuditQuery,
   FinanceCashTransferQuery,
   FinanceReportQuery,
   LedgerQuery,
   RejectCashTransferInput,
   UpdateFinanceSettingsInput,
+  UpdateLedgerHeadInput,
 } from '../types';
 
 export function useFinanceDashboard(params?: { from?: string; to?: string; branchId?: string | null }) {
@@ -72,6 +74,26 @@ export function useLedgerHeads(opts?: { type?: 'income' | 'expense'; includeInac
   return useQuery({
     queryKey: queryKeys.ledgerHeads(opts),
     queryFn: () => financeService.listLedgerHeads(opts),
+  });
+}
+
+function invalidateLedgerHeads(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['ledgerHeads'] });
+}
+
+export function useCreateLedgerHead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateLedgerHeadInput) => financeService.createLedgerHead(input),
+    onSuccess: () => invalidateLedgerHeads(queryClient),
+  });
+}
+
+export function useUpdateLedgerHead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateLedgerHeadInput }) => financeService.updateLedgerHead(id, input),
+    onSuccess: () => invalidateLedgerHeads(queryClient),
   });
 }
 

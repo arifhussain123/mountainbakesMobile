@@ -4,6 +4,7 @@ import type {
   ApproveCashTransferInput,
   CashTransfer,
   CashTransferListResponse,
+  CreateLedgerHeadInput,
   EditLedgerEntryInput,
   FinanceAuditLog,
   FinanceAuditQuery,
@@ -21,6 +22,7 @@ import type {
   LedgerSummary,
   RejectCashTransferInput,
   UpdateFinanceSettingsInput,
+  UpdateLedgerHeadInput,
 } from '../types';
 
 /** `/api/finance/dashboard` — today's composite + a trailing trend. `requireFinance('view')`. */
@@ -82,6 +84,18 @@ export async function deleteLedgerEntry(id: string, reason: string): Promise<{ d
 export async function listLedgerHeads(opts?: { type?: 'income' | 'expense'; includeInactive?: boolean }): Promise<LedgerHead[]> {
   const { heads } = await apiClient.get<{ heads: LedgerHead[] }>('/finance/heads', opts);
   return heads;
+}
+
+/** `configure` permission. */
+export async function createLedgerHead(input: CreateLedgerHeadInput): Promise<LedgerHead> {
+  const { head } = await apiClient.post<{ head: LedgerHead }>('/finance/heads', input);
+  return head;
+}
+
+/** `configure` permission — `code`/`type` are not editable (not in `UpdateLedgerHeadInput`). */
+export async function updateLedgerHead(id: string, input: UpdateLedgerHeadInput): Promise<LedgerHead> {
+  const { head } = await apiClient.put<{ head: LedgerHead }>(`/finance/heads/${id}`, input);
+  return head;
 }
 
 // ─── Daily Closing (screen 18) ──────────────────────────────────────────────
