@@ -27,7 +27,12 @@ export type IconName =
   | 'clock'
   | 'user'
   | 'file-spreadsheet'
-  | 'printer';
+  | 'printer'
+  | 'home'
+  | 'orders'
+  | 'sales'
+  | 'stock'
+  | 'more';
 
 export interface IconProps {
   name: IconName;
@@ -243,6 +248,40 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path d="M7 9V3h10v6M7 17H4V9h16v8h-3M7 14h10v7H7z" {...common} strokeLinejoin="round" />
+        </Svg>
+      );
+    // The five bottom-tab icons, lifted verbatim from mountainbakesBranch.html's
+    // own `I` icon map (design line ~1273) — every bottom-tab shell
+    // (Branch/Production/Finance) draws its tab bar from these, not a
+    // placeholder borrowed from elsewhere in this file.
+    case 'home':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" {...common} />
+        </Svg>
+      );
+    case 'orders':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M9 3h6v3H9zM7 4.5H5V21h14V4.5h-2M9 11h6M9 15h4" {...common} />
+        </Svg>
+      );
+    case 'sales':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 4h2l2.4 11h11l2-8H6.2M9 20h.01M18 20h.01" {...common} />
+        </Svg>
+      );
+    case 'stock':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" {...common} />
+        </Svg>
+      );
+    case 'more':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" {...common} />
         </Svg>
       );
     default:

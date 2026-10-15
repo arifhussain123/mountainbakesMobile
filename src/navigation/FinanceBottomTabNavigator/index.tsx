@@ -6,18 +6,23 @@ import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStack
 import { FinanceHomeStackNavigator } from '../FinanceHomeStackNavigator';
 import { FinanceLedgerStackNavigator } from '../FinanceLedgerStackNavigator';
 import { Routes } from '../routes';
+import { tabBarScreenOptions } from '../tabBarScreenOptions';
 import type { FinanceBottomTabParamList } from '../types';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<FinanceBottomTabParamList>();
 
+// Same glass tab bar and "Home"/"More" icons as the Branch/Production shells
+// (mountainbakesBranch.html design line ~1273); Ledger/Cash Transfers/Income
+// have no equivalent there, so they keep the closest existing icons instead
+// of inventing new ones the design never specifies.
 const TAB_ICON: Record<string, IconName> = {
-  [Routes.FINANCE_DASHBOARD_TAB]: 'menu',
-  [Routes.FINANCE_LEDGER_TAB]: 'box',
-  [Routes.FINANCE_CASH_TRANSFERS_TAB]: 'check',
-  [Routes.FINANCE_INCOME_EXPENSE_TAB]: 'search',
-  [Routes.FINANCE_MORE_TAB]: 'menu',
+  [Routes.FINANCE_DASHBOARD_TAB]: 'home',
+  [Routes.FINANCE_LEDGER_TAB]: 'file-spreadsheet',
+  [Routes.FINANCE_CASH_TRANSFERS_TAB]: 'wallet',
+  [Routes.FINANCE_INCOME_EXPENSE_TAB]: 'sales',
+  [Routes.FINANCE_MORE_TAB]: 'more',
 };
 
 /** The `production_user` shell's own tab shape (Dashboard/Orders/Sales/Stock/More), mirrored for Finance's own daily screens. */
@@ -27,11 +32,8 @@ export function FinanceBottomTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'menu'} color={color} size={size} />,
+        ...tabBarScreenOptions(theme),
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'home'} color={color} size={size} />,
       })}>
       <Tab.Screen name={Routes.FINANCE_DASHBOARD_TAB} component={FinanceHomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.FINANCE_LEDGER_TAB} component={FinanceLedgerStackNavigator} options={{ title: 'Ledger' }} />

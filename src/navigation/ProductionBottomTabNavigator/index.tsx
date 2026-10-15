@@ -6,18 +6,21 @@ import { ProductionOrdersStackNavigator } from '../ProductionOrdersStackNavigato
 import { ProductionSalesStackNavigator } from '../ProductionSalesStackNavigator';
 import { ProductionStockStackNavigator } from '../ProductionStockStackNavigator';
 import { Routes } from '../routes';
+import { tabBarScreenOptions } from '../tabBarScreenOptions';
 import type { ProductionBottomTabParamList } from '../types';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<ProductionBottomTabParamList>();
 
+// Same icon set as the Branch shell's tabs (mountainbakesBranch.html design
+// line ~1273) — Dashboard reads as "Home" here, the rest line up directly.
 const TAB_ICON: Record<string, IconName> = {
-  [Routes.PRODUCTION_DASHBOARD_TAB]: 'menu',
-  [Routes.PRODUCTION_ORDERS_TAB]: 'check',
-  [Routes.PRODUCTION_SALES_TAB]: 'search',
-  [Routes.PRODUCTION_STOCK_TAB]: 'box',
-  [Routes.PRODUCTION_MORE_TAB]: 'menu',
+  [Routes.PRODUCTION_DASHBOARD_TAB]: 'home',
+  [Routes.PRODUCTION_ORDERS_TAB]: 'orders',
+  [Routes.PRODUCTION_SALES_TAB]: 'sales',
+  [Routes.PRODUCTION_STOCK_TAB]: 'stock',
+  [Routes.PRODUCTION_MORE_TAB]: 'more',
 };
 
 export function ProductionBottomTabNavigator() {
@@ -26,11 +29,8 @@ export function ProductionBottomTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'menu'} color={color} size={size} />,
+        ...tabBarScreenOptions(theme),
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'home'} color={color} size={size} />,
       })}>
       <Tab.Screen name={Routes.PRODUCTION_DASHBOARD_TAB} component={ProductionHomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.PRODUCTION_ORDERS_TAB} component={ProductionOrdersStackNavigator} options={{ title: 'Orders' }} />
