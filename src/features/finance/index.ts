@@ -2,6 +2,8 @@ export { FinanceAuditTrailScreen } from './screens/FinanceAuditTrailScreen';
 export { FinanceCashTransferDetailScreen } from './screens/FinanceCashTransferDetailScreen';
 export { FinanceCashTransfersListScreen } from './screens/FinanceCashTransfersListScreen';
 export { FinanceClosingScreen } from './screens/FinanceClosingScreen';
+export { FinanceCompanyTransactionDetailsScreen } from './screens/FinanceCompanyTransactionDetailsScreen';
+export { FinancePartnersScreen } from './screens/FinancePartnersScreen';
 export { FinanceIncomeExpenseListScreen } from './screens/FinanceIncomeExpenseListScreen';
 export { FinanceLedgerHeadsScreen } from './screens/FinanceLedgerHeadsScreen';
 export { FinanceDashboardScreen } from './screens/FinanceDashboardScreen';

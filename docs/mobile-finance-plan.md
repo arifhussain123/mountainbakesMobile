@@ -140,6 +140,19 @@ confirms the shapes above.
    yet — flagged as a small follow-up, not silently dropped).
 8. **Partners (12–14) / Company Transaction Details (15)** — partner profile, partner
    advance/draw workflow, share summary, branch share payments (two-entry approval).
+   **Done**, with one scope correction found while reading the mockup closely: screen 15
+   "Company Transaction Details" is the **partner ledger** (`GET /partner-expenses/ledger`),
+   not Branch Share Payments — "Approved partner transactions per month... raised and
+   approved in Partner Transactions" is verbatim in the mockup, and no mockup frame shows
+   Branch Share Payments at all. So **Branch Share Payments
+   (`finance-branch-share.routes.ts`'s create/submit/approve/reject, the two-ledger-entry
+   posting) was not built — it has no mockup screen to build against.** Screen 12 "Partner
+   Transactions" turned out to be 4 tabs, not a single list: Advances, Draws, Share Summary
+   (the `PartnerShareSummary` reconciliation), and Partners (the fixed-four partner master —
+   name/sharePct are seed-time fixed, only biodata fields are editable, which is screen 14
+   "Partner Detail" folded in as an edit sheet rather than its own route, same reasoning as
+   Payroll's Employee Resignation). Screen 13 "New Partner Advance / Draw" is one form with
+   a type toggle, used from either the Advances or Draws tab.
 9. **Finance Help Desk (21–22)** — by far the most complex screen pair: reference-first
    query creation, drafts, messaging with auto status-flip, optimistic concurrency
    throughout, and (super_admin only) edit/amend/respond/assign/status/restore/recreate/

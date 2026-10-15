@@ -1899,6 +1899,199 @@ export interface SalaryLedgerPayments {
   countedCount: number;
 }
 
+// ─── Finance: Partners (screens 12–15) ──────────────────────────────────────
+// `finance-partners.routes.ts` (mounted at `/finance/partner-expenses`) and
+// `finance-branch-share.routes.ts`. The mockup's "Company Transaction Details"
+// (15) is the partner ledger (`/ledger`), not Branch Share Payments — no mockup
+// frame shows Branch Share Payments, so it isn't built here.
+
+export type PartnerType = 'founder' | 'co_founder';
+
+export interface FinancePartner {
+  id: string;
+  partnerCode: string;
+  name: string;
+  fatherName: string | null;
+  dateOfBirth: string | null;
+  joinedOn: string | null;
+  partnerType: PartnerType | null;
+  address: string | null;
+  contactNumber: string | null;
+  emergencyNumber: string | null;
+  sharePct: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PartnerTxnKind = 'advance' | 'draw';
+
+export interface PartnerExpense {
+  id: string;
+  expenseNo: string;
+  partnerId: string | null;
+  partnerName: string;
+  txnKind: PartnerTxnKind;
+  ledgerHeadId: string;
+  ledgerHeadName: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  businessDate: string;
+  status: FinanceDocStatus;
+  requestedByName: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  notes: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface PartnerShareRow {
+  id: string;
+  name: string;
+  sharePct: number;
+  sharePctAmount: number;
+  advancePaid: number;
+  drawPaid: number;
+  balance: number;
+}
+
+export interface PartnerShareSummary {
+  from: string | null;
+  to: string | null;
+  totalExpense: number;
+  totalCompanyShare: number;
+  grandTotal: number;
+  ledgerBalance: number;
+  partners: PartnerShareRow[];
+}
+
+export interface UpdateFinancePartnerInput {
+  fatherName?: string | null;
+  dateOfBirth?: string | null;
+  joinedOn?: string | null;
+  partnerType?: PartnerType | null;
+  address?: string | null;
+  contactNumber?: string | null;
+  emergencyNumber?: string | null;
+}
+
+export interface CreatePartnerExpenseInput {
+  partnerId: string;
+  txnKind: PartnerTxnKind;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  businessDate?: string;
+  notes?: string | null;
+  asDraft?: boolean;
+  attachmentIds: string[];
+}
+
+export interface PartnerExpenseQuery {
+  status?: FinanceDocStatus | 'pending';
+  partnerId?: string;
+  partnerName?: string;
+  txnKind?: PartnerTxnKind;
+  from?: string;
+  to?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Partner ledger (screen 15 "Company Transaction Details") — read-only year grid.
+
+export interface PartnerLedgerRow {
+  partnerId: string;
+  partnerCode: string;
+  partnerName: string;
+  sharePct: number;
+  isActive: boolean;
+  cells: LedgerCell[];
+  total: number;
+  hasPending: boolean;
+}
+
+export interface PartnerLedgerSummary {
+  yearTotal: number;
+  transactionCount: number;
+  partners: number;
+  highestMonth: { month: number; amount: number } | null;
+  unassigned: { count: number; amount: number };
+}
+
+export interface PartnerLedger {
+  year: number;
+  years: LedgerYearOption[];
+  txnKind: PartnerTxnKind | null;
+  summary: PartnerLedgerSummary;
+  rows: PartnerLedgerRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  monthTotals: number[];
+  yearTotal: number;
+}
+
+export interface PartnerLedgerQuery {
+  year?: number;
+  search?: string;
+  txnKind?: PartnerTxnKind;
+  sort?: 'code' | 'name' | 'total';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PartnerLedgerTransaction {
+  id: string;
+  expenseNo: string;
+  partnerId: string | null;
+  partnerCode: string | null;
+  partnerName: string;
+  txnKind: PartnerTxnKind;
+  description: string;
+  amount: number;
+  businessDate: string;
+  ledgerDate: string;
+  year: number;
+  month: number;
+  status: FinanceDocStatus;
+  paymentMethod: string;
+  account: FinanceAccount;
+  notes: string | null;
+  requestedByName: string;
+  createdAt: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  voucherNo: string | null;
+  counted: boolean;
+  countedAmount: number;
+}
+
+export interface PartnerLedgerTransactions {
+  transactions: PartnerLedgerTransaction[];
+  total: number;
+  countedTotal: number;
+  countedCount: number;
+}
+
+export interface PartnerLedgerTransactionsQuery {
+  year?: number;
+  month?: number;
+  partnerId?: string;
+  txnKind?: PartnerTxnKind;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {

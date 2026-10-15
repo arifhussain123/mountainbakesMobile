@@ -3,7 +3,9 @@ import { comingSoonPane } from '@/features/placeholder';
 import {
   FinanceAuditTrailScreen,
   FinanceClosingScreen,
+  FinanceCompanyTransactionDetailsScreen,
   FinanceLedgerHeadsScreen,
+  FinancePartnersScreen,
   FinanceReportsScreen,
   FinanceSettingsScreen,
 } from '@/features/finance';
@@ -15,8 +17,6 @@ import { FinanceDrawerContent } from './FinanceDrawerContent';
 
 const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
 
-const FinancePartnersScreen = comingSoonPane('Partner Transactions');
-const FinanceCompanyTransactionDetailsScreen = comingSoonPane('Company Transaction Details');
 const FinanceHelpDeskScreen = comingSoonPane('Finance Help Desk');
 
 /**
@@ -24,10 +24,11 @@ const FinanceHelpDeskScreen = comingSoonPane('Finance Help Desk');
  * (finance_admin/finance_manager/accountant/finance_auditor). 23 screens are
  * scoped in `docs/mobile-finance-plan.md`. Dashboard (01), Daily Ledger (02,
  * view-only), Cash Transfers (03), Income & Expense (04–05), Payroll (06–11),
- * Ledger Heads (16–17), Daily Closing (18), Reports (19), Audit Trail (20) and
- * Settings (23) are built; everything else is a "coming soon" placeholder
- * wired into real navigation so every area is reachable and ready for its
- * own slice.
+ * Partner Transactions (12–14), Company Transaction Details (15), Ledger
+ * Heads (16–17), Daily Closing (18), Reports (19), Audit Trail (20) and
+ * Settings (23) are built; only Finance Help Desk (21–22) is still a "coming
+ * soon" placeholder, per the owner's decision to keep it view/discuss-only
+ * and build it last.
  */
 export function FinanceDrawerNavigator() {
   return (
