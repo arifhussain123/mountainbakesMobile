@@ -115,8 +115,8 @@ export async function listDayClosings(days = 30): Promise<FinanceDayClosing[]> {
 }
 
 /** `approve` permission — closing a day is a sign-off, same class of act as approving a voucher. */
-export async function closeFinanceDay(businessDate: string, notes?: string): Promise<FinanceDayClosing> {
-  const { closing } = await apiClient.post<{ closing: FinanceDayClosing }>('/finance/closing', { businessDate, notes });
+export async function closeFinanceDay(businessDate: string, notes?: string, idempotencyKey?: string): Promise<FinanceDayClosing> {
+  const { closing } = await apiClient.post<{ closing: FinanceDayClosing }>('/finance/closing', { businessDate, notes }, { idempotencyKey });
   return closing;
 }
 
@@ -144,12 +144,16 @@ export async function getFinanceCashTransfer(id: string): Promise<CashTransfer> 
 }
 
 /** `approve` permission — posts an RV- receipt under INC-BRANCH-CASH (+ a second under INC-FUEL if fuel charges were entered). */
-export async function approveFinanceCashTransfer(id: string, input: ApproveCashTransferInput): Promise<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }> {
-  return apiClient.put<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }>(`/finance/cash-transfers/${id}/approve`, input);
+export async function approveFinanceCashTransfer(
+  id: string,
+  input: ApproveCashTransferInput,
+  idempotencyKey?: string,
+): Promise<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }> {
+  return apiClient.put<{ transfer: CashTransfer; ledgerEntry: LedgerEntry | null }>(`/finance/cash-transfers/${id}/approve`, input, { idempotencyKey });
 }
 
-export async function rejectFinanceCashTransfer(id: string, input: RejectCashTransferInput): Promise<{ transfer: CashTransfer }> {
-  return apiClient.put<{ transfer: CashTransfer }>(`/finance/cash-transfers/${id}/reject`, input);
+export async function rejectFinanceCashTransfer(id: string, input: RejectCashTransferInput, idempotencyKey?: string): Promise<{ transfer: CashTransfer }> {
+  return apiClient.put<{ transfer: CashTransfer }>(`/finance/cash-transfers/${id}/reject`, input, { idempotencyKey });
 }
 
 // ─── Income & Expense (screens 04–05) — manual documents, `/finance/income/entries` ──
@@ -158,8 +162,8 @@ export async function listFinanceTransactions(query: FinanceTransactionQuery): P
   return apiClient.get<{ entries: FinanceTransaction[]; total: number }>('/finance/income/entries', query as unknown as Record<string, unknown>);
 }
 
-export async function createFinanceTransaction(input: CreateFinanceTransactionInput): Promise<FinanceTransaction> {
-  const { entry } = await apiClient.post<{ entry: FinanceTransaction }>('/finance/income/entries', input);
+export async function createFinanceTransaction(input: CreateFinanceTransactionInput, idempotencyKey?: string): Promise<FinanceTransaction> {
+  const { entry } = await apiClient.post<{ entry: FinanceTransaction }>('/finance/income/entries', input, { idempotencyKey });
   return entry;
 }
 
@@ -174,10 +178,14 @@ export async function submitFinanceTransaction(id: string): Promise<FinanceTrans
   return entry;
 }
 
-export async function approveFinanceTransaction(id: string, notes?: string): Promise<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }> {
-  return apiClient.post<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }>(`/finance/income/entries/${id}/approve`, { notes });
+export async function approveFinanceTransaction(
+  id: string,
+  notes?: string,
+  idempotencyKey?: string,
+): Promise<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }> {
+  return apiClient.post<{ entry: FinanceTransaction; ledgerEntry: LedgerEntry }>(`/finance/income/entries/${id}/approve`, { notes }, { idempotencyKey });
 }
 
-export async function rejectFinanceTransaction(id: string, reason: string): Promise<{ entry: FinanceTransaction }> {
-  return apiClient.post<{ entry: FinanceTransaction }>(`/finance/income/entries/${id}/reject`, { reason });
+export async function rejectFinanceTransaction(id: string, reason: string, idempotencyKey?: string): Promise<{ entry: FinanceTransaction }> {
+  return apiClient.post<{ entry: FinanceTransaction }>(`/finance/income/entries/${id}/reject`, { reason }, { idempotencyKey });
 }

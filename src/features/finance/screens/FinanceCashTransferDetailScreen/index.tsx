@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Image, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   financeCan,
+  generateIdempotencyKey,
   useApproveFinanceCashTransfer,
   useFinanceCashTransfer,
   useRejectFinanceCashTransfer,
@@ -55,6 +56,8 @@ export function FinanceCashTransferDetailScreen() {
   const reject = useRejectFinanceCashTransfer();
   const [note, setNote] = useState('');
   const [reason, setReason] = useState('');
+  const approveKeyRef = useRef(generateIdempotencyKey('finance_cash_transfer_approve'));
+  const rejectKeyRef = useRef(generateIdempotencyKey('finance_cash_transfer_reject'));
 
   const canApprove = financeCan(role, 'approve');
 
@@ -82,7 +85,7 @@ export function FinanceCashTransferDetailScreen() {
 
   const handleApprove = () => {
     approve.mutate(
-      { id: transfer.id, input: { note: note.trim() || undefined } },
+      { id: transfer.id, input: { note: note.trim() || undefined }, idempotencyKey: approveKeyRef.current },
       { onSuccess: () => navigation.goBack(), onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)) },
     );
   };
@@ -99,7 +102,7 @@ export function FinanceCashTransferDetailScreen() {
         style: 'destructive',
         onPress: () =>
           reject.mutate(
-            { id: transfer.id, input: { reason: reason.trim() } },
+            { id: transfer.id, input: { reason: reason.trim() }, idempotencyKey: rejectKeyRef.current },
             { onSuccess: () => navigation.goBack(), onError: (e) => Alert.alert('Could Not Reject', mapErrorToMessage(e)) },
           ),
       },

@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   financeCan,
+  generateIdempotencyKey,
   useApproveFinanceTransaction,
   useFinanceTransactions,
   useRejectFinanceTransaction,
@@ -56,6 +57,10 @@ export function FinanceIncomeExpenseListScreen() {
   const [selected, setSelected] = useState<FinanceTransaction | null>(null);
   const newSheetRef = useRef<BottomSheetModal>(null);
   const detailSheetRef = useRef<BottomSheetModal>(null);
+  // One key per record, not per hook instance — this screen's quick-approve acts on a
+  // different entry each time, so a single mount-time ref would reuse the same key
+  // across genuinely different approvals.
+  const approveKeysRef = useRef(new Map<string, string>());
 
   const { data, isLoading, error, refetch, isRefetching } = useFinanceTransactions(tab === 'all' ? { limit: 100 } : { status: tab, limit: 100 });
   const entries = useMemo(() => data?.entries ?? [], [data]);
@@ -69,7 +74,13 @@ export function FinanceIncomeExpenseListScreen() {
   };
 
   const quickApprove = (entry: FinanceTransaction) => {
-    approve.mutate({ id: entry.id }, { onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)) });
+    if (!approveKeysRef.current.has(entry.id)) {
+      approveKeysRef.current.set(entry.id, generateIdempotencyKey('finance_transaction_approve'));
+    }
+    approve.mutate(
+      { id: entry.id, idempotencyKey: approveKeysRef.current.get(entry.id) },
+      { onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)) },
+    );
   };
 
   const quickReject = (entry: FinanceTransaction) => {

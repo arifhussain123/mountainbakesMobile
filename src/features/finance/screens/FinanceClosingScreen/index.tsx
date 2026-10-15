@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import { Alert, FlatList, Text, View } from 'react-native';
 import {
   financeCan,
+  generateIdempotencyKey,
   useCloseFinanceDay,
   useDayClosing,
   useDayClosingHistory,
@@ -25,6 +27,7 @@ export function FinanceClosingScreen() {
   const today = useDayClosing(businessDate);
   const history = useDayClosingHistory(30);
   const close = useCloseFinanceDay();
+  const closeKeyRef = useRef(generateIdempotencyKey('finance_closing'));
 
   const isLoading = today.isLoading || history.isLoading;
   const firstError = today.error ?? history.error;
@@ -42,7 +45,7 @@ export function FinanceClosingScreen() {
         style: 'destructive',
         onPress: () =>
           close.mutate(
-            { businessDate },
+            { businessDate, idempotencyKey: closeKeyRef.current },
             { onSuccess: refetchAll, onError: (e) => Alert.alert('Could Not Close', mapErrorToMessage(e)) },
           ),
       },

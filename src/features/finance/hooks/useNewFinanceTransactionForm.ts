@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import {
   discardAttachment,
+  generateIdempotencyKey,
   getBusinessDate,
   uploadAttachment,
   useCreateFinanceTransaction,
@@ -17,6 +18,7 @@ const PHOTO_PICKER_OPTIONS = { mediaType: 'photo' as const, maxWidth: 1600, maxH
 /** mountainbakesFinance.html screen 05 — New Entry. Branch/reference are optional server-side; left out of this form pass (company-wide, no reference) to keep scope to the fields every entry needs. */
 export function useNewFinanceTransactionForm() {
   const create = useCreateFinanceTransaction();
+  const idempotencyKeyRef = useRef(generateIdempotencyKey('finance_transaction'));
 
   const [type, setType] = useState<LedgerHeadType>('expense');
   const [ledgerHeadId, setLedgerHeadId] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export function useNewFinanceTransactionForm() {
     setDescription('');
     setNotes('');
     removePhoto();
+    idempotencyKeyRef.current = generateIdempotencyKey('finance_transaction');
     setSubmitError(null);
   };
 
@@ -72,15 +75,18 @@ export function useNewFinanceTransactionForm() {
     setSubmitError(null);
     try {
       await create.mutateAsync({
-        ledgerHeadId,
-        description: description.trim(),
-        amount,
-        paymentMethod,
-        account,
-        businessDate,
-        notes: notes.trim() || undefined,
-        asDraft,
-        attachmentIds: [photo.id],
+        input: {
+          ledgerHeadId,
+          description: description.trim(),
+          amount,
+          paymentMethod,
+          account,
+          businessDate,
+          notes: notes.trim() || undefined,
+          asDraft,
+          attachmentIds: [photo.id],
+        },
+        idempotencyKey: idempotencyKeyRef.current,
       });
       return true;
     } catch (error) {

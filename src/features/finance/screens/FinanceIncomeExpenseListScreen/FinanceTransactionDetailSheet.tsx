@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Text, TextInput, View } from 'react-native';
-import { financeCan, useApproveFinanceTransaction, useRejectFinanceTransaction, type FinanceTransaction } from '@/api';
+import { financeCan, generateIdempotencyKey, useApproveFinanceTransaction, useRejectFinanceTransaction, type FinanceTransaction } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -26,6 +26,10 @@ export function FinanceTransactionDetailSheet({ entry, onClose }: { entry: Finan
   const reject = useRejectFinanceTransaction();
   const canApprove = financeCan(role, 'approve');
   const [rejectReason, setRejectReason] = useState('');
+  // Keyed on entry.id (not a mount-time ref) — this component is reused across
+  // different entries as the list screen's `selected` state changes, not remounted.
+  const approveKey = useMemo(() => generateIdempotencyKey(`finance_transaction_approve_${entry.id}`), [entry.id]);
+  const rejectKey = useMemo(() => generateIdempotencyKey(`finance_transaction_reject_${entry.id}`), [entry.id]);
 
   const handleReject = () => {
     if (rejectReason.trim().length < 3) {
@@ -33,13 +37,16 @@ export function FinanceTransactionDetailSheet({ entry, onClose }: { entry: Finan
       return;
     }
     reject.mutate(
-      { id: entry.id, reason: rejectReason.trim() },
+      { id: entry.id, reason: rejectReason.trim(), idempotencyKey: rejectKey },
       { onSuccess: onClose, onError: (e) => Alert.alert('Could Not Reject', mapErrorToMessage(e)) },
     );
   };
 
   const handleApprove = () => {
-    approve.mutate({ id: entry.id }, { onSuccess: onClose, onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)) });
+    approve.mutate(
+      { id: entry.id, idempotencyKey: approveKey },
+      { onSuccess: onClose, onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)) },
+    );
   };
 
   return (

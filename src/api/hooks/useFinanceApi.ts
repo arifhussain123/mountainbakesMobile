@@ -117,7 +117,8 @@ function invalidateFinanceTransactions(queryClient: ReturnType<typeof useQueryCl
 export function useCreateFinanceTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateFinanceTransactionInput) => financeService.createFinanceTransaction(input),
+    mutationFn: ({ input, idempotencyKey }: { input: CreateFinanceTransactionInput; idempotencyKey?: string }) =>
+      financeService.createFinanceTransaction(input, idempotencyKey),
     onSuccess: () => invalidateFinanceTransactions(queryClient),
   });
 }
@@ -141,7 +142,8 @@ export function useSubmitFinanceTransaction() {
 export function useApproveFinanceTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) => financeService.approveFinanceTransaction(id, notes),
+    mutationFn: ({ id, notes, idempotencyKey }: { id: string; notes?: string; idempotencyKey?: string }) =>
+      financeService.approveFinanceTransaction(id, notes, idempotencyKey),
     onSuccess: () => invalidateFinanceTransactions(queryClient),
   });
 }
@@ -149,7 +151,8 @@ export function useApproveFinanceTransaction() {
 export function useRejectFinanceTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => financeService.rejectFinanceTransaction(id, reason),
+    mutationFn: ({ id, reason, idempotencyKey }: { id: string; reason: string; idempotencyKey?: string }) =>
+      financeService.rejectFinanceTransaction(id, reason, idempotencyKey),
     onSuccess: () => invalidateFinanceTransactions(queryClient),
   });
 }
@@ -173,7 +176,8 @@ export function useDayClosingHistory(days = 30) {
 export function useCloseFinanceDay() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ businessDate, notes }: { businessDate: string; notes?: string }) => financeService.closeFinanceDay(businessDate, notes),
+    mutationFn: ({ businessDate, notes, idempotencyKey }: { businessDate: string; notes?: string; idempotencyKey?: string }) =>
+      financeService.closeFinanceDay(businessDate, notes, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.dayClosingHistory(30) });
     },
@@ -224,7 +228,8 @@ function invalidateCashTransfers(queryClient: ReturnType<typeof useQueryClient>)
 export function useApproveFinanceCashTransfer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: ApproveCashTransferInput }) => financeService.approveFinanceCashTransfer(id, input),
+    mutationFn: ({ id, input, idempotencyKey }: { id: string; input: ApproveCashTransferInput; idempotencyKey?: string }) =>
+      financeService.approveFinanceCashTransfer(id, input, idempotencyKey),
     onSuccess: () => invalidateCashTransfers(queryClient),
   });
 }
@@ -232,7 +237,8 @@ export function useApproveFinanceCashTransfer() {
 export function useRejectFinanceCashTransfer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: RejectCashTransferInput }) => financeService.rejectFinanceCashTransfer(id, input),
+    mutationFn: ({ id, input, idempotencyKey }: { id: string; input: RejectCashTransferInput; idempotencyKey?: string }) =>
+      financeService.rejectFinanceCashTransfer(id, input, idempotencyKey),
     onSuccess: () => invalidateCashTransfers(queryClient),
   });
 }
