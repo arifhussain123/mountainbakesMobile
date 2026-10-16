@@ -7,12 +7,18 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { DailySaleDifferenceCard, DailySaleHeroCard, DailySaleRecordCard, formatDifferenceAmount } from '../../components';
+import { DailySaleDifferenceCard, DailySaleHeroCard, DailySaleRecordCard, DailySaleRecordDetailSheet, formatDifferenceAmount } from '../../components';
 import { ManualFeedSheetContent } from '../ManualFeedScreen';
 import { RequiredDateField } from '@/features/orders/components/RequiredDateField';
 import { styles } from './styles';
+import type { DailySaleRecord } from '@/api';
 
 type DiffFilter = 'all' | 'over' | 'short' | 'matched';
+
+/** A record exists and has at least one counted channel — Foodpanda is never counted, so it's deliberately excluded from this check. */
+function hasCount(r: DailySaleRecord): boolean {
+  return r.id !== null && (r.manualCash !== null || r.manualEasypaisa !== null || r.manualBank !== null);
+}
 
 const TILE_DOTS = ['#FF6B35', '#34C38A', '#5A8DEE', '#F5B800', '#FF5A5F', '#8A7A6D'];
 
@@ -41,8 +47,10 @@ function formatRangeLabel(from: string, to: string): string {
 export function DailySaleRecordListScreen() {
   const theme = useAppTheme();
   const manualFeedSheetRef = useRef<BottomSheetModal>(null);
+  const detailSheetRef = useRef<BottomSheetModal>(null);
   const [generatingDate, setGeneratingDate] = useState<string | null>(null);
   const [manualFeedDate, setManualFeedDate] = useState<string | null>(null);
+  const [detailDate, setDetailDate] = useState<string | null>(null);
   const [diffFilter, setDiffFilter] = useState<DiffFilter>('all');
 
   // Defaults mirror the backend's own "last 30 business days ending today" window
@@ -55,8 +63,6 @@ export function DailySaleRecordListScreen() {
   const verify = useVerifyDailySaleRecord();
 
   const records = useMemo(() => data?.records ?? [], [data]);
-
-  const hasCount = (r: (typeof records)[number]) => r.id !== null && (r.manualCash !== null || r.manualEasypaisa !== null || r.manualBank !== null);
 
   const counts = useMemo(() => {
     const counted = records.filter(hasCount);
@@ -105,6 +111,11 @@ export function DailySaleRecordListScreen() {
   const openManualFeed = (businessDate: string) => {
     setManualFeedDate(businessDate);
     manualFeedSheetRef.current?.present();
+  };
+
+  const openDetail = (businessDate: string) => {
+    setDetailDate(businessDate);
+    detailSheetRef.current?.present();
   };
 
   const summary = data?.summary;
@@ -289,6 +300,7 @@ export function DailySaleRecordListScreen() {
             isGenerating={generatingDate === item.businessDate}
             onGenerate={() => handleGenerate(item.businessDate)}
             onOpenManualFeed={() => openManualFeed(item.businessDate)}
+            onOpenDetail={() => openDetail(item.businessDate)}
             onVerify={() => item.id && handleVerify(item.id)}
             isVerifying={verify.isPending}
           />
@@ -338,7 +350,26 @@ export function DailySaleRecordListScreen() {
         subtitle={manualFeedDate ? formatDisplayDate(manualFeedDate) : undefined}
         onRequestClose={() => manualFeedSheetRef.current?.dismiss()}
         onDismiss={() => setManualFeedDate(null)}>
-        {manualFeedDate ? <ManualFeedSheetContent businessDate={manualFeedDate} onClose={() => manualFeedSheetRef.current?.dismiss()} /> : null}
+        {manualFeedDate ? (
+          <ManualFeedSheetContent
+            businessDate={manualFeedDate}
+            record={records.find((r) => r.businessDate === manualFeedDate) ?? null}
+            locks={data?.locks ?? []}
+            onClose={() => manualFeedSheetRef.current?.dismiss()}
+          />
+        ) : null}
+      </FormBottomSheet>
+
+      <FormBottomSheet
+        ref={detailSheetRef}
+        title="Day Detail"
+        subtitle={detailDate ? formatDisplayDate(detailDate) : undefined}
+        onRequestClose={() => detailSheetRef.current?.dismiss()}
+        onDismiss={() => setDetailDate(null)}>
+        {(() => {
+          const detailRecord = detailDate ? (records.find((r) => r.businessDate === detailDate) ?? null) : null;
+          return detailRecord ? <DailySaleRecordDetailSheet record={detailRecord} /> : null;
+        })()}
       </FormBottomSheet>
     </Screen>
   );

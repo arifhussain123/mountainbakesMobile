@@ -4,17 +4,22 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   Text,
   View,
 } from 'react-native';
-import { getBusinessDate, useBranchClosing, useStock } from '@/api';
+import { exportBranchClosingCsv, getBusinessDate, useBranchClosing, useStock } from '@/api';
 import { openDrawer } from '@/navigation';
 import {
-  BranchClosingHeroCard,
   BusinessDateControl,
+  CashInHandCard,
+  ClosingStatTiles,
   ClosingStockHistogram,
   ClosingStockTable,
+  SyncBanner,
 } from '@/features/closing/components';
+import { buildClosingSummaryText } from '@/features/closing/api/shareSummary';
+import { countUnsyncedForDate } from '@/features/closing/api/unsyncedForDate';
 import { useAppTheme } from '@/shared/theme';
 import {
   AppHeader,
@@ -27,6 +32,7 @@ import {
 } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { useOfflineQueueStore } from '@/state';
 import { styles } from './styles';
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
@@ -60,6 +66,8 @@ export function BranchClosingScreen() {
   const theme = useAppTheme();
   const today = useMemo(() => getBusinessDate(), []);
   const [date, setDate] = useState(today);
+  const [isExporting, setIsExporting] = useState(false);
+  const writes = useOfflineQueueStore((s) => s.writes);
 
   const closing = useBranchClosing(date);
   const stock = useStock(date);
@@ -86,16 +94,42 @@ export function BranchClosingScreen() {
   };
 
   const totals = closing.data?.totals;
+  const unsyncedCount = useMemo(() => countUnsyncedForDate(writes, date, today), [writes, date, today]);
 
-  // TODO: no export/print pipeline exists anywhere in the app yet (checked
-  // Shop Expenses and Finance Reports — both defer this the same way; see
-  // FinanceReportsScreen's own "Export to PDF/Excel/CSV is deferred" note).
-  // Wire these to a real export endpoint/share-sheet once one exists instead
-  // of fabricating a file here.
-  const handleExportExcel = () =>
-    Alert.alert('Export to Excel', 'Excel export is not wired up yet.');
-  const handlePrint = () =>
-    Alert.alert('Print', 'Printing is not wired up yet.');
+  // `GET /api/branch-closing/export?type=csv` is the same figures the web's
+  // Excel export produces, requested as CSV so it can go straight into the
+  // share sheet — there's no file-system/binary-share module in this app to
+  // hand a real .xlsx to instead (same approach Sales' own export already uses).
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const csv = await exportBranchClosingCsv(date);
+      await Share.share({ title: `Branch Closing ${date}`, message: csv });
+    } catch (err) {
+      Alert.alert('Export Failed', mapErrorToMessage(err));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // No printing pipeline exists anywhere in this app (confirmed in Step 0) —
+  // this is the same plain-text Share-sheet pattern Sales' receipt sharing
+  // and Production's own "POP Print" already use.
+  const handleShareSummary = () => {
+    if (!closing.data || !totals) return;
+    void Share.share({
+      title: `Branch Closing ${date}`,
+      message: buildClosingSummaryText({
+        branchName: closing.data.branchName,
+        date,
+        totals,
+        paymentMethods: closing.data.paymentMethods,
+        stockSold: stockTotals.sold,
+        stockReturned: stockTotals.returned,
+        stockBalance: stockTotals.balance,
+      }),
+    });
+  };
 
   return (
     <Screen>
@@ -130,12 +164,15 @@ export function BranchClosingScreen() {
             <View style={styles.actionPills}>
               <Pressable
                 accessibilityRole="button"
-                onPress={handleExportExcel}
+                accessibilityLabel="Export to Excel"
+                disabled={isExporting}
+                onPress={() => void handleExportExcel()}
                 style={[
                   styles.pill,
                   {
                     backgroundColor: theme.colors.border,
                     borderRadius: theme.radii.md,
+                    opacity: isExporting ? 0.6 : 1,
                   },
                 ]}
               >
@@ -150,12 +187,13 @@ export function BranchClosingScreen() {
                     { color: theme.colors.text, fontWeight: '700' },
                   ]}
                 >
-                  Excel
+                  {isExporting ? 'Exporting…' : 'Excel'}
                 </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={handlePrint}
+                accessibilityLabel="Share summary"
+                onPress={handleShareSummary}
                 style={[
                   styles.pill,
                   {
@@ -175,7 +213,7 @@ export function BranchClosingScreen() {
                     { color: theme.colors.primaryText, fontWeight: '700' },
                   ]}
                 >
-                  Print
+                  Share
                 </Text>
               </Pressable>
             </View>
@@ -189,6 +227,8 @@ export function BranchClosingScreen() {
             />
           </View>
 
+          <SyncBanner updatedAt={closing.dataUpdatedAt ? new Date(closing.dataUpdatedAt).toISOString() : null} unsyncedCount={unsyncedCount} isDayStillOpen={date === today} />
+
           {isLoading ? <LoadingSkeleton height={160} /> : null}
           {error ? (
             <ErrorState
@@ -199,82 +239,13 @@ export function BranchClosingScreen() {
 
           {totals ? (
             <View style={{ marginTop: theme.spacing.md }}>
-              <BranchClosingHeroCard
-                net={totals.net}
-                sales={totals.sales}
-                expenses={totals.expenses}
-              />
+              <CashInHandCard cashInHand={totals.cashInHand} cashSales={totals.cashSales} cashExpenses={totals.cashExpenses} />
             </View>
           ) : null}
 
           {totals ? (
-            <View style={[styles.twoCol, { marginTop: theme.spacing.sm }]}>
-              <View
-                style={[
-                  styles.statBox,
-                  {
-                    backgroundColor: theme.colors.cardFill,
-                    borderColor: theme.colors.cardBorder,
-                  },
-                ]}
-              >
-                <View style={styles.statHeader}>
-                  <Text
-                    style={[
-                      theme.typography.label,
-                      { color: theme.colors.textSecondary },
-                    ]}
-                  >
-                    Cash in Hand
-                  </Text>
-                  <Icon
-                    name="wallet"
-                    size={15}
-                    color={theme.colors.textSecondary}
-                  />
-                </View>
-                <Text
-                  style={[
-                    theme.typography.cardTitle,
-                    { color: theme.colors.text, marginTop: 6, fontSize: 18 },
-                  ]}
-                >
-                  {formatCurrency(totals.cashInHand)}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.statBox,
-                  {
-                    backgroundColor: theme.colors.cardFill,
-                    borderColor: theme.colors.cardBorder,
-                  },
-                ]}
-              >
-                <View style={styles.statHeader}>
-                  <Text
-                    style={[
-                      theme.typography.label,
-                      { color: theme.colors.textSecondary },
-                    ]}
-                  >
-                    Stock on Hand
-                  </Text>
-                  <Icon
-                    name="box"
-                    size={15}
-                    color={theme.colors.textSecondary}
-                  />
-                </View>
-                <Text
-                  style={[
-                    theme.typography.cardTitle,
-                    { color: theme.colors.text, marginTop: 6, fontSize: 18 },
-                  ]}
-                >
-                  {stockTotals.balance}
-                </Text>
-              </View>
+            <View style={{ marginTop: theme.spacing.sm }}>
+              <ClosingStatTiles sales={totals.sales} expenses={totals.expenses} net={totals.net} stockOnHand={stockTotals.balance} />
             </View>
           ) : null}
 

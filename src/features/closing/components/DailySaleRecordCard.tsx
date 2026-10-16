@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { DailySaleRecord } from '@/api';
 
 export interface DailySaleRecordCardProps {
@@ -11,6 +11,8 @@ export interface DailySaleRecordCardProps {
   onOpenManualFeed: () => void;
   onVerify: () => void;
   isVerifying: boolean;
+  /** Opens Day Detail — absent (undefined) for a not-yet-generated day, which has nothing to show. */
+  onOpenDetail?: () => void;
 }
 
 const STATUS_LABEL: Record<DailySaleRecord['status'], string> = {
@@ -30,16 +32,39 @@ const STATUS_VARIANT: Record<DailySaleRecord['status'], StatusVariant> = {
 };
 
 /** branchApp.md screen 21 — one business day's takings against what was counted. */
-export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenManualFeed, onVerify, isVerifying }: DailySaleRecordCardProps) {
+export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenManualFeed, onVerify, isVerifying, onOpenDetail }: DailySaleRecordCardProps) {
   const theme = useAppTheme();
   const notGenerated = record.id === null;
   const hasCount = record.manualCash !== null || record.manualEasypaisa !== null || record.manualBank !== null;
   const diff = record.overallDifference;
 
+  const accessibilityLabel = notGenerated
+    ? `${formatDisplayDate(record.businessDate)}, not generated yet`
+    : [
+        formatDisplayDate(record.businessDate),
+        `total sale ${record.autoTotalSale.toLocaleString()} rupees`,
+        `cash on table ${record.expectedCashInHand.toLocaleString()}`,
+        hasCount ? `counted, ${Math.abs(diff).toLocaleString()} ${diff >= 0 ? 'over' : 'short'}` : 'not counted',
+        STATUS_LABEL[record.status],
+      ].join(', ');
+
+  const canOpenDetail = !notGenerated && !!onOpenDetail;
+
   return (
-    <Card style={{ marginBottom: 10 }}>
+    <Pressable
+      accessibilityRole={canOpenDetail ? 'button' : undefined}
+      disabled={!canOpenDetail}
+      onPress={canOpenDetail ? onOpenDetail : undefined}>
+      <Card accessible accessibilityLabel={accessibilityLabel} style={{ marginBottom: 10 }}>
       <View style={styles.row}>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatDisplayDate(record.businessDate)}</Text>
+        <View>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatDisplayDate(record.businessDate)}</Text>
+          {!notGenerated ? (
+            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>
+              generated {formatDisplayTime(record.generatedAt)}
+            </Text>
+          ) : null}
+        </View>
         {!notGenerated ? <StatusBadge label={STATUS_LABEL[record.status]} variant={STATUS_VARIANT[record.status]} /> : null}
       </View>
       <View style={[styles.row, { marginTop: 10 }]}>
@@ -63,11 +88,26 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
           Easypaisa <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.autoEasypaisa)}</Text>
         </Text>
+        {record.autoFoodpanda !== 0 ? (
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+            Foodpanda <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.autoFoodpanda)}</Text>
+          </Text>
+        ) : null}
+        {record.autoBank !== 0 ? (
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+            Bank <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.autoBank)}</Text>
+          </Text>
+        ) : null}
+      </View>
+      <View style={[styles.grid, { marginTop: 6 }]}>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-          Expense <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.expenseTotal)}</Text>
+          Cash Expense <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.cashExpense)}</Text>
         </Text>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-          On Table <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.expectedCashInHand)}</Text>
+          Cash on Table{' '}
+          <Text style={{ color: record.expectedCashInHand < 0 ? theme.colors.danger : theme.colors.text, fontWeight: '700' }}>
+            {formatCurrency(record.expectedCashInHand)}
+          </Text>
         </Text>
       </View>
       <View style={[styles.footerRow, { marginTop: 10, borderTopColor: theme.colors.border }]}>
@@ -116,7 +156,13 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
           )}
         </View>
       </View>
-    </Card>
+      {!notGenerated ? (
+        <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 8 }]}>
+          {hasCount ? 'System + Counted' : 'System'}
+        </Text>
+      ) : null}
+      </Card>
+    </Pressable>
   );
 }
 
