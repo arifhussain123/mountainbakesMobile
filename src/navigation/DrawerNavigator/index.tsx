@@ -1,3 +1,4 @@
+import { useWindowDimensions } from 'react-native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { ProfileScreen, SettingsScreen } from '@/features/profile';
 import { CashStackNavigator } from '../CashStackNavigator';
@@ -10,13 +11,21 @@ import { ReportsStackNavigator } from '../ReportsStackNavigator';
 import { BottomTabNavigator } from '../BottomTabNavigator';
 import { Routes } from '../routes';
 import type { DrawerParamList } from '../types';
+import { getDrawerWidth } from '../components/drawerLayout';
 import { DrawerContent } from './DrawerContent';
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
 export function DrawerNavigator() {
+  // Re-evaluated on every render, so a rotation (width change) immediately
+  // recomputes the clamp rather than sticking to whatever width the drawer
+  // first mounted at.
+  const { width } = useWindowDimensions();
+
   return (
-    <Drawer.Navigator screenOptions={{ headerShown: false }} drawerContent={(props) => <DrawerContent {...props} />}>
+    <Drawer.Navigator
+      screenOptions={{ headerShown: false, drawerStyle: { width: getDrawerWidth(width) } }}
+      drawerContent={(props) => <DrawerContent {...props} />}>
       <Drawer.Screen name={Routes.TABS} component={BottomTabNavigator} />
       <Drawer.Screen name={Routes.DISCOUNTS_STACK} component={DiscountsStackNavigator} />
       <Drawer.Screen name={Routes.CASH_STACK} component={CashStackNavigator} />

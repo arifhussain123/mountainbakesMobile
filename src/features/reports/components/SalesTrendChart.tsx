@@ -29,13 +29,13 @@ function buildPath(points: { x: number; y: number }[]): string {
 
 function trendAccessibilitySummary(
   data: SalesAnalyticsDailyPoint[],
-  best: { date: string; revenue: number } | null,
-  slowest: { date: string; revenue: number } | null,
+  best: { date: string; sales: number } | null,
+  slowest: { date: string; sales: number } | null,
 ): string {
   if (data.length === 0) return 'No sales data for this range.';
   const parts = [`Daily sales trend, ${data.length} days.`];
-  if (best) parts.push(`Highest: ${formatDisplayDate(best.date)}, ${formatCurrency(best.revenue)}.`);
-  if (slowest) parts.push(`Lowest: ${formatDisplayDate(slowest.date)}, ${formatCurrency(slowest.revenue)}.`);
+  if (best) parts.push(`Highest: ${formatDisplayDate(best.date)}, ${formatCurrency(best.sales)}.`);
+  if (slowest) parts.push(`Lowest: ${formatDisplayDate(slowest.date)}, ${formatCurrency(slowest.sales)}.`);
   return parts.join(' ');
 }
 
@@ -53,17 +53,17 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
   const trend = summarizeTrend(data);
 
   const width = Math.max(MIN_WIDTH, data.length * POINT_WIDTH);
-  const maxRevenue = Math.max(1, ...data.map((d) => d.revenue));
-  const maxOrders = Math.max(1, ...data.map((d) => d.orders));
+  const maxRevenue = Math.max(1, ...data.map((d) => d.sales));
+  const maxOrders = Math.max(1, ...data.map((d) => d.transactions));
   const step = data.length > 1 ? width / (data.length - 1) : 0;
 
   const revenuePoints = data.map((d, i) => ({
     x: data.length > 1 ? i * step : width / 2,
-    y: CHART_BOTTOM - (d.revenue / maxRevenue) * (CHART_BOTTOM - CHART_TOP),
+    y: CHART_BOTTOM - (d.sales / maxRevenue) * (CHART_BOTTOM - CHART_TOP),
   }));
   const orderPoints = data.map((d, i) => ({
     x: data.length > 1 ? i * step : width / 2,
-    y: CHART_BOTTOM - (d.orders / maxOrders) * (CHART_BOTTOM - CHART_TOP),
+    y: CHART_BOTTOM - (d.transactions / maxOrders) * (CHART_BOTTOM - CHART_TOP),
   }));
   const selX = revenuePoints[selectedIndex]?.x ?? 0;
 
@@ -153,14 +153,14 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
         <View style={styles.summaryCell}>
           <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Best Day</Text>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.success, fontWeight: '700' }]}>
-            {trend.bestDay ? formatCurrency(trend.bestDay.revenue) : '—'}
+            {trend.bestDay ? formatCurrency(trend.bestDay.sales) : '—'}
           </Text>
           <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{trend.bestDay ? formatDisplayDate(trend.bestDay.date) : ''}</Text>
         </View>
         <View style={styles.summaryCell}>
           <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Slowest Day</Text>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, fontWeight: '700' }]}>
-            {trend.slowestDay ? formatCurrency(trend.slowestDay.revenue) : '—'}
+            {trend.slowestDay ? formatCurrency(trend.slowestDay.sales) : '—'}
           </Text>
           <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{trend.slowestDay ? formatDisplayDate(trend.slowestDay.date) : ''}</Text>
         </View>

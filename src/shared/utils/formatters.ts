@@ -5,9 +5,24 @@
  * are a real, routine case (company-share splits commonly end in .50), not
  * an edge case to round away — rounds to the nearest paisa first only to
  * absorb floating-point noise from upstream arithmetic, never to whole rupees.
+ *
+ * Accepts `number | string | null | undefined` (not just `number`) and
+ * returns `'-'` for anything that isn't a finite number, rather than
+ * `'Rs. NaN'` — a real API response shape mismatch (the Dashboard's daily
+ * sales/top-products fields were typed and read under field names the server
+ * doesn't actually send) once reached this function with `undefined`, and
+ * nothing caught it before it rendered. That source mismatch is fixed
+ * separately (see `api/types.ts`'s `SalesAnalyticsDailyPoint`/
+ * `SalesAnalyticsTopProduct`) — this is the last-resort backstop so a future
+ * one shows a dash instead of "NaN" again.
  */
-export function formatCurrency(amount: number): string {
-  const rounded = Math.round(amount * 100) / 100;
+export function formatCurrency(amount: number | string | null | undefined): string {
+  // `Number(null)` is `0` and `Number('')` is `0` — both finite, both wrong —
+  // so these must be rejected before the coercion, not after it.
+  if (amount === null || amount === undefined || amount === '') return '-';
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return '-';
+  const rounded = Math.round(value * 100) / 100;
   return `Rs. ${rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 

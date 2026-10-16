@@ -15,10 +15,10 @@ export interface SalesChartProps {
 export function SalesChart({ data, average = 0 }: SalesChartProps) {
   const theme = useAppTheme();
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1);
-  const highestRevenue = Math.max(1, ...data.map((d) => d.revenue));
-  const maxRevenue = Math.max(highestRevenue, average);
+  const highestSales = Math.max(1, ...data.map((d) => d.sales));
+  const maxSales = Math.max(highestSales, average);
   const selected = data[selectedIndex];
-  const averageLineBottomPct = average > 0 ? Math.min(96, (average / maxRevenue) * 100) : null;
+  const averageLineBottomPct = average > 0 ? Math.min(96, (average / maxSales) * 100) : null;
 
   return (
     <Card>
@@ -32,7 +32,7 @@ export function SalesChart({ data, average = 0 }: SalesChartProps) {
         <View style={[styles.selectedRow, { backgroundColor: theme.colors.background, borderRadius: theme.radii.sm, marginTop: theme.spacing.sm }]}>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatDisplayDate(selected.date)}</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>
-            {formatCurrency(selected.revenue)} <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {selected.orders} orders</Text>
+            {formatCurrency(selected.sales)} <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {selected.transactions} orders</Text>
           </Text>
         </View>
       ) : null}
@@ -41,7 +41,7 @@ export function SalesChart({ data, average = 0 }: SalesChartProps) {
           <View pointerEvents="none" style={[styles.averageLine, { bottom: `${averageLineBottomPct}%`, borderColor: theme.colors.textFaint }]} />
         ) : null}
         {data.map((point, index) => {
-          const heightPct = (point.revenue / maxRevenue) * 100;
+          const heightPct = (point.sales / maxSales) * 100;
           const active = index === selectedIndex;
           return (
             <Pressable
@@ -49,8 +49,8 @@ export function SalesChart({ data, average = 0 }: SalesChartProps) {
               onPress={() => setSelectedIndex(index)}
               style={styles.barColumn}
               accessibilityRole="button"
-              accessibilityLabel={`${formatDisplayDate(point.date)}, ${formatCurrency(point.revenue)}, ${point.orders} orders${
-                point.revenue === highestRevenue ? ', highest' : ''
+              accessibilityLabel={`${formatDisplayDate(point.date)}, ${formatCurrency(point.sales)}, ${point.transactions} orders${
+                point.sales === highestSales ? ', highest' : ''
               }`}>
               <View
                 style={[

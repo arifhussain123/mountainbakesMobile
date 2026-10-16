@@ -15,8 +15,8 @@ export interface TopProductsBarsProps {
  */
 export function TopProductsBars({ products }: TopProductsBarsProps) {
   const theme = useAppTheme();
-  const maxRevenue = Math.max(1, ...products.map((p) => p.totalRevenue));
-  const maxQty = Math.max(1, ...products.map((p) => p.totalQty));
+  const maxSales = Math.max(1, ...products.map((p) => p.sales));
+  const maxQty = Math.max(1, ...products.map((p) => p.qty));
 
   return (
     <Card>
@@ -47,14 +47,14 @@ export function TopProductsBars({ products }: TopProductsBarsProps) {
                 <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
                   {product.productName}
                 </Text>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.totalRevenue)}</Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.sales)}</Text>
               </View>
               <View style={{ marginTop: 7, gap: 4 }}>
-                <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.totalRevenue, maxRevenue))}%`, backgroundColor: theme.colors.secondary }]} />
+                <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.sales, maxSales))}%`, backgroundColor: theme.colors.secondary }]} />
                 <View style={styles.qtyRow}>
-                  <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.totalQty, maxQty))}%`, backgroundColor: theme.colors.primary }]} />
+                  <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.qty, maxQty))}%`, backgroundColor: theme.colors.primary }]} />
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                    {product.totalQty}
+                    {product.qty}
                   </Text>
                 </View>
               </View>

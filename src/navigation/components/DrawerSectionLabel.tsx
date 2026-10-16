@@ -4,7 +4,7 @@ import { useAppTheme } from '@/shared/theme';
 export function DrawerSectionLabel({ label }: { label: string }) {
   const theme = useAppTheme();
   return (
-    <Text style={[theme.typography.label, styles.label, { color: theme.colors.drawer.textMuted }]}>{label.toUpperCase()}</Text>
+    <Text style={[theme.typography.label, styles.label, { color: theme.colors.textMuted }]}>{label.toUpperCase()}</Text>
   );
 }
 

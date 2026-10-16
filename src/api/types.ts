@@ -78,19 +78,28 @@ export interface ReportSummary {
 
 // ─── Dashboard: GET /api/sales-analytics ──────────────────────────────────
 
+/**
+ * Field names match the server's `SalesAnalyticsDay` exactly
+ * (`sales-analytics.service.ts`) — this used to be typed as `{ revenue,
+ * orders }`, which doesn't exist on the actual response (the server sends
+ * `sales`/`transactions`). Every value read through the old names was
+ * silently `undefined`, which is why the Dashboard's "Last 7 Days" card and
+ * chart showed "Rs. NaN" / "undefined orders" instead of real numbers.
+ */
 export interface SalesAnalyticsDailyPoint {
   date: string;
-  revenue: number;
-  orders: number;
+  sales: number;
+  transactions: number;
 }
 
+/** Field names match the server's `SalesAnalyticsProduct` exactly — see `SalesAnalyticsDailyPoint`'s note; this had the same `totalQty`/`totalRevenue` vs. `qty`/`sales` mismatch for the Top Products card. */
 export interface SalesAnalyticsTopProduct {
   productId: string;
   productName: string;
   /** `''` when the product has no category — the RPC's own `coalesce(min(category_name), '')`. */
   categoryName: string;
-  totalQty: number;
-  totalRevenue: number;
+  qty: number;
+  sales: number;
 }
 
 export interface SalesAnalyticsPaymentMethod {
@@ -118,8 +127,8 @@ export interface SalesAnalytics {
   totalSales: number;
   totalTransactions: number;
   averageDailySales: number;
-  highestDay: { date: string; revenue: number } | null;
-  lowestDay: { date: string; revenue: number } | null;
+  highestDay: { date: string; sales: number; transactions: number } | null;
+  lowestDay: { date: string; sales: number; transactions: number } | null;
   daily: SalesAnalyticsDailyPoint[];
   topProducts: SalesAnalyticsTopProduct[];
   paymentMethods: SalesAnalyticsPaymentMethod[];

@@ -50,8 +50,8 @@ describe('sumPaymentMethodRevenue / sumPaymentMethodCount', () => {
   });
 });
 
-function product(productName: string, totalRevenue: number, totalQty: number): SalesAnalyticsTopProduct {
-  return { productId: productName, productName, categoryName: '', totalRevenue, totalQty };
+function product(productName: string, sales: number, qty: number): SalesAnalyticsTopProduct {
+  return { productId: productName, productName, categoryName: '', sales, qty };
 }
 
 describe('sortTopProducts', () => {
@@ -95,22 +95,22 @@ describe('derivePackingStatus / isPackingShortfall', () => {
 describe('summarizeTrend', () => {
   it('finds the best and slowest day and the daily average', () => {
     const daily = [
-      { date: '2026-10-14', revenue: 30_000 },
-      { date: '2026-10-15', revenue: 46_650 },
-      { date: '2026-10-16', revenue: 48_650 },
+      { date: '2026-10-14', sales: 30_000 },
+      { date: '2026-10-15', sales: 46_650 },
+      { date: '2026-10-16', sales: 48_650 },
     ];
     const summary = summarizeTrend(daily);
-    expect(summary.bestDay).toEqual({ date: '2026-10-16', revenue: 48_650 });
-    expect(summary.slowestDay).toEqual({ date: '2026-10-14', revenue: 30_000 });
+    expect(summary.bestDay).toEqual({ date: '2026-10-16', sales: 48_650 });
+    expect(summary.slowestDay).toEqual({ date: '2026-10-14', sales: 30_000 });
     expect(summary.averageDailyRevenue).toBeCloseTo((30_000 + 46_650 + 48_650) / 3, 5);
   });
 
   it('treats a real Rs. 0 day as the slowest day, not an excluded gap', () => {
     const daily = [
-      { date: '2026-10-14', revenue: 0 },
-      { date: '2026-10-15', revenue: 500 },
+      { date: '2026-10-14', sales: 0 },
+      { date: '2026-10-15', sales: 500 },
     ];
-    expect(summarizeTrend(daily).slowestDay).toEqual({ date: '2026-10-14', revenue: 0 });
+    expect(summarizeTrend(daily).slowestDay).toEqual({ date: '2026-10-14', sales: 0 });
   });
 
   it('returns nulls for an empty range rather than throwing', () => {

@@ -22,8 +22,8 @@ export function TopProductsList({ products }: TopProductsListProps) {
   const [sort, setSort] = useState<TopProductSort>('revenue');
 
   const sorted = useMemo(() => sortTopProducts(products, sort), [products, sort]);
-  const maxRevenue = Math.max(1, ...products.map((p) => p.totalRevenue));
-  const maxQty = Math.max(1, ...products.map((p) => p.totalQty));
+  const maxRevenue = Math.max(1, ...products.map((p) => p.sales));
+  const maxQty = Math.max(1, ...products.map((p) => p.qty));
 
   return (
     <Card>
@@ -51,7 +51,7 @@ export function TopProductsList({ products }: TopProductsListProps) {
       </View>
 
       {sorted.map((product, index) => {
-        const shareOfTop = sort === 'revenue' ? (product.totalRevenue / maxRevenue) * 100 : (product.totalQty / maxQty) * 100;
+        const shareOfTop = sort === 'revenue' ? (product.sales / maxRevenue) * 100 : (product.qty / maxQty) * 100;
         return (
           <View
             key={product.productId || product.productName}
@@ -62,7 +62,7 @@ export function TopProductsList({ products }: TopProductsListProps) {
                 <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }]} numberOfLines={1}>
                   {product.productName}
                 </Text>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.totalRevenue)}</Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.sales)}</Text>
               </View>
               {product.categoryName ? (
                 <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
@@ -75,7 +75,7 @@ export function TopProductsList({ products }: TopProductsListProps) {
                     style={[styles.barFill, { width: `${Math.max(2, shareOfTop)}%`, backgroundColor: theme.colors.primary, borderRadius: 3 }]}
                   />
                 </View>
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{product.totalQty} sold</Text>
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{product.qty} sold</Text>
               </View>
             </View>
           </View>

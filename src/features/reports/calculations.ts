@@ -36,7 +36,7 @@ export type TopProductSort = 'revenue' | 'qty';
 
 export function sortTopProducts(products: SalesAnalyticsTopProduct[], sort: TopProductSort): SalesAnalyticsTopProduct[] {
   const sorted = [...products];
-  sorted.sort((a, b) => (sort === 'revenue' ? b.totalRevenue - a.totalRevenue : b.totalQty - a.totalQty));
+  sorted.sort((a, b) => (sort === 'revenue' ? b.sales - a.sales : b.qty - a.qty));
   return sorted;
 }
 
@@ -72,21 +72,21 @@ export function isPackingShortfall(row: Pick<PackingUsageRow, 'requestedQty' | '
 }
 
 export interface TrendDaySummary {
-  bestDay: { date: string; revenue: number } | null;
-  slowestDay: { date: string; revenue: number } | null;
+  bestDay: { date: string; sales: number } | null;
+  slowestDay: { date: string; sales: number } | null;
   averageDailyRevenue: number;
 }
 
-/** Best/slowest/average for the Sales Trend tab's footer — zero-revenue days are real days, not excluded, since "slowest" must be able to show a Rs. 0 day. */
-export function summarizeTrend(daily: { date: string; revenue: number }[]): TrendDaySummary {
+/** Best/slowest/average for the Sales Trend tab's footer — zero-sales days are real days, not excluded, since "slowest" must be able to show a Rs. 0 day. */
+export function summarizeTrend(daily: { date: string; sales: number }[]): TrendDaySummary {
   if (daily.length === 0) return { bestDay: null, slowestDay: null, averageDailyRevenue: 0 };
   let best = daily[0];
   let slowest = daily[0];
   let total = 0;
   for (const point of daily) {
-    if (point.revenue > best.revenue) best = point;
-    if (point.revenue < slowest.revenue) slowest = point;
-    total += point.revenue;
+    if (point.sales > best.sales) best = point;
+    if (point.sales < slowest.sales) slowest = point;
+    total += point.sales;
   }
   return { bestDay: best, slowestDay: slowest, averageDailyRevenue: total / daily.length };
 }

@@ -35,10 +35,10 @@ export function TrendTooltip({ point, onStep, canStepPrev, canStepNext }: TrendT
             <Text
               accessibilityLiveRegion="polite"
               style={[theme.typography.body, { color: theme.colors.primary, fontWeight: '700' }]}>
-              {formatCurrency(point.revenue)}
+              {formatCurrency(point.sales)}
             </Text>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              {formatDisplayDate(point.date)} · {point.orders} orders
+              {formatDisplayDate(point.date)} · {point.transactions} orders
             </Text>
           </>
         ) : (

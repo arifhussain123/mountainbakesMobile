@@ -31,6 +31,40 @@ describe('formatCurrency', () => {
     expect(formatCurrency(1199.999999)).toBe('Rs. 1,200');
     expect(formatCurrency(19387.500001)).toBe('Rs. 19,387.5');
   });
+
+  // The Dashboard's "Last 7 Days"/"Top Products" cards used to show "Rs. NaN"
+  // because the field names read off the API response (`revenue`/`orders`,
+  // `totalRevenue`/`totalQty`) didn't exist on the actual payload (`sales`/
+  // `transactions`, `sales`/`qty`) — every value was `undefined` by the time
+  // it reached here. That's fixed at the source (api/types.ts) now, but this
+  // is the backstop: whatever reaches formatCurrency that isn't a finite
+  // number renders as "-", never "NaN".
+  it('returns "-" for undefined', () => {
+    expect(formatCurrency(undefined)).toBe('-');
+  });
+
+  it('returns "-" for null', () => {
+    expect(formatCurrency(null)).toBe('-');
+  });
+
+  it('returns "-" for NaN', () => {
+    expect(formatCurrency(NaN)).toBe('-');
+  });
+
+  it('returns "-" for Infinity/-Infinity', () => {
+    expect(formatCurrency(Infinity)).toBe('-');
+    expect(formatCurrency(-Infinity)).toBe('-');
+  });
+
+  it('returns "-" for a non-numeric string', () => {
+    expect(formatCurrency('not-a-number')).toBe('-');
+    expect(formatCurrency('')).toBe('-');
+  });
+
+  it('formats a numeric string the same as its number equivalent', () => {
+    expect(formatCurrency('34050')).toBe('Rs. 34,050');
+    expect(formatCurrency('19387.5')).toBe('Rs. 19,387.5');
+  });
 });
 
 describe('formatDisplayDate', () => {

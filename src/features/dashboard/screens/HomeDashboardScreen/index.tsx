@@ -12,7 +12,7 @@ import {
   type StockHistoryDayResponse,
   type StockHistorySeriesResponse,
 } from '@/api';
-import { openComingSoon, openDrawer } from '@/navigation';
+import { openComingSoon, openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, DateFilter, type DatePeriod, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
@@ -59,6 +59,7 @@ function greeting(): string {
 
 export function HomeDashboardScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const branchName = useAuthStore((state) => state.user?.branchName ?? undefined);
   const branchId = useAuthStore((state) => state.user?.branchId ?? 'unassigned');
   const [period, setPeriod] = useState<DatePeriod>('daily');
@@ -156,7 +157,7 @@ export function HomeDashboardScreen() {
         </View>
       ) : null}
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, paddingBottom: theme.spacing.lg + tabBarHeight }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}>
         <DateFilter value={period} onChange={setPeriod} />
 
@@ -210,8 +211,8 @@ export function HomeDashboardScreen() {
                   (point): LabeledListRow => ({
                     id: point.date,
                     label: formatDisplayDate(point.date),
-                    sub: `${point.orders} orders`,
-                    value: formatCurrency(point.revenue),
+                    sub: `${point.transactions} orders`,
+                    value: formatCurrency(point.sales),
                   }),
                 )}
               />
@@ -249,14 +250,14 @@ export function HomeDashboardScreen() {
                     {
                       id: 'highest',
                       label: 'Highest Day',
-                      value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.revenue) : '—',
+                      value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.sales) : '—',
                       sub: data.analytics.highestDay ? formatDisplayDate(data.analytics.highestDay.date) : 'No data',
                       dot: theme.colors.violet,
                     },
                     {
                       id: 'lowest',
                       label: 'Lowest Day',
-                      value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.revenue) : '—',
+                      value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.sales) : '—',
                       sub: data.analytics.lowestDay ? formatDisplayDate(data.analytics.lowestDay.date) : 'No data',
                       dot: theme.colors.danger,
                     },
