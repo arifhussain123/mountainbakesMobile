@@ -1,9 +1,9 @@
-import { useEffect, type ComponentType } from 'react';
-import { DarkTheme, NavigationContainer, type Theme as NavigationTheme } from '@react-navigation/native';
+import { useEffect, useMemo, type ComponentType } from 'react';
+import { DarkTheme, DefaultTheme, NavigationContainer, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ComingSoonScreen } from '@/features/placeholder';
 import { NewQueryScreen, QueryDetailScreen } from '@/features/support';
-import { darkColors } from '@/shared/theme';
+import { useAppTheme } from '@/shared/theme';
 import { useAuthStore } from '@/state';
 import { AuthNavigator } from '../AuthNavigator';
 import { DrawerNavigator } from '../DrawerNavigator';
@@ -22,27 +22,32 @@ const FINANCE_ROLES = new Set(['finance_admin', 'finance_manager', 'accountant',
 /**
  * `NavigationContainer` paints its own chrome (the default-tab-bar/header
  * card background, the gap behind a custom `tabBar`, screen-transition
- * backdrops) from this theme — never from `useAppTheme()`, which only the
- * app's own screens/components read. Left unset, it falls back to React
- * Navigation's light `DefaultTheme` (white `background`/`card`), which is
- * exactly the white strip that showed through behind the floating notch tab
- * bar: the bar's own margins reveal the navigator's chrome color underneath,
- * not any Android system chrome. The app is fixed to one dark theme (no
- * light/dark toggle), so this is built from `darkColors` directly rather than
- * switching on the OS setting.
+ * backdrops) from this theme — never from `useAppTheme()` reads elsewhere,
+ * since screens/components get theirs through the hook directly. Left unset,
+ * it falls back to React Navigation's own light `DefaultTheme` (white
+ * `background`/`card`), which is exactly the white strip that used to show
+ * through behind the floating notch tab bar. Now tracks the live
+ * `useAppTheme()` (mode + accent), rebuilt from React Navigation's matching
+ * Dark/DefaultTheme base so it follows Light/Dark/System same as everything else.
  */
-const navigationTheme: NavigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: darkColors.primary,
-    background: darkColors.background,
-    card: darkColors.surface,
-    text: darkColors.text,
-    border: darkColors.border,
-    notification: darkColors.danger,
-  },
-};
+function useNavigationTheme(): NavigationTheme {
+  const theme = useAppTheme();
+  return useMemo(() => {
+    const base = theme.isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: theme.colors.primary,
+        background: theme.colors.background,
+        card: theme.colors.surface,
+        text: theme.colors.text,
+        border: theme.colors.border,
+        notification: theme.colors.danger,
+      },
+    };
+  }, [theme]);
+}
 
 /**
  * Decides Auth vs. which app shell from `authStore.status` + the signed-in
@@ -56,6 +61,7 @@ export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const role = useAuthStore((state) => state.user?.role);
+  const navigationTheme = useNavigationTheme();
 
   useEffect(() => {
     void bootstrap();

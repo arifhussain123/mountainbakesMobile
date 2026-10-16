@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import { OnboardingSlide } from '@/features/auth/screens/OnboardingScreen/components/OnboardingSlide';
 import { ONBOARDING_SLIDES } from '@/features/auth/screens/OnboardingScreen/onboardingContent';
+import { ThemeProvider } from '@/shared/theme';
 
 describe('OnboardingSlide', () => {
   it('renders the headline as one accessible sentence and every feature label', () => {
@@ -13,10 +14,15 @@ describe('OnboardingSlide', () => {
     // a plain `.create()` call — wrap it in `act()` so the render (and this
     // being the first component-render test in the repo) settles before any
     // assertion runs, instead of a scheduled update landing after Jest tears
-    // the test down.
+    // the test down. `OnboardingSlide` reads `useAppTheme()`, which now needs
+    // a `ThemeProvider` ancestor (it threw with no context before this).
     let tree!: ReactTestRenderer.ReactTestRenderer;
     ReactTestRenderer.act(() => {
-      tree = ReactTestRenderer.create(<OnboardingSlide content={slide} width={375} active={false} />);
+      tree = ReactTestRenderer.create(
+        <ThemeProvider>
+          <OnboardingSlide content={slide} width={375} active={false} />
+        </ThemeProvider>,
+      );
     });
 
     const sentence = `${slide.headline.map((line) => line.text).join(' ')}.`;
