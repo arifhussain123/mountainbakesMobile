@@ -60,7 +60,13 @@ export function CreateOrderSheetContent({ onClose }: CreateOrderSheetContentProp
   const handleSubmit = async () => {
     const ok = await form.submit();
     if (ok) {
-      Alert.alert('Order submitted', 'Your production order has been submitted.', [{ text: 'OK', onPress: onClose }]);
+      Alert.alert(
+        form.wasQueuedOffline ? 'Saved' : 'Order submitted',
+        form.wasQueuedOffline
+          ? "Saved, will submit when you're online."
+          : 'Your production order has been submitted.',
+        [{ text: 'OK', onPress: onClose }],
+      );
     }
   };
 

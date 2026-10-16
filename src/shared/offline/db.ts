@@ -33,6 +33,16 @@ export function getOfflineDb(): DB {
       updated_at INTEGER NOT NULL
     );
   `);
+  db.executeSync(`
+    CREATE TABLE IF NOT EXISTS stock_check_drafts (
+      branch_id TEXT NOT NULL,
+      business_date TEXT NOT NULL,
+      counts_json TEXT NOT NULL,
+      blind_mode INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (branch_id, business_date)
+    );
+  `);
   return db;
 }
 

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
+import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { Card, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -121,6 +122,13 @@ export function DailySaleRecordListScreen() {
     <Screen>
       <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md }}>
         <View style={styles.headerActionsRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+            onPress={openDrawer}
+            style={[styles.headerPill, { backgroundColor: theme.colors.border, borderRadius: theme.radii.md }]}>
+            <Icon name="menu" size={14} color={theme.colors.text} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={() => handleGenerate(getBusinessDate())}

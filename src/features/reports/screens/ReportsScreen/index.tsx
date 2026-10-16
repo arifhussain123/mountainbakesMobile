@@ -1,39 +1,142 @@
-import { useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { getBusinessDate, useReportSummary, useSalesAnalytics, usePackingUsage } from '@/api';
-import { PaymentMethodsCard } from '@/features/dashboard/components';
-import { getAnalyticsWindow } from '@/features/dashboard/utils';
-import { goBack } from '@/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Alert, Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { getBusinessDate, getReportExportCsv, useReportSummary, useSalesAnalytics, usePackingUsage } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Card, EmptyState, ErrorState, Icon, LoadingSkeleton, Screen, StatCard, type DatePeriod, DateFilter } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import { useNetworkStatus } from '@/shared/hooks';
+import { getCachedResponse, setCachedResponse } from '@/shared/offline';
+import { DateRangeSheet, EmptyState, ErrorState, FilterChipRow, Icon, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
+import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { DailySalesLineChart, PackingUsageCard, RevenueHeroCard, TopProductsList } from '../../components';
+import {
+  ExportMenu,
+  KpiGrid,
+  PackingMaterialsList,
+  PaymentMethodsCard,
+  ReportsHeader,
+  SalesTrendChart,
+  TopProductsList,
+  type KpiItem,
+} from '../../components';
+import { computeAvgOrderValue, computeNet } from '../../calculations';
+import { formatRangeLabel, rangeIncludesToday, resolveReportRange, stepReportRange, type ReportRange, type UiReportPeriod } from '../../ranges';
 import { styles } from './styles';
 
-const TABS = ['trend', 'topProducts', 'packing'] as const;
-const TAB_LABEL: Record<(typeof TABS)[number], string> = { trend: 'Daily Sales', topProducts: 'Top Products', packing: 'Packing' };
+const TABS: FilterChipOption<'trend' | 'topProducts' | 'packing'>[] = [
+  { value: 'trend', label: 'Sales Trend' },
+  { value: 'topProducts', label: 'Top Products' },
+  { value: 'packing', label: 'Packing Materials' },
+];
 
-/** An export format this screen doesn't generate files for yet — surfaced so the TODO is visible, not silently dropped. */
-function handleExportStub(format: 'PDF' | 'Excel' | 'CSV' | 'Print') {
-  // TODO: wire to a real report export/print pipeline once one exists (see mobile-api-contract.md).
-  Alert.alert('Coming Soon', `${format} export isn't wired up yet.`);
+interface ReportsCachePayload {
+  summary: NonNullable<ReturnType<typeof useReportSummary>['data']>;
+  analytics: NonNullable<ReturnType<typeof useSalesAnalytics>['data']>;
 }
 
-/** branchApp.md screen 23 — Reports & Analytics. Trend/Top Products/Packing reuse the dashboard's own analytics. */
+/** branchApp.md screen 23 — Reports & Analytics. */
 export function ReportsScreen() {
   const theme = useAppTheme();
-  const [tab, setTab] = useState<(typeof TABS)[number]>('trend');
-  const [period, setPeriod] = useState<DatePeriod>('daily');
+  const { isOffline } = useNetworkStatus();
+  const exportSheetRef = useRef<BottomSheetModal>(null);
+  const customRangeSheetRef = useRef<BottomSheetModal>(null);
+  const packingRangeSheetRef = useRef<BottomSheetModal>(null);
 
   const today = useMemo(() => getBusinessDate(), []);
-  const window = useMemo(() => getAnalyticsWindow(period, today), [period, today]);
+  const [period, setPeriod] = useState<UiReportPeriod>('monthly');
+  const [anchorDate, setAnchorDate] = useState(today);
+  const [customRange, setCustomRange] = useState<ReportRange>(() => resolveReportRange('monthly', today));
+  const [packingRangeOverride, setPackingRangeOverride] = useState<ReportRange | null>(null);
+  const [tab, setTab] = useState<'trend' | 'topProducts' | 'packing'>('trend');
+  const [exporting, setExporting] = useState(false);
 
-  const summary = useReportSummary(period);
-  const analytics = useSalesAnalytics(window.from, window.to);
-  const packing = usePackingUsage(window.from, window.to);
+  const resolvedRange = period === 'custom' ? customRange : resolveReportRange(period, anchorDate);
+  const packingRange = packingRangeOverride ?? resolvedRange;
 
-  const activeQuery = tab === 'packing' ? packing : analytics;
+  // Packing's own range re-defaults to the selected period whenever that period changes — an override only sticks within one period selection.
+  useEffect(() => {
+    setPackingRangeOverride(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedRange.from, resolvedRange.to]);
+
+  const summary = useReportSummary(period === 'custom' ? 'custom' : period, resolvedRange.from, resolvedRange.to);
+  const analytics = useSalesAnalytics(resolvedRange.from, resolvedRange.to, true, 10);
+  const packing = usePackingUsage(packingRange.from, packingRange.to);
+
+  const handleStep = (direction: 'prev' | 'next') => {
+    if (period === 'custom') return;
+    setAnchorDate((current) => stepReportRange(period, current, direction));
+  };
+
+  // Offline cache — the two period-bound queries only; packing has its own
+  // independent range and isn't cached (same scope the brief's own "cache
+  // the last result per range" asks for, kept to the main period window).
+  const cacheKey = `reports:${period}:${resolvedRange.from}:${resolvedRange.to}`;
+  const [cached, setCached] = useState<{ data: ReportsCachePayload; updatedAt: number } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getCachedResponse<ReportsCachePayload>(cacheKey).then((result) => {
+      if (!cancelled) setCached(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheKey]);
+  const liveData: ReportsCachePayload | null = useMemo(
+    () => (summary.data && analytics.data ? { summary: summary.data, analytics: analytics.data } : null),
+    [summary.data, analytics.data],
+  );
+  useEffect(() => {
+    if (liveData) void setCachedResponse(cacheKey, liveData);
+  }, [cacheKey, liveData]);
+  const showingCache = !liveData && isOffline && !!cached;
+  const data = liveData ?? (showingCache ? cached!.data : null);
+
+  // Refetch when the app returns to the foreground — figures can change while backgrounded.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void summary.refetch();
+        void analytics.refetch();
+        void packing.refetch();
+      }
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const csv = await getReportExportCsv(period === 'custom' ? 'custom' : period, resolvedRange.from, resolvedRange.to);
+      await Share.share({ title: `Branch report ${resolvedRange.from} to ${resolvedRange.to}`, message: csv });
+      exportSheetRef.current?.dismiss();
+    } catch (error) {
+      Alert.alert('Export failed', mapErrorToMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const comparison = data?.analytics.comparison;
+  const kpis: KpiItem[] = data
+    ? [
+        { id: 'orders', label: 'Total Orders', value: String(data.summary.totalOrders), icon: 'hash' },
+        {
+          id: 'revenue',
+          label: 'Revenue',
+          value: formatCurrency(data.summary.totalRevenue),
+          icon: 'wallet',
+          delta: comparison && comparison.changePct !== null ? { pct: comparison.changePct, direction: comparison.direction } : undefined,
+        },
+        { id: 'avg', label: 'Avg. Order Value', value: formatCurrency(computeAvgOrderValue(data.summary.totalRevenue, data.summary.totalOrders, data.summary.totalCancelled)), icon: 'bar-chart' },
+        { id: 'cancelled', label: 'Cancelled', value: String(data.summary.totalCancelled), icon: 'rotate-ccw', muted: data.summary.totalCancelled === 0 },
+        { id: 'expenses', label: 'Expenses', value: formatCurrency(data.summary.totalExpenses), icon: 'minus' },
+        { id: 'net', label: 'Net (Sales − Expenses)', value: formatCurrency(computeNet(data.summary.totalRevenue, data.summary.totalExpenses)), icon: 'trending-up', valueColor: theme.colors.success },
+      ]
+    : [];
+
+  const isLoading = (summary.isLoading || analytics.isLoading) && !data;
+  const firstError = summary.error ?? analytics.error;
 
   return (
     <Screen>
@@ -41,193 +144,125 @@ export function ReportsScreen() {
         contentContainerStyle={{ padding: theme.spacing.lg }}
         refreshControl={
           <RefreshControl
-            refreshing={activeQuery.isRefetching || summary.isRefetching}
+            refreshing={summary.isRefetching || analytics.isRefetching}
             onRefresh={() => {
-              void activeQuery.refetch();
               void summary.refetch();
+              void analytics.refetch();
+              void packing.refetch();
             }}
           />
         }>
-        {/* ── Header: back button + export actions, eyebrow + big title (design lines 1096-1100) ── */}
-        <View style={styles.headerTopRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={goBack}
-            style={[styles.backButton, { backgroundColor: theme.colors.cardFill }]}>
-            <Icon name="chevron-left" color={theme.colors.text} size={16} />
-          </Pressable>
-          <View style={styles.exportRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Export as PDF"
-              onPress={() => handleExportStub('PDF')}
-              style={[styles.exportPill, { backgroundColor: theme.colors.cardFill }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>PDF</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Export as Excel"
-              onPress={() => handleExportStub('Excel')}
-              style={[styles.exportPill, { backgroundColor: theme.colors.cardFill }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Excel</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Export as CSV"
-              onPress={() => handleExportStub('CSV')}
-              style={[styles.exportPill, { backgroundColor: theme.colors.cardFill }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>CSV</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Print report"
-              onPress={() => handleExportStub('Print')}
-              style={[styles.printPill, { backgroundColor: theme.colors.primary }]}>
-              <Icon name="printer" color={theme.colors.primaryText} size={13} />
-              <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700' }]}>Print</Text>
-            </Pressable>
+        <ReportsHeader
+          rangeLabel={formatRangeLabel(resolvedRange)}
+          includesTodayNote={rangeIncludesToday(resolvedRange, today) ? 'Includes today. Figures update until the day closes at 2 AM.' : undefined}
+          period={period}
+          onChangePeriod={(next) => {
+            setPeriod(next);
+            if (next === 'custom') setCustomRange(resolveReportRange('monthly', today));
+          }}
+          onStep={handleStep}
+          onOpenExport={() => exportSheetRef.current?.present()}
+        />
+
+        {period === 'custom' ? (
+          <View style={{ marginTop: theme.spacing.sm }}>
+            <Text
+              onPress={() => customRangeSheetRef.current?.present()}
+              style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>
+              Change custom range
+            </Text>
           </View>
-        </View>
+        ) : null}
 
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primary, marginTop: theme.spacing.md }]}>Branch Reports</Text>
-        <Text style={[theme.typography.screenTitle, styles.bigTitle, { color: theme.colors.text, fontSize: 30, marginTop: 6 }]}>
-          Reports &{'\n'}
-          <Text style={{ color: theme.colors.primary }}>Analytics</Text>
-        </Text>
-
-        {/* ── Date range + period toggle (design line 1100) ── */}
-        <View style={[styles.dateRangeRow, { marginTop: theme.spacing.md }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-            {formatDisplayDate(window.from)} – {formatDisplayDate(window.to)}
-          </Text>
-          <View style={styles.periodToggleWrap}>
-            <DateFilter value={period} onChange={setPeriod} />
+        {showingCache ? (
+          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, marginTop: theme.spacing.sm }]}>
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+              Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline
+            </Text>
           </View>
-        </View>
+        ) : null}
 
-        {summary.isLoading || activeQuery.isLoading ? (
-          <View style={{ marginTop: theme.spacing.md }}>
+        {isLoading ? (
+          <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.sm }}>
             <LoadingSkeleton height={160} />
+            <LoadingSkeleton height={120} />
           </View>
         ) : null}
-        {summary.error ? (
-          <ErrorState message={mapErrorToMessage(summary.error)} onRetry={() => void summary.refetch()} />
-        ) : null}
+        {firstError && !data ? <ErrorState message={mapErrorToMessage(firstError)} onRetry={() => void summary.refetch()} /> : null}
 
-        {summary.data ? (
+        {data ? (
           <>
-            {/* ── Revenue hero card (design lines 1102-1108) ── */}
             <View style={{ marginTop: theme.spacing.md }}>
-              <RevenueHeroCard
-                revenue={summary.data.totalRevenue}
-                orders={summary.data.totalOrders}
-                profit={summary.data.totalProfit}
-                expenses={summary.data.totalExpenses}
-              />
+              <KpiGrid items={kpis} />
             </View>
 
-            {/* ── Avg. Order Value / Cancelled (design lines 1109-1112) ── */}
-            <View style={[styles.kpiGrid, { marginTop: theme.spacing.sm }]}>
-              <Card style={[styles.kpiCard, { borderColor: theme.colors.cardBorder, padding: theme.spacing.md }]}>
-                <View style={styles.kpiCardTopRow}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Avg. Order Value</Text>
-                  <Icon name="hash" size={15} color={theme.colors.textSecondary} />
-                </View>
-                <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6, fontSize: 18 }]}>
-                  {formatCurrency(summary.data.averageOrderValue)}
-                </Text>
-              </Card>
-              <Card style={[styles.kpiCard, { borderColor: theme.colors.cardBorder, padding: theme.spacing.md }]}>
-                <View style={styles.kpiCardTopRow}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Cancelled</Text>
-                  <Icon name="rotate-ccw" size={15} color={theme.colors.textSecondary} />
-                </View>
-                <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6, fontSize: 18 }]}>
-                  {summary.data.totalCancelled}
-                </Text>
-              </Card>
+            <View style={{ marginTop: theme.spacing.sm }}>
+              <PaymentMethodsCard methods={data.analytics.paymentMethods} />
             </View>
-
-            {/* ── Payment methods (design lines 1113-1117) ── */}
-            {analytics.data ? (
-              <View style={{ marginTop: theme.spacing.sm }}>
-                <PaymentMethodsCard methods={analytics.data.paymentMethods} />
-              </View>
-            ) : null}
           </>
         ) : null}
 
-        {/* ── Tabs: Daily Sales / Top Products / Packing (design line 1118) ── */}
-        <View style={[styles.tabsRow, { marginTop: theme.spacing.md }]}>
-          {TABS.map((option) => {
-            const active = option === tab;
-            return (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setTab(option)}
-                style={[
-                  styles.tab,
-                  {
-                    backgroundColor: active ? theme.colors.primary : 'transparent',
-                    borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
-                  },
-                ]}>
-                <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>
-                  {TAB_LABEL[option]}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View style={{ marginTop: theme.spacing.md }}>
+          <FilterChipRow options={TABS} value={tab} onChange={setTab} />
         </View>
 
         <View style={{ marginTop: theme.spacing.sm }}>
-          {activeQuery.error ? <ErrorState message={mapErrorToMessage(activeQuery.error)} onRetry={() => void activeQuery.refetch()} /> : null}
-
-          {tab === 'trend' && analytics.data ? (
-            analytics.data.daily.length > 0 ? (
-              <DailySalesLineChart data={analytics.data.daily} />
+          {tab === 'trend' && data ? (
+            data.analytics.daily.length > 0 ? (
+              <SalesTrendChart data={data.analytics.daily} />
             ) : (
-              <EmptyState title="No Sales Yet" message="Sales for this window will appear here." />
+              <EmptyState title="No Sales Yet" message="Sales for this range will appear here." />
             )
           ) : null}
 
-          {tab === 'topProducts' && analytics.data ? (
-            analytics.data.topProducts.length > 0 ? (
-              <TopProductsList products={analytics.data.topProducts} />
+          {tab === 'topProducts' && data ? (
+            data.analytics.topProducts.length > 0 ? (
+              <TopProductsList products={data.analytics.topProducts} />
             ) : (
-              <EmptyState title="No Sales Yet" message="Top products for this window will appear here." />
+              <EmptyState title="No Sales Yet" message="Top products for this range will appear here." />
             )
           ) : null}
 
           {tab === 'packing' ? (
-            packing.data ? (
-              <View>
-                <Card style={{ marginBottom: theme.spacing.md }}>
-                  <View style={styles.totalsRow}>
-                    <StatCard label="Requested" value={String(packing.data.totals.requested)} />
-                    <StatCard label="Approved" value={String(packing.data.totals.approved)} valueColor={theme.colors.success} />
-                    <StatCard label="Delivered" value={String(packing.data.totals.delivered)} valueColor={theme.colors.primary} />
-                  </View>
-                </Card>
-                {packing.data.usage.length === 0 ? (
-                  <View style={[styles.packingPlaceholder, { borderColor: theme.colors.cardBorder, borderRadius: theme.radii.lg + 4 }]}>
-                    <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, textAlign: 'center' }]}>
-                      Packing material usage for this period
-                    </Text>
-                  </View>
-                ) : (
-                  packing.data.usage.map((row) => (
-                    <PackingUsageCard key={`${row.date}-${row.packingMaterialId ?? row.materialName}`} row={row} />
-                  ))
-                )}
-              </View>
-            ) : null
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => packingRangeSheetRef.current?.present()}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: theme.spacing.sm }}>
+                <Icon name="calendar" size={12} color={theme.colors.primary} />
+                <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>{formatRangeLabel(packingRange)}</Text>
+              </Pressable>
+              {packing.isLoading ? (
+                <LoadingSkeleton height={120} />
+              ) : packing.error ? (
+                <ErrorState message={mapErrorToMessage(packing.error)} onRetry={() => void packing.refetch()} />
+              ) : packing.data && packing.data.usage.length > 0 ? (
+                <PackingMaterialsList rows={packing.data.usage} />
+              ) : (
+                <EmptyState title="No Packing Requests" message="Packing material usage for this range will appear here." />
+              )}
+            </>
           ) : null}
         </View>
       </ScrollView>
+
+      <ExportMenu ref={exportSheetRef} onExportCsv={() => void handleExportCsv()} exporting={exporting} onRequestClose={() => exportSheetRef.current?.dismiss()} />
+
+      <DateRangeSheet
+        ref={customRangeSheetRef}
+        today={today}
+        value={customRange}
+        onApply={setCustomRange}
+        onRequestClose={() => customRangeSheetRef.current?.dismiss()}
+      />
+
+      <DateRangeSheet
+        ref={packingRangeSheetRef}
+        today={today}
+        value={packingRange}
+        onApply={setPackingRangeOverride}
+        onRequestClose={() => packingRangeSheetRef.current?.dismiss()}
+      />
     </Screen>
   );
 }

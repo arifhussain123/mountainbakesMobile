@@ -1,13 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import type { Order } from '@/api';
 
 export interface SaleCardProps {
   order: Order;
+  onPress?: () => void;
+  /** Set by the offline sync queue (Phase 2) — absent for an already-synced sale fetched from the server. */
+  syncState?: 'pending' | 'failed';
 }
 
-const PAYMENT_LABEL: Record<string, string> = {
+export const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Cash',
   easypaisa: 'Easypaisa',
   foodpanda: 'Foodpanda',
@@ -35,14 +39,22 @@ export function paymentMethodColor(theme: ReturnType<typeof useAppTheme>, method
  * name, `{{s.id}} · {{s.time}}` subline, amount + color-coded payment pill
  * top-right, then a `products · N units` summary line below.
  */
-export function SaleCard({ order }: SaleCardProps) {
+export function SaleCard({ order, onPress, syncState }: SaleCardProps) {
   const theme = useAppTheme();
   const payColor = paymentMethodColor(theme, order.paymentMethod);
   const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
   const productsLine = order.items.map((item) => item.productName).join(', ');
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      onPress={onPress}
+      style={[styles.card, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+      {syncState ? (
+        <View style={{ marginBottom: 8, alignSelf: 'flex-start' }}>
+          <StatusBadge label={syncState === 'pending' ? 'Waiting to sync' : 'Sync failed · Fix'} variant={syncState === 'pending' ? 'warning' : 'danger'} />
+        </View>
+      ) : null}
       <View style={styles.topRow}>
         <View style={styles.leftCol}>
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
@@ -59,10 +71,10 @@ export function SaleCard({ order }: SaleCardProps) {
           </View>
         </View>
       </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]} numberOfLines={1}>
+      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]} numberOfLines={2}>
         {productsLine} <Text style={{ color: theme.colors.textFaint }}>· {totalQty} units</Text>
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

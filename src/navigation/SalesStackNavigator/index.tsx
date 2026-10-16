@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { NewSaleScreen, SalesListScreen } from '@/features/sales';
+import { NewSaleScreen, SaleDetailScreen, SalesListScreen } from '@/features/sales';
 import { Routes } from '../routes';
 import type { SalesStackParamList } from '../types';
 
@@ -10,6 +10,7 @@ export function SalesStackNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name={Routes.SALES_LIST} component={SalesListScreen} />
       <Stack.Screen name={Routes.NEW_SALE} component={NewSaleScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name={Routes.SALE_DETAIL} component={SaleDetailScreen} />
     </Stack.Navigator>
   );
 }

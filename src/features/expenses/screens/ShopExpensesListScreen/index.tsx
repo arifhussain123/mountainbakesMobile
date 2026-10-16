@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useExpenses } from '@/api';
+import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SearchBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -29,7 +30,11 @@ export function ShopExpensesListScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Shop Expenses" subtitle={`Last 7 days · ${expenses.length} expenses`} actions={[]} />
+      <AppHeader
+        title="Shop Expenses"
+        subtitle={`Last 7 days · ${expenses.length} expenses`}
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <View style={{ paddingHorizontal: theme.spacing.lg }}>
         <PrimaryButton label="+ Shop Expense" onPress={() => sheetRef.current?.present()} />
       </View>

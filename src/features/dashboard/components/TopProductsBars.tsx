@@ -3,6 +3,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsTopProduct } from '@/api';
+import { barScalePct } from '../calculations';
 
 export interface TopProductsBarsProps {
   products: SalesAnalyticsTopProduct[];
@@ -49,9 +50,9 @@ export function TopProductsBars({ products }: TopProductsBarsProps) {
                 <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.totalRevenue)}</Text>
               </View>
               <View style={{ marginTop: 7, gap: 4 }}>
-                <View style={[styles.bar, { width: `${Math.max(2, (product.totalRevenue / maxRevenue) * 100)}%`, backgroundColor: theme.colors.secondary }]} />
+                <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.totalRevenue, maxRevenue))}%`, backgroundColor: theme.colors.secondary }]} />
                 <View style={styles.qtyRow}>
-                  <View style={[styles.bar, { width: `${Math.max(2, (product.totalQty / maxQty) * 100)}%`, backgroundColor: theme.colors.primary }]} />
+                  <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.totalQty, maxQty))}%`, backgroundColor: theme.colors.primary }]} />
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                     {product.totalQty}
                   </Text>

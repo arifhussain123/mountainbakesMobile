@@ -13,7 +13,7 @@ export function StockGrid({ row, difference }: StockGridProps) {
   const theme = useAppTheme();
 
   const tiles = [
-    { id: 'previous', label: 'PREVIOUS', dot: theme.colors.secondary, amount: row.openingAmount, sub: `${row.openingQty} items carried in` },
+    { id: 'previous', label: 'PREVIOUS', dot: theme.colors.lavender, amount: row.openingAmount, sub: `${row.openingQty} items carried in` },
     { id: 'new', label: 'NEW STOCK', dot: theme.colors.success, amount: row.newAmount, sub: `${row.newQty} items` },
     { id: 'sold', label: 'SOLD', dot: theme.colors.danger, amount: row.soldAmount, sub: `${row.soldQty} items` },
   ];

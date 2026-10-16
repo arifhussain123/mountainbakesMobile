@@ -1,6 +1,9 @@
 export { DailyKpiGrid } from './DailyKpiGrid';
 export type { DailyKpiGridProps, DailyKpiItem } from './DailyKpiGrid';
 
+export { HeadingActions } from './HeadingActions';
+export type { HeadingActionsProps } from './HeadingActions';
+
 export { HeroSalesCard } from './HeroSalesCard';
 export type { HeroSalesCardProps } from './HeroSalesCard';
 

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import type { BranchStockHistoryRow } from '@/api';
+import { barScalePct } from '../calculations';
 
 export interface StockFlowChartProps {
   row: BranchStockHistoryRow;
@@ -31,7 +32,7 @@ export function StockFlowChart({ row }: StockFlowChartProps) {
             <View
               style={[
                 styles.bar,
-                { height: `${Math.max(2, (bar.value / max) * 100)}%`, backgroundColor: bar.color, borderRadius: theme.radii.sm },
+                { height: `${Math.max(2, barScalePct(bar.value, max))}%`, backgroundColor: bar.color, borderRadius: theme.radii.sm },
               ]}
             />
           </View>

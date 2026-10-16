@@ -21,3 +21,6 @@ export type { SalesDateChipRowProps } from './SalesDateChipRow';
 
 export { SalesHeroCard } from './SalesHeroCard';
 export type { SalesHeroCardProps } from './SalesHeroCard';
+
+export { SortSheet, SORT_OPTIONS } from './SortSheet';
+export type { SortField, SortSheetProps } from './SortSheet';

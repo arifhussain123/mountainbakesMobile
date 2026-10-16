@@ -3,6 +3,7 @@ import * as Keychain from 'react-native-keychain';
 import { create } from 'zustand';
 import { authService } from '@/api/services';
 import { setRefreshHandler, setSessionExpiredHandler, setTokenAccessor } from '@/api/client';
+import { queryClient } from '@/api/queryClient';
 import { logger } from '@/shared/utils';
 import type { SessionUser } from '@/api/types';
 
@@ -87,6 +88,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       logger.warn('server-side logout failed', { error });
     }
     await clearRefreshToken();
+    // Cache only — never the unsynced write queue, which is the Drawer's Sign
+    // Out sheet's own explicit, warned-about decision (`clearOfflineQueue`).
+    // Clearing it here unconditionally would silently delete unsynced work on
+    // every sign-out, including an accidental one.
+    queryClient.clear();
     set({ status: 'signedOut', user: null, accessToken: null });
   },
 }));

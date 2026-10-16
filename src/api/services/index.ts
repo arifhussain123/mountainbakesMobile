@@ -22,6 +22,7 @@ import * as productionSaleService from './productionSaleService';
 import * as productionStockService from './productionStockService';
 import * as reportService from './reportService';
 import * as salesService from './salesService';
+import * as settingsService from './settingsService';
 import * as specialEventService from './specialEventService';
 import * as specialOrderService from './specialOrderService';
 import * as stockService from './stockService';
@@ -53,6 +54,7 @@ export {
   productionStockService,
   reportService,
   salesService,
+  settingsService,
   specialEventService,
   specialOrderService,
   stockService,

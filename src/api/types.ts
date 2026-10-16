@@ -47,7 +47,8 @@ export interface MeResponse {
 
 // ─── Dashboard: GET /api/reports/summary ──────────────────────────────────
 
-export type ReportPeriod = 'daily' | 'weekly' | 'monthly';
+/** `'yearly'` and an explicit `from`/`to` (sent as `period=custom`) are additions for Branch Reports — the Dashboard only ever uses `daily`/`weekly`/`monthly`. */
+export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
 export interface ReportDailyPoint {
   date: string;
@@ -86,6 +87,8 @@ export interface SalesAnalyticsDailyPoint {
 export interface SalesAnalyticsTopProduct {
   productId: string;
   productName: string;
+  /** `''` when the product has no category — the RPC's own `coalesce(min(category_name), '')`. */
+  categoryName: string;
   totalQty: number;
   totalRevenue: number;
 }
@@ -94,6 +97,18 @@ export interface SalesAnalyticsPaymentMethod {
   method: string;
   total: number;
   count: number;
+}
+
+/**
+ * Previous-period comparison, only present when the request passed
+ * `compare: true`. `changePct`/`direction` are server-computed (never
+ * recomputed client-side) — `changePct` is `null` when the previous period had
+ * zero sales, rather than a fabricated divide-by-zero percentage.
+ */
+export interface SalesAnalyticsComparison {
+  sales: number;
+  changePct: number | null;
+  direction: 'up' | 'down' | 'stable';
 }
 
 export interface SalesAnalytics {
@@ -108,7 +123,7 @@ export interface SalesAnalytics {
   daily: SalesAnalyticsDailyPoint[];
   topProducts: SalesAnalyticsTopProduct[];
   paymentMethods: SalesAnalyticsPaymentMethod[];
-  comparison?: unknown;
+  comparison?: SalesAnalyticsComparison;
   staffCount: number;
 }
 
@@ -278,6 +293,34 @@ export interface OrderListResponse {
   total: number;
 }
 
+/**
+ * The subset of `GET /api/settings` this app reads — a single global row
+ * (`gstEnabled`/`gstRate`), not per-branch or per-payment-method. The server
+ * has many more settings fields; only the ones this app actually uses are
+ * typed here.
+ */
+export interface AppSettings {
+  gstEnabled: boolean;
+  gstRate: number;
+}
+
+/**
+ * The Data Engine's paginated list wire shape (`backend/src/shared/types/data-engine.types.ts`),
+ * used for the one resource the mobile app reads this way: `GET /api/data/sales`
+ * — it's the authoritative, `business_date`-scoped sales count (`/api/orders`'s
+ * own count is a `created_at`-window count, which disagrees with it for a sale
+ * whose business date was backdated at sync time).
+ */
+export interface DataEnginePage<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 // ─── Production orders (branch demand to the central kitchen) ─────────────
 // NOT the same as `/api/orders` above — this is `/api/production-orders`,
 // the branch's own request for stock, built from `production-order.types.ts`.
@@ -322,11 +365,44 @@ export interface ProductionOrder {
   approvedByName: string | null;
   approvedAt: string | null;
   cancelReason?: string | null;
+  /**
+   * Stamped by `PUT /production-orders/:id/verify`. Gates `isVerified()`
+   * (`utils/demandLines.ts`) rather than `status === 'verified'` — an order
+   * approved before verification existed carries no timestamp and must not be
+   * read as counted-in.
+   */
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+  verifiedByName?: string | null;
+  /** Photos the branch attached when raising the demand. */
+  demandPhotos?: Attachment[];
+  /** Photos the branch attached when verifying what physically arrived. */
+  verificationPhotos?: Attachment[];
 }
 
 export interface ProductionOrderListResponse {
   orders: ProductionOrder[];
   total: number;
+}
+
+export interface VerifyProductionOrderItemInput {
+  productId: string;
+  verifiedQty: number;
+}
+
+export interface VerifyProductionOrderNewItemInput {
+  productId: string;
+  qty: number;
+}
+
+export interface VerifyProductionOrderInput {
+  verifiedItems: VerifyProductionOrderItemInput[];
+  newItems: VerifyProductionOrderNewItemInput[];
+  attachmentIds: string[];
+}
+
+export interface CancelProductionOrderInput {
+  reason: string;
 }
 
 export interface CreateProductionOrderItemInput {
@@ -713,7 +789,12 @@ export interface PackingMaterialListResponse {
 // the full server-side list (`attachment.types.ts`) covers more than this app
 // touches.
 
-export type AttachmentEntity = 'branch_return' | 'cash_transfer' | 'finance_transaction';
+export type AttachmentEntity =
+  | 'branch_return'
+  | 'cash_transfer'
+  | 'finance_transaction'
+  | 'production_order_demand'
+  | 'production_order_verification';
 
 export interface Attachment {
   id: string;
@@ -775,7 +856,11 @@ export interface CreateBranchReturnInput {
 
 // ─── Branch discounts (Request Discount / Discounts) ───────────────────────
 // `/api/branch-discounts` — money claimed back against a production demand.
-// MOVES NO STOCK (unlike branch returns) — no idempotency key, no geofence.
+// MOVES NO STOCK (unlike branch returns) — no geofence. Create has no server-
+// side idempotency support (confirmed: no `idempotent(...)` middleware on the
+// POST route), so it requires connectivity rather than being queued for
+// blind retry; revise/withdraw are naturally idempotent (PUT/DELETE converge
+// to the same end state) and go through the offline write-queue.
 
 export type BranchDiscountStatus = 'pending' | 'approved' | 'rejected' | 'returned';
 
@@ -809,6 +894,12 @@ export interface CreateBranchDiscountInput {
   amount: number;
   reason: string;
   businessDate?: string;
+}
+
+/** `PUT /branch-discounts/:id` — no `productionOrderId`: re-pointing to a different demand isn't a "revision". */
+export interface ReviseBranchDiscountInput {
+  amount: number;
+  reason: string;
 }
 
 /**

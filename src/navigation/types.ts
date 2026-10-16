@@ -8,23 +8,28 @@ export type HomeStackParamList = {
 export type SalesStackParamList = {
   [Routes.SALES_LIST]: undefined;
   [Routes.NEW_SALE]: undefined;
+  [Routes.SALE_DETAIL]: { orderId: string };
 };
 
 export type StockStackParamList = {
   [Routes.STOCK_OVERVIEW]: undefined;
+  [Routes.STOCK_CHECK]: undefined;
   [Routes.RETURN_STOCK_LIST]: undefined;
 };
 
 export type OrdersStackParamList = {
   [Routes.ORDERS_LIST]: undefined;
+  [Routes.ORDER_DETAIL]: { orderId: string };
 };
 
 export type DiscountsStackParamList = {
   [Routes.DISCOUNTS_LIST]: undefined;
+  [Routes.DISCOUNT_DETAIL]: { discountId: string };
 };
 
 export type CashStackParamList = {
   [Routes.CASH_TRANSFERS_LIST]: undefined;
+  [Routes.CASH_TRANSFER_DETAIL]: { transferId: string };
 };
 
 export type ExpensesStackParamList = {
@@ -73,6 +78,7 @@ export type DrawerParamList = {
 export type AuthStackParamList = {
   [Routes.ONBOARDING]: undefined;
   [Routes.LOGIN]: undefined;
+  [Routes.FORGOT_PASSWORD]: undefined;
 };
 
 // ─── Production app (production_user) ─────────────────────────────────────

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 
-export type StatusVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type StatusVariant = 'success' | 'warning' | 'danger' | 'info' | 'violet' | 'neutral';
 
 export interface StatusBadgeProps {
   label: string;
@@ -15,7 +15,11 @@ export function StatusBadge({ label, variant }: StatusBadgeProps) {
     success: theme.colors.success,
     warning: theme.colors.warning,
     danger: theme.colors.danger,
-    info: theme.colors.primary,
+    // `theme.colors.info`, not `primary` — an info pill must read as distinct
+    // from the brand-orange accent used for warnings/primary actions, matching
+    // the web app's blue "Awaiting Verification" pill.
+    info: theme.colors.info,
+    violet: theme.colors.violet,
     neutral: theme.colors.textSecondary,
   };
   const color = colorByVariant[variant];

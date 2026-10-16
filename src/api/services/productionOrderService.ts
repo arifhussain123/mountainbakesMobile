@@ -1,15 +1,23 @@
 import { apiClient, generateIdempotencyKey, type MutationOptions } from '../client';
 import { getBusinessDate } from '../businessDate';
 import type {
+  CancelProductionOrderInput,
   CreateProductionOrderInput,
   PreviousOrderBalance,
+  ProductionOrder,
   ProductionOrderListResponse,
   ReviewProductionOrderInput,
+  VerifyProductionOrderInput,
 } from '../types';
 
 /** `/api/production-orders` — last 7 business days, branch-scoped server-side. */
 export async function listProductionOrders(): Promise<ProductionOrderListResponse> {
   return apiClient.get<ProductionOrderListResponse>('/production-orders');
+}
+
+/** `GET /production-orders/:id` — one demand's complete record, for the detail screen. */
+export async function getProductionOrder(id: string): Promise<{ order: ProductionOrder }> {
+  return apiClient.get<{ order: ProductionOrder }>(`/production-orders/${id}`);
 }
 
 /**
@@ -26,6 +34,31 @@ export async function createProductionOrder(
   const body: CreateProductionOrderInput = { ...input, businessDate: getBusinessDate() };
   const options: MutationOptions = { idempotencyKey };
   return apiClient.post<{ id: string }>('/production-orders', body, options);
+}
+
+/**
+ * `PUT /production-orders/:id/cancel` — the branch withdraws a demand it has
+ * just raised, while it is still 'pending'. Not geofenced (unlike `/verify` —
+ * there is no physical act here, only a decision).
+ */
+export async function cancelProductionOrder(id: string, input: CancelProductionOrderInput): Promise<{ success: boolean }> {
+  return apiClient.put<{ success: boolean }>(`/production-orders/${id}/cancel`, input);
+}
+
+/**
+ * `PUT /production-orders/:id/verify` — the branch confirms what physically
+ * arrived against an 'awaiting_verification' demand. THIS is the step that
+ * moves stock (migration 58) — review no longer does.
+ *
+ * `idempotencyKey`: pass the SAME key on a retry of the same verification.
+ */
+export async function verifyProductionOrder(
+  id: string,
+  input: VerifyProductionOrderInput,
+  idempotencyKey: string = generateIdempotencyKey('production_order_verify'),
+): Promise<{ success: boolean; items: { productId: string; productName: string; qty: number }[] }> {
+  const options: MutationOptions = { idempotencyKey };
+  return apiClient.put(`/production-orders/${id}/verify`, input, options);
 }
 
 /**

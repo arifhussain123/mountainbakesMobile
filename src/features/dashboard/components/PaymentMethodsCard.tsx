@@ -3,6 +3,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsPaymentMethod } from '@/api';
+import { sharePct } from '../calculations';
 
 export interface PaymentMethodsCardProps {
   methods: SalesAnalyticsPaymentMethod[];
@@ -13,7 +14,7 @@ const PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF6B35', '#9D91E8
 /** Design lines 161-166 — proportion bar + a dot/label/sub/amount row per payment method. */
 export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
   const theme = useAppTheme();
-  const total = methods.reduce((sum, m) => sum + m.total, 0) || 1;
+  const total = methods.reduce((sum, m) => sum + m.total, 0);
   const sorted = [...methods].sort((a, b) => b.total - a.total);
 
   return (
@@ -29,7 +30,7 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
         <>
           <View style={[styles.bar, { marginTop: theme.spacing.md, backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
             {sorted.map((method, index) => {
-              const pct = (method.total / total) * 100;
+              const pct = sharePct(method.total, total) ?? 0;
               if (pct <= 0) return null;
               return (
                 <View
@@ -50,7 +51,7 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
             })}
           </View>
           {sorted.map((method, index) => {
-            const pct = (method.total / total) * 100;
+            const pct = sharePct(method.total, total) ?? 0;
             return (
               <View
                 key={method.method}

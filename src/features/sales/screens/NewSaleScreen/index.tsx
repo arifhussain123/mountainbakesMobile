@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -10,6 +11,7 @@ import { useNewSaleForm } from '../../hooks';
 import { styles } from './styles';
 
 export function NewSaleScreen() {
+  useHideTabBarOnFocus();
   const theme = useAppTheme();
   const navigation = useNavigation();
   const form = useNewSaleForm();

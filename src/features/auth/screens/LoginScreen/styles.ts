@@ -1,13 +1,23 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-  container: { flex: 1 },
+  flex: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  logo: { width: 64, height: 64, borderRadius: 32, alignSelf: 'center' },
-  field: { marginTop: 16 },
-  input: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, fontSize: 15 },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  passwordInput: { flex: 1, height: 52, paddingHorizontal: 16, fontSize: 15 },
-  rememberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20, gap: 10 },
-  checkbox: { width: 20, height: 20, borderWidth: 1.5, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 56, height: 56, borderRadius: 28, alignSelf: 'center' },
+  headline: { textAlign: 'center', textTransform: 'uppercase', marginTop: 22 },
+  subtitle: { textAlign: 'center', marginTop: 12 },
+  rememberRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 18, gap: 4 },
+  rememberTextCol: { flex: 1, minWidth: 0 },
+  rememberHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  bannerText: { flex: 1 },
 });

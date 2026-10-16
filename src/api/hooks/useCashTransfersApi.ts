@@ -11,6 +11,14 @@ export function useCashTransfers(params?: ListCashTransfersParams) {
   });
 }
 
+export function useCashTransferDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.cashTransfer(id ?? ''),
+    queryFn: () => cashTransferService.getCashTransfer(id!),
+    enabled: !!id,
+  });
+}
+
 export function useCreateCashTransfer() {
   const queryClient = useQueryClient();
   return useMutation({

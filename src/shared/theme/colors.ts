@@ -8,6 +8,8 @@ export interface ThemeColors {
   cardBorder: string;
   primary: string;
   primaryText: string;
+  /** Darker orange for a pressed pill-button state. */
+  primaryPressed: string;
   text: string;
   /**
    * `#A39A92` — the existing one-tier-down text color, used everywhere already
@@ -34,7 +36,20 @@ export interface ThemeColors {
   infoAlt: string;
   violet: string;
   orange: string;
+  /** Light lavender — distinct from `secondary`'s chart purple; the Stock grid's "Previous" tile dot. */
+  lavender: string;
   overlay: string;
+  /** The Drawer's own deep-brown chrome — distinct from the app's charcoal `surface`, per the Drawer visual spec. */
+  drawer: {
+    bg: string;
+    divider: string;
+    text: string;
+    textMuted: string;
+    /** Active item pill — same value as `primary`, named for where it's used. */
+    activeBg: string;
+    /** The branch-name strip's background band. */
+    branchBg: string;
+  };
 }
 
 /**
@@ -48,6 +63,7 @@ export const lightColors: ThemeColors = {
   cardFill: '#FFFFFF',
   cardBorder: '#EFE6DC',
   primary: '#FF6B35',
+  primaryPressed: '#E65A2B',
   primaryText: '#FFFFFF',
   text: '#2E1A12',
   textSecondary: '#8A7A6D',
@@ -63,7 +79,16 @@ export const lightColors: ThemeColors = {
   infoAlt: '#3D7BD9',
   violet: '#9D91E8',
   orange: '#FF8A5C',
+  lavender: '#C9BFF0',
   overlay: 'rgba(46, 26, 18, 0.4)',
+  drawer: {
+    bg: '#2A170C',
+    divider: 'rgba(255, 255, 255, 0.08)',
+    text: '#FFFFFF',
+    textMuted: '#C9B8AC',
+    activeBg: '#FF6B35',
+    branchBg: '#3A2010',
+  },
 };
 
 /**
@@ -78,6 +103,7 @@ export const darkColors: ThemeColors = {
   cardFill: 'rgba(255, 255, 255, 0.05)',
   cardBorder: 'rgba(255, 255, 255, 0.08)',
   primary: '#FF6B35',
+  primaryPressed: '#E65A2B',
   primaryText: '#1C1917',
   text: '#F5F1EC',
   textSecondary: '#A39A92',
@@ -93,5 +119,14 @@ export const darkColors: ThemeColors = {
   infoAlt: '#608CFF',
   violet: '#9D91E8',
   orange: '#FF8A5C',
+  lavender: '#C9BFF0',
   overlay: 'rgba(0, 0, 0, 0.55)',
+  drawer: {
+    bg: '#2A170C',
+    divider: 'rgba(255, 255, 255, 0.08)',
+    text: '#FFFFFF',
+    textMuted: '#C9B8AC',
+    activeBg: '#FF6B35',
+    branchBg: '#3A2010',
+  },
 };

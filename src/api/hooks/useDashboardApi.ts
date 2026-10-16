@@ -4,18 +4,18 @@ import { queryKeys } from '../queryKeys';
 import { dashboardService } from '../services';
 import type { ReportPeriod } from '../types';
 
-export function useReportSummary(period: ReportPeriod) {
+export function useReportSummary(period: ReportPeriod, from?: string, to?: string) {
   return useQuery({
-    queryKey: queryKeys.reportSummary(period),
-    queryFn: () => dashboardService.getReportSummary(period),
+    queryKey: queryKeys.reportSummary(period, from, to),
+    queryFn: () => dashboardService.getReportSummary(period, from, to),
     staleTime: SUMMARY_STALE_TIME_MS,
   });
 }
 
-export function useSalesAnalytics(from: string, to: string) {
+export function useSalesAnalytics(from: string, to: string, compare = false, topLimit = 5) {
   return useQuery({
-    queryKey: queryKeys.salesAnalytics(from, to),
-    queryFn: () => dashboardService.getSalesAnalytics(from, to),
+    queryKey: queryKeys.salesAnalytics(from, to, compare, topLimit),
+    queryFn: () => dashboardService.getSalesAnalytics(from, to, topLimit, compare),
     staleTime: LIVE_STALE_TIME_MS,
   });
 }

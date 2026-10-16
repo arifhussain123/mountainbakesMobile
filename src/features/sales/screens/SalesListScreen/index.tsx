@@ -1,116 +1,112 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Alert, FlatList, Pressable, Share, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { format, parseISO, subDays } from 'date-fns';
-import { getBusinessDate, getBusinessDayBounds, useOrders } from '@/api';
-import { Routes, type SalesStackParamList } from '@/navigation';
+import { exportSalesCsv, getBusinessDate, getBusinessDayBounds, useOrders, useSalesData } from '@/api';
+import { Routes, openDrawer, type SalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
+import { useDebouncedValue } from '@/shared/hooks';
 import { ErrorState, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { ItemsSoldCard, paymentMethodColor, PaymentMethodTileGrid, SaleCard, SalesDateChipRow, SalesHeroCard } from '../../components';
+import { summarizeItemsSold, summarizeOrders } from '../../calculations';
+import { ItemsSoldCard, paymentMethodColor, PaymentMethodTileGrid, SaleCard, SalesDateChipRow, SalesHeroCard, SortSheet, SORT_OPTIONS, type SortField } from '../../components';
 import { styles } from './styles';
 
 const PAYMENT_FILTERS = ['All', 'cash', 'easypaisa', 'foodpanda', 'bank_account'] as const;
 const PAYMENT_LABEL: Record<string, string> = { All: 'All', cash: 'Cash', easypaisa: 'Easypaisa', foodpanda: 'Foodpanda', bank_account: 'Bank' };
-const PAGE_SIZE = 20;
+
+/** Time/Amount read best most-recent/largest-first; ID/Customer/Comment read best alphabetically. */
+const SORT_DIRECTION: Record<SortField, 'asc' | 'desc'> = {
+  createdAt: 'desc',
+  grandTotal: 'desc',
+  orderNumber: 'asc',
+  customerName: 'asc',
+  notes: 'asc',
+};
 
 export function SalesListScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<SalesStackParamList>>();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>('All');
   const [selectedDate, setSelectedDate] = useState(() => getBusinessDate());
-  const [page, setPage] = useState(1);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [exporting, setExporting] = useState(false);
+  const sortSheetRef = useRef<BottomSheetModal>(null);
 
   const today = useMemo(() => getBusinessDate(), []);
   const isToday = selectedDate === today;
   const bounds = useMemo(() => getBusinessDayBounds(selectedDate), [selectedDate]);
   const dateLabel = useMemo(() => format(parseISO(selectedDate), 'EEE d MMM yyyy'), [selectedDate]);
 
+  // Daily Summary / Items Sold — the full business-day order list, exactly like
+  // the web's own summary panel (no aggregate endpoint exists for these).
   const { data, isLoading, error, refetch, isRefetching } = useOrders({ status: 'delivered', from: bounds.from, to: bounds.to });
+  const orders = useMemo(() => data?.orders ?? [], [data]);
+  const summary = useMemo(() => summarizeOrders(orders), [orders]);
+  const itemsSold = useMemo(() => summarizeItemsSold(orders), [orders]);
 
-  const filtered = useMemo(() => {
-    const orders = data?.orders ?? [];
-    const term = search.trim().toLowerCase();
-    return orders.filter((order) => {
-      if (paymentFilter !== 'All' && order.paymentMethod !== paymentFilter) return false;
-      if (!term) return true;
-      return order.orderNumber.toLowerCase().includes(term) || order.customerName.toLowerCase().includes(term) || order.customerPhone.includes(term);
-    });
-  }, [data, search, paymentFilter]);
+  // Sales list — the Data Engine's `business_date`-scoped, server-searched/
+  // sorted/paginated feed (the authoritative count; see `DataEnginePage`'s doc comment).
+  const sort = `${sortField}:${SORT_DIRECTION[sortField]}`;
+  const salesData = useSalesData({
+    businessDate: selectedDate,
+    search: debouncedSearch.trim() || undefined,
+    paymentMethod: paymentFilter === 'All' ? undefined : paymentFilter,
+    sort,
+  });
+  const rows = useMemo(() => salesData.data?.pages.flatMap((page) => page.data) ?? [], [salesData.data]);
+  const recordedCount = salesData.data?.pages[0]?.total ?? null;
 
-  // Reset to page 1 whenever the underlying list changes shape.
-  useEffect(() => {
-    setPage(1);
-  }, [search, paymentFilter, selectedDate, data]);
-
-  const totals = useMemo(() => {
-    const gross = filtered.reduce((sum, o) => sum + o.subtotal, 0);
-    const discount = filtered.reduce((sum, o) => sum + o.discountTotal, 0);
-    const net = filtered.reduce((sum, o) => sum + o.grandTotal, 0);
-    return { gross, discount, net };
-  }, [filtered]);
-
-  // Payment-method breakdown — summed client-side from the same order list
-  // already fetched for this business date (no separate aggregate endpoint
-  // exists yet; see CLAUDE.md §36 note on preferring backend aggregation —
-  // there's nothing to call here, so this mirrors the gross/discount/net math
-  // already done the same way just above).
-  const paymentBreakdown = useMemo(() => {
-    const methods = ['cash', 'easypaisa', 'foodpanda', 'bank_account'] as const;
-    const sums: Record<string, number> = { cash: 0, easypaisa: 0, foodpanda: 0, bank_account: 0 };
-    for (const order of filtered) {
-      if (order.paymentMethod in sums) sums[order.paymentMethod] += order.grandTotal;
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const csv = await exportSalesCsv(selectedDate);
+      await Share.share({ title: `Sales ${selectedDate}`, message: csv });
+    } catch (e) {
+      Alert.alert('Export failed', mapErrorToMessage(e));
+    } finally {
+      setExporting(false);
     }
-    return methods.map((method) => ({
-      key: method,
-      label: PAYMENT_LABEL[method],
-      value: formatCurrency(sums[method]),
-      dotColor: paymentMethodColor(theme, method),
-    }));
-  }, [filtered, theme]);
-
-  // Items-sold aggregation — from each order's own `items` (already fetched),
-  // grouped by product name.
-  const itemsSold = useMemo(() => {
-    const qtyByProduct = new Map<string, number>();
-    for (const order of filtered) {
-      for (const item of order.items) {
-        qtyByProduct.set(item.productName, (qtyByProduct.get(item.productName) ?? 0) + item.qty);
-      }
-    }
-    const entries = Array.from(qtyByProduct.entries()).sort((a, b) => b[1] - a[1]);
-    const chips = entries.map(([name, qty]) => ({ key: name, n: name, q: `× ${qty}` }));
-    const totalUnits = entries.reduce((sum, [, qty]) => sum + qty, 0);
-    return { chips, totalUnits, totalProducts: chips.length };
-  }, [filtered]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginated = useMemo(() => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [filtered, currentPage]);
+  };
 
   return (
     <Screen>
       <FlatList
-        data={paginated}
+        data={rows}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: theme.spacing.lg }}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (salesData.hasNextPage && !salesData.isFetchingNextPage) void salesData.fetchNextPage();
+        }}
         ListHeaderComponent={
           <View>
             <View style={styles.eyebrowRow}>
               <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>
-                Sales on {selectedDate} · {filtered.length} recorded
+                Sales on {selectedDate} · {recordedCount ?? orders.length} recorded
               </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Refresh sales" onPress={() => void refetch()} style={styles.refreshAction}>
-                <Icon name="refresh" size={13} color={theme.colors.textSecondary} />
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>Refresh</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Export sales" disabled={exporting} onPress={() => void handleExport()} style={styles.refreshAction}>
+                  <Icon name="file-spreadsheet" size={13} color={theme.colors.textSecondary} />
+                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>{exporting ? 'Exporting…' : 'Export'}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Refresh sales" onPress={() => void refetch()} style={styles.refreshAction}>
+                  <Icon name="refresh" size={13} color={theme.colors.textSecondary} />
+                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>Refresh</Text>
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.titleRow}>
-              <Text style={[theme.typography.screenTitle, { color: theme.colors.text, textTransform: 'uppercase' }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open menu" onPress={openDrawer} style={{ marginRight: 10 }}>
+                <Icon name="menu" size={22} color={theme.colors.text} />
+              </Pressable>
+              <Text style={[theme.typography.screenTitle, { color: theme.colors.text, textTransform: 'uppercase', flex: 1 }]}>
                 Today's{'\n'}
                 <Text style={{ color: theme.colors.primary }}>Sales</Text>
               </Text>
@@ -133,10 +129,21 @@ export function SalesListScreen() {
             {!isLoading && !error ? (
               <>
                 <View style={{ marginTop: 14 }}>
-                  <SalesHeroCard total={formatCurrency(totals.net)} gross={formatCurrency(totals.gross)} discount={formatCurrency(totals.discount)} />
+                  <SalesHeroCard total={formatCurrency(summary.totalSales)} gross={formatCurrency(summary.totalGross)} discount={formatCurrency(summary.totalDiscount)} />
                 </View>
-                <PaymentMethodTileGrid tiles={paymentBreakdown} />
-                <ItemsSoldCard totalUnits={itemsSold.totalUnits} totalProducts={itemsSold.totalProducts} chips={itemsSold.chips} />
+                <PaymentMethodTileGrid
+                  tiles={Object.entries(summary.byMethod).map(([method, totals]) => ({
+                    key: method,
+                    label: PAYMENT_LABEL[method] ?? method,
+                    value: formatCurrency(totals.net),
+                    dotColor: paymentMethodColor(theme, method),
+                  }))}
+                />
+                <ItemsSoldCard
+                  totalUnits={itemsSold.reduce((sum, i) => sum + i.qty, 0)}
+                  totalProducts={itemsSold.length}
+                  chips={itemsSold.map((i) => ({ key: i.productName, n: i.productName, q: `× ${i.qty}` }))}
+                />
               </>
             ) : null}
 
@@ -163,48 +170,43 @@ export function SalesListScreen() {
                   </Pressable>
                 );
               })}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sort sales"
+                onPress={() => sortSheetRef.current?.present()}
+                style={[styles.chip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, flexDirection: 'row', gap: 4 }]}>
+                <Icon name="bar-chart" size={12} color={theme.colors.text} />
+                <Text style={[theme.typography.label, { color: theme.colors.text }]}>
+                  Sort: {SORT_OPTIONS.find((o) => o.field === sortField)?.label}
+                </Text>
+              </Pressable>
             </View>
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? (
+          !salesData.isLoading && !salesData.error ? (
             <View style={[styles.emptyBox, { borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
               <Text style={[theme.typography.cardTitle, { color: theme.colors.textSecondary }]}>No sales recorded</Text>
             </View>
           ) : undefined
         }
-        renderItem={({ item }) => <SaleCard order={item} />}
+        renderItem={({ item }) => <SaleCard order={item} onPress={() => navigation.navigate(Routes.SALE_DETAIL, { orderId: item.id })} />}
         ListFooterComponent={
-          !isLoading && !error && filtered.length > 0 ? (
-            <View style={styles.paginationRow}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{filtered.length} sales</Text>
-              <View style={styles.paginationControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Previous page"
-                  disabled={currentPage <= 1}
-                  onPress={() => setPage((p) => Math.max(1, p - 1))}
-                  style={[styles.pageArrow, { borderColor: theme.colors.cardBorder, opacity: currentPage <= 1 ? 0.4 : 1 }]}>
-                  <Icon name="chevron-left" size={12} color={theme.colors.textLabel} />
-                </Pressable>
-                <View style={[styles.pageIndicator, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700' }]}>{currentPage}</Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Next page"
-                  disabled={currentPage >= totalPages}
-                  onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  style={[styles.pageArrow, { borderColor: theme.colors.cardBorder, opacity: currentPage >= totalPages ? 0.4 : 1 }]}>
-                  <Icon name="chevron-right" size={12} color={theme.colors.textLabel} />
-                </Pressable>
-              </View>
+          salesData.isFetchingNextPage ? (
+            <View style={{ paddingVertical: 16 }}>
+              <LoadingSkeleton height={60} />
             </View>
+          ) : salesData.error ? (
+            <ErrorState message={mapErrorToMessage(salesData.error)} onRetry={() => void salesData.refetch()} />
           ) : undefined
         }
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={isRefetching || salesData.isRefetching}
+        onRefresh={() => {
+          void refetch();
+          void salesData.refetch();
+        }}
       />
+      <SortSheet ref={sortSheetRef} value={sortField} onChange={setSortField} onRequestClose={() => sortSheetRef.current?.dismiss()} />
     </Screen>
   );
 }

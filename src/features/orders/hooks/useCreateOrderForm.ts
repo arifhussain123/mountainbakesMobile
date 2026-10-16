@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateIdempotencyKey, useCreateProductionOrder, usePackingMaterials, useProducts, useStock } from '@/api';
+import { enqueueOfflineWrite, generateIdempotencyKey, getBusinessDate, isApiError, useCreateProductionOrder, usePackingMaterials, useProducts, useStock } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { useNetworkStatus } from '@/shared/hooks';
 import { logger } from '@/shared/utils';
 import type { PackingMaterial, Product } from '@/api';
 
@@ -52,6 +53,7 @@ export function useCreateOrderForm() {
   const stock = useStock();
   const packingMaterials = usePackingMaterials();
   const createOrder = useCreateProductionOrder();
+  const { isOffline } = useNetworkStatus();
 
   const [qtyByProductId, setQtyByProductId] = useState<Record<string, string>>({});
   const [packingRows, setPackingRows] = useState<PackingRow[]>([]);
@@ -60,6 +62,8 @@ export function useCreateOrderForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  /** Set once a submission lands in the offline queue instead of going straight to the server, so the caller can show "Saved, will submit when you're online." rather than the normal success message. */
+  const [wasQueuedOffline, setWasQueuedOffline] = useState(false);
 
   // Materials for packing rows restored from a draft can only be resolved
   // once `packingMaterials` has loaded — this holds the ids until then.
@@ -169,27 +173,73 @@ export function useCreateOrderForm() {
     }
   };
 
+  const clearDraftAfterSubmit = async () => {
+    try {
+      await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // Non-fatal — a stale draft just gets overwritten next save.
+    }
+    setDraftSavedAt(null);
+  };
+
   const submit = async (): Promise<boolean> => {
     if (!canSubmit) return false;
     setSubmitError(null);
+    setWasQueuedOffline(false);
+
+    const payload = {
+      items: productLines.map((l) => ({ productId: l.product.id, qty: l.qty })),
+      packingItems: validPackingRows.map((r) => ({ packingMaterialId: r.material!.id, qty: parseInt(r.qtyInput, 10) || 0 })),
+      requiredDate: requiredDate.trim(),
+      businessDate: getBusinessDate(),
+    };
+
+    // Offline-first: a known-offline device never attempts the network call at
+    // all — it goes straight into the sync queue (idempotency key reused on
+    // every later retry, so reconnecting cannot double-submit the demand).
+    if (isOffline) {
+      try {
+        await enqueueOfflineWrite({
+          endpoint: '/production-orders',
+          method: 'post',
+          payload,
+          idempotencyKey: idempotencyKeyRef.current,
+          invalidateKeys: [['productionOrders']],
+        });
+        await clearDraftAfterSubmit();
+        setWasQueuedOffline(true);
+        return true;
+      } catch (error) {
+        setSubmitError(mapErrorToMessage(error));
+        return false;
+      }
+    }
 
     try {
-      await createOrder.mutateAsync({
-        input: {
-          items: productLines.map((l) => ({ productId: l.product.id, qty: l.qty })),
-          packingItems: validPackingRows.map((r) => ({ packingMaterialId: r.material!.id, qty: parseInt(r.qtyInput, 10) || 0 })),
-          requiredDate: requiredDate.trim(),
-        },
-        idempotencyKey: idempotencyKeyRef.current,
-      });
-      try {
-        await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
-      } catch {
-        // Non-fatal — a stale draft just gets overwritten next save.
-      }
-      setDraftSavedAt(null);
+      await createOrder.mutateAsync({ input: payload, idempotencyKey: idempotencyKeyRef.current });
+      await clearDraftAfterSubmit();
       return true;
     } catch (error) {
+      // The network dropped between tapping Submit and the request landing —
+      // fall back to the same queue path rather than surfacing an error for a
+      // demand the branch already finished filling in.
+      if (isApiError(error) && error.status === null) {
+        try {
+          await enqueueOfflineWrite({
+            endpoint: '/production-orders',
+            method: 'post',
+            payload,
+            idempotencyKey: idempotencyKeyRef.current,
+            invalidateKeys: [['productionOrders']],
+          });
+          await clearDraftAfterSubmit();
+          setWasQueuedOffline(true);
+          return true;
+        } catch (queueError) {
+          setSubmitError(mapErrorToMessage(queueError));
+          return false;
+        }
+      }
       setSubmitError(mapErrorToMessage(error));
       return false;
     }
@@ -218,6 +268,7 @@ export function useCreateOrderForm() {
     canSubmit,
     isSubmitting: createOrder.isPending,
     submitError,
+    wasQueuedOffline,
     submit,
     clear,
     isSavingDraft,

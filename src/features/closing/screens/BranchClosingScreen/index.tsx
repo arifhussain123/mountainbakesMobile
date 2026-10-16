@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getBusinessDate, useBranchClosing, useStock } from '@/api';
+import { openDrawer } from '@/navigation';
 import {
   BranchClosingHeroCard,
   BusinessDateControl,
@@ -101,7 +102,7 @@ export function BranchClosingScreen() {
       <AppHeader
         title="Branch Closing"
         subtitle="End-of-day summary. This is a read of the day, not a lock on it."
-        actions={[]}
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg }}

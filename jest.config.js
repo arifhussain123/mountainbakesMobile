@@ -16,6 +16,7 @@ module.exports = {
         'react-native-svg',
         'react-native-bootsplash',
         'react-native-keychain',
+        'react-native-linear-gradient',
         '@react-native-async-storage',
         '@react-native-community',
       ].join('|') +

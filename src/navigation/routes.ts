@@ -31,19 +31,24 @@ export const Routes = {
   // Sales stack
   SALES_LIST: 'SalesList',
   NEW_SALE: 'NewSale',
+  SALE_DETAIL: 'SaleDetail',
 
   // Stock stack
   STOCK_OVERVIEW: 'StockOverview',
+  STOCK_CHECK: 'StockCheck',
   RETURN_STOCK_LIST: 'ReturnStockList',
 
   // Orders stack
   ORDERS_LIST: 'OrdersList',
+  ORDER_DETAIL: 'OrderDetail',
 
   // Discounts stack
   DISCOUNTS_LIST: 'DiscountsList',
+  DISCOUNT_DETAIL: 'DiscountDetail',
 
   // Cash stack
   CASH_TRANSFERS_LIST: 'CashTransfersList',
+  CASH_TRANSFER_DETAIL: 'CashTransferDetail',
 
   // Expenses stack
   SHOP_EXPENSES_LIST: 'ShopExpensesList',
@@ -69,6 +74,7 @@ export const Routes = {
   // Auth stack
   ONBOARDING: 'Onboarding',
   LOGIN: 'Login',
+  FORGOT_PASSWORD: 'ForgotPassword',
 
   // ─── Production app (production_user) ──────────────────────────────────
   PRODUCTION_TABS: 'ProductionTabs',

@@ -2,19 +2,27 @@ import type { ReportPeriod } from './types';
 
 /** Centralized query key factory — no inline string arrays at call sites. */
 export const queryKeys = {
-  reportSummary: (period: ReportPeriod) => ['reportSummary', period] as const,
-  salesAnalytics: (from: string, to: string) => ['salesAnalytics', from, to] as const,
+  reportSummary: (period: ReportPeriod, from?: string, to?: string) => ['reportSummary', period, from ?? null, to ?? null] as const,
+  salesAnalytics: (from: string, to: string, compare?: boolean, topLimit?: number) =>
+    ['salesAnalytics', from, to, compare ?? false, topLimit ?? 5] as const,
   stockHistoryDay: (date: string) => ['stockHistoryDay', date] as const,
   stockHistorySeries: (days: number) => ['stockHistorySeries', days] as const,
   stock: (date?: string) => ['stock', date ?? 'today'] as const,
   branchClosing: (date?: string) => ['branchClosing', date ?? 'today'] as const,
   products: () => ['products'] as const,
   orders: (params?: { status?: string; from?: string; to?: string }) => ['orders', params ?? {}] as const,
+  order: (id: string) => ['order', id] as const,
+  salesData: (params: { businessDate: string; search?: string; paymentMethod?: string; sort?: string }) => ['salesData', params] as const,
+  appSettings: () => ['appSettings'] as const,
   productionOrders: () => ['productionOrders'] as const,
+  productionOrder: (id: string) => ['productionOrder', id] as const,
   packingMaterials: () => ['packingMaterials'] as const,
   branchReturns: (params?: { days?: number; status?: string }) => ['branchReturns', params ?? {}] as const,
   branchDiscounts: (params?: { days?: number; status?: string }) => ['branchDiscounts', params ?? {}] as const,
-  cashTransfers: (params?: { days?: number; status?: string }) => ['cashTransfers', params ?? {}] as const,
+  branchDiscountsList: (params: { from: string; to: string; status?: string; search?: string; sortBy?: string; sortDir?: string }) =>
+    ['branchDiscountsList', params] as const,
+  cashTransfers: (params?: unknown) => ['cashTransfers', params ?? {}] as const,
+  cashTransfer: (id: string) => ['cashTransfer', id] as const,
   expenses: () => ['expenses'] as const,
   specialEvents: (year?: number) => ['specialEvents', year ?? 'current'] as const,
   myEventDemand: (eventId: string) => ['myEventDemand', eventId] as const,

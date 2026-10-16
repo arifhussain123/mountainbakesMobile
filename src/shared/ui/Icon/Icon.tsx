@@ -36,7 +36,19 @@ export type IconName =
   | 'dashboard-grid'
   | 'ledger'
   | 'transfer'
-  | 'bar-chart';
+  | 'bar-chart'
+  | 'trending-up'
+  | 'layers'
+  | 'grid'
+  | 'calendar-check'
+  | 'scales'
+  | 'headset'
+  | 'logout'
+  | 'receipt'
+  | 'arrow-up-right'
+  | 'info'
+  | 'lock'
+  | 'pencil';
 
 export interface IconProps {
   name: IconName;
@@ -318,6 +330,113 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path d="M5 21V12M12 21V7M19 21v-8" {...common} />
           <Path d="M4 6l5-2 6 2 5-3" {...common} />
+        </Svg>
+      );
+    // Onboarding feature-strip icons — lifted verbatim from
+    // mountainbakesBranch.html's "02 Onboarding 1" screen so the feature
+    // strip is pixel-identical to the design file.
+    case 'trending-up':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 17l6-6 4 4 8-8M15 7h6v6" {...common} />
+        </Svg>
+      );
+    case 'layers':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d="M12 3l4 2.3v4.6L12 12 8 9.9V5.3zM8 9.9l4 2.1v4.6l-4 2.3-4-2.3v-4.6zM16 9.9l4 2.1v4.6l-4 2.3-4-2.3"
+            {...common}
+          />
+        </Svg>
+      );
+    case 'grid':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" {...common} />
+        </Svg>
+      );
+    // The pill-button arrow chip — mountainbakesBranch.html's own CTA icon
+    // (design file: 'M7 17L17 7M8 7h9v9'), distinct from `chevron-right`.
+    case 'arrow-up-right':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M7 17L17 7M8 7h9v9" {...common} strokeWidth={2.6} />
+        </Svg>
+      );
+    case 'info':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={9} {...common} />
+          <Line x1={12} y1={11} x2={12} y2={16} {...common} />
+          <Circle cx={12} cy={7.5} r={0.5} fill={stroke} stroke="none" />
+        </Svg>
+      );
+    case 'lock':
+      // Discounts' "Final" (reviewed, can't be changed) marker.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={5} y={11} width={14} height={9} rx={1.5} {...common} />
+          <Path d="M8 11V7a4 4 0 0 1 8 0v4" {...common} />
+        </Svg>
+      );
+    case 'pencil':
+      // Discounts' "Change"/"Correct" action icon.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19z" {...common} strokeLinejoin="round" />
+          <Line x1={13.5} y1={6.5} x2={17} y2={10} {...common} />
+        </Svg>
+      );
+    case 'calendar-check':
+      // Drawer "Branch Closing" item — a calendar with a confirming check.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={3} y={5} width={18} height={16} rx={2} {...common} />
+          <Line x1={3} y1={10} x2={21} y2={10} {...common} />
+          <Line x1={8} y1={3} x2={8} y2={7} {...common} />
+          <Line x1={16} y1={3} x2={16} y2={7} {...common} />
+          <Path d="M8.5 14.5l2 2 4.5-4.5" {...common} />
+        </Svg>
+      );
+    case 'scales':
+      // Drawer "Daily Sale Record" item — a balance scale, takings vs counted.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Line x1={12} y1={3} x2={12} y2={21} {...common} />
+          <Line x1={6} y1={6} x2={18} y2={6} {...common} />
+          <Path d="M3 10l3-4 3 4a3 3 0 0 1-6 0z" {...common} strokeLinejoin="round" />
+          <Path d="M15 10l3-4 3 4a3 3 0 0 1-6 0z" {...common} strokeLinejoin="round" />
+          <Line x1={9} y1={21} x2={15} y2={21} {...common} />
+        </Svg>
+      );
+    case 'headset':
+      // Drawer "Help Desk" item.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 13v-1a8 8 0 0 1 16 0v1" {...common} />
+          <Rect x={2.5} y={13} width={4} height={6} rx={1.5} {...common} />
+          <Rect x={17.5} y={13} width={4} height={6} rx={1.5} {...common} />
+          <Path d="M19.5 19v1a3 3 0 0 1-3 3h-3" {...common} />
+        </Svg>
+      );
+    case 'logout':
+      // Drawer footer "Sign Out" item.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" {...common} />
+          <Path d="M16 17l5-5-5-5" {...common} />
+          <Line x1={21} y1={12} x2={9} y2={12} {...common} />
+        </Svg>
+      );
+    case 'receipt':
+      // Drawer "Shop Expenses" item.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M6 3h12v18l-2.5-1.5L13 21l-1.5-1.5L10 21l-2.5-1.5L6 21z" {...common} strokeLinejoin="round" />
+          <Line x1={9} y1={8} x2={15} y2={8} {...common} />
+          <Line x1={9} y1={12} x2={15} y2={12} {...common} />
+          <Line x1={9} y1={16} x2={13} y2={16} {...common} />
         </Svg>
       );
     default:

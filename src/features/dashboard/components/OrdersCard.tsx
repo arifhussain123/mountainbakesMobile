@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
+import { completedOrders, orderCompletionPct } from '../calculations';
 
 export interface OrdersCardProps {
   total: number;
@@ -20,8 +21,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
  */
 export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
   const theme = useAppTheme();
-  const completed = Math.max(0, total - pending - cancelled);
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const completed = completedOrders(total, pending, cancelled);
+  const pct = Math.round(orderCompletionPct(total, pending, cancelled) ?? 0);
   const dash = (pct / 100) * CIRCUMFERENCE;
 
   const rows = [

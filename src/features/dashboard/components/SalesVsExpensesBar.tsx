@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
+import { barScalePct } from '../calculations';
 
 export interface SalesVsExpensesBarProps {
   dayLabel: string;
@@ -45,7 +46,7 @@ export function SalesVsExpensesBar({ dayLabel, sales, discounts, expenses, net }
               <View
                 style={[
                   styles.fill,
-                  { width: `${Math.min(100, (Math.abs(row.value) / max) * 100)}%`, backgroundColor: row.color, borderRadius: theme.radii.pill },
+                  { width: `${barScalePct(Math.abs(row.value), max)}%`, backgroundColor: row.color, borderRadius: theme.radii.pill },
                 ]}
               />
             </View>

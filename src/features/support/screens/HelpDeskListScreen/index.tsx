@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { FlatList, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useSupportTickets } from '@/api';
+import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -18,7 +19,11 @@ export function HelpDeskListScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Help Desk" subtitle="Your own queries" actions={[]} />
+      <AppHeader
+        title="Help Desk"
+        subtitle="Your own queries"
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <View style={{ paddingHorizontal: theme.spacing.lg }}>
         <PrimaryButton label="+ New Query" onPress={() => sheetRef.current?.present()} />
       </View>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useBranchReturns, useReviseBranchReturn, useWithdrawBranchReturn } from '@/api';
+import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -66,7 +67,11 @@ export function ReturnStockListScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Return Stock" subtitle="Sent to production · last 90 days" actions={[]} />
+      <AppHeader
+        title="Return Stock"
+        subtitle="Sent to production · last 90 days"
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
