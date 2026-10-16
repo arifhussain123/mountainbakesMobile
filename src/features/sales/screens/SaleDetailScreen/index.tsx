@@ -6,6 +6,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, Icon, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { ReportIssueAction } from '@/features/support';
 import { PAYMENT_LABEL, paymentMethodColor } from '../../components/SaleCard';
 import { buildSaleReceiptText } from '../../receipt';
 import { styles } from './styles';
@@ -148,6 +149,10 @@ export function SaleDetailScreen() {
             <Icon name="printer" size={16} color={theme.colors.primaryText} />
             <Text style={[theme.typography.body, { color: theme.colors.primaryText, fontWeight: '700' }]}>Reprint Receipt</Text>
           </Pressable>
+        </View>
+
+        <View style={{ marginTop: theme.spacing.md }}>
+          <ReportIssueAction referenceId={order.orderNumber} />
         </View>
       </ScrollView>
     </Screen>

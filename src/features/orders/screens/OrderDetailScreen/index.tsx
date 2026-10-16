@@ -7,6 +7,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, ErrorState, Icon, LoadingSkeleton, PillButton, QtyStepper, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { ReportIssueAction } from '@/features/support';
 import type { ProductionOrder } from '@/api';
 import { DemandTotalModal } from '../../components/DemandTotalModal';
 import { effectiveQty, isVerified, liveItems, livePackingItems, requestedTotals } from '../../utils/demandLines';
@@ -294,6 +295,10 @@ export function OrderDetailScreen() {
             <VerifyDeliverySection order={order} />
           </View>
         ) : null}
+
+        <View style={{ marginTop: theme.spacing.lg }}>
+          <ReportIssueAction referenceId={order.demandNumber} />
+        </View>
       </ScrollView>
 
       {showTotal ? <DemandTotalModal order={order} onClose={() => setShowTotal(false)} /> : null}

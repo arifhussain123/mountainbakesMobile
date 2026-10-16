@@ -1,8 +1,24 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { openNewQuery } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { Card, Icon } from '@/shared/ui';
 import type { StockRowWithDemand } from '../calculations';
 import { MovementRow } from './MovementRow';
+
+/** Icon-only "Report an issue" — see `ExpenseCard`'s identical helper for why this is a compact variant rather than `ReportIssueAction`'s full labeled button. `stockCode` is a per-PRODUCT catalog id (Step 0), never unsynced. */
+function ReportIssueIconButton({ referenceId }: { referenceId: string }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Report an issue with ${referenceId}`}
+      hitSlop={8}
+      onPress={() => openNewQuery(referenceId)}
+      style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="flag" size={15} color={theme.colors.textFaint} />
+    </Pressable>
+  );
+}
 
 export interface StockCardProps {
   row: StockRowWithDemand;
@@ -28,7 +44,10 @@ export function StockCard({ row, showDemand }: StockCardProps) {
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
             {row.productName}
           </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>{row.stockCode}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{row.stockCode}</Text>
+            <ReportIssueIconButton referenceId={row.stockCode} />
+          </View>
         </View>
         <Text style={[theme.typography.kpi, { color: isZero ? theme.colors.textSecondary : theme.colors.text }]}>{row.balance}</Text>
       </View>

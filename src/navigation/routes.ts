@@ -60,12 +60,16 @@ export const Routes = {
   // Closing stack
   BRANCH_CLOSING: 'BranchClosing',
   DAILY_SALE_RECORD: 'DailySaleRecord',
+  DAILY_SALE_DETAIL: 'DailySaleDetail',
 
   // Reports stack
   REPORTS: 'Reports',
 
-  // Help desk stack
+  // Help desk stack (QUERY_DETAIL/NEW_QUERY are root-level modals — see RootStackParamList — so
+  // "Report an issue" from any other stack can reach them the same way COMING_SOON does)
   HELP_DESK: 'HelpDesk',
+  QUERY_DETAIL: 'QueryDetail',
+  NEW_QUERY: 'NewQuery',
 
   // Account
   PROFILE: 'Profile',

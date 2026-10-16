@@ -1,7 +1,9 @@
 import { useEffect, type ComponentType } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ComingSoonScreen } from '@/features/placeholder';
+import { NewQueryScreen, QueryDetailScreen } from '@/features/support';
+import { darkColors } from '@/shared/theme';
 import { useAuthStore } from '@/state';
 import { AuthNavigator } from '../AuthNavigator';
 import { DrawerNavigator } from '../DrawerNavigator';
@@ -16,6 +18,31 @@ import { UnsupportedRoleView } from './UnsupportedRoleView';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const FINANCE_ROLES = new Set(['finance_admin', 'finance_manager', 'accountant', 'finance_auditor']);
+
+/**
+ * `NavigationContainer` paints its own chrome (the default-tab-bar/header
+ * card background, the gap behind a custom `tabBar`, screen-transition
+ * backdrops) from this theme — never from `useAppTheme()`, which only the
+ * app's own screens/components read. Left unset, it falls back to React
+ * Navigation's light `DefaultTheme` (white `background`/`card`), which is
+ * exactly the white strip that showed through behind the floating notch tab
+ * bar: the bar's own margins reveal the navigator's chrome color underneath,
+ * not any Android system chrome. The app is fixed to one dark theme (no
+ * light/dark toggle), so this is built from `darkColors` directly rather than
+ * switching on the OS setting.
+ */
+const navigationTheme: NavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: darkColors.primary,
+    background: darkColors.background,
+    card: darkColors.surface,
+    text: darkColors.text,
+    border: darkColors.border,
+    notification: darkColors.danger,
+  },
+};
 
 /**
  * Decides Auth vs. which app shell from `authStore.status` + the signed-in
@@ -43,7 +70,7 @@ export function RootNavigator() {
   else mainScreen = { name: Routes.UNSUPPORTED_ROLE, component: UnsupportedRoleView };
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {status === 'signedIn' ? (
           <Stack.Screen name={mainScreen.name} component={mainScreen.component} />
@@ -51,6 +78,8 @@ export function RootNavigator() {
           <Stack.Screen name={Routes.AUTH} component={AuthNavigator} />
         )}
         <Stack.Screen name={Routes.COMING_SOON} component={ComingSoonScreen} options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name={Routes.QUERY_DETAIL} component={QueryDetailScreen} options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name={Routes.NEW_QUERY} component={NewQueryScreen} options={{ presentation: 'modal', headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

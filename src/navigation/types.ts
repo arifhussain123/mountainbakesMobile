@@ -44,6 +44,7 @@ export type EventsStackParamList = {
 export type ClosingStackParamList = {
   [Routes.BRANCH_CLOSING]: undefined;
   [Routes.DAILY_SALE_RECORD]: undefined;
+  [Routes.DAILY_SALE_DETAIL]: { businessDate: string };
 };
 
 export type ReportsStackParamList = {
@@ -181,4 +182,10 @@ export type RootStackParamList = {
   [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;
   [Routes.UNSUPPORTED_ROLE]: undefined;
   [Routes.COMING_SOON]: { title: string };
+  // Modal, reachable from any screen (Help Desk's own list push there too) —
+  // same "root-level destination" pattern as COMING_SOON, since a Sale/Order/
+  // Expense/Stock/Cash Transfer screen that wants to open these lives in an
+  // unrelated stack several navigators away.
+  [Routes.QUERY_DETAIL]: { ticketId: string };
+  [Routes.NEW_QUERY]: { prefillReferenceId?: string } | undefined;
 };

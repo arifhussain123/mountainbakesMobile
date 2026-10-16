@@ -6,6 +6,7 @@ import type { CashStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, Icon, LoadingSkeleton, PhotoViewer, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { ReportIssueAction } from '@/features/support';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { CashTransfer } from '@/api';
 import { isTransferFinal } from '../../calculations';
@@ -151,6 +152,10 @@ export function CashTransferDetailScreen() {
             </View>
           )}
         </Pressable>
+
+        <View style={{ marginTop: theme.spacing.lg }}>
+          <ReportIssueAction referenceId={transfer.transferNo} />
+        </View>
       </View>
 
       <PhotoViewer

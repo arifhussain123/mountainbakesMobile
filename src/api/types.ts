@@ -1347,6 +1347,8 @@ export interface SupportDetailField {
 export interface SupportReference {
   type: SupportReferenceType;
   referenceId: string;
+  /** The record's own DB id — `support.routes.ts`'s `resolveReference` always sets this, but it's the actual table id, not the human reference number, so it's what "Open record" navigation needs for a detail route (`{ orderId }`/`{ transferId }`), not `referenceId`. */
+  entityId?: string;
   title: string;
   fields: SupportDetailField[];
 }

@@ -48,7 +48,8 @@ export type IconName =
   | 'arrow-up-right'
   | 'info'
   | 'lock'
-  | 'pencil';
+  | 'pencil'
+  | 'flag';
 
 export interface IconProps {
   name: IconName;
@@ -437,6 +438,14 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
           <Line x1={9} y1={8} x2={15} y2={8} {...common} />
           <Line x1={9} y1={12} x2={15} y2={12} {...common} />
           <Line x1={9} y1={16} x2={13} y2={16} {...common} />
+        </Svg>
+      );
+    case 'flag':
+      // Help Desk's "Report an issue" action on Sale/Order/Expense/Stock/Cash Transfer screens.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Line x1={5} y1={3} x2={5} y2={21} {...common} />
+          <Path d="M5 4h13l-3 4 3 4H5" {...common} strokeLinejoin="round" />
         </Svg>
       );
     default:
