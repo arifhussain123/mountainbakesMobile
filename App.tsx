@@ -9,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
-import { queryClient, startOfflineQueueRetryWorker } from '@/api';
+import { queryClient, startOfflineQueueRetryWorker, startQueryFocusManager } from '@/api';
 import { AppearanceSheet } from '@/features/appearance';
 import { RootNavigator } from '@/navigation';
 import { RootErrorBoundary } from '@/shared/components/RootErrorBoundary';
@@ -35,6 +35,7 @@ function App() {
 
     hide();
     startOfflineQueueRetryWorker();
+    startQueryFocusManager();
 
     const failsafe = setTimeout(() => {
       if (didHideSplash.current) return;

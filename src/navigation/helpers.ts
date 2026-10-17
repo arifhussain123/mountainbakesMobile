@@ -37,6 +37,12 @@ export function openQueryDetail(ticketId: string): void {
   navigationRef.dispatch(StackActions.push(Routes.QUERY_DETAIL, { ticketId }));
 }
 
+/** Opens the Notification Center — root-level modal, reachable from any module header's bell. */
+export function openNotifications(): void {
+  if (!navigationRef.isReady()) return;
+  navigationRef.dispatch(StackActions.push(Routes.NOTIFICATIONS));
+}
+
 /**
  * Jumps to a screen by name anywhere in the tree, including a stack this
  * screen is not nested in (e.g. opening a Sale's own detail screen from the

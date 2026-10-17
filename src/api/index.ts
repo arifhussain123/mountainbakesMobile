@@ -1,6 +1,6 @@
 export { apiClient, isApiError, setTokenAccessor, setRefreshHandler, setSessionExpiredHandler, generateIdempotencyKey } from './client';
 export { clearOfflineQueue, enqueueOfflineWrite, flushOfflineQueue, startOfflineQueueRetryWorker } from './offlineQueue';
-export { queryClient, LIVE_STALE_TIME_MS, SUMMARY_STALE_TIME_MS } from './queryClient';
+export { queryClient, LIVE_STALE_TIME_MS, SUMMARY_STALE_TIME_MS, startQueryFocusManager } from './queryClient';
 export { queryKeys } from './queryKeys';
 export { getBusinessDate, getBusinessDayBounds } from './businessDate';
 export { uploadAttachment, discardAttachment } from './services/attachmentService';

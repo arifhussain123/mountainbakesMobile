@@ -1,7 +1,7 @@
 /**
  * @format
  */
-import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { formatCurrency, formatDisplayDate, formatDisplayTime, formatRelativeTime } from '@/shared/utils';
 
 describe('formatCurrency', () => {
   it('formats a whole number with thousands separators', () => {
@@ -84,5 +84,37 @@ describe('formatDisplayTime', () => {
 
   it('returns an empty string when it cannot be parsed', () => {
     expect(formatDisplayTime('not-a-timestamp')).toBe('');
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const NOW = new Date('2026-10-17T12:00:00.000Z');
+
+  it('is "Just now" for under a minute', () => {
+    expect(formatRelativeTime('2026-10-17T11:59:30.000Z', NOW)).toBe('Just now');
+  });
+
+  it('is "Xm ago" under an hour', () => {
+    expect(formatRelativeTime('2026-10-17T11:45:00.000Z', NOW)).toBe('15m ago');
+  });
+
+  it('is "Xh ago" under a day', () => {
+    expect(formatRelativeTime('2026-10-17T09:00:00.000Z', NOW)).toBe('3h ago');
+  });
+
+  it('is "Xd ago" under a week', () => {
+    expect(formatRelativeTime('2026-10-15T12:00:00.000Z', NOW)).toBe('2d ago');
+  });
+
+  it('falls back to the plain date at a week or more', () => {
+    expect(formatRelativeTime('2026-10-01T12:00:00.000Z', NOW)).toBe('01 Oct 2026');
+  });
+
+  it('returns the plain date for a timestamp in the future (clock skew) rather than a negative duration', () => {
+    expect(formatRelativeTime('2026-10-18T12:00:00.000Z', NOW)).toBe('18 Oct 2026');
+  });
+
+  it('returns empty string for an unparseable timestamp', () => {
+    expect(formatRelativeTime('not-a-timestamp', NOW)).toBe('');
   });
 });

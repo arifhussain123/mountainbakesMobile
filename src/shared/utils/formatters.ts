@@ -39,3 +39,19 @@ export function formatDisplayTime(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
+
+/** "Just now" / "5m ago" / "3h ago" / "2d ago", falling back to the plain date past a week — the Notification Center's own relative-time stamp. `now` is injectable for tests; defaults to the real current time. */
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '';
+  const diffMs = now.getTime() - then.getTime();
+  if (diffMs < 0) return formatDisplayDate(iso.slice(0, 10));
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDisplayDate(iso.slice(0, 10));
+}

@@ -11,6 +11,7 @@ import * as financePartnersService from './financePartnersService';
 import * as financePayrollService from './financePayrollService';
 import * as financeService from './financeService';
 import * as financeTicketsService from './financeTicketsService';
+import * as notificationService from './notificationService';
 import * as packingMaterialService from './packingMaterialService';
 import * as productService from './productService';
 import * as productionDiscountService from './productionDiscountService';
@@ -43,6 +44,7 @@ export {
   financePayrollService,
   financeService,
   financeTicketsService,
+  notificationService,
   packingMaterialService,
   productService,
   productionDiscountService,

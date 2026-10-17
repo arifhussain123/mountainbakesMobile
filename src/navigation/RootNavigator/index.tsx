@@ -1,6 +1,7 @@
 import { useEffect, useMemo, type ComponentType } from 'react';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NotificationsScreen } from '@/features/notifications';
 import { ComingSoonScreen } from '@/features/placeholder';
 import { NewQueryScreen, QueryDetailScreen } from '@/features/support';
 import { useAppTheme } from '@/shared/theme';
@@ -86,6 +87,7 @@ export function RootNavigator() {
         <Stack.Screen name={Routes.COMING_SOON} component={ComingSoonScreen} options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name={Routes.QUERY_DETAIL} component={QueryDetailScreen} options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name={Routes.NEW_QUERY} component={NewQueryScreen} options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name={Routes.NOTIFICATIONS} component={NotificationsScreen} options={{ presentation: 'modal', headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

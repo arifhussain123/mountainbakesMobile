@@ -74,4 +74,5 @@ export const queryKeys = {
     ['productionOverview', period, branchId ?? 'all'] as const,
   productionBranchStock: () => ['productionBranchStock'] as const,
   productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
+  notifications: () => ['notifications'] as const,
 };

@@ -12,7 +12,9 @@ import {
   type StockHistoryDayResponse,
   type StockHistorySeriesResponse,
 } from '@/api';
-import { openComingSoon, openDrawer, useTabBarHeight } from '@/navigation';
+import { useThemeToggleAction } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
+import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, DateFilter, type DatePeriod, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
@@ -60,6 +62,8 @@ function greeting(): string {
 export function HomeDashboardScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
+  const themeToggleAction = useThemeToggleAction();
+  const bellAction = useNotificationBellAction();
   const branchName = useAuthStore((state) => state.user?.branchName ?? undefined);
   const branchId = useAuthStore((state) => state.user?.branchId ?? 'unassigned');
   const [period, setPeriod] = useState<DatePeriod>('daily');
@@ -144,10 +148,7 @@ export function HomeDashboardScreen() {
       <AppHeader
         title={greeting()}
         subtitle={branchName ?? 'No branch assigned'}
-        actions={[
-          { icon: 'bell', onPress: () => openComingSoon('Notifications'), accessibilityLabel: 'Notifications' },
-          { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
-        ]}
+        actions={[bellAction, themeToggleAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       {showingCache ? (
         <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>

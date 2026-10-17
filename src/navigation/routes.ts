@@ -71,6 +71,10 @@ export const Routes = {
   QUERY_DETAIL: 'QueryDetail',
   NEW_QUERY: 'NewQuery',
 
+  // Notifications — root-level modal, same reasoning as QUERY_DETAIL/NEW_QUERY:
+  // the bell lives in several module headers, not one stack.
+  NOTIFICATIONS: 'Notifications',
+
   // Account
   PROFILE: 'Profile',
   SETTINGS: 'Settings',

@@ -188,4 +188,5 @@ export type RootStackParamList = {
   // unrelated stack several navigators away.
   [Routes.QUERY_DETAIL]: { ticketId: string };
   [Routes.NEW_QUERY]: { prefillReferenceId?: string } | undefined;
+  [Routes.NOTIFICATIONS]: undefined;
 };

@@ -2686,6 +2686,68 @@ export interface RequestReopenFinanceTicketInput {
   reason: string;
 }
 
+// ─── Notifications: GET /api/notifications, POST /api/notifications/read ──
+// Step 0: no unread-count or mark-all-read endpoint exists server-side — both
+// are derived/driven client-side from this one feed (capped at 50, newest
+// first, so "mark all" is always a single POST /read of the whole unread set).
+// No push (FCM/APNs/web-push) exists server-side either — `push.service.ts`'s
+// `sendPush()` is a no-op — so this is in-app only.
+
+export type NotificationType =
+  | 'order_created'
+  | 'order_ready'
+  | 'order_cancelled'
+  | 'low_stock'
+  | 'new_user'
+  | 'branch_added'
+  | 'price_changed'
+  | 'password_reset'
+  | 'production_demand'
+  | 'production_reviewed'
+  | 'production_return'
+  | 'production_order_verified'
+  | 'production_demand_cancelled'
+  | 'branch_discount'
+  | 'branch_discount_reviewed'
+  | 'cash_transfer'
+  | 'cash_transfer_reviewed'
+  | 'support_query'
+  | 'support_resolved'
+  | 'finance_query'
+  | 'finance_query_resolved'
+  | 'finance_query_updated'
+  | 'finance_query_message'
+  | 'finance_query_amended'
+  | 'event_created'
+  | 'event_reminder'
+  | 'event_demand_due'
+  | 'event_demand_submitted'
+  | 'event_demand_reviewed'
+  | 'event_production_updated'
+  | 'security_alert';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  /** The legacy per-row flag — Step 0: the feed's own `readIds` (below) is the one this app actually trusts, since a notification broadcast to a role/branch is "read" per-reader, not per-row. */
+  isRead: boolean;
+  targetUserId: string | null;
+  targetRole: string | null;
+  branchId: string | null;
+  /** The record this notification is about (a demand/discount/cash-transfer/support-ticket/event's own DB id) — used for deep-linking. `null` for types with nothing to link to (e.g. `security_alert`). */
+  relatedId: string | null;
+  createdAt: string;
+}
+
+export interface NotificationFeedResponse {
+  /** Newest first, capped at 50 server-side. */
+  notifications: AppNotification[];
+  /** Ids from `notifications` THIS reader has marked read — the authoritative read state (see `AppNotification.isRead`'s own note). */
+  readIds: string[];
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {
