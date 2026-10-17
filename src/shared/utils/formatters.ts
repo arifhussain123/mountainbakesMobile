@@ -40,6 +40,16 @@ export function formatDisplayTime(iso: string): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+/**
+ * Always carries an explicit sign — "-7", "+3", "0" — never a bare magnitude
+ * that could be misread as always-positive, and never "+0"/"-0" (a zero
+ * movement is just "0", with no sign at all).
+ */
+export function formatSigned(value: number): string {
+  if (value === 0) return '0';
+  return value > 0 ? `+${value}` : String(value);
+}
+
 /** "Just now" / "5m ago" / "3h ago" / "2d ago", falling back to the plain date past a week — the Notification Center's own relative-time stamp. `now` is injectable for tests; defaults to the real current time. */
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);

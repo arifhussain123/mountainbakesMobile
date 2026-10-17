@@ -95,6 +95,24 @@ export function computeTotals(rows: StockRowWithDemand[]): StockTotals {
   );
 }
 
+export type StockSortField = 'balance' | 'productName' | 'stockCode' | 'opening' | 'newQty' | 'sold' | 'returned' | 'adjustment';
+export type StockSortDirection = 'asc' | 'desc';
+
+/** Sorts a copy of `rows` by `key` — string fields via locale compare, everything else numerically — then flips the result when `direction` is `'asc'`. */
+export function sortStockRows<T extends Pick<StockRowWithDemand, StockSortField>>(
+  rows: T[],
+  key: StockSortField,
+  direction: StockSortDirection,
+): T[] {
+  const sorted = [...rows];
+  const isString = key === 'productName' || key === 'stockCode';
+  sorted.sort((a, b) => {
+    const cmp = isString ? a[key].localeCompare(b[key] as string) : (a[key] as number) - (b[key] as number);
+    return direction === 'asc' ? cmp : -cmp;
+  });
+  return sorted;
+}
+
 // ─── Stock Check classification (matches the web's result logic) ──────────
 
 export type StockCheckVerdict = 'matched' | 'surplus' | 'deficit';

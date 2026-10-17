@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
@@ -28,6 +29,12 @@ const STATUS_VARIANT: Record<CashTransfer['status'], StatusVariant> = {
 export function TransferCard({ item, onPress, onPressPhoto }: TransferCardProps) {
   const theme = useAppTheme();
   const photo = item.attachments[0];
+  // Keyed to the url itself (not a plain boolean) so a refetch that re-mints
+  // a fresh signed url — the attachment's url is short-lived by design —
+  // automatically clears a previous failure instead of getting stuck showing
+  // the placeholder for a photo that would now load fine.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const photoFailed = !!photo && failedUrl === photo.url;
   const accessibilityLabel = `Transfer ${item.transferNo}, ${item.amount} rupees, ${STATUS_LABEL[item.status]}, ${formatDisplayDate(item.date)} ${formatDisplayTime(item.createdAt)}${item.fuelCharges > 0 ? ', fuel ' + item.fuelCharges + ' separate' : ''}`;
 
   return (
@@ -58,9 +65,13 @@ export function TransferCard({ item, onPress, onPressPhoto }: TransferCardProps)
         ) : null}
 
         <View style={[styles.footerRow, { marginTop: 10, borderTopColor: theme.colors.cardBorder }]}>
-          {photo ? (
+          {photo && !photoFailed ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`Payment photo for ${item.transferNo}`} onPress={onPressPhoto}>
-              <Image source={{ uri: photo.url }} style={[styles.thumb, { borderRadius: theme.radii.sm }]} />
+              <Image
+                source={{ uri: photo.url }}
+                style={[styles.thumb, { borderRadius: theme.radii.sm }]}
+                onError={() => setFailedUrl(photo.url)}
+              />
             </Pressable>
           ) : (
             <View style={[styles.thumb, styles.thumbPlaceholder, { backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>

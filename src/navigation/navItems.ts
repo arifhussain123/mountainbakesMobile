@@ -7,7 +7,7 @@ export interface NavItem {
   key: string;
   label: string;
   icon: IconName;
-  group: 'overview' | 'dailyWork' | 'planning' | 'endOfDay' | 'insights' | 'support';
+  group: 'main' | 'money' | 'endOfDay' | 'planning' | 'support';
   badgeSource: NavBadgeSource;
   /** Navigates via the drawer navigation prop. Kept here (not inlined in DrawerContent) so item order/config stays data, not UI code. */
   navigate: (navigation: { navigate: (...args: never[]) => void; closeDrawer: () => void }) => void;
@@ -41,7 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'dashboard',
     label: 'Dashboard',
     icon: 'dashboard-grid',
-    group: 'overview',
+    group: 'main',
     badgeSource: null,
     navigate: goToTab(Routes.HOME_TAB),
     activeMatch: { root: Routes.HOME_TAB },
@@ -50,7 +50,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'orders',
     label: 'New Orders',
     icon: 'orders',
-    group: 'dailyWork',
+    group: 'main',
     badgeSource: 'orders',
     navigate: goToTab(Routes.ORDERS_TAB),
     activeMatch: { root: Routes.ORDERS_TAB },
@@ -59,7 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'sales',
     label: 'Sales',
     icon: 'sales',
-    group: 'dailyWork',
+    group: 'main',
     badgeSource: null,
     navigate: goToTab(Routes.SALES_TAB),
     activeMatch: { root: Routes.SALES_TAB },
@@ -68,7 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'stock',
     label: 'Stock',
     icon: 'stock',
-    group: 'dailyWork',
+    group: 'main',
     badgeSource: null,
     navigate: goToTab(Routes.STOCK_TAB, Routes.STOCK_OVERVIEW),
     activeMatch: { root: Routes.STOCK_TAB, leaf: Routes.STOCK_OVERVIEW },
@@ -77,7 +77,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'returnStock',
     label: 'Return Stock',
     icon: 'rotate-ccw',
-    group: 'dailyWork',
+    group: 'main',
     badgeSource: null,
     navigate: goToTab(Routes.STOCK_TAB, Routes.RETURN_STOCK_LIST),
     activeMatch: { root: Routes.STOCK_TAB, leaf: Routes.RETURN_STOCK_LIST },
@@ -86,7 +86,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'discounts',
     label: 'Discounts',
     icon: 'percent',
-    group: 'dailyWork',
+    group: 'money',
     badgeSource: 'discounts',
     navigate: goToStack(Routes.DISCOUNTS_STACK),
     activeMatch: { root: Routes.DISCOUNTS_STACK },
@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'cash',
     label: 'Cash Deposits',
     icon: 'wallet',
-    group: 'dailyWork',
+    group: 'money',
     badgeSource: null,
     navigate: goToStack(Routes.CASH_STACK),
     activeMatch: { root: Routes.CASH_STACK },
@@ -104,7 +104,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'expenses',
     label: 'Shop Expenses',
     icon: 'receipt',
-    group: 'dailyWork',
+    group: 'money',
     badgeSource: null,
     navigate: goToStack(Routes.EXPENSES_STACK),
     activeMatch: { root: Routes.EXPENSES_STACK },
@@ -140,7 +140,7 @@ export const NAV_ITEMS: NavItem[] = [
     key: 'reports',
     label: 'Reports',
     icon: 'bar-chart',
-    group: 'insights',
+    group: 'planning',
     badgeSource: null,
     navigate: goToStack(Routes.REPORTS_STACK),
     activeMatch: { root: Routes.REPORTS_STACK },
@@ -163,13 +163,12 @@ export function isNavItemActive(item: NavItem, chain: string[]): boolean {
 }
 
 export const GROUP_LABEL: Record<NavItem['group'], string> = {
-  overview: 'Overview',
-  dailyWork: 'Daily work',
-  planning: 'Planning',
+  main: 'Main',
+  money: 'Money',
   endOfDay: 'End of day',
-  insights: 'Insights',
+  planning: 'Planning',
   support: 'Support',
 };
 
-/** Flat list today, matching the design file exactly — flip to try grouped section labels. */
-export const DRAWER_GROUPED = false;
+/** The "3D slide-back" drawer redesign groups items under section labels (MAIN/MONEY/END OF DAY/PLANNING/SUPPORT) — flip back to `false` to return to a flat list. */
+export const DRAWER_GROUPED = true;

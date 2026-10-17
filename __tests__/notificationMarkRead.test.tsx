@@ -6,12 +6,22 @@ import ReactTestRenderer from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockMarkNotificationsRead = jest.fn();
+const mockEnqueueOfflineWrite = jest.fn();
+let mockIsOffline = false;
 
 jest.mock('@/api/services', () => ({
   notificationService: {
     listNotifications: jest.fn(),
     markNotificationsRead: (ids: string[]) => mockMarkNotificationsRead(ids),
   },
+}));
+
+jest.mock('@/api/offlineQueue', () => ({
+  enqueueOfflineWrite: (input: unknown) => mockEnqueueOfflineWrite(input),
+}));
+
+jest.mock('@/shared/hooks', () => ({
+  useNetworkStatus: () => ({ isOffline: mockIsOffline }),
 }));
 
 import { queryKeys } from '@/api/queryKeys';
@@ -66,6 +76,9 @@ describe('useMarkNotificationsRead — optimistic cache update', () => {
 
   beforeEach(() => {
     mockMarkNotificationsRead.mockReset();
+    mockEnqueueOfflineWrite.mockReset();
+    mockEnqueueOfflineWrite.mockResolvedValue('queued-id');
+    mockIsOffline = false;
   });
 
   afterEach(() => {
@@ -124,5 +137,62 @@ describe('useMarkNotificationsRead — optimistic cache update', () => {
 
     const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
     expect(cached!.readIds).toEqual(['a']);
+  });
+
+  it('queues the mark-read (never calls the server, never rolls back) when offline', async () => {
+    mockIsOffline = true;
+    const seed: NotificationFeedResponse = { notifications: [notification('a')], readIds: [] };
+    const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
+
+    await ReactTestRenderer.act(async () => {
+      await ref.current!.mutateAsync(['a']);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(mockMarkNotificationsRead).not.toHaveBeenCalled();
+    expect(mockEnqueueOfflineWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/notifications/read', method: 'post', payload: { ids: ['a'] } }),
+    );
+    const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
+    expect(cached!.readIds).toEqual(['a']);
+  });
+
+  it('queues the mark-read instead of rolling back when the request fails for a network reason', async () => {
+    mockMarkNotificationsRead.mockRejectedValue({ status: null, message: 'offline' });
+    const seed: NotificationFeedResponse = { notifications: [notification('a')], readIds: [] };
+    const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
+
+    await ReactTestRenderer.act(async () => {
+      await ref.current!.mutateAsync(['a']);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(mockEnqueueOfflineWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/notifications/read', method: 'post', payload: { ids: ['a'] } }),
+    );
+    const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
+    expect(cached!.readIds).toEqual(['a']);
+  });
+
+  it('still rolls back on a genuine (non-network) server rejection', async () => {
+    mockMarkNotificationsRead.mockRejectedValue({ status: 500, message: 'server error' });
+    const seed: NotificationFeedResponse = { notifications: [notification('a')], readIds: [] };
+    const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
+
+    await ReactTestRenderer.act(async () => {
+      try {
+        await ref.current!.mutateAsync(['a']);
+      } catch {
+        // expected — asserting the rollback, not the rejection
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(mockEnqueueOfflineWrite).not.toHaveBeenCalled();
+    const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
+    expect(cached!.readIds).toEqual([]);
   });
 });

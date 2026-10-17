@@ -65,6 +65,12 @@ export function openDrawer(): void {
   navigationRef.dispatch(DrawerActions.openDrawer());
 }
 
+/** Closes the side drawer from anywhere — e.g. tapping the blurred area behind it. */
+export function closeDrawer(): void {
+  if (!navigationRef.isReady()) return;
+  navigationRef.dispatch(DrawerActions.closeDrawer());
+}
+
 export function goBack(): void {
   if (navigationRef.isReady() && navigationRef.canGoBack()) navigationRef.goBack();
 }

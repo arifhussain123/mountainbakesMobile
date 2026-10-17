@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -10,25 +10,25 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, useTabBarHeight, type StockStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PillButton, Screen, SearchBar } from '@/shared/ui';
+import { useAppTheme, useResponsive } from '@/shared/theme';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, PillButton, Screen, SearchBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime } from '@/shared/utils';
 import type { StockRowWithDemand } from '../../calculations';
-import { computeTotals, filterListedRows } from '../../calculations';
+import { computeTotals, filterListedRows, sortStockRows } from '../../calculations';
 import { useStock } from '../../api/useStock';
 import {
+  DEFAULT_SORT_DIRECTION,
+  DEFAULT_SORT_KEY,
   StockCard,
-  StockDateChipRow,
-  StockFilterChips,
   StockInfoSheet,
   StockSortSheet,
-  StockSummaryStrip,
-  type StockFilter,
+  StockSummaryGrid,
+  defaultDirectionFor,
+  type StockSortDirection,
   type StockSortKey,
 } from '../../components';
-import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
 import { styles } from './styles';
 
 interface StockCachePayload {
@@ -36,58 +36,30 @@ interface StockCachePayload {
   rows: StockRowWithDemand[];
 }
 
-function matchesFilter(row: StockRowWithDemand, filter: StockFilter): boolean {
-  switch (filter) {
-    case 'inStock':
-      return row.balance > 0;
-    case 'zero':
-      return row.balance === 0;
-    case 'hasMovement':
-      return row.newQty !== 0 || row.sold !== 0 || row.returned !== 0;
-    case 'waitingDemand':
-      return row.waitingDemand > 0;
-    case 'adjusted':
-      return row.adjustment !== 0;
-    case 'all':
-    default:
-      return true;
-  }
-}
-
-function sortRows(rows: StockRowWithDemand[], key: StockSortKey): StockRowWithDemand[] {
-  const sorted = [...rows];
-  if (key === 'productName' || key === 'stockCode') {
-    sorted.sort((a, b) => a[key].localeCompare(b[key]));
-  } else {
-    sorted.sort((a, b) => b[key] - a[key]);
-  }
-  return sorted;
-}
-
 export function StockScreen() {
   const theme = useAppTheme();
+  const { clamp, sh } = useResponsive();
+  const stockCheckHeight = clamp(48, sh(54), 58);
   const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<StockStackParamList>>();
   const infoSheetRef = useRef<BottomSheetModal>(null);
   const sortSheetRef = useRef<BottomSheetModal>(null);
-  const returnItemsSheetRef = useRef<BottomSheetModal>(null);
 
-  const [selectedDate, setSelectedDate] = useState(() => getBusinessDate());
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  const [filter, setFilter] = useState<StockFilter>('all');
-  const [sortKey, setSortKey] = useState<StockSortKey>('balance');
+  const [sortKey, setSortKey] = useState<StockSortKey>(DEFAULT_SORT_KEY);
+  const [sortDirection, setSortDirection] = useState<StockSortDirection>(DEFAULT_SORT_DIRECTION);
+  const isDefaultSort = sortKey === DEFAULT_SORT_KEY && sortDirection === DEFAULT_SORT_DIRECTION;
 
   const today = getBusinessDate();
-  const isToday = selectedDate === today;
-  const dateLabel = format(parseISO(selectedDate), 'EEE d MMM yyyy');
+  const dateLabel = format(parseISO(today), 'EEE d MMM yyyy');
 
-  const { rows: rawRows, isLoading, error, refetch, isRefetching } = useStock(selectedDate);
+  const { rows: rawRows, isLoading, error, refetch, isRefetching } = useStock();
   const pendingWrites = useOfflineQueueStore((state) => state.pendingCount);
 
-  const cacheKey = `stock:${selectedDate}`;
+  const cacheKey = `stock:${today}`;
   const [cached, setCached] = useState<{ data: StockCachePayload; updatedAt: number } | null>(null);
 
   useEffect(() => {
@@ -101,8 +73,8 @@ export function StockScreen() {
   }, [cacheKey]);
 
   useEffect(() => {
-    if (rawRows.length > 0) void setCachedResponse(cacheKey, { date: selectedDate, rows: rawRows });
-  }, [cacheKey, rawRows, selectedDate]);
+    if (rawRows.length > 0) void setCachedResponse(cacheKey, { date: today, rows: rawRows });
+  }, [cacheKey, rawRows, today]);
 
   const showingCache = rawRows.length === 0 && !isLoading && !!cached;
   const sourceRows = useMemo(
@@ -112,55 +84,37 @@ export function StockScreen() {
 
   const listed = useMemo(() => filterListedRows(sourceRows), [sourceRows]);
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
-    return listed.filter((row) => matchesFilter(row, filter) && (!term || row.productName.toLowerCase().includes(term)));
-  }, [listed, filter, debouncedSearch]);
+    return term ? listed.filter((row) => row.productName.toLowerCase().includes(term)) : listed;
+  }, [listed, debouncedSearch]);
 
-  const sorted = useMemo(() => sortRows(filtered, sortKey), [filtered, sortKey]);
-  const totals = useMemo(() => computeTotals(filtered), [filtered]);
+  const sorted = useMemo(() => sortStockRows(searched, sortKey, sortDirection), [searched, sortKey, sortDirection]);
+  const totals = useMemo(() => computeTotals(searched), [searched]);
 
   return (
     <Screen>
-      <AppHeader
-        title="Stock"
-        subtitle={dateLabel}
-        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
-      />
+      <AppHeader title="Stock" actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
       <View style={styles.headerPad}>
-        <StockDateChipRow
-          dateLabel={dateLabel}
-          isToday={isToday}
-          onPrevDay={() => setSelectedDate((d) => format(subDays(parseISO(d), 1), 'yyyy-MM-dd'))}
-          onToday={() => setSelectedDate(today)}
-          onInfo={() => infoSheetRef.current?.present()}
-        />
+        <View style={styles.subtitleRow}>
+          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{dateLabel}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="What do these columns mean?"
+            hitSlop={8}
+            onPress={() => infoSheetRef.current?.present()}
+            style={styles.infoButton}>
+            <Icon name="info" size={14} color={theme.colors.textFaint} />
+          </Pressable>
+        </View>
 
         <View style={styles.stockCheckRow}>
           <PillButton
             label="Stock Check"
             onPress={() => navigation.navigate(Routes.STOCK_CHECK)}
-            disabled={!isToday}
-            accessibilityLabel={isToday ? 'Stock Check' : 'Stock Check is for today only'}
+            height={stockCheckHeight}
+            accessibilityLabel="Stock Check"
           />
-        </View>
-        {!isToday ? (
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 6 }]}>Stock Check is for today only.</Text>
-        ) : null}
-
-        <View style={styles.quickActionsRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => returnItemsSheetRef.current?.present()}
-            style={[styles.quickAction, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.text }]}>Return Items</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate(Routes.RETURN_STOCK_LIST)}
-            style={[styles.quickAction, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.text }]}>Return Stock</Text>
-          </Pressable>
         </View>
 
         {showingCache ? (
@@ -186,20 +140,18 @@ export function StockScreen() {
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View style={{ marginBottom: theme.spacing.md }}>
-            <StockSummaryStrip totals={totals} showDemand={isToday} />
-            <View style={{ marginTop: 12 }}>
-              <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
-            </View>
-            <View style={styles.filtersSortRow}>
+            <StockSummaryGrid totals={totals} productCount={searched.length} />
+            <View style={styles.searchSortRow}>
               <View style={{ flex: 1 }}>
-                <StockFilterChips value={filter} onChange={setFilter} showWaitingDemand={isToday} />
+                <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
               </View>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Sort"
                 onPress={() => sortSheetRef.current?.present()}
-                style={[styles.sortButton, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill }]}>
-                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Sort</Text>
+                style={[styles.sortButton, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, borderRadius: theme.radii.md }]}>
+                <Icon name="sort" size={18} color={theme.colors.text} />
+                {!isDefaultSort ? <View style={[styles.sortDot, { backgroundColor: theme.colors.primary }]} /> : null}
               </Pressable>
             </View>
             {isLoading ? <View style={{ marginTop: 12 }}><LoadingSkeleton height={100} /></View> : null}
@@ -211,9 +163,9 @@ export function StockScreen() {
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <EmptyState title="No Products" message="No stock matches this filter." /> : undefined
+          !isLoading && !error ? <EmptyState title="No Products" message="No stock to show yet." /> : undefined
         }
-        renderItem={({ item }) => <StockCard row={item} showDemand={isToday} />}
+        renderItem={({ item }) => <StockCard row={item} showDemand />}
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
       />
@@ -223,15 +175,15 @@ export function StockScreen() {
       </FormBottomSheet>
       <FormBottomSheet ref={sortSheetRef} title="Sort by" onRequestClose={() => sortSheetRef.current?.dismiss()}>
         <StockSortSheet
-          value={sortKey}
-          onChange={(key) => {
+          sortKey={sortKey}
+          direction={sortDirection}
+          onChangeDirection={setSortDirection}
+          onChangeKey={(key) => {
             setSortKey(key);
+            setSortDirection(defaultDirectionFor(key));
             sortSheetRef.current?.dismiss();
           }}
         />
-      </FormBottomSheet>
-      <FormBottomSheet ref={returnItemsSheetRef} title="Return Items" onRequestClose={() => returnItemsSheetRef.current?.dismiss()}>
-        <ReturnItemsSheetContent onClose={() => returnItemsSheetRef.current?.dismiss()} />
       </FormBottomSheet>
     </Screen>
   );

@@ -53,7 +53,8 @@ export type IconName =
   | 'flag'
   | 'moon'
   | 'sun'
-  | 'palette';
+  | 'palette'
+  | 'sort';
 
 export interface IconProps {
   name: IconName;
@@ -492,6 +493,17 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
           <Circle cx={7.5} cy={10.5} r={1.1} fill={common.stroke} stroke="none" />
           <Circle cx={11} cy={7} r={1.1} fill={common.stroke} stroke="none" />
           <Circle cx={15.5} cy={8} r={1.1} fill={common.stroke} stroke="none" />
+        </Svg>
+      );
+    case 'sort':
+      // Stock screen's Sort button — descending-length lines plus an
+      // up/down arrow pair, the usual "sort" glyph.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Line x1={4} y1={7} x2={13} y2={7} {...common} />
+          <Line x1={4} y1={12} x2={10} y2={12} {...common} />
+          <Line x1={4} y1={17} x2={7} y2={17} {...common} />
+          <Path d="M18 4v16M15 7l3-3 3 3M15 17l3 3 3-3" {...common} />
         </Svg>
       );
     default:

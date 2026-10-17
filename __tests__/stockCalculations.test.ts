@@ -11,6 +11,7 @@ import {
   hasStockActivity,
   isHeldForStockCheck,
   parseCountInput,
+  sortStockRows,
   withExpectedBalance,
   type StockCheckItem,
 } from '@/features/stock/calculations';
@@ -237,5 +238,44 @@ describe('editing after Verify', () => {
     const after = buildCheckResult([item({ productId: 'p1', balance: 4, counted: 4 })]);
     expect(after.surplus).toEqual([]);
     expect(after.matchedCount).toBe(1);
+  });
+});
+
+describe('sortStockRows', () => {
+  const rows = [
+    row({ productId: 'a', productName: 'Banana Bread', stockCode: 'STK-000002', balance: 10, opening: 2 }),
+    row({ productId: 'b', productName: 'Apple Tart', stockCode: 'STK-000001', balance: 30, opening: 1 }),
+    row({ productId: 'c', productName: 'Cream Puff', stockCode: 'STK-000003', balance: 20, opening: 3 }),
+  ];
+
+  it('defaults to balance, high to low', () => {
+    const sorted = sortStockRows(rows, 'balance', 'desc');
+    expect(sorted.map((r) => r.productId)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('flips to low-to-high when direction is "asc"', () => {
+    const sorted = sortStockRows(rows, 'balance', 'asc');
+    expect(sorted.map((r) => r.productId)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('sorts product name A-Z with locale compare, not code-point order', () => {
+    const sorted = sortStockRows(rows, 'productName', 'asc');
+    expect(sorted.map((r) => r.productName)).toEqual(['Apple Tart', 'Banana Bread', 'Cream Puff']);
+  });
+
+  it('sorts product name Z-A when direction is "desc"', () => {
+    const sorted = sortStockRows(rows, 'productName', 'desc');
+    expect(sorted.map((r) => r.productName)).toEqual(['Cream Puff', 'Banana Bread', 'Apple Tart']);
+  });
+
+  it('sorts a numeric field other than balance', () => {
+    const sorted = sortStockRows(rows, 'opening', 'desc');
+    expect(sorted.map((r) => r.productId)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('does not mutate the input array', () => {
+    const original = [...rows];
+    sortStockRows(rows, 'balance', 'asc');
+    expect(rows).toEqual(original);
   });
 });

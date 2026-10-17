@@ -1,40 +1,36 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { images } from '@/assets';
 import { useAppTheme } from '@/shared/theme';
-import { HEADER_NAME_FONT_SIZE, HEADER_PADDING_VERTICAL, HEADER_ROLE_FONT_SIZE } from './drawerLayout';
+import { HEADER_LOGO_SIZE, HEADER_ROLE_FONT_SIZE, HEADER_TITLE_FONT_SIZE } from './drawerLayout';
 
 export interface DrawerHeaderProps {
   roleLabel: string;
-  /** Status-bar safe-area inset, added ABOVE the header's own padding — see `drawerLayout.ts#HEADER_HEIGHT`, which deliberately excludes this. */
+  /** Status-bar safe-area inset, added ABOVE the header's own padding. */
   insetTop: number;
-  /** The caller's `computeHeaderLogoSize(width)` — passed in rather than computed here so `DrawerContent`'s row-fit math is guaranteed to use this exact same number. */
-  logoSize: number;
 }
 
-/** Logo badge + "Mountain Bakes" + role, pinned at the top of the drawer — `colors.surface` with a hairline border below, same chrome as the rest of the app. */
-export function DrawerHeader({ roleLabel, insetTop, logoSize }: DrawerHeaderProps) {
+/**
+ * Logo badge + "MOUNTAIN BAKES" + role — the fixed top of the menu, above
+ * the branch line and the content divider. Title wants Space Grotesk Bold
+ * per the brief; no Space Grotesk font file exists anywhere in this repo
+ * (same gap flagged on the Splash/Onboarding/Login task) — this renders in
+ * the system font, bold + letter-spaced, until that's supplied.
+ */
+export function DrawerHeader({ roleLabel, insetTop }: DrawerHeaderProps) {
   const theme = useAppTheme();
   return (
-    <View
-      style={[
-        styles.row,
-        {
-          paddingTop: insetTop + HEADER_PADDING_VERTICAL,
-          paddingBottom: HEADER_PADDING_VERTICAL,
-          paddingHorizontal: theme.spacing.lg,
-          backgroundColor: theme.colors.surface,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: theme.colors.border,
-        },
-      ]}>
-      <View style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, overflow: 'hidden' }}>
+    <View style={[styles.row, { paddingTop: insetTop + theme.spacing.lg, paddingHorizontal: 20, paddingBottom: theme.spacing.md }]}>
+      <View style={{ width: HEADER_LOGO_SIZE, height: HEADER_LOGO_SIZE, borderRadius: HEADER_LOGO_SIZE / 2, overflow: 'hidden' }}>
         <Image source={images.logo} style={styles.logo} resizeMode="contain" />
       </View>
       <View style={{ marginLeft: theme.spacing.md, flexShrink: 1 }}>
-        <Text style={{ color: theme.colors.text, fontSize: HEADER_NAME_FONT_SIZE, fontWeight: '700' }} numberOfLines={1}>
-          Mountain Bakes
+        <Text
+          style={{ color: theme.colors.text, fontSize: HEADER_TITLE_FONT_SIZE, fontWeight: '800', letterSpacing: 2 }}
+          numberOfLines={1}
+          ellipsizeMode="tail">
+          MOUNTAIN BAKES
         </Text>
-        <Text style={{ color: theme.colors.textMuted, fontSize: HEADER_ROLE_FONT_SIZE, marginTop: 2 }} numberOfLines={1}>
+        <Text style={{ color: theme.colors.textMuted, fontSize: HEADER_ROLE_FONT_SIZE, letterSpacing: 1, marginTop: 2 }} numberOfLines={1}>
           {roleLabel}
         </Text>
       </View>

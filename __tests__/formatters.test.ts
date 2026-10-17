@@ -1,7 +1,7 @@
 /**
  * @format
  */
-import { formatCurrency, formatDisplayDate, formatDisplayTime, formatRelativeTime } from '@/shared/utils';
+import { formatCurrency, formatDisplayDate, formatDisplayTime, formatRelativeTime, formatSigned } from '@/shared/utils';
 
 describe('formatCurrency', () => {
   it('formats a whole number with thousands separators', () => {
@@ -116,5 +116,23 @@ describe('formatRelativeTime', () => {
 
   it('returns empty string for an unparseable timestamp', () => {
     expect(formatRelativeTime('not-a-timestamp', NOW)).toBe('');
+  });
+});
+
+describe('formatSigned', () => {
+  it('renders zero as a bare "0", never "+0"', () => {
+    expect(formatSigned(0)).toBe('0');
+  });
+
+  it('renders negative zero as "0", never "-0"', () => {
+    expect(formatSigned(-0)).toBe('0');
+  });
+
+  it('prefixes a positive value with "+"', () => {
+    expect(formatSigned(20)).toBe('+20');
+  });
+
+  it('keeps a negative value\'s own "-" sign, not double-signed', () => {
+    expect(formatSigned(-4)).toBe('-4');
   });
 });

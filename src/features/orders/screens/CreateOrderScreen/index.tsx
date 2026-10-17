@@ -52,6 +52,15 @@ export function CreateOrderSheetContent({ onClose }: CreateOrderSheetContentProp
   const discountSheetRef = useRef<BottomSheetModal>(null);
   const cashDepositSheetRef = useRef<BottomSheetModal>(null);
 
+  // Lets the numeric keyboard's "Next"/"Done" key jump straight to the next
+  // product's qty field instead of just dismissing the keyboard — same
+  // ref-chaining pattern as Stock Check's `CountRow`/`QtyStepper`.
+  const qtyInputRefs = useRef<Record<string, React.RefObject<any>>>({});
+  const getQtyInputRef = (productId: string): React.RefObject<any> => {
+    qtyInputRefs.current[productId] ??= { current: null };
+    return qtyInputRefs.current[productId]!;
+  };
+
   const handleSelectMaterial = (material: PackingMaterial) => {
     if (packingPickerKey) form.updatePackingRow(packingPickerKey, { material });
     setPackingPickerKey(null);
@@ -111,13 +120,19 @@ export function CreateOrderSheetContent({ onClose }: CreateOrderSheetContentProp
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 54, textAlign: 'right' }]}>RATE</Text>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 50, textAlign: 'center' }]}>QTY</Text>
       </View>
-      {form.products.map((product) => (
+      {form.products.map((product, index) => (
         <ProductQtyRow
           key={product.id}
+          inputRef={getQtyInputRef(product.id)}
           product={product}
           qtyInput={form.qtyByProductId[product.id] ?? ''}
           availableQty={form.stockByProductId.get(product.id) ?? null}
           onChangeQty={(text) => form.setProductQty(product.id, text)}
+          returnKeyType={index < form.products.length - 1 ? 'next' : 'done'}
+          onSubmitEditing={() => {
+            const next = form.products[index + 1];
+            if (next) getQtyInputRef(next.id).current?.focus();
+          }}
         />
       ))}
 

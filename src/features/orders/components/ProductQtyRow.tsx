@@ -8,10 +8,16 @@ export interface ProductQtyRowProps {
   qtyInput: string;
   availableQty: number | null;
   onChangeQty: (text: string) => void;
+  /** "Next" for every row but the last, which gets "Done" — see `CreateOrderScreen`'s focus-chaining. */
+  returnKeyType?: 'next' | 'done';
+  /** Focuses the next product's qty field — wired by the screen, which owns the full list of row refs. */
+  onSubmitEditing?: () => void;
+  /** A plain ref object, not `forwardRef` — same reasoning as `QtyStepper`'s own `inputRef`. */
+  inputRef?: React.RefObject<any>;
 }
 
 /** One row of the Create Order product table — branchApp.md screen 05: PRODUCT/STOCK/RATE/QTY. */
-export function ProductQtyRow({ product, qtyInput, availableQty, onChangeQty }: ProductQtyRowProps) {
+export function ProductQtyRow({ product, qtyInput, availableQty, onChangeQty, returnKeyType, onSubmitEditing, inputRef }: ProductQtyRowProps) {
   const theme = useAppTheme();
   const hasQty = (parseInt(qtyInput, 10) || 0) > 0;
 
@@ -28,10 +34,13 @@ export function ProductQtyRow({ product, qtyInput, availableQty, onChangeQty }: 
       <Text style={[styles.stockCol, theme.typography.bodySmall, { color: theme.colors.text }]}>{availableQty ?? '—'}</Text>
       <Text style={[styles.rateCol, theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatCurrency(product.price)}</Text>
       <TextInput
+        ref={inputRef}
         value={qtyInput}
         onChangeText={onChangeQty}
         placeholder="0"
         keyboardType="numeric"
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
         style={[styles.qtyInput, { borderColor: hasQty ? theme.colors.primary : theme.colors.border, color: theme.colors.text, borderRadius: theme.radii.sm }]}
       />
     </View>

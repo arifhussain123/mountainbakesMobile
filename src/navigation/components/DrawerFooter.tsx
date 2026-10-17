@@ -1,30 +1,22 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import {
-  FOOTER_APPEARANCE_GAP,
-  FOOTER_APPEARANCE_ROW_HEIGHT,
   FOOTER_AVATAR_SIZE,
-  FOOTER_EMAIL_FONT_SIZE,
   FOOTER_NAME_FONT_SIZE,
-  FOOTER_PADDING_BOTTOM,
-  FOOTER_PADDING_TOP,
-  FOOTER_ROW_HEIGHT,
-  FOOTER_ROW_TO_SYNC_GAP,
+  FOOTER_PADDING_VERTICAL,
+  FOOTER_SUBTEXT_FONT_SIZE,
   FOOTER_SYNC_FONT_SIZE,
+  MENU_CONTENT_HORIZONTAL_PADDING,
 } from './drawerLayout';
-
-const MODE_LABEL: Record<'system' | 'light' | 'dark', string> = { system: 'System', light: 'Light', dark: 'Dark' };
 
 const appVersion = (require('../../../package.json') as { version: string }).version;
 
 export interface DrawerFooterProps {
   name: string;
-  email: string;
   pendingSyncCount: number;
-  onSignOut: () => void;
-  /** Home-indicator/3-button-nav safe-area inset, added BELOW the footer's own padding — see `drawerLayout.ts#FOOTER_HEIGHT`, which deliberately excludes this. */
+  onPressProfile: () => void;
+  /** Home-indicator/3-button-nav safe-area inset, added below the footer's own padding. */
   insetBottom: number;
 }
 
@@ -38,74 +30,40 @@ function initialsOf(name: string): string {
     .join('');
 }
 
-/**
- * Compact single block: avatar + name/email + Sign Out icon button on one
- * row, then one muted sync-status line — replacing the old two-line-plus-
- * button layout so the footer costs less of the drawer's fixed height
- * budget (see `drawerLayout.ts#FOOTER_HEIGHT`).
- */
-export function DrawerFooter({ name, email, pendingSyncCount, onSignOut, insetBottom }: DrawerFooterProps) {
+/** Profile card (avatar + name + "View profile" + chevron) and the sync-status line, pinned above `insets.bottom`. */
+export function DrawerFooter({ name, pendingSyncCount, onPressProfile, insetBottom }: DrawerFooterProps) {
   const theme = useAppTheme();
-  const openAppearance = useAppearanceSheetStore((s) => s.open);
-  const accentLabel = theme.accentOptions.find((a) => a.id === theme.accent)?.label ?? '';
 
   return (
     <View
       style={[
         styles.container,
         {
-          paddingTop: FOOTER_PADDING_TOP,
-          paddingBottom: FOOTER_PADDING_BOTTOM + insetBottom,
-          paddingHorizontal: theme.spacing.lg,
+          paddingTop: FOOTER_PADDING_VERTICAL,
+          paddingBottom: FOOTER_PADDING_VERTICAL + insetBottom,
+          paddingHorizontal: MENU_CONTENT_HORIZONTAL_PADDING,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
         },
       ]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Appearance, ${MODE_LABEL[theme.mode]}, ${accentLabel} accent`}
-        onPress={openAppearance}
-        style={[styles.appearanceRow, { height: FOOTER_APPEARANCE_ROW_HEIGHT, marginBottom: FOOTER_APPEARANCE_GAP }]}>
-        <Icon name="palette" size={16} color={theme.colors.textMuted} />
-        <Text style={{ color: theme.colors.text, fontSize: FOOTER_EMAIL_FONT_SIZE, fontWeight: '600', marginLeft: 8, flex: 1 }}>
-          Appearance
-        </Text>
-        <Text style={{ color: theme.colors.textMuted, fontSize: FOOTER_EMAIL_FONT_SIZE }}>
-          {MODE_LABEL[theme.mode]} · {accentLabel}
-        </Text>
-        <View style={{ marginLeft: 6 }}>
-          <Icon name="chevron-right" size={14} color={theme.colors.textMuted} />
-        </View>
-      </Pressable>
-
-      <View style={[styles.row, { height: FOOTER_ROW_HEIGHT }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="View profile" onPress={onPressProfile} style={styles.row}>
         <View
           style={[
             styles.avatar,
-            { width: FOOTER_AVATAR_SIZE, height: FOOTER_AVATAR_SIZE, borderRadius: FOOTER_AVATAR_SIZE / 2, backgroundColor: theme.colors.primary },
+            { width: FOOTER_AVATAR_SIZE, height: FOOTER_AVATAR_SIZE, borderRadius: FOOTER_AVATAR_SIZE / 2, borderColor: theme.colors.primary },
           ]}>
-          <Text style={{ color: theme.colors.primaryText, fontSize: 13, fontWeight: '700' }}>{initialsOf(name)}</Text>
+          <Text style={{ color: theme.colors.primary, fontSize: 15, fontWeight: '700' }}>{initialsOf(name)}</Text>
         </View>
         <View style={{ marginLeft: 10, flex: 1, minWidth: 0 }}>
-          <Text style={{ color: theme.colors.text, fontSize: FOOTER_NAME_FONT_SIZE, fontWeight: '700' }} numberOfLines={1}>
+          <Text style={{ color: theme.colors.text, fontSize: FOOTER_NAME_FONT_SIZE, fontWeight: '600' }} numberOfLines={1}>
             {name}
           </Text>
-          <Text style={{ color: theme.colors.textMuted, fontSize: FOOTER_EMAIL_FONT_SIZE, marginTop: 1 }} numberOfLines={1}>
-            {email}
-          </Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: FOOTER_SUBTEXT_FONT_SIZE, marginTop: 1 }}>View profile</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          hitSlop={8}
-          onPress={onSignOut}
-          style={[styles.signOutButton, { backgroundColor: theme.colors.cardFill }]}>
-          <Icon name="logout" size={18} color={theme.colors.text} />
-        </Pressable>
-      </View>
+        <Icon name="chevron-right" size={18} color={theme.colors.textMuted} />
+      </Pressable>
 
-      <Text style={{ color: theme.colors.textMuted, fontSize: FOOTER_SYNC_FONT_SIZE, marginTop: FOOTER_ROW_TO_SYNC_GAP }}>
+      <Text style={[styles.sync, { color: theme.colors.textMuted, fontSize: FOOTER_SYNC_FONT_SIZE }]}>
         {pendingSyncCount > 0 ? `${pendingSyncCount} change${pendingSyncCount === 1 ? '' : 's'} waiting to sync` : 'All changes synced'} · v
         {appVersion}
       </Text>
@@ -115,8 +73,7 @@ export function DrawerFooter({ name, email, pendingSyncCount, onSignOut, insetBo
 
 const styles = StyleSheet.create({
   container: {},
-  appearanceRow: { flexDirection: 'row', alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { alignItems: 'center', justifyContent: 'center' },
-  signOutButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatar: { alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  sync: { textAlign: 'center', marginTop: 10 },
 });

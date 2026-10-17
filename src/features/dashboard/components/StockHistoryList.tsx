@@ -1,17 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import { formatCurrency, formatDisplayDate, formatSigned } from '@/shared/utils';
 import { computeStockHistoryRetAdj } from '../calculations';
 import type { BranchStockHistoryRow } from '@/api';
 
 export interface StockHistoryListProps {
   rows: BranchStockHistoryRow[];
-}
-
-/** Always carries an explicit sign — "-7", "+3", "0" — never a bare magnitude that could be misread as always-positive. */
-function formatSigned(value: number): string {
-  if (value === 0) return '0';
-  return value > 0 ? `+${value}` : String(value);
 }
 
 /** Design lines 192-200 — "Stock History 7 Days" cards, each with a PREV/NEW/SOLD/RET-ADJ mini-grid. */

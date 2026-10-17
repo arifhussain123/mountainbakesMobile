@@ -25,6 +25,17 @@ jest.mock('react-native-bootsplash', () => ({
   hide: jest.fn(() => Promise.resolve()),
 }));
 
+// Ships untranspiled ESM (same category as the packages above) — `db.ts`
+// only calls `open()` lazily on first real use, but the static `import` at
+// its top still has to parse under Jest even when nothing in a given test
+// ever reaches that call.
+jest.mock('@op-engineering/op-sqlite', () => ({
+  open: jest.fn(() => ({
+    execute: jest.fn(),
+    executeSync: jest.fn(),
+  })),
+}));
+
 // The library's own documented Jest mock — `useSafeAreaInsets()`/
 // `useSafeAreaFrame()` fall back to a fixed 320x640/zero-inset default when
 // no `<SafeAreaProvider>` wraps the test (most component tests here don't

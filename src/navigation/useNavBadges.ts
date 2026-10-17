@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { queryClient } from '@/api';
 import { getBusinessDate } from '@/api';
 import type {
@@ -77,6 +77,13 @@ function computeBadges(): NavBadges {
   return badges;
 }
 
+function badgesEqual(a: NavBadges, b: NavBadges): boolean {
+  const aKeys = Object.keys(a) as (keyof NavBadges)[];
+  const bKeys = Object.keys(b) as (keyof NavBadges)[];
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => a[key] === b[key]);
+}
+
 /**
  * Refreshes on every render of the drawer (cheap — reads already-fetched
  * cache, no network) plus right after any mutation settles, via TanStack's
@@ -85,9 +92,23 @@ function computeBadges(): NavBadges {
  */
 export function useNavBadges(): NavBadges {
   const [badges, setBadges] = useState<NavBadges>(() => computeBadges());
+  const badgesRef = useRef(badges);
+  badgesRef.current = badges;
 
   useEffect(() => {
-    setBadges(computeBadges());
+    // `computeBadges()` always returns a brand-new object, so calling
+    // `setBadges` unconditionally on every cache event gives this
+    // always-mounted hook a fresh object reference every time — forcing
+    // DrawerContent/NotchTabBar to re-render even when the counts didn't
+    // change. If anything downstream of that re-render touches the query
+    // cache (mounts/unmounts a query observer, etc.), the cache fires
+    // another event, which calls `setBadges` again, forever — exactly
+    // React's "Maximum update depth exceeded". Comparing against the
+    // previous value and only updating state when the counts actually
+    // changed breaks that cycle.
+    const next = computeBadges();
+    if (!badgesEqual(badgesRef.current, next)) setBadges(next);
+
     // The cache notifies its subscribers synchronously, including from
     // inside another component's render — e.g. a screen mounting its first
     // `useQuery` builds a new QueryObserver inside a `useState` initializer,
@@ -100,7 +121,10 @@ export function useNavBadges(): NavBadges {
     // still "right after the mutation settles" for all practical purposes,
     // just not literally inside someone else's render.
     const unsubscribe = queryClient.getQueryCache().subscribe(() => {
-      void Promise.resolve().then(() => setBadges(computeBadges()));
+      void Promise.resolve().then(() => {
+        const updated = computeBadges();
+        if (!badgesEqual(badgesRef.current, updated)) setBadges(updated);
+      });
     });
     return unsubscribe;
   }, []);

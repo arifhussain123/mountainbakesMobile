@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNetworkStatus } from '@/shared/hooks';
+import { generateIdempotencyKey, isApiError } from '../client';
+import { enqueueOfflineWrite } from '../offlineQueue';
 import { queryKeys } from '../queryKeys';
 import { notificationService } from '../services';
 import type { AppNotification } from '../types';
@@ -49,10 +52,48 @@ export function useNotificationsWithReadState(): { items: NotificationWithReadSt
   return { items, unreadCount, isLoading, error, refetch, isRefetching };
 }
 
+/**
+ * Same offline-write-queue pattern as `useDiscountActions.ts`'s
+ * revise/withdraw (CLAUDE.md Section 37: "Do not silently lose ... stock
+ * transactions" — a mark-read tapped offline must not just vanish). Queued
+ * instead of rejected when offline (checked up front) or when the request
+ * itself fails for a network reason (`isApiError` with `status === null` —
+ * never for a real server rejection, which still rolls the optimistic
+ * update back via `onError`).
+ */
+async function markReadOrQueue(ids: string[], isOffline: boolean): Promise<{ readIds: string[] }> {
+  if (isOffline) {
+    await enqueueOfflineWrite({
+      endpoint: '/notifications/read',
+      method: 'post',
+      payload: { ids },
+      idempotencyKey: generateIdempotencyKey('notifications-read'),
+      invalidateKeys: [[...queryKeys.notifications()]],
+    });
+    return { readIds: ids };
+  }
+  try {
+    return await notificationService.markNotificationsRead(ids);
+  } catch (error) {
+    if (isApiError(error) && error.status === null) {
+      await enqueueOfflineWrite({
+        endpoint: '/notifications/read',
+        method: 'post',
+        payload: { ids },
+        idempotencyKey: generateIdempotencyKey('notifications-read'),
+        invalidateKeys: [[...queryKeys.notifications()]],
+      });
+      return { readIds: ids };
+    }
+    throw error;
+  }
+}
+
 export function useMarkNotificationsRead() {
   const queryClient = useQueryClient();
+  const { isOffline } = useNetworkStatus();
   return useMutation({
-    mutationFn: (ids: string[]) => notificationService.markNotificationsRead(ids),
+    mutationFn: (ids: string[]) => markReadOrQueue(ids, isOffline),
     // Optimistic: the bell badge and the list's unread dots must clear the
     // instant someone taps, not after a round trip — a mark-read that fails
     // just gets invalidated back to the server's own view in onSettled.

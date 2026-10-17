@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Card, PhotoViewer, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
 
@@ -30,23 +31,38 @@ const OPEN_STATUSES: BranchReturn['status'][] = ['pending', 'returned'];
 export function ReturnStockCard({ item, onChange, onWithdraw }: ReturnStockCardProps) {
   const theme = useAppTheme();
   const canEdit = OPEN_STATUSES.includes(item.status);
+  const [photoVisible, setPhotoVisible] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   return (
     <Card style={{ marginBottom: 10 }}>
-      <View style={styles.row}>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
-          {item.productName}
-        </Text>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>×{item.qty}</Text>
+      <View style={styles.topRow}>
+        {item.photo && !photoFailed ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Photo for ${item.productName} return`}
+            onPress={() => setPhotoVisible(true)}
+            style={[styles.thumbnail, { borderColor: theme.colors.cardBorder }]}>
+            <Image source={{ uri: item.photo.url }} style={styles.thumbnailImage} resizeMode="cover" onError={() => setPhotoFailed(true)} />
+          </Pressable>
+        ) : null}
+        <View style={styles.topRowText}>
+          <View style={styles.row}>
+            <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
+              {item.productName}
+            </Text>
+            <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>×{item.qty}</Text>
+          </View>
+          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
+            {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
+          </Text>
+          {item.reason ? (
+            <Text style={[theme.typography.bodySmall, { color: theme.colors.text, marginTop: 6 }]} numberOfLines={2}>
+              {item.reason}
+            </Text>
+          ) : null}
+        </View>
       </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-        {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
-      </Text>
-      {item.reason ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.text, marginTop: 6 }]} numberOfLines={2}>
-          {item.reason}
-        </Text>
-      ) : null}
       <View style={[styles.footerRow, { marginTop: 10 }]}>
         <StatusBadge label={STATUS_LABEL[item.status] ?? item.status} variant={STATUS_VARIANT[item.status] ?? 'neutral'} />
         {item.reviewedAt ? (
@@ -65,11 +81,23 @@ export function ReturnStockCard({ item, onChange, onWithdraw }: ReturnStockCardP
           </Pressable>
         </View>
       ) : null}
+
+      <PhotoViewer
+        visible={photoVisible}
+        uri={item.photo?.url ?? null}
+        accessibilityLabel={`Photo for ${item.productName} return`}
+        onClose={() => setPhotoVisible(false)}
+        onImageError={() => setPhotoFailed(true)}
+      />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  topRow: { flexDirection: 'row', gap: 10 },
+  topRowText: { flex: 1, minWidth: 0 },
+  thumbnail: { width: 56, height: 56, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
+  thumbnailImage: { width: '100%', height: '100%' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   actionsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },

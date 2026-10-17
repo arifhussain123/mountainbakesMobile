@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 export interface GlowLayerProps {
   rgb: readonly [number, number, number];
   alpha: number;
-  corner: 'topRight' | 'bottomLeft';
+  corner: 'topRight' | 'bottomLeft' | 'topLeft';
 }
 
 /** `rgb(a)` triple → the same color at zero alpha, for a gradient's transparent end stop. */
@@ -22,13 +22,20 @@ function transparentVariant(rgb: readonly [number, number, number]): string {
  * reuse the exact same warm glow Splash/Login use, just dimmer — see
  * `DrawerContent`'s own glow usage.
  */
+const CORNER_POINTS: Record<GlowLayerProps['corner'], { start: { x: number; y: number }; end: { x: number; y: number } }> = {
+  topRight: { start: { x: 1, y: 0 }, end: { x: 0.15, y: 0.55 } },
+  bottomLeft: { start: { x: 0, y: 1 }, end: { x: 0.6, y: 0.3 } },
+  // Mirror of `topRight` across the vertical axis.
+  topLeft: { start: { x: 0, y: 0 }, end: { x: 0.85, y: 0.55 } },
+};
+
 export function GlowLayer({ rgb, alpha, corner }: GlowLayerProps) {
-  const isTopRight = corner === 'topRight';
+  const { start, end } = CORNER_POINTS[corner];
   return (
     <LinearGradient
       colors={[`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`, transparentVariant(rgb)]}
-      start={isTopRight ? { x: 1, y: 0 } : { x: 0, y: 1 }}
-      end={isTopRight ? { x: 0.15, y: 0.55 } : { x: 0.6, y: 0.3 }}
+      start={start}
+      end={end}
       style={StyleSheet.absoluteFill}
       pointerEvents="none"
     />

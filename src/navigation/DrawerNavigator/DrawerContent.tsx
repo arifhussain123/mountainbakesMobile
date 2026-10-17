@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import type { NavigationState, PartialState } from '@react-navigation/native';
 import { useAppTheme } from '@/shared/theme';
 import { GlowLayer, WARM_GLOW_RGB } from '@/shared/ui';
+import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
+import { Routes } from '../routes';
 import { BranchStrip, DrawerFooter, DrawerHeader, DrawerItem, DrawerSectionLabel, SignOutSheet } from '../components';
-import { computeDrawerRowMetrics, computeHeaderLogoSize } from '../components/drawerLayout';
+import { MENU_CONTENT_HORIZONTAL_PADDING, MENU_CONTENT_WIDTH_RATIO } from '../components/drawerLayout';
+import { MountainWatermark } from '../components/MountainWatermark';
 import { DRAWER_GROUPED, GROUP_LABEL, NAV_ITEMS, isNavItemActive } from '../navItems';
 import { useNavBadges } from '../useNavBadges';
 
@@ -35,25 +37,28 @@ function getFocusedChain(state: AnyNavState | undefined): string[] {
 }
 
 /**
- * `main app shell` — charcoal theme matching the rest of the app (`colors.bg`
- * + a dim warm glow, same family as Splash/Login's), orange active pill,
- * hairline dividers + chevrons between rows, and a compact header/branch
- * strip/footer sized so all 13 items fit without scrolling on a normal
- * phone — see `drawerLayout.ts` for the row-height math.
+ * "3D slide-back" menu — full-screen charcoal background (warm top-left glow
+ * + a diagonal mountain-outline watermark), with the actual header/branch
+ * line/item list/footer constrained to `MENU_CONTENT_WIDTH_RATIO` so nothing
+ * ever sits under the tilted, part-opaque screen card (see
+ * `DrawerScreenCard`, rendered around every screen, not here — this
+ * component only ever renders the menu side).
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const pendingCount = useOfflineQueueStore((s) => s.pendingCount);
   const failedCount = useOfflineQueueStore((s) => s.failedCount);
   const badges = useNavBadges();
+  const openAppearance = useAppearanceSheetStore((s) => s.open);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const focusedChain = getFocusedChain(state);
   const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : 'Branch Manager';
+  const contentWidth = windowWidth * MENU_CONTENT_WIDTH_RATIO;
 
   const handleSignOut = () => {
     setSignOutOpen(false);
@@ -61,69 +66,64 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     void logout();
   };
 
-  const headerLogoSize = computeHeaderLogoSize(windowWidth);
-  const metrics = computeDrawerRowMetrics(windowHeight, insets.top, insets.bottom, NAV_ITEMS.length, headerLogoSize);
   const activeIndex = NAV_ITEMS.findIndex((item) => isNavItemActive(item, focusedChain));
 
   let lastGroup: string | null = null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.18} corner="topRight" />
+      <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.22} corner="topLeft" />
+      <MountainWatermark />
 
-      <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} logoSize={headerLogoSize} />
-      <BranchStrip branchName={user?.branchName ?? 'No branch assigned'} />
+      {__DEV__ ? (
+        <Text style={{ position: 'absolute', top: insets.top, color: 'lime', fontSize: 9, zIndex: 10 }}>
+          chain={JSON.stringify(focusedChain)} activeIndex={activeIndex}
+        </Text>
+      ) : null}
 
-      <View style={{ flex: 1 }}>
-        <ScrollView style={{ flex: 1 }} scrollEnabled={metrics.needsScroll} contentContainerStyle={{ paddingTop: theme.spacing.xs }}>
+      <View style={{ width: contentWidth }}>
+        <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} />
+        <BranchStrip branchName={user?.branchName ?? 'No branch assigned'} />
+        <View style={[styles.headerDivider, { marginHorizontal: MENU_CONTENT_HORIZONTAL_PADDING, backgroundColor: theme.colors.border }]} />
+      </View>
+
+      <View style={{ flex: 1, width: contentWidth }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md }}>
           {NAV_ITEMS.map((item, index) => {
-            const showGroupLabel = DRAWER_GROUPED && item.group !== lastGroup;
+            const showSectionLabel = DRAWER_GROUPED && item.group !== lastGroup;
+            const showDividerAbove = showSectionLabel && lastGroup !== null;
             lastGroup = item.group;
-            const active = index === activeIndex;
-            // No divider directly above or below the active pill — it already
-            // reads as its own self-contained shape without one.
-            const isLast = index === NAV_ITEMS.length - 1;
-            const nextIsActive = index + 1 === activeIndex;
-            const showDividerBelow = !isLast && !active && !nextIsActive;
             return (
               <View key={item.key}>
-                {showGroupLabel ? <DrawerSectionLabel label={GROUP_LABEL[item.group]} /> : null}
+                {showSectionLabel ? <DrawerSectionLabel label={GROUP_LABEL[item.group]} showDividerAbove={showDividerAbove} /> : null}
                 <DrawerItem
                   label={item.label}
                   icon={item.icon}
-                  active={active}
+                  active={index === activeIndex}
                   badgeCount={item.badgeSource ? badges[item.badgeSource] : undefined}
                   onPress={() => item.navigate(navigation)}
-                  rowHeight={metrics.rowHeight}
-                  iconSize={metrics.iconSize}
-                  fontSize={metrics.fontSize}
-                  lineHeight={metrics.lineHeight}
-                  showDividerBelow={showDividerBelow}
                 />
               </View>
             );
           })}
+
+          <DrawerSectionLabel label="Settings" showDividerAbove />
+          <DrawerItem label="Appearance" icon="palette" active={false} onPress={openAppearance} />
+          <DrawerItem label="Logout" icon="logout" active={false} destructive onPress={() => setSignOutOpen(true)} />
         </ScrollView>
-        {/* Only the small-screen/large-font-scale fallback ever actually
-            scrolls (see drawerLayout.ts#needsScroll) — this hints that there's
-            more below without adding permanent visual noise to the common
-            case, where every item already fits. */}
-        {metrics.needsScroll ? (
-          <LinearGradient
-            colors={[`${theme.colors.background}00`, theme.colors.background]}
-            pointerEvents="none"
-            style={styles.scrollFade}
-          />
-        ) : null}
       </View>
 
-      <DrawerFooter
-        name={user?.displayName ?? roleLabel}
-        email={user?.email ?? ''}
-        pendingSyncCount={pendingCount + failedCount}
-        onSignOut={() => setSignOutOpen(true)}
-        insetBottom={insets.bottom}
-      />
+      <View style={{ width: contentWidth }}>
+        <DrawerFooter
+          name={user?.displayName ?? roleLabel}
+          pendingSyncCount={pendingCount + failedCount}
+          onPressProfile={() => {
+            navigation.closeDrawer();
+            navigation.navigate(Routes.PROFILE);
+          }}
+          insetBottom={insets.bottom}
+        />
+      </View>
 
       <SignOutSheet
         visible={signOutOpen}
@@ -138,5 +138,5 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 24 },
+  headerDivider: { height: StyleSheet.hairlineWidth, marginTop: 4 },
 });

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 import { NavBadge } from './NavBadge';
-import { ROW_HORIZONTAL_PADDING, ROW_ICON_LABEL_GAP, ROW_LABEL_MAX_FONT_SCALE } from './drawerLayout';
+import { MENU_CONTENT_HORIZONTAL_PADDING, ROW_HEIGHT, ROW_ICON_LABEL_GAP, ROW_ICON_SIZE, ROW_LABEL_FONT_SIZE, ROW_TILE_RADIUS, ROW_TILE_SIZE } from './drawerLayout';
 
 export interface DrawerItemProps {
   label: string;
@@ -11,86 +11,53 @@ export interface DrawerItemProps {
   badgeCount?: number;
   failedSync?: boolean;
   onPress: () => void;
-  /** From `computeDrawerRowMetrics` — every row in the list shares the same computed size. */
-  rowHeight: number;
-  iconSize: number;
-  fontSize: number;
-  lineHeight: number;
-  /** No divider directly above the active pill — see `DrawerContent`'s render loop. */
-  showDividerBelow: boolean;
+  /** Red tint tile/icon/label — the Logout row only. */
+  destructive?: boolean;
 }
 
 /**
- * One drawer row — orange rounded pill when active (icon/label/chevron flip
- * to the dark background color for contrast, matching `colors.bg`), a
- * hairline divider below every row except the active one, and a trailing
- * chevron.
+ * One drawer row, "3D slide-back" style: a rounded-square icon tile +
+ * label, no per-item divider or trailing chevron (removed per this
+ * redesign — section hairlines do that job now, see `DrawerContent`).
  */
-export function DrawerItem({
-  label,
-  icon,
-  active,
-  badgeCount,
-  failedSync,
-  onPress,
-  rowHeight,
-  iconSize,
-  fontSize,
-  lineHeight,
-  showDividerBelow,
-}: DrawerItemProps) {
+export function DrawerItem({ label, icon, active, badgeCount, failedSync, onPress, destructive }: DrawerItemProps) {
   const theme = useAppTheme();
   const badgeLabel = badgeCount ? `, ${badgeCount} need action` : '';
-  const iconColor = active ? theme.colors.background : theme.colors.textMuted;
-  const textColor = active ? theme.colors.background : theme.colors.text;
+  const tileBg = destructive ? `${theme.colors.danger}1F` : active ? theme.colors.primary : theme.colors.surface;
+  const iconColor = destructive ? theme.colors.danger : active ? theme.colors.background : theme.colors.text;
+  const textColor = destructive ? theme.colors.danger : theme.colors.text;
 
   return (
-    <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ selected: active }}
-        accessibilityLabel={`${label}${badgeLabel}`}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.row,
-          {
-            height: rowHeight,
-            paddingHorizontal: ROW_HORIZONTAL_PADDING,
-            gap: ROW_ICON_LABEL_GAP,
-            marginHorizontal: active ? 8 : 0,
-            borderRadius: active ? theme.radii.md : 0,
-            backgroundColor: active ? theme.colors.primary : pressed ? theme.colors.cardFill : 'transparent',
-          },
-        ]}>
-        <Icon name={icon} size={iconSize} color={iconColor} />
-        <Text
-          style={[styles.label, { color: textColor, fontSize, lineHeight, fontWeight: active ? '700' : '500' }]}
-          numberOfLines={1}
-          allowFontScaling
-          maxFontSizeMultiplier={ROW_LABEL_MAX_FONT_SCALE}>
-          {label}
-        </Text>
-        {failedSync ? <NavBadge count={0} dot /> : badgeCount ? <NavBadge count={badgeCount} /> : null}
-        <Icon name="chevron-right" size={16} color={active ? theme.colors.background : theme.colors.textMuted} />
-      </Pressable>
-      {showDividerBelow ? (
-        <View
-          style={[
-            styles.divider,
-            {
-              marginLeft: ROW_HORIZONTAL_PADDING + iconSize + ROW_ICON_LABEL_GAP,
-              marginRight: ROW_HORIZONTAL_PADDING,
-              backgroundColor: theme.colors.border,
-            },
-          ]}
-        />
-      ) : null}
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${label}${badgeLabel}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          height: ROW_HEIGHT,
+          paddingHorizontal: MENU_CONTENT_HORIZONTAL_PADDING,
+          gap: ROW_ICON_LABEL_GAP,
+          backgroundColor: pressed ? theme.colors.cardFill : 'transparent',
+        },
+      ]}>
+      <View style={[styles.tile, { width: ROW_TILE_SIZE, height: ROW_TILE_SIZE, borderRadius: ROW_TILE_RADIUS, backgroundColor: tileBg }]}>
+        <Icon name={icon} size={ROW_ICON_SIZE} color={iconColor} />
+      </View>
+      <Text
+        style={[styles.label, { color: textColor, fontSize: ROW_LABEL_FONT_SIZE, fontWeight: active ? '700' : '500' }]}
+        numberOfLines={1}
+        ellipsizeMode="tail">
+        {label}
+      </Text>
+      {failedSync ? <NavBadge count={0} dot /> : badgeCount ? <NavBadge count={badgeCount} /> : null}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  label: { flex: 1 },
-  divider: { height: StyleSheet.hairlineWidth },
+  tile: { alignItems: 'center', justifyContent: 'center' },
+  label: { flex: 1, minWidth: 0 },
 });
