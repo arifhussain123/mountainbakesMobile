@@ -83,17 +83,17 @@ export function DailySaleRecordDetailSheet({ record }: DailySaleRecordDetailShee
         <StatusBadge label={STATUS_LABEL[record.status]} variant={STATUS_VARIANT[record.status]} />
       </View>
 
-      <Row label="Total Sale" value={formatCurrency(record.autoTotalSale)} explanation="Cash + Easypaisa + Foodpanda + Bank." />
-      <Row
-        label="Company Share"
-        value={formatCurrency(record.companyShare)}
-        explanation={`Total Sale × ${record.companySharePct}% — this branch's configured company share.`}
-      />
       <Row
         label="Branch Share"
         value={formatCurrency(record.branchShare)}
         explanation={`Total Sale × ${record.branchSharePct}% — Admin's configured branch share.`}
         success
+      />
+      <Row label="Total Sale" value={formatCurrency(record.autoTotalSale)} explanation="Cash + Easypaisa + Foodpanda + Bank." />
+      <Row
+        label="Company Share"
+        value={formatCurrency(record.companyShare)}
+        explanation={`Total Sale × ${record.companySharePct}% — this branch's configured company share.`}
       />
       <Row
         label="Cash on Table"

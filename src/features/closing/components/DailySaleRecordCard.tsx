@@ -67,6 +67,14 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
         </View>
         {!notGenerated ? <StatusBadge label={STATUS_LABEL[record.status]} variant={STATUS_VARIANT[record.status]} /> : null}
       </View>
+      <View style={[styles.row, { marginTop: 4, justifyContent: 'flex-end' }]}>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>BRANCH SHARE</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 2, fontWeight: '700' }]}>
+            {formatCurrency(record.branchShare)}
+          </Text>
+        </View>
+      </View>
       <View style={[styles.row, { marginTop: 10 }]}>
         <View>
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>TOTAL SALE</Text>
@@ -78,14 +86,6 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>COMPANY SHARE</Text>
           <Text style={[theme.typography.body, { color: theme.colors.danger, marginTop: 2, fontWeight: '700' }]}>
             {formatCurrency(record.companyShare)}
-          </Text>
-        </View>
-      </View>
-      <View style={[styles.row, { marginTop: 4, justifyContent: 'flex-end' }]}>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>BRANCH SHARE</Text>
-          <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 2, fontWeight: '700' }]}>
-            {formatCurrency(record.branchShare)}
           </Text>
         </View>
       </View>
