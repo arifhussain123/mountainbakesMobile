@@ -314,12 +314,18 @@ export function HomeDashboardScreen() {
 
             {/* ── Stock History 7 Days (design lines 189-201) ── */}
             <SectionHeading text="Stock History" accent="7 Days" />
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
+            <Text
+              style={[
+                theme.typography.bodySmall,
+                { color: theme.colors.textSecondary, marginTop: theme.spacing.sm, marginBottom: theme.spacing.sm },
+              ]}>
               Sold is valued at current prices, not the till total.
             </Text>
             <View style={styles.section}>
               {data.stockHistory.rows.length > 0 ? (
-                <StockHistoryList rows={[...data.stockHistory.rows].reverse()} />
+                // Newest first (today at the top), regardless of what order the server returns —
+                // sorted explicitly by date rather than assuming/flipping a particular server order.
+                <StockHistoryList rows={[...data.stockHistory.rows].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))} />
               ) : (
                 <EmptyState title="No Stock History" message="Stock movements for the last 7 days will appear here." />
               )}

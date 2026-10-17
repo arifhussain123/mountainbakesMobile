@@ -6,7 +6,6 @@ export interface StockCheckState {
   businessDate: string | null;
   /** productId -> raw count input text. A product with no entry here is "not counted" — never stored as "". */
   counts: Record<string, string>;
-  blindMode: boolean;
   loaded: boolean;
   /**
    * Loads (or starts fresh for) `branchId`+`businessDate` — the scope a draft
@@ -16,7 +15,6 @@ export interface StockCheckState {
    */
   load: (branchId: string, businessDate: string) => Promise<void>;
   setCount: (productId: string, text: string) => void;
-  setBlindMode: (blindMode: boolean) => void;
   /** Clears both the in-memory state and the persisted draft for the current scope. */
   clear: () => Promise<void>;
 }
@@ -33,7 +31,6 @@ export function createStockCheckStore(storage: StockCheckStorage): UseBoundStore
     branchId: null,
     businessDate: null,
     counts: {},
-    blindMode: false,
     loaded: false,
 
     load: async (branchId, businessDate) => {
@@ -43,26 +40,18 @@ export function createStockCheckStore(storage: StockCheckStorage): UseBoundStore
         branchId,
         businessDate,
         counts: draft?.counts ?? {},
-        blindMode: draft?.blindMode ?? false,
         loaded: true,
       });
     },
 
     setCount: (productId, text) => {
-      const { branchId, businessDate, counts, blindMode } = get();
+      const { branchId, businessDate, counts } = get();
       if (!branchId || !businessDate) return;
       const nextCounts = { ...counts };
       if (text.trim() === '') delete nextCounts[productId];
       else nextCounts[productId] = text;
       set({ counts: nextCounts });
-      void storage.set({ branchId, businessDate, counts: nextCounts, blindMode, updatedAt: Date.now() });
-    },
-
-    setBlindMode: (blindMode) => {
-      const { branchId, businessDate, counts } = get();
-      set({ blindMode });
-      if (!branchId || !businessDate) return;
-      void storage.set({ branchId, businessDate, counts, blindMode, updatedAt: Date.now() });
+      void storage.set({ branchId, businessDate, counts: nextCounts, updatedAt: Date.now() });
     },
 
     clear: async () => {

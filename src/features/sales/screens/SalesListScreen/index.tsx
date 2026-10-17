@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { format, parseISO, subDays } from 'date-fns';
 import { exportSalesCsv, getBusinessDate, getBusinessDayBounds, useOrders, useSalesData } from '@/api';
-import { Routes, openDrawer, type SalesStackParamList } from '@/navigation';
+import { Routes, openDrawer, useTabBarHeight, type SalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue } from '@/shared/hooks';
 import { ErrorState, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
@@ -29,6 +29,7 @@ const SORT_DIRECTION: Record<SortField, 'asc' | 'desc'> = {
 
 export function SalesListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<SalesStackParamList>>();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -79,7 +80,7 @@ export function SalesListScreen() {
       <FlatList
         data={rows}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
           if (salesData.hasNextPage && !salesData.isFetchingNextPage) void salesData.fetchNextPage();

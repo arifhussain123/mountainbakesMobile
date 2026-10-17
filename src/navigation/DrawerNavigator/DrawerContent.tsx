@@ -8,7 +8,7 @@ import { useAppTheme } from '@/shared/theme';
 import { GlowLayer, WARM_GLOW_RGB } from '@/shared/ui';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
 import { BranchStrip, DrawerFooter, DrawerHeader, DrawerItem, DrawerSectionLabel, SignOutSheet } from '../components';
-import { computeDrawerRowMetrics } from '../components/drawerLayout';
+import { computeDrawerRowMetrics, computeHeaderLogoSize } from '../components/drawerLayout';
 import { DRAWER_GROUPED, GROUP_LABEL, NAV_ITEMS, isNavItemActive } from '../navItems';
 import { useNavBadges } from '../useNavBadges';
 
@@ -44,7 +44,7 @@ function getFocusedChain(state: AnyNavState | undefined): string[] {
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const pendingCount = useOfflineQueueStore((s) => s.pendingCount);
@@ -61,7 +61,8 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     void logout();
   };
 
-  const metrics = computeDrawerRowMetrics(windowHeight, insets.top, insets.bottom, NAV_ITEMS.length);
+  const headerLogoSize = computeHeaderLogoSize(windowWidth);
+  const metrics = computeDrawerRowMetrics(windowHeight, insets.top, insets.bottom, NAV_ITEMS.length, headerLogoSize);
   const activeIndex = NAV_ITEMS.findIndex((item) => isNavItemActive(item, focusedChain));
 
   let lastGroup: string | null = null;
@@ -70,7 +71,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.18} corner="topRight" />
 
-      <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} />
+      <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} logoSize={headerLogoSize} />
       <BranchStrip branchName={user?.branchName ?? 'No branch assigned'} />
 
       <View style={{ flex: 1 }}>

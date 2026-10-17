@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { AccessibilityInfo, BackHandler, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { Routes, type AuthStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
+import { useAppTheme, useResponsive } from '@/shared/theme';
 import { PillButton, Screen } from '@/shared/ui';
 import { OnboardingSlide } from './components/OnboardingSlide';
 import { PagerDots } from './components/PagerDots';
@@ -13,7 +13,6 @@ import { ONBOARDING_SLIDES, type OnboardingSlideContent } from './onboardingCont
 
 export const ONBOARDING_SEEN_KEY = 'mountainbakes.onboardingSeen';
 
-const SLIDE_WIDTH = Dimensions.get('window').width;
 const SLIDE_COUNT = ONBOARDING_SLIDES.length;
 
 /**
@@ -24,6 +23,10 @@ const SLIDE_COUNT = ONBOARDING_SLIDES.length;
 export function OnboardingScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const { contentWidth, sh, clamp } = useResponsive();
+  // Capped to 480 and centered on a tablet (per the Onboarding/Login
+  // responsive spec); on a phone this is just the device width.
+  const SLIDE_WIDTH = contentWidth();
   const [index, setIndex] = useState(0);
   const listRef = useRef<Animated.FlatList<OnboardingSlideContent>>(null);
   const scrollProgress = useSharedValue(0);
@@ -47,7 +50,7 @@ export function OnboardingScreen() {
       setIndex(nextIndex);
       announcePage(nextIndex);
     },
-    [announcePage],
+    [announcePage, SLIDE_WIDTH],
   );
 
   const handleNext = useCallback(() => {
@@ -61,7 +64,7 @@ export function OnboardingScreen() {
       setIndex(nextIndex);
       announcePage(nextIndex);
     },
-    [announcePage],
+    [announcePage, SLIDE_WIDTH],
   );
 
   useFocusEffect(
@@ -79,6 +82,8 @@ export function OnboardingScreen() {
 
   const currentSlide = ONBOARDING_SLIDES[index];
 
+  const buttonHeight = clamp(48, sh(54), 58);
+
   return (
     <Screen glow="warm" contentStyle={styles.container}>
       <Animated.FlatList
@@ -95,11 +100,12 @@ export function OnboardingScreen() {
         renderItem={({ item, index: slideIndex }) => (
           <OnboardingSlide content={item} width={SLIDE_WIDTH} active={slideIndex === index} />
         )}
-        style={styles.list}
+        style={[styles.list, { width: SLIDE_WIDTH, alignSelf: 'center' }]}
       />
 
-      <View style={styles.footer}>
-        <PillButton label={currentSlide.cta} onPress={handleNext} showArrow testID="onboarding-next" />
+      {/* `insetBottom` is already applied by `Screen`'s SafeAreaView as padding — this adds the extra 16dp gap above it the spec calls for. */}
+      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: sh(16) }]}>
+        <PillButton label={currentSlide.cta} onPress={handleNext} showArrow testID="onboarding-next" height={buttonHeight} />
 
         <View style={styles.pagerRow} accessibilityLabel={`Page ${index + 1} of ${SLIDE_COUNT}`}>
           <PagerDots count={SLIDE_COUNT} scrollProgress={scrollProgress} />

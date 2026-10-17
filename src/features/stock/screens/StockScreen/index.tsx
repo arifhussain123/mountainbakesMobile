@@ -7,7 +7,7 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate } from '@/api';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
-import { Routes, openDrawer, type StockStackParamList } from '@/navigation';
+import { Routes, openDrawer, useTabBarHeight, type StockStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PillButton, Screen, SearchBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
@@ -64,6 +64,7 @@ function sortRows(rows: StockRowWithDemand[], key: StockSortKey): StockRowWithDe
 
 export function StockScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<StockStackParamList>>();
   const infoSheetRef = useRef<BottomSheetModal>(null);
   const sortSheetRef = useRef<BottomSheetModal>(null);
@@ -174,7 +175,7 @@ export function StockScreen() {
       <FlatList
         data={sorted}
         keyExtractor={(item) => item.productId}
-        contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg }}
+        contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View style={{ marginBottom: theme.spacing.md }}>
             <StockSummaryStrip totals={totals} showDemand={isToday} />

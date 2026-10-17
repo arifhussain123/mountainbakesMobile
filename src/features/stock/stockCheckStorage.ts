@@ -5,7 +5,6 @@ export interface StockCheckDraft {
   businessDate: string;
   /** productId -> raw count input text, exactly as typed (empty string never stored — see `stockCheckStore.ts`). */
   counts: Record<string, string>;
-  blindMode: boolean;
   updatedAt: number;
 }
 
@@ -20,7 +19,6 @@ interface StockCheckDraftRow {
   branch_id: string;
   business_date: string;
   counts_json: string;
-  blind_mode: number;
   updated_at: number;
 }
 
@@ -29,12 +27,18 @@ function rowToDraft(row: StockCheckDraftRow): StockCheckDraft {
     branchId: row.branch_id,
     businessDate: row.business_date,
     counts: JSON.parse(row.counts_json),
-    blindMode: row.blind_mode === 1,
     updatedAt: row.updated_at,
   };
 }
 
-/** The real, on-device implementation — op-sqlite, the same app-wide offline DB `response_cache`/`write_queue` already share. */
+/**
+ * The real, on-device implementation — op-sqlite, the same app-wide offline DB
+ * `response_cache`/`write_queue` already share. `blind_mode` is still a
+ * NOT NULL column on the existing `stock_check_drafts` table (blind-count
+ * mode was removed from the product, but the column stays to avoid an
+ * ALTER TABLE migration for a purely local, non-synced draft table) — this
+ * layer always writes `0` for it and never reads it back.
+ */
 export function createSqliteStockCheckStorage(): StockCheckStorage {
   return {
     async get(branchId, businessDate) {
@@ -47,10 +51,10 @@ export function createSqliteStockCheckStorage(): StockCheckStorage {
       const db = getOfflineDb();
       await db.execute(
         `INSERT INTO stock_check_drafts (branch_id, business_date, counts_json, blind_mode, updated_at)
-         VALUES (?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, 0, ?)
          ON CONFLICT(branch_id, business_date) DO UPDATE SET
-           counts_json = excluded.counts_json, blind_mode = excluded.blind_mode, updated_at = excluded.updated_at`,
-        [draft.branchId, draft.businessDate, JSON.stringify(draft.counts), draft.blindMode ? 1 : 0, draft.updatedAt],
+           counts_json = excluded.counts_json, updated_at = excluded.updated_at`,
+        [draft.branchId, draft.businessDate, JSON.stringify(draft.counts), draft.updatedAt],
       );
     },
     async clear(branchId, businessDate) {

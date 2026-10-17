@@ -13,6 +13,8 @@ export interface PillButtonProps {
   disabled?: boolean;
   testID?: string;
   accessibilityLabel?: string;
+  /** Overrides the pill's fixed 52dp height — Login/Onboarding compute this from `useResponsive()` so the button scales with usable height on short screens. */
+  height?: number;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface PillButtonProps {
  * shape mountainbakesBranch.html's onboarding/login screens use, distinct from
  * `PrimaryButton`'s plain rounded-rect (kept as-is for every other screen).
  */
-export function PillButton({ label, onPress, showArrow, loading, disabled, testID, accessibilityLabel }: PillButtonProps) {
+export function PillButton({ label, onPress, showArrow, loading, disabled, testID, accessibilityLabel, height }: PillButtonProps) {
   const theme = useAppTheme();
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
@@ -51,7 +53,11 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={isDisabled ? undefined : handlePress}
-        style={[styles.base, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.pill, opacity: isDisabled ? 0.5 : 1 }]}>
+        style={[
+          styles.base,
+          { backgroundColor: theme.colors.primary, borderRadius: theme.radii.pill, opacity: isDisabled ? 0.5 : 1 },
+          height !== undefined ? { height } : null,
+        ]}>
         {loading ? (
           <ActivityIndicator color={theme.colors.primaryText} />
         ) : (

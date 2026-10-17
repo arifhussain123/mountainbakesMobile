@@ -22,6 +22,16 @@ const Tab = createBottomTabNavigator<BottomTabParamList>();
  * (never-rendered) `Tab.Screen` so React Navigation keeps a route/state slot
  * for it; its `tabPress` is intercepted the same way as before so it never
  * actually navigates to `NoopScreen`.
+ *
+ * `NotchTabBar` renders itself as a `position: 'absolute'` full-bleed overlay
+ * (flush to all three screen edges, its own background filling the area
+ * behind the system nav bar/home indicator) rather than a normal flex sibling
+ * that reserves its own space in this Navigator's layout — that's what makes
+ * edge-to-edge full-width possible, since no fixed-size flex slot has to be
+ * carved out for it first. The consequence: a tab-root screen's own
+ * scrollable content is NOT automatically kept clear of the bar the way it
+ * would be with a normal (non-floating) tab bar — each one pads its own
+ * scrollable content with `useTabBarHeight()` (see `tabBar/useTabBarHeight`).
  */
 export function BottomTabNavigator() {
   return (

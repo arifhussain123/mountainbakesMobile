@@ -43,7 +43,13 @@ export function useManualFeedForm(businessDate: string, record: DailySaleRecord 
   const inputs: Record<ManualFeedChannel, string> = { cash: cashInput, easypaisa: easypaisaInput, bank: bankInput };
   const setters: Record<ManualFeedChannel, (v: string) => void> = { cash: setCashInput, easypaisa: setEasypaisaInput, bank: setBankInput };
   const autoValues: Record<ManualFeedChannel, number> = {
-    cash: record?.autoCash ?? 0,
+    // Cash is the one channel netted against expenses server-side — the
+    // counted amount belongs in the drawer, so it must be compared against
+    // Cash on Table, not gross auto_cash (which still has the day's cash
+    // expenses sitting in it). Comparing against gross would make any day
+    // with a real cash expense register a false "large difference" nudge
+    // while still typing. Easypaisa/Bank have no such netting.
+    cash: record?.expectedCashInHand ?? 0,
     easypaisa: record?.autoEasypaisa ?? 0,
     bank: record?.autoBank ?? 0,
   };

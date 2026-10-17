@@ -7,7 +7,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { images } from '@/assets';
 import { Routes, type AuthStackParamList } from '@/navigation';
 import { useNetworkStatus } from '@/shared/hooks';
-import { useAppTheme } from '@/shared/theme';
+import { useAppTheme, useResponsive } from '@/shared/theme';
 import { Checkbox, Icon, PasswordField, PillButton, Screen, TextField } from '@/shared/ui';
 import { useAuthStore } from '@/state';
 import { loginSchema, type LoginFormValues } from '../../loginSchema';
@@ -21,6 +21,12 @@ export function LoginScreen() {
   const rememberedEmail = useAuthStore((state) => state.rememberedEmail);
   const { isOffline } = useNetworkStatus();
   const loginMutation = useLogin();
+  const { width, sh, ms, clamp, contentWidth } = useResponsive();
+  const logoSize = clamp(48, width * 0.14, 64);
+  const fieldHeight = clamp(48, sh(52), 56);
+  const buttonHeight = clamp(48, sh(54), 58);
+  const maxWidth = contentWidth(420);
+  const headlineSize = clamp(26, ms(32), 40);
 
   const [rememberMe, setRememberMe] = useState(true);
   const [bannerError, setBannerError] = useState<string | null>(null);
@@ -59,92 +65,98 @@ export function LoginScreen() {
     <Screen glow="warm">
       <Pressable style={styles.flex} onPress={Keyboard.dismiss} accessible={false}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.xl }]} keyboardShouldPersistTaps="handled">
-            <Image source={images.logo} style={styles.logo} />
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.xl }]}
+            keyboardShouldPersistTaps="handled">
+            <View style={{ width: '100%', maxWidth, alignSelf: 'center' }}>
+              <Image source={images.logo} style={[styles.logo, { width: logoSize, height: logoSize, borderRadius: logoSize / 2 }]} />
 
-            <Text
-              accessibilityRole="header"
-              style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text, fontSize: 32, lineHeight: 36 }]}>
-              WELCOME{'\n'}
-              <Text style={{ color: theme.colors.primary }}>BACK</Text>
-            </Text>
-            <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Sign in to open your branch.
-            </Text>
+              <Text
+                accessibilityRole="header"
+                style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text, fontSize: headlineSize, lineHeight: headlineSize * 1.125 }]}>
+                WELCOME{'\n'}
+                <Text style={{ color: theme.colors.primary }}>BACK</Text>
+              </Text>
+              <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textSecondary, fontSize: clamp(13, ms(15), 16) }]}>
+                Sign in to open your branch.
+              </Text>
 
-            <Controller
-              control={control}
-              name="email"
-              render={({ field }) => (
-                <TextField
-                  label="Email"
-                  required
-                  error={errors.email?.message}
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  placeholder="you@mountainbakes.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="username"
-                  returnKeyType="next"
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  testID="login-email"
-                />
-              )}
-            />
+              <Controller
+                control={control}
+                name="email"
+                render={({ field }) => (
+                  <TextField
+                    label="Email"
+                    required
+                    error={errors.email?.message}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="you@mountainbakes.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    textContentType="username"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    height={fieldHeight}
+                    testID="login-email"
+                  />
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="password"
-              render={({ field }) => (
-                <PasswordField
-                  label="Password"
-                  required
-                  error={errors.password?.message}
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  inputRef={passwordRef}
-                  placeholder="••••••••"
-                  textContentType="password"
-                  returnKeyType="go"
-                  onSubmitEditing={() => void onSubmit()}
-                  testID="login-password"
-                />
-              )}
-            />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field }) => (
+                  <PasswordField
+                    label="Password"
+                    required
+                    error={errors.password?.message}
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    inputRef={passwordRef}
+                    placeholder="••••••••"
+                    textContentType="password"
+                    returnKeyType="go"
+                    onSubmitEditing={() => void onSubmit()}
+                    height={fieldHeight}
+                    testID="login-password"
+                  />
+                )}
+              />
 
-            <View style={styles.rememberRow}>
-              <Checkbox checked={rememberMe} onChange={setRememberMe} accessibilityLabel="Remember me" testID="login-remember-me" />
-              <View style={styles.rememberTextCol}>
-                <View style={styles.rememberHeaderRow}>
-                  <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '600' }]}>Remember me</Text>
-                  <Pressable accessibilityRole="link" onPress={() => navigation.navigate(Routes.FORGOT_PASSWORD)}>
-                    <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Forgot password?</Text>
+              <View style={styles.rememberRow}>
+                <Checkbox checked={rememberMe} onChange={setRememberMe} accessibilityLabel="Remember me" testID="login-remember-me" />
+                <View style={styles.rememberTextCol}>
+                  <View style={styles.rememberHeaderRow}>
+                    <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '600' }]}>Remember me</Text>
+                    <Pressable accessibilityRole="link" onPress={() => navigation.navigate(Routes.FORGOT_PASSWORD)}>
+                      <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Forgot password?</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
+                    Fills in your email next time. Your password is never saved.
+                  </Text>
+                </View>
+              </View>
+
+              {bannerError ? (
+                <View style={[styles.banner, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.danger }]}>
+                  <Text accessibilityLiveRegion="assertive" style={[theme.typography.bodySmall, styles.bannerText, { color: theme.colors.danger }]}>
+                    {bannerError}
+                  </Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setBannerError(null)}>
+                    <Icon name="close" size={16} color={theme.colors.danger} />
                   </Pressable>
                 </View>
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
-                  Fills in your email next time. Your password is never saved.
-                </Text>
-              </View>
-            </View>
+              ) : null}
 
-            {bannerError ? (
-              <View style={[styles.banner, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.danger }]}>
-                <Text accessibilityLiveRegion="assertive" style={[theme.typography.bodySmall, styles.bannerText, { color: theme.colors.danger }]}>
-                  {bannerError}
-                </Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setBannerError(null)}>
-                  <Icon name="close" size={16} color={theme.colors.danger} />
-                </Pressable>
+              <View style={{ marginTop: theme.spacing.xl }}>
+                <PillButton label="Sign In" onPress={() => void onSubmit()} loading={busy} disabled={busy} showArrow height={buttonHeight} testID="login-submit" />
               </View>
-            ) : null}
-
-            <View style={{ marginTop: theme.spacing.xl }}>
-              <PillButton label="Sign In" onPress={() => void onSubmit()} loading={busy} disabled={busy} showArrow testID="login-submit" />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

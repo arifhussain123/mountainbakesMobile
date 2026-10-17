@@ -1,24 +1,70 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBusinessDate, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
-import { openDrawer } from '@/navigation';
+import { getCachedResponse, setCachedResponse } from '@/shared/offline';
+import { openDrawer, Routes, type ClosingStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { Card, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import {
+  AppHeader,
+  Card,
+  DateRangeSheet,
+  EmptyState,
+  ErrorState,
+  FilterChipRow,
+  FormBottomSheet,
+  Icon,
+  LoadingSkeleton,
+  PillButton,
+  Screen,
+  SearchBar,
+  type FilterChipOption,
+} from '@/shared/ui';
+import { formatCurrency, formatDisplayTime, type DateRange } from '@/shared/utils';
+import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { DailySaleDifferenceCard, DailySaleHeroCard, DailySaleRecordCard, DailySaleRecordDetailSheet, formatDifferenceAmount } from '../../components';
+import {
+  DailySaleDifferenceCard,
+  DailySaleHeroCard,
+  DailySaleRecordCard,
+  DailySaleSortSheet,
+  DAILY_SALE_SORT_DIRECTION,
+  formatDifferenceAmount,
+  type DailySaleSortField,
+} from '../../components';
 import { ManualFeedSheetContent } from '../ManualFeedScreen';
-import { RequiredDateField } from '@/features/orders/components/RequiredDateField';
 import { styles } from './styles';
-import type { DailySaleRecord } from '@/api';
+import type { DailySaleRecord, DailySaleRecordStatus } from '@/api';
 
-type DiffFilter = 'all' | 'over' | 'short' | 'matched';
+type StatusFilter = 'all' | 'open' | 'pending_verification' | 'verified';
+type QuickFilter = 'all' | 'hasDifference' | 'notCounted';
+
+interface DailySaleCachePayload {
+  records: DailySaleRecord[];
+}
 
 /** A record exists and has at least one counted channel — Foodpanda is never counted, so it's deliberately excluded from this check. */
 function hasCount(r: DailySaleRecord): boolean {
   return r.id !== null && (r.manualCash !== null || r.manualEasypaisa !== null || r.manualBank !== null);
 }
+
+/** "Verified" groups every post-review state (verified/locked/amended) — a branch doesn't need to distinguish those three, only "still mine to act on" vs "done". */
+function matchesStatusFilter(r: DailySaleRecord, filter: StatusFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'verified') return r.status === 'verified' || r.status === 'locked' || r.status === 'amended';
+  return r.status === filter;
+}
+
+const STATUS_RANK: Record<DailySaleRecordStatus, number> = { open: 0, pending_verification: 1, verified: 2, locked: 3, amended: 4 };
+
+const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'pending_verification', label: 'Pending Verification' },
+  { value: 'verified', label: 'Verified' },
+];
 
 const TILE_DOTS = ['#FF6B35', '#34C38A', '#5A8DEE', '#F5B800', '#FF5A5F', '#8A7A6D'];
 
@@ -46,41 +92,76 @@ function formatRangeLabel(from: string, to: string): string {
 /** branchApp.md screen 21 — Daily Sale Record: takings against what was physically counted. */
 export function DailySaleRecordListScreen() {
   const theme = useAppTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<ClosingStackParamList>>();
   const manualFeedSheetRef = useRef<BottomSheetModal>(null);
-  const detailSheetRef = useRef<BottomSheetModal>(null);
+  const dateRangeSheetRef = useRef<BottomSheetModal>(null);
+  const sortSheetRef = useRef<BottomSheetModal>(null);
   const [generatingDate, setGeneratingDate] = useState<string | null>(null);
   const [manualFeedDate, setManualFeedDate] = useState<string | null>(null);
-  const [detailDate, setDetailDate] = useState<string | null>(null);
-  const [diffFilter, setDiffFilter] = useState<DiffFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
+  const [sortField, setSortField] = useState<DailySaleSortField>('date');
 
-  // Defaults mirror the backend's own "last 30 business days ending today" window
-  // (dailySaleService.ts) until the first response tells us the server's actual bounds.
-  const [from, setFrom] = useState(() => shiftDate(getBusinessDate(), -29));
-  const [to, setTo] = useState(() => getBusinessDate());
+  const today = getBusinessDate();
+  // Defaults mirror the backend's own "last 30 business days ending today" window (dailySaleService.ts).
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: shiftDate(today, -29), to: today }));
 
-  const { data, isLoading, error, refetch, isRefetching } = useDailySaleRecords({ from, to });
+  const { data, isLoading, error, refetch, isRefetching } = useDailySaleRecords({ from: dateRange.from, to: dateRange.to });
   const generate = useGenerateDailySaleRecord();
   const verify = useVerifyDailySaleRecord();
 
-  const records = useMemo(() => data?.records ?? [], [data]);
+  const rawRecords = useMemo(() => data?.records ?? [], [data]);
+
+  const cacheKey = `dailySale:${dateRange.from}:${dateRange.to}`;
+  const [cached, setCached] = useState<{ data: DailySaleCachePayload; updatedAt: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getCachedResponse<DailySaleCachePayload>(cacheKey).then((result) => {
+      if (!cancelled) setCached(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (rawRecords.length > 0) void setCachedResponse(cacheKey, { records: rawRecords });
+  }, [cacheKey, rawRecords]);
+
+  const showingCache = rawRecords.length === 0 && !isLoading && !!cached;
+  const records = useMemo(() => (rawRecords.length > 0 ? rawRecords : showingCache ? cached!.data.records : []), [rawRecords, showingCache, cached]);
 
   const counts = useMemo(() => {
     const counted = records.filter(hasCount);
     return {
       all: records.length,
-      over: counted.filter((r) => r.overallDifference > 0).length,
-      short: counted.filter((r) => r.overallDifference < 0).length,
-      matched: counted.filter((r) => r.overallDifference === 0).length,
+      hasDifference: counted.filter((r) => r.overallDifference !== 0).length,
+      notCounted: records.filter((r) => !hasCount(r)).length,
     };
   }, [records]);
 
   const filteredRecords = useMemo(() => {
-    if (diffFilter === 'all') return records;
-    const counted = records.filter(hasCount);
-    if (diffFilter === 'over') return counted.filter((r) => r.overallDifference > 0);
-    if (diffFilter === 'short') return counted.filter((r) => r.overallDifference < 0);
-    return counted.filter((r) => r.overallDifference === 0);
-  }, [records, diffFilter]);
+    const term = debouncedSearch.trim().toLowerCase();
+    let result = records.filter((r) => matchesStatusFilter(r, statusFilter));
+    if (quickFilter === 'hasDifference') result = result.filter((r) => hasCount(r) && r.overallDifference !== 0);
+    if (quickFilter === 'notCounted') result = result.filter((r) => !hasCount(r));
+    if (term) {
+      result = result.filter((r) => r.businessDate.includes(term) || r.status.replace('_', ' ').includes(term));
+    }
+
+    const dir = DAILY_SALE_SORT_DIRECTION[sortField] === 'asc' ? 1 : -1;
+    return [...result].sort((a, b) => {
+      let diff = 0;
+      if (sortField === 'date') diff = a.businessDate < b.businessDate ? -1 : a.businessDate > b.businessDate ? 1 : 0;
+      else if (sortField === 'totalSale') diff = a.autoTotalSale - b.autoTotalSale;
+      else if (sortField === 'difference') diff = a.overallDifference - b.overallDifference;
+      else diff = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+      return diff * dir;
+    });
+  }, [records, statusFilter, quickFilter, debouncedSearch, sortField]);
 
   const aggregates = useMemo(
     () =>
@@ -113,60 +194,49 @@ export function DailySaleRecordListScreen() {
     manualFeedSheetRef.current?.present();
   };
 
-  const openDetail = (businessDate: string) => {
-    setDetailDate(businessDate);
-    detailSheetRef.current?.present();
+  const openOverflowMenu = () => {
+    Alert.alert('More actions', undefined, [
+      { text: `Generate Today (${today})`, onPress: () => handleGenerate(today) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const summary = data?.summary;
-  const rangeFrom = data?.from ?? from;
-  const rangeTo = data?.to ?? to;
+  const rangeFrom = data?.from ?? dateRange.from;
+  const rangeTo = data?.to ?? dateRange.to;
+  const dateRangeLabel = dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} to ${dateRange.to}`;
 
-  const filterChips: { key: DiffFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: counts.all },
-    { key: 'over', label: 'Over', count: counts.over },
-    { key: 'short', label: 'Short', count: counts.short },
-    { key: 'matched', label: 'Matched', count: counts.matched },
+  const quickFilterOptions: FilterChipOption<QuickFilter>[] = [
+    { value: 'all', label: 'All', count: counts.all },
+    { value: 'hasDifference', label: 'Has difference', count: counts.hasDifference },
+    { value: 'notCounted', label: 'Not counted', count: counts.notCounted },
   ];
 
   return (
     <Screen>
-      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md }}>
-        <View style={styles.headerActionsRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open menu"
-            onPress={openDrawer}
-            style={[styles.headerPill, { backgroundColor: theme.colors.border, borderRadius: theme.radii.md }]}>
-            <Icon name="menu" size={14} color={theme.colors.text} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => handleGenerate(getBusinessDate())}
-            disabled={generatingDate === getBusinessDate()}
-            style={[styles.headerPill, { backgroundColor: theme.colors.border, borderRadius: theme.radii.md }]}>
-            <Icon name="refresh" size={14} color={theme.colors.text} />
-            <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>
-              {generatingDate === getBusinessDate() ? 'Generating…' : 'Generate Today'}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => openManualFeed(getBusinessDate())}
-            style={[styles.headerPill, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.md }]}>
-            <Icon name="plus" size={14} color={theme.colors.primaryText} />
-            <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700' }]}>Manual Feed</Text>
-          </Pressable>
-        </View>
+      <AppHeader
+        title="Daily Sale Record"
+        subtitle="Committee Chowk Branch · takings vs what was counted"
+        actions={[
+          { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
+          { icon: 'more', onPress: openOverflowMenu, accessibilityLabel: 'More actions' },
+        ]}
+      />
 
-        <View style={styles.titleBlock}>
-          <Text style={[theme.typography.screenTitle, { color: theme.colors.text, fontSize: 26, textTransform: 'uppercase' }]}>
-            Daily Sale <Text style={{ color: theme.colors.primary }}>Record</Text>
-          </Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 6 }]}>
-            The day's takings against what was physically counted. Sales and expenses are never changed by this screen.
-          </Text>
+      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
+        <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint }]}>
+          Sales and expenses are never changed by this screen.
+        </Text>
+        <View style={{ marginTop: 10 }}>
+          <PillButton label="Count today" onPress={() => openManualFeed(today)} showArrow />
         </View>
+        {showingCache ? (
+          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, marginTop: 10 }]}>
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+              Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <FlatList
@@ -176,7 +246,7 @@ export function DailySaleRecordListScreen() {
         ListHeaderComponent={
           <View>
             {isLoading ? <LoadingSkeleton height={100} /> : null}
-            {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
+            {error && !showingCache ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
 
             {summary ? (
               <>
@@ -184,8 +254,8 @@ export function DailySaleRecordListScreen() {
                   <DailySaleHeroCard
                     rangeLabel={formatRangeLabel(rangeFrom, rangeTo)}
                     totalSale={summary.totalSale}
-                    companyShare={summary.totalSale - summary.cash - summary.easypaisa - summary.foodpanda - summary.bank}
-                    cashOnTable={summary.cash}
+                    companyShare={aggregates.companyShare}
+                    cashOnTable={aggregates.cashOnTable}
                   />
                 </View>
 
@@ -218,6 +288,7 @@ export function DailySaleRecordListScreen() {
                 <View style={{ marginTop: theme.spacing.sm }}>
                   <DailySaleDifferenceCard difference={summary.difference} />
                 </View>
+                <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>Counted days only.</Text>
 
                 <View style={{ marginTop: theme.spacing.sm, gap: 8 }}>
                   {summary.uncounted > 0 ? (
@@ -227,72 +298,68 @@ export function DailySaleRecordListScreen() {
                         { backgroundColor: `${theme.colors.warning}17`, borderColor: `${theme.colors.warning}48`, borderRadius: theme.radii.md, padding: 11 },
                       ]}>
                       <Icon name="warning" size={15} color={theme.colors.warning} />
-                      <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]}>
-                        {summary.uncounted} day{summary.uncounted === 1 ? ' has' : 's have'} nothing counted yet, so the Difference card covers only
-                        the days that do.
-                      </Text>
+                      <Pressable onPress={() => setQuickFilter('notCounted')} style={{ flex: 1 }}>
+                        <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]}>
+                          {summary.uncounted} day{summary.uncounted === 1 ? ' has' : 's have'} nothing counted yet, so the Difference covers only
+                          the days that do.
+                        </Text>
+                      </Pressable>
                     </View>
                   ) : null}
                   {summary.difference !== 0 ? (
                     <View
                       style={[
                         styles.banner,
-                        { backgroundColor: `${theme.colors.warning}17`, borderColor: `${theme.colors.warning}48`, borderRadius: theme.radii.md, padding: 11 },
+                        { backgroundColor: `${theme.colors.danger}14`, borderColor: `${theme.colors.danger}48`, borderRadius: theme.radii.md, padding: 11 },
                       ]}>
-                      <Icon name="warning" size={15} color={theme.colors.warning} />
-                      <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]}>
-                        This window is out by{' '}
-                        <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>{formatDifferenceAmount(summary.difference)}</Text>. Open
-                        each day with a difference and check the figure against the counted amount.
-                      </Text>
+                      <Icon name="warning" size={15} color={theme.colors.danger} />
+                      <Pressable onPress={() => setQuickFilter('hasDifference')} style={{ flex: 1 }}>
+                        <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]}>
+                          This window is out by{' '}
+                          <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>{formatDifferenceAmount(summary.difference)}</Text>.
+                          Open each day with a difference and check it against the counted amount.
+                        </Text>
+                      </Pressable>
                     </View>
                   ) : null}
                 </View>
               </>
             ) : null}
 
-            <View style={[styles.dateRangeRow, { marginTop: theme.spacing.md }]}>
-              <View style={styles.dateRangeField}>
-                <RequiredDateField value={from} onChange={setFrom} />
-              </View>
-              <Text style={[theme.typography.label, { color: theme.colors.textMuted }]}>to</Text>
-              <View style={styles.dateRangeField}>
-                <RequiredDateField value={to} onChange={setTo} />
-              </View>
+            <View style={{ marginTop: theme.spacing.md }}>
+              <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date or status…" />
             </View>
 
-            <View style={[styles.filtersRow, { marginTop: theme.spacing.sm }]}>
-              {filterChips.map((f) => {
-                const active = diffFilter === f.key;
-                return (
-                  <Pressable
-                    key={f.key}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => setDiffFilter(f.key)}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: active ? theme.colors.primary : theme.colors.cardFill,
-                        borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
-                      },
-                    ]}>
-                    <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>
-                      {f.label}
-                    </Text>
-                    <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.textSecondary, opacity: 0.8 }]}>
-                      {f.count}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => dateRangeSheetRef.current?.present()}
+                style={[styles.dateChip, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, flex: 1 }]}>
+                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
+                  {dateRangeLabel}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => sortSheetRef.current?.present()}
+                style={[styles.dateChip, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, flexDirection: 'row', gap: 6 }]}>
+                <Icon name="bar-chart" size={12} color={theme.colors.text} />
+                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Sort</Text>
+              </Pressable>
+            </View>
+
+            <View style={{ marginTop: 10 }}>
+              <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+            </View>
+            <View style={{ marginTop: 8 }}>
+              <FilterChipRow options={quickFilterOptions} value={quickFilter} onChange={setQuickFilter} />
             </View>
 
             <View style={{ height: theme.spacing.sm }} />
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <EmptyState title="No Records" message="Generate today's record to get started." /> : undefined
+          !isLoading && !error ? <EmptyState title="No Records" message="Count today's business day to get started." /> : undefined
         }
         renderItem={({ item }) => (
           <DailySaleRecordCard
@@ -300,7 +367,7 @@ export function DailySaleRecordListScreen() {
             isGenerating={generatingDate === item.businessDate}
             onGenerate={() => handleGenerate(item.businessDate)}
             onOpenManualFeed={() => openManualFeed(item.businessDate)}
-            onOpenDetail={() => openDetail(item.businessDate)}
+            onOpenDetail={() => navigation.navigate(Routes.DAILY_SALE_DETAIL, { businessDate: item.businessDate })}
             onVerify={() => item.id && handleVerify(item.id)}
             isVerifying={verify.isPending}
           />
@@ -347,7 +414,7 @@ export function DailySaleRecordListScreen() {
       <FormBottomSheet
         ref={manualFeedSheetRef}
         title="Manual Feed"
-        subtitle={manualFeedDate ? formatDisplayDate(manualFeedDate) : undefined}
+        subtitle={manualFeedDate ? manualFeedDate : undefined}
         onRequestClose={() => manualFeedSheetRef.current?.dismiss()}
         onDismiss={() => setManualFeedDate(null)}>
         {manualFeedDate ? (
@@ -360,17 +427,20 @@ export function DailySaleRecordListScreen() {
         ) : null}
       </FormBottomSheet>
 
-      <FormBottomSheet
-        ref={detailSheetRef}
-        title="Day Detail"
-        subtitle={detailDate ? formatDisplayDate(detailDate) : undefined}
-        onRequestClose={() => detailSheetRef.current?.dismiss()}
-        onDismiss={() => setDetailDate(null)}>
-        {(() => {
-          const detailRecord = detailDate ? (records.find((r) => r.businessDate === detailDate) ?? null) : null;
-          return detailRecord ? <DailySaleRecordDetailSheet record={detailRecord} /> : null;
-        })()}
-      </FormBottomSheet>
+      <DateRangeSheet
+        ref={dateRangeSheetRef}
+        today={today}
+        value={dateRange}
+        onApply={setDateRange}
+        onRequestClose={() => dateRangeSheetRef.current?.dismiss()}
+      />
+
+      <DailySaleSortSheet
+        ref={sortSheetRef}
+        value={sortField}
+        onChange={setSortField}
+        onRequestClose={() => sortSheetRef.current?.dismiss()}
+      />
     </Screen>
   );
 }

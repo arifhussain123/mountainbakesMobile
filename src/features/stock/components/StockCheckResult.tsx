@@ -1,14 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { PillButton, SecondaryButton } from '@/shared/ui';
-import type { StockCheckClassification, StockCheckSummary } from '../calculations';
+import { Icon } from '@/shared/ui';
+import type { CheckResult, StockCheckDifference } from '../calculations';
 
 export interface StockCheckResultProps {
-  summary: StockCheckSummary;
-  classifications: StockCheckClassification[];
-  onBackToCounting: () => void;
-  onShare: () => void;
-  onDone: () => void;
+  result: CheckResult;
+  onEditCounts: () => void;
+  onOpenReturnItems: () => void;
 }
 
 function diffLabel(diff: number): string {
@@ -19,94 +17,103 @@ function diffAnnouncement(diff: number): string {
   return diff > 0 ? `${diff} over` : `${Math.abs(diff)} short`;
 }
 
-function ResultRow({ c }: { c: StockCheckClassification }) {
+function DifferenceRow({ item, color }: { item: StockCheckDifference; color: string }) {
   const theme = useAppTheme();
-  const color = c.verdict === 'short' ? theme.colors.danger : theme.colors.success;
   return (
     <View
-      style={[styles.row, { borderBottomColor: theme.colors.border }]}
+      style={[styles.row, { borderLeftColor: color, backgroundColor: theme.colors.surface }]}
       accessible
-      accessibilityLabel={`${c.productName}, balance ${c.balance}, counted ${c.counted}, ${diffAnnouncement(c.diff ?? 0)}`}>
+      accessibilityLabel={`${item.productName}, balance ${item.balance}, counted ${item.counted}, ${diffAnnouncement(item.diff)}`}>
       <Text style={[theme.typography.body, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
-        {c.productName}
+        {item.productName}
       </Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 70, textAlign: 'center' }]}>Bal {c.balance}</Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 70, textAlign: 'center' }]}>Cnt {c.counted}</Text>
-      <Text style={[theme.typography.body, { color, fontWeight: '700', width: 50, textAlign: 'right' }]}>{diffLabel(c.diff ?? 0)}</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+        balance {item.balance} · counted {item.counted}
+      </Text>
+      <Text style={[theme.typography.body, { color, fontWeight: '700', marginLeft: 10 }]}>{diffLabel(item.diff)}</Text>
     </View>
   );
 }
 
 /**
- * Replaces the counting list after Verify — Short/Over sections first (what
- * needs attention), then a collapsed Matched count. Never calls an API: a
- * future "submit stock count" endpoint would hang its button here (see the
- * TODO below), not as a stub elsewhere.
+ * Replaces the counting list after Verify — matches the web's result logic
+ * exactly: Matched products are counted only (never listed), Surplus/Deficit
+ * each get their own section with an explanatory subtitle, and the footer
+ * directs a real difference to Return Items/an admin stock adjustment instead
+ * of pretending anything here is saved.
  */
-export function StockCheckResult({ summary, classifications, onBackToCounting, onShare, onDone }: StockCheckResultProps) {
+export function StockCheckResult({ result, onEditCounts, onOpenReturnItems }: StockCheckResultProps) {
   const theme = useAppTheme();
-  const short = classifications.filter((c) => c.verdict === 'short');
-  const over = classifications.filter((c) => c.verdict === 'over');
-  const allMatch = summary.short === 0 && summary.over === 0 && summary.matched > 0;
+  const { surplus, deficit, matchedCount } = result;
+  const allMatch = surplus.length === 0 && deficit.length === 0;
 
   return (
     <View>
-      <View style={[styles.summaryRow]}>
-        <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>
-          Matched {summary.matched} · Short {summary.short} · Over {summary.over} · Not counted {summary.notCounted}
-        </Text>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>Check result</Text>
+          <Text style={[theme.typography.bodySmall, { marginTop: 2 }]}>
+            <Text style={{ color: theme.colors.success, fontWeight: '700' }}>Surplus {surplus.length}</Text>
+            <Text style={{ color: theme.colors.textSecondary }}> · </Text>
+            <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>Deficit {deficit.length}</Text>
+            <Text style={{ color: theme.colors.textSecondary }}> · </Text>
+            <Text style={{ color: theme.colors.textSecondary, fontWeight: '700' }}>Matched {matchedCount}</Text>
+          </Text>
+        </View>
+        <Pressable accessibilityRole="button" onPress={onEditCounts} style={styles.editButton}>
+          <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Edit counts</Text>
+        </Pressable>
       </View>
 
       {allMatch ? (
-        <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 12, fontWeight: '700' }]}>
-          All counted stock agrees with the balance.
+        <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 16, fontWeight: '700' }]}>
+          Everything you counted matches the balance.
         </Text>
       ) : (
         <>
-          {short.length > 0 ? (
+          {surplus.length > 0 ? (
             <View style={{ marginTop: 16 }}>
-              <Text style={[theme.typography.label, { color: theme.colors.danger, fontWeight: '700' }]}>SHORT</Text>
-              {short.map((c) => (
-                <ResultRow key={c.productId} c={c} />
+              <View style={styles.sectionHeader}>
+                <Icon name="trending-up" size={14} color={theme.colors.success} />
+                <Text style={[theme.typography.label, { color: theme.colors.success, fontWeight: '700' }]}>
+                  SURPLUS · more on the shelf than the balance
+                </Text>
+              </View>
+              {surplus.map((item) => (
+                <DifferenceRow key={item.productId} item={item} color={theme.colors.success} />
               ))}
             </View>
           ) : null}
-          {over.length > 0 ? (
+          {deficit.length > 0 ? (
             <View style={{ marginTop: 16 }}>
-              <Text style={[theme.typography.label, { color: theme.colors.success, fontWeight: '700' }]}>OVER</Text>
-              {over.map((c) => (
-                <ResultRow key={c.productId} c={c} />
+              <View style={styles.sectionHeader}>
+                <Icon name="trending-down" size={14} color={theme.colors.danger} />
+                <Text style={[theme.typography.label, { color: theme.colors.danger, fontWeight: '700' }]}>
+                  DEFICIT · less on the shelf than the balance
+                </Text>
+              </View>
+              {deficit.map((item) => (
+                <DifferenceRow key={item.productId} item={item} color={theme.colors.danger} />
               ))}
             </View>
-          ) : null}
-          {summary.matched > 0 ? (
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 16 }]}>{summary.matched} matched (not listed)</Text>
           ) : null}
         </>
       )}
 
-      {/* TODO: if a "submit stock count" API endpoint is ever added, its button goes here — this result view, not a stub elsewhere. Nothing on this screen calls an API today. */}
-
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={onBackToCounting} style={styles.linkButton}>
-          <Text style={[theme.typography.body, { color: theme.colors.primary, fontWeight: '700' }]}>Back to counting</Text>
-        </Pressable>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-          <View style={{ flex: 1 }}>
-            <SecondaryButton label="Share result" onPress={onShare} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <PillButton label="Done" onPress={onDone} />
-          </View>
-        </View>
-      </View>
+      <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 20 }]}>
+        Not saved. To correct a real difference, use{' '}
+        <Text onPress={onOpenReturnItems} style={{ color: theme.colors.primary, fontWeight: '700' }}>
+          Return Items
+        </Text>{' '}
+        on the New Orders page or ask an admin for a stock adjustment.
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  summaryRow: { marginTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
-  actions: { marginTop: 24 },
-  linkButton: { height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  editButton: { height: 32, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, marginTop: 6, borderLeftWidth: 3, borderRadius: 6 },
 });

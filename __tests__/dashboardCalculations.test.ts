@@ -5,6 +5,7 @@ import {
   barScalePct,
   completedOrders,
   computeStockEndDifference,
+  computeStockHistoryRetAdj,
   orderCompletionPct,
   sharePct,
 } from '@/features/dashboard/calculations';
@@ -107,5 +108,46 @@ describe('computeStockEndDifference', () => {
     expect(result.qty).toBe(0);
     expect(result.amount).toBe(600);
     expect(result.isZero).toBe(false);
+  });
+});
+
+describe('computeStockHistoryRetAdj', () => {
+  it('14 Oct reference: returned 7, adjustment 0 -> RET/ADJ is -7, not +7', () => {
+    // 47 + 167 - 137 - 7 = 70 — the balance only works out with a signed -7.
+    const r = row({ openingQty: 47, newQty: 167, soldQty: 137, returnedQty: 7, adjustmentQty: 0, balanceQty: 70 });
+    expect(computeStockHistoryRetAdj(r)).toBe(-7);
+    expect(computeStockEndDifference(r).qty).toBe(0);
+  });
+
+  it('12 Oct reference: a pure adjustment of -7 (no returns) also nets to -7', () => {
+    const r = row({ openingQty: 40, newQty: 50, soldQty: 20, returnedQty: 0, adjustmentQty: -7, balanceQty: 63 });
+    expect(computeStockHistoryRetAdj(r)).toBe(-7);
+    expect(computeStockEndDifference(r).qty).toBe(0);
+  });
+
+  it('is net positive when adjustment outweighs returns', () => {
+    const r = row({ openingQty: 10, newQty: 10, soldQty: 5, returnedQty: 2, adjustmentQty: 5, balanceQty: 18 });
+    expect(computeStockHistoryRetAdj(r)).toBe(3);
+    expect(computeStockEndDifference(r).qty).toBe(0);
+  });
+
+  it('is zero when returns and adjustment cancel out', () => {
+    const r = row({ returnedQty: 4, adjustmentQty: 4 });
+    expect(computeStockHistoryRetAdj(r)).toBe(0);
+  });
+
+  describe('every card satisfies Prev + New - Sold + RetAdj = Left', () => {
+    const cases: Partial<BranchStockHistoryRow>[] = [
+      { openingQty: 47, newQty: 167, soldQty: 137, returnedQty: 7, adjustmentQty: 0, balanceQty: 70 },
+      { openingQty: 40, newQty: 50, soldQty: 20, returnedQty: 0, adjustmentQty: -7, balanceQty: 63 },
+      { openingQty: 66, newQty: 154, soldQty: 150, returnedQty: 1, adjustmentQty: 0, balanceQty: 69 },
+      { openingQty: 10, newQty: 10, soldQty: 5, returnedQty: 2, adjustmentQty: 5, balanceQty: 18 },
+    ];
+
+    it.each(cases)('reconciles for %o', (overrides) => {
+      const r = row(overrides);
+      const retAdj = computeStockHistoryRetAdj(r);
+      expect(r.openingQty + r.newQty - r.soldQty + retAdj).toBe(r.balanceQty);
+    });
   });
 });

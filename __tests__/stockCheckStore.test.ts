@@ -28,24 +28,18 @@ describe('stockCheckStore', () => {
     const useStore = createStockCheckStore(createInMemoryStorage());
     await useStore.getState().load('b1', '2026-10-16');
     expect(useStore.getState().counts).toEqual({});
-    expect(useStore.getState().blindMode).toBe(false);
     expect(useStore.getState().loaded).toBe(true);
   });
 
   it('resumes a previously saved count for the same branch + business date', async () => {
-    const storage = createInMemoryStorage([
-      { branchId: 'b1', businessDate: '2026-10-16', counts: { p1: '12' }, blindMode: true, updatedAt: 1 },
-    ]);
+    const storage = createInMemoryStorage([{ branchId: 'b1', businessDate: '2026-10-16', counts: { p1: '12' }, updatedAt: 1 }]);
     const useStore = createStockCheckStore(storage);
     await useStore.getState().load('b1', '2026-10-16');
     expect(useStore.getState().counts).toEqual({ p1: '12' });
-    expect(useStore.getState().blindMode).toBe(true);
   });
 
   it('auto-clears when the business date changes — a new date starts fresh, not carried over', async () => {
-    const storage = createInMemoryStorage([
-      { branchId: 'b1', businessDate: '2026-10-16', counts: { p1: '12' }, blindMode: false, updatedAt: 1 },
-    ]);
+    const storage = createInMemoryStorage([{ branchId: 'b1', businessDate: '2026-10-16', counts: { p1: '12' }, updatedAt: 1 }]);
     const useStore = createStockCheckStore(storage);
     await useStore.getState().load('b1', '2026-10-17');
     expect(useStore.getState().counts).toEqual({});

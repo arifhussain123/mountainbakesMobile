@@ -16,6 +16,8 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
    */
   inputRef?: React.RefObject<any>;
   testID?: string;
+  /** Overrides the fixed 52dp input height — Login computes this from `useResponsive()` so it scales with usable height on short screens. */
+  height?: number;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
  * `rgba(255,255,255,.04)` fill, `rgba(255,255,255,.18)` border, radius 16, 52dp
  * tall — border switches to `primary` on focus and `danger` on error.
  */
-export function TextField({ label, required, error, rightAccessory, inputRef, onFocus, onBlur, testID, ...inputProps }: TextFieldProps) {
+export function TextField({ label, required, error, rightAccessory, inputRef, onFocus, onBlur, testID, height, ...inputProps }: TextFieldProps) {
   const theme = useAppTheme();
   const [isFocused, setIsFocused] = useState(false);
 
@@ -44,6 +46,7 @@ export function TextField({ label, required, error, rightAccessory, inputRef, on
             backgroundColor: theme.colors.cardFill,
             borderColor,
           },
+          height !== undefined ? { height } : null,
         ]}>
         <TextInput
           ref={inputRef}

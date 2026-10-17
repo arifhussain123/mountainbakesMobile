@@ -62,7 +62,8 @@ export function QtyStepper({ value, onChange, min = 0, accessibilityLabel, retur
         onSubmitEditing={onSubmitEditing}
         accessibilityLabel={accessibilityLabel}
         testID={testID}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text }]}
+        textAlignVertical="center"
+        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text, includeFontPadding: false }]}
       />
       <Pressable
         accessibilityRole="button"
@@ -78,5 +79,21 @@ export function QtyStepper({ value, onChange, min = 0, accessibilityLabel, retur
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   button: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  input: { width: 56, height: 36, borderRadius: 10, borderWidth: 1.5, textAlign: 'center', fontWeight: '700' },
+  // Height matches the +/- buttons exactly, text centered both axes (textAlign
+  // for horizontal, textAlignVertical for Android's vertical default, which
+  // otherwise top-aligns); paddingVertical: 0 + includeFontPadding: false
+  // strip Android's extra glyph padding that pushed digits up and shrank the
+  // "-" placeholder relative to a real value. Value and placeholder share this
+  // one style object, so they're always the same font size.
+  input: {
+    width: 56,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    paddingVertical: 0,
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

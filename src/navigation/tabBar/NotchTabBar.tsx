@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Animated, {
-  useAnimatedProps,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -18,64 +19,88 @@ import { useNavBadges } from '../useNavBadges';
 import { useOfflineQueueStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
 import { buildNotchBarPath, clampNotchX } from './notchPath';
+import { BAR_CONTENT_HEIGHT, computeTabBarHideOffset, CORNER_RADIUS, getTabBarLayout } from './tabBarLayout';
 import { ActiveBubble } from './ActiveBubble';
 import { TabItem } from './TabItem';
 import { useTabBarVisibility } from './useTabBarVisibility';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-const BAR_HEIGHT = 68;
-const SIDE_MARGIN = 12;
-const NOTCH_WIDTH = 80;
-const NOTCH_DEPTH = 30;
-const CORNER_RADIUS = 24;
 
 /**
  * Custom `tabBar` for the bottom tab navigator — a notch cut into the bar's
  * top edge that slides to the active tab, with a raised orange bubble sitting
  * in it. No third-party tab-bar library; the whole bar is one SVG path plus
  * absolutely-positioned tab slots.
+ *
+ * Full-bleed, edge-to-edge overlay: `position: 'absolute'`, flush to all
+ * three screen edges, no side margins, no floating shadow. Its own height is
+ * `BAR_CONTENT_HEIGHT + insets.bottom` and the SVG fill extends the whole way
+ * down, so the bar's own background — not any other color — sits behind the
+ * Android 3-button/gesture nav area and the iOS home indicator. Because it's
+ * an overlay (not a normal flex sibling reserving its own space). a tab-root
+ * screen's scrollable content must pad itself by `useTabBarHeight()` or its
+ * last item would sit behind the bar.
  */
 export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const badges = useNavBadges();
   const failedSync = useOfflineQueueStore((s) => s.failedCount > 0);
   const visible = useTabBarVisibility();
 
-  const [barWidth, setBarWidth] = useState(0);
-  const slotWidth = barWidth / TAB_ITEMS.length;
+  const tabCount = TAB_ITEMS.length;
+  const { tabWidth, bubbleSize, iconSize, notchWidth, notchDepth } = getTabBarLayout(width, tabCount);
+  const totalBarHeight = BAR_CONTENT_HEIGHT + insets.bottom;
+
   const focusedRouteName = state.routes[state.index]?.name;
   const focusedTabIndex = TAB_ITEMS.findIndex((t) => t.route === focusedRouteName);
   const activeIndex = focusedTabIndex >= 0 ? focusedTabIndex : 0;
 
-  const notchX = useSharedValue(0);
+  const initialNotchX = clampNotchX(tabWidth * (activeIndex + 0.5), width, notchWidth, CORNER_RADIUS);
+  const notchX = useSharedValue(initialNotchX);
   const translateY = useSharedValue(0);
 
+  // The bar's `d` is plain React state, not `useAnimatedProps` on an
+  // `Animated.createAnimatedComponent(Path)` — this bar used to drive it that
+  // way and the notch silently never rendered on a real device (the bubble
+  // still moved correctly, since that's a transform on an Animated.View, but
+  // the SVG path's own cut never appeared): an AnimatedProps `d` string update
+  // on a native SVG element isn't reliably applied through Reanimated on this
+  // react-native-svg/reanimated/Fabric combination. `useAnimatedReaction` +
+  // `runOnJS` sidesteps that native-prop interop entirely — the path string is
+  // computed on the UI thread (worklet) every time `notchX` changes and handed
+  // to a normal JS-thread `setState`, so the `<Path d={...}>` re-render uses
+  // the same plain prop-setting React already reconciles correctly everywhere
+  // else. The spring only runs for ~300ms on an infrequent tab switch, so the
+  // extra JS-thread re-renders during that window cost nothing noticeable.
+  const [pathD, setPathD] = useState(() =>
+    buildNotchBarPath({ width, height: totalBarHeight, notchX: initialNotchX, notchWidth, notchDepth, cornerRadius: CORNER_RADIUS }),
+  );
+
   useEffect(() => {
-    if (barWidth === 0) return;
-    const target = clampNotchX(slotWidth * (activeIndex + 0.5), barWidth, NOTCH_WIDTH, CORNER_RADIUS);
+    const target = clampNotchX(tabWidth * (activeIndex + 0.5), width, notchWidth, CORNER_RADIUS);
     notchX.value = reduceMotion ? target : withSpring(target, { damping: 18, stiffness: 180, overshootClamping: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, barWidth]);
+  }, [activeIndex, width, tabWidth, notchWidth]);
+
+  useAnimatedReaction(
+    () => notchX.value,
+    (current, previous) => {
+      if (current === previous) return;
+      const d = buildNotchBarPath({ width, height: totalBarHeight, notchX: current, notchWidth, notchDepth, cornerRadius: CORNER_RADIUS });
+      runOnJS(setPathD)(d);
+    },
+    [width, totalBarHeight, notchWidth, notchDepth],
+  );
 
   useEffect(() => {
-    const target = visible ? 0 : BAR_HEIGHT + insets.bottom + 24;
+    // See `computeTabBarHideOffset`'s own doc comment — a flat `+24` left the
+    // active bubble's tip visibly peeking above the screen's bottom edge even
+    // while "hidden", since the bubble always pokes >= 30dp above the bar.
+    const target = visible ? 0 : computeTabBarHideOffset(totalBarHeight, bubbleSize);
     translateY.value = reduceMotion ? target : withTiming(target, { duration: 200 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
-
-  const animatedProps = useAnimatedProps(() => ({
-    d: buildNotchBarPath({
-      width: barWidth || 1,
-      height: BAR_HEIGHT,
-      notchX: notchX.value,
-      notchWidth: NOTCH_WIDTH,
-      notchDepth: NOTCH_DEPTH,
-      cornerRadius: CORNER_RADIUS,
-    }),
-  }));
+  }, [visible, totalBarHeight, bubbleSize]);
 
   const containerStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
@@ -100,20 +125,12 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        containerStyle,
-        { marginHorizontal: SIDE_MARGIN, marginBottom: Math.max(insets.bottom, 8) },
-      ]}
-      onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
-      {barWidth > 0 ? (
-        <Svg width={barWidth} height={BAR_HEIGHT} style={StyleSheet.absoluteFill}>
-          <AnimatedPath animatedProps={animatedProps} fill={theme.colors.surface} stroke={theme.colors.border} strokeWidth={1} />
-        </Svg>
-      ) : null}
+    <Animated.View style={[styles.container, containerStyle, { height: totalBarHeight }]} pointerEvents="box-none">
+      <Svg width={width} height={totalBarHeight} style={StyleSheet.absoluteFill}>
+        <Path d={pathD} fill={theme.colors.surface} stroke={theme.colors.border} strokeWidth={1} />
+      </Svg>
 
-      <View style={styles.row}>
+      <View style={[styles.row, { height: BAR_CONTENT_HEIGHT }]}>
         {TAB_ITEMS.map((item, index) => {
           const isActive = index === activeIndex && item.route !== null;
           const label = descriptors[state.routes[index]?.key ?? '']?.options.title ?? item.label;
@@ -132,21 +149,24 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
         })}
       </View>
 
-      {barWidth > 0 ? (
-        <ActiveBubble notchX={notchX} icon={TAB_ITEMS[activeIndex]!.icon} showDot={failedSync && TAB_ITEMS[activeIndex]!.key === 'orders'} />
-      ) : null}
+      <ActiveBubble
+        notchX={notchX}
+        icon={TAB_ITEMS[activeIndex]!.icon}
+        diameter={bubbleSize}
+        iconSize={iconSize}
+        showDot={failedSync && TAB_ITEMS[activeIndex]!.key === 'orders'}
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: BAR_HEIGHT,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 8,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'visible',
   },
-  row: { flex: 1, flexDirection: 'row' },
+  row: { flexDirection: 'row' },
 });

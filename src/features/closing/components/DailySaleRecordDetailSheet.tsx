@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
@@ -59,12 +59,12 @@ function ChannelRow({ label, auto, manual, diff }: { label: string; auto: number
   );
 }
 
-/** Day Detail — every figure with a one-line explanation, per-channel counted-vs-system, and the status/verification trail. */
+/** Day Detail — every figure with a one-line explanation, per-channel counted-vs-system, and the status/verification trail. The caller (a bottom sheet or a scrolling screen) owns any outer scroll container. */
 export function DailySaleRecordDetailSheet({ record }: DailySaleRecordDetailSheetProps) {
   const theme = useAppTheme();
 
   return (
-    <ScrollView>
+    <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatDisplayDate(record.businessDate)}</Text>
         <StatusBadge label={STATUS_LABEL[record.status]} variant={STATUS_VARIANT[record.status]} />
@@ -114,6 +114,6 @@ export function DailySaleRecordDetailSheet({ record }: DailySaleRecordDetailShee
           </Text>
         </View>
       ) : null}
-    </ScrollView>
+    </View>
   );
 }

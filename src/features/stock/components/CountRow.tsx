@@ -6,8 +6,6 @@ import { parseCountInput } from '../calculations';
 export interface CountRowProps {
   productName: string;
   balance: number;
-  /** Hidden (shown as "•••") in blind-count mode until Verify. */
-  blindMode: boolean;
   countInput: string;
   onChangeCount: (text: string) => void;
   returnKeyType?: 'next' | 'done';
@@ -16,21 +14,25 @@ export interface CountRowProps {
   inputRef?: React.RefObject<any>;
 }
 
-/** One product's row in the counting list — balance (read-only, muted) + a `QtyStepper` count field. */
-export function CountRow({ productName, balance, blindMode, countInput, onChangeCount, returnKeyType, onSubmitEditing, inputRef }: CountRowProps) {
+/** One product's row in the counting list — product name, balance pill, minus, count field, plus, all on one row, vertically centered. */
+export function CountRow({ productName, balance, countInput, onChangeCount, returnKeyType, onSubmitEditing, inputRef }: CountRowProps) {
   const theme = useAppTheme();
   const counted = parseCountInput(countInput);
-  const accessibilityLabel = blindMode ? `Count for ${productName}` : `Count for ${productName}, balance ${balance}`;
+  const accessibilityLabel = `Count for ${productName}, balance ${balance}`;
 
   return (
     <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[theme.typography.body, { color: theme.colors.text }]} numberOfLines={1}>
+      <View style={styles.nameBox}>
+        <Text
+          style={[theme.typography.body, { color: theme.colors.text }]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}>
           {productName}
         </Text>
       </View>
       <View style={[styles.balanceBox, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{blindMode ? '•••' : balance}</Text>
+        <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{balance}</Text>
       </View>
       <QtyStepper
         inputRef={inputRef}
@@ -46,5 +48,6 @@ export function CountRow({ productName, balance, blindMode, countInput, onChange
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1 },
+  nameBox: { flex: 1, minWidth: 0, justifyContent: 'center' },
   balanceBox: { width: 56, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

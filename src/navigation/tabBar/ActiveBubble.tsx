@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
+import { BUBBLE_RAISE } from './tabBarLayout';
 import { TabBadge } from './TabBadge';
 
 export interface ActiveBubbleProps {
@@ -17,13 +18,14 @@ export interface ActiveBubbleProps {
   notchX: SharedValue<number>;
   icon: IconName;
   showDot?: boolean;
-  diameter?: number;
+  /** Responsive, from `getTabBarLayout` — `clamp(48, width * 0.14, 60)`, never a fixed constant. */
+  diameter: number;
+  /** `diameter * 0.42`. */
+  iconSize: number;
 }
 
-const DIAMETER = 56;
-
 /** The raised orange circle sitting in the notch — icon crossfades/scales when the active tab changes; position follows `notchX` on the UI thread. */
-export function ActiveBubble({ notchX, icon, showDot, diameter = DIAMETER }: ActiveBubbleProps) {
+export function ActiveBubble({ notchX, icon, showDot, diameter, iconSize }: ActiveBubbleProps) {
   const theme = useAppTheme();
   const reduceMotion = useReducedMotion();
   const iconOpacity = useSharedValue(1);
@@ -55,7 +57,7 @@ export function ActiveBubble({ notchX, icon, showDot, diameter = DIAMETER }: Act
         styles.bubble,
         containerStyle,
         {
-          top: -diameter / 2,
+          top: -(BUBBLE_RAISE + diameter / 2),
           width: diameter,
           height: diameter,
           borderRadius: diameter / 2,
@@ -65,7 +67,7 @@ export function ActiveBubble({ notchX, icon, showDot, diameter = DIAMETER }: Act
         },
       ]}>
       <Animated.View style={iconStyle}>
-        <Icon name={icon} size={24} color={theme.colors.background} />
+        <Icon name={icon} size={iconSize} color={theme.colors.background} />
       </Animated.View>
       {showDot ? <TabBadge dot /> : null}
     </Animated.View>

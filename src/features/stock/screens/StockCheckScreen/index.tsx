@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, Share, Text, View } from 'react-native';
+import { Alert, FlatList, Text, View } from 'react-native';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate, useStock as useStockRows } from '@/api';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 import { useAuthStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Checkbox, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { classifyCount, isHeldForStockCheck, summarizeClassifications } from '../../calculations';
+import { buildCheckResult, isHeldForStockCheck, parseCountInput, type StockCheckItem } from '../../calculations';
 import { CountProgressFooter, CountRow, StockCheckResult } from '../../components';
 import { useStockCheckStore } from '../../useStockCheckStore';
-import { styles } from './styles';
+import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
 
 type ViewMode = 'counting' | 'result';
 
@@ -26,6 +27,7 @@ export function StockCheckScreen() {
   const branchId = useAuthStore((state) => state.user?.branchId);
   const branchName = useAuthStore((state) => state.user?.branchName ?? 'Branch');
   const businessDate = getBusinessDate();
+  const returnItemsSheetRef = useRef<BottomSheetModal>(null);
 
   const { data, isLoading, error, refetch } = useStockRows();
   const rows = useMemo(() => data?.rows ?? [], [data]);
@@ -34,8 +36,6 @@ export function StockCheckScreen() {
 
   const store = useStockCheckStore();
   const [search, setSearch] = useState('');
-  const [uncountedOnly, setUncountedOnly] = useState(false);
-  const [includeZero, setIncludeZero] = useState(false);
   const [view, setView] = useState<ViewMode>('counting');
   // `any`, matching `TextField`/`QtyStepper`'s own `inputRef` typing — RN
   // 0.87's generated `TextInput` ref type and its own class instance type
@@ -50,8 +50,6 @@ export function StockCheckScreen() {
     if (branchId) void store.load(branchId, businessDate);
   }, [branchId, businessDate]); // eslint-disable-line react-hooks/exhaustive-deps -- `store` is a stable Zustand hook result, not a dependency
 
-  const countableRows = useMemo(() => (includeZero ? rows : held), [includeZero, rows, held]);
-
   const countedCount = useMemo(
     () => held.filter((row) => (store.counts[row.productId] ?? '').trim() !== '').length,
     [held, store.counts],
@@ -59,12 +57,9 @@ export function StockCheckScreen() {
 
   const visibleRows = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return countableRows.filter((row) => {
-      if (term && !row.productName.toLowerCase().includes(term)) return false;
-      if (uncountedOnly && (store.counts[row.productId] ?? '').trim() !== '') return false;
-      return true;
-    });
-  }, [countableRows, search, uncountedOnly, store.counts]);
+    if (!term) return held;
+    return held.filter((row) => row.productName.toLowerCase().includes(term));
+  }, [held, search]);
 
   const hasResumableCount = store.loaded && Object.keys(store.counts).length > 0 && view === 'counting';
 
@@ -75,31 +70,25 @@ export function StockCheckScreen() {
     ]);
   };
 
-  const classifications = useMemo(() => held.map((row) => classifyCount(row, store.counts[row.productId])), [held, store.counts]);
-  const summary = useMemo(() => summarizeClassifications(classifications), [classifications]);
+  // Only products with an entered count are compared — uncounted products are
+  // ignored entirely (never shown as a 0-vs-balance deficit).
+  const checkResult = useMemo(() => {
+    const items: StockCheckItem[] = [];
+    for (const row of held) {
+      const counted = parseCountInput(store.counts[row.productId]);
+      if (counted === null) continue;
+      items.push({ productId: row.productId, productName: row.productName, balance: row.balance, counted });
+    }
+    return buildCheckResult(items);
+  }, [held, store.counts]);
 
   const handleVerify = () => setView('result');
 
-  const handleShare = async () => {
-    const lines = [
-      `Stock Check — ${branchName} — ${businessDate}`,
-      `Matched ${summary.matched} · Short ${summary.short} · Over ${summary.over} · Not counted ${summary.notCounted}`,
-      '',
-      ...classifications
-        .filter((c) => c.verdict === 'short' || c.verdict === 'over')
-        .map((c) => `${c.productName}: balance ${c.balance}, counted ${c.counted}, ${c.diff! > 0 ? `+${c.diff}` : c.diff} `),
-    ];
-    try {
-      await Share.share({ message: lines.join('\n') });
-    } catch {
-      // The user dismissed the share sheet — nothing to do.
-    }
-  };
-
-  const handleDone = () => {
-    void store.clear();
-    setView('counting');
-  };
+  // "Edit counts" closes the result and restores the full counting list with
+  // every entered count kept; changing any count afterward is read fresh
+  // from `store.counts` the next time Verify is pressed, so there's no stale
+  // result to separately invalidate.
+  const handleEditCounts = () => setView('counting');
 
   if (view === 'result') {
     return (
@@ -107,13 +96,14 @@ export function StockCheckScreen() {
         <AppHeader title="Stock Check Result" subtitle={`${branchName} · ${businessDate}`} />
         <View style={{ padding: theme.spacing.lg }}>
           <StockCheckResult
-            summary={summary}
-            classifications={classifications.filter((c) => c.verdict !== 'notCounted')}
-            onBackToCounting={() => setView('counting')}
-            onShare={() => void handleShare()}
-            onDone={handleDone}
+            result={checkResult}
+            onEditCounts={handleEditCounts}
+            onOpenReturnItems={() => returnItemsSheetRef.current?.present()}
           />
         </View>
+        <FormBottomSheet ref={returnItemsSheetRef} title="Return Items" onRequestClose={() => returnItemsSheetRef.current?.dismiss()}>
+          <ReturnItemsSheetContent onClose={() => returnItemsSheetRef.current?.dismiss()} />
+        </FormBottomSheet>
       </Screen>
     );
   }
@@ -134,20 +124,6 @@ export function StockCheckScreen() {
 
       <View style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.md }}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
-        <View style={styles.toggleRow}>
-          <Pressable accessibilityRole="button" onPress={() => setUncountedOnly((v) => !v)} style={styles.toggleItem}>
-            <Checkbox checked={uncountedOnly} onChange={setUncountedOnly} accessibilityLabel="Uncounted only" />
-            <Text style={[theme.typography.label, { color: theme.colors.text }]}>Uncounted only</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setIncludeZero((v) => !v)} style={styles.toggleItem}>
-            <Checkbox checked={includeZero} onChange={setIncludeZero} accessibilityLabel="Include zero-balance products" />
-            <Text style={[theme.typography.label, { color: theme.colors.text }]}>Include zero-balance products</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => store.setBlindMode(!store.blindMode)} style={styles.toggleItem}>
-            <Checkbox checked={store.blindMode} onChange={store.setBlindMode} accessibilityLabel="Hide balance while counting" />
-            <Text style={[theme.typography.label, { color: theme.colors.text }]}>Hide balance while counting</Text>
-          </Pressable>
-        </View>
       </View>
 
       {isLoading ? <View style={{ padding: theme.spacing.lg }}><LoadingSkeleton height={100} /></View> : null}
@@ -170,7 +146,6 @@ export function StockCheckScreen() {
             inputRef={getInputRef(item.productId)}
             productName={item.productName}
             balance={item.balance}
-            blindMode={store.blindMode}
             countInput={store.counts[item.productId] ?? ''}
             onChangeCount={(text) => store.setCount(item.productId, text)}
             returnKeyType={index < visibleRows.length - 1 ? 'next' : 'done'}

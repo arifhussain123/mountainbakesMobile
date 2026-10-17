@@ -7,7 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCancelProductionOrder, useProductionOrders } from '@/api';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
-import { Routes, openDrawer, type OrdersStackParamList } from '@/navigation';
+import { Routes, openDrawer, useTabBarHeight, type OrdersStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar, StatusBadge } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -39,6 +39,7 @@ function compareOrders(a: ProductionOrder, b: ProductionOrder, sort: OrderSort):
 /** branchApp.md screen 04 — "New Orders": the branch's production demand list. */
 export function OrdersListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<OrdersStackParamList>>();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [search, setSearch] = useState('');
@@ -152,7 +153,7 @@ export function OrdersListScreen() {
       <FlashList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           tab === 'active' && queuedDemands.length > 0 ? (
             <View>
@@ -190,7 +191,7 @@ export function OrdersListScreen() {
         accessibilityRole="button"
         accessibilityLabel="New production order"
         onPress={() => sheetRef.current?.present()}
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}>
+        style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: tabBarHeight + 20 }]}>
         <Icon name="plus" size={22} color={theme.colors.primaryText} />
       </Pressable>
 

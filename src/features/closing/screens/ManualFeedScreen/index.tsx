@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { Alert, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
+import { FormBottomSheet, Icon, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { useManualFeedForm, type ManualFeedChannel } from '../../hooks';
+import { NoteCounter } from '../../components';
 import { styles } from './styles';
 import type { DailySaleRecord, PaymentMethodLock } from '@/api';
 
@@ -25,6 +27,7 @@ function ChannelField({
   locked,
   diff,
   helper,
+  onCountNotes,
 }: {
   channel: ManualFeedChannel;
   value: string;
@@ -34,6 +37,7 @@ function ChannelField({
   locked: boolean;
   diff: number | null;
   helper?: string;
+  onCountNotes?: () => void;
 }) {
   const theme = useAppTheme();
 
@@ -46,20 +50,40 @@ function ChannelField({
           <StatusBadge label={countedValue !== null ? 'Counted' : 'Not counted'} variant={countedValue !== null ? 'success' : 'neutral'} />
         </View>
       </View>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>System {formatCurrency(autoValue)}</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>
+        {channel === 'cash' ? 'Cash on table' : 'System'} {formatCurrency(autoValue)}
+      </Text>
       {helper ? <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{helper}</Text> : null}
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder="Counted amount"
-        placeholderTextColor={theme.colors.textSecondary}
-        keyboardType="decimal-pad"
-        editable={!locked}
-        style={[
-          styles.amountInput,
-          { borderColor: theme.colors.border, color: locked ? theme.colors.textFaint : theme.colors.text, marginTop: 8, opacity: locked ? 0.6 : 1 },
-        ]}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder="Counted amount"
+          placeholderTextColor={theme.colors.textSecondary}
+          keyboardType="decimal-pad"
+          editable={!locked}
+          style={[
+            styles.amountInput,
+            { flex: 1, borderColor: theme.colors.border, color: locked ? theme.colors.textFaint : theme.colors.text, opacity: locked ? 0.6 : 1 },
+          ]}
+        />
+        {onCountNotes && !locked ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onCountNotes}
+            style={{
+              height: 44,
+              paddingHorizontal: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Count notes</Text>
+          </Pressable>
+        ) : null}
+      </View>
       {diff !== null ? (
         <Text
           style={[
@@ -78,6 +102,8 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
   const theme = useAppTheme();
   const form = useManualFeedForm(businessDate, record, locks);
   const [confirmingLargeDiff, setConfirmingLargeDiff] = useState(false);
+  const noteCounterRef = useRef<BottomSheetModal>(null);
+  const [noteCounterOpen, setNoteCounterOpen] = useState(false);
 
   const doSubmit = async () => {
     const ok = await form.submit();
@@ -117,6 +143,10 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
     );
   }
 
+  const cashHelper = record
+    ? `${formatCurrency(record.autoCash)} taken, less ${formatCurrency(record.cashExpense)} paid out of the till. Count the notes in the drawer.`
+    : 'Count the notes in the drawer.';
+
   return (
     <View>
       <ChannelField
@@ -127,7 +157,11 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
         countedValue={form.countedValues.cash}
         locked={form.isChannelLocked('cash')}
         diff={form.liveDifference('cash')}
-        helper="Count the notes in the drawer."
+        helper={cashHelper}
+        onCountNotes={() => {
+          setNoteCounterOpen(true);
+          noteCounterRef.current?.present();
+        }}
       />
       <ChannelField
         channel="easypaisa"
@@ -164,6 +198,24 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
           <PrimaryButton label="Save" onPress={handleSubmit} loading={form.isSubmitting} disabled={!form.canSubmit} />
         </View>
       </View>
+
+      <FormBottomSheet
+        ref={noteCounterRef}
+        title="Count Notes"
+        subtitle="Cash"
+        snapPoints={['70%']}
+        onRequestClose={() => noteCounterRef.current?.dismiss()}
+        onDismiss={() => setNoteCounterOpen(false)}>
+        {noteCounterOpen ? (
+          <NoteCounter
+            onUseTotal={(total) => {
+              form.setInput('cash', String(total));
+              noteCounterRef.current?.dismiss();
+            }}
+            onClose={() => noteCounterRef.current?.dismiss()}
+          />
+        ) : null}
+      </FormBottomSheet>
     </View>
   );
 }

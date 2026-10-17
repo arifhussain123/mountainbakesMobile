@@ -13,8 +13,7 @@ describe('liveChannelDifference', () => {
     expect(liveChannelDifference('abc', 37100)).toBeNull();
   });
 
-  it('compares the counted amount against the GROSS auto figure, never against cash-on-table', () => {
-    // auto (gross) cash is 37,100; the branch counted exactly that.
+  it('is a generic counted-vs-baseline diff — the caller decides which baseline to pass', () => {
     expect(liveChannelDifference('37100', 37100)).toBe(0);
   });
 

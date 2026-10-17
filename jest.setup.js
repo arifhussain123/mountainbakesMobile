@@ -25,6 +25,13 @@ jest.mock('react-native-bootsplash', () => ({
   hide: jest.fn(() => Promise.resolve()),
 }));
 
+// The library's own documented Jest mock — `useSafeAreaInsets()`/
+// `useSafeAreaFrame()` fall back to a fixed 320x640/zero-inset default when
+// no `<SafeAreaProvider>` wraps the test (most component tests here don't
+// bother), but still read a real `SafeAreaProvider` in the tree when one is
+// present, so a test that does provide specific insets isn't short-circuited.
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+
 // react-native-reanimated v4's own packaged mock (`react-native-reanimated/mock`)
 // transitively requires the real native `react-native-worklets` module even
 // under Jest's "react-native" resolution condition, which crashes in this

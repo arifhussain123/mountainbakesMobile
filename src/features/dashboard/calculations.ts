@@ -49,3 +49,17 @@ export function computeStockEndDifference(row: BranchStockHistoryRow): StockEndD
     row.openingAmount + row.newAmount - row.soldAmount - row.returnedAmount + row.adjustmentAmount - row.balanceAmount;
   return { qty, amount, isZero: Math.abs(qty) < 0.5 && Math.abs(amount) < 1 };
 }
+
+/**
+ * The Stock History card's combined "RET/ADJ" figure — `returnedQty` and
+ * `adjustmentQty` do NOT share a sign convention (confirmed against the same
+ * identity `computeStockEndDifference` checks): `returnedQty` arrives as a
+ * positive magnitude that is SUBTRACTED from balance, same family as
+ * `soldQty`, while `adjustmentQty` is already a free-signed delta that is
+ * ADDED. Naively summing them (`returnedQty + adjustmentQty`) silently flips
+ * the sign of every day whose movement is mostly returns rather than
+ * adjustment. The correct net effect on balance is `adjustmentQty − returnedQty`.
+ */
+export function computeStockHistoryRetAdj(row: BranchStockHistoryRow): number {
+  return row.adjustmentQty - row.returnedQty;
+}

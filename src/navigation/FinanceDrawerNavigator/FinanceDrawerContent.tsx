@@ -1,7 +1,7 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { FINANCE_ROLE_LABELS, type FinanceRole } from '@/api';
-import { useAppTheme } from '@/shared/theme';
+import { useAppTheme, useResponsive } from '@/shared/theme';
 import { images } from '@/assets';
 import { useAuthStore } from '@/state';
 import { Routes } from '../routes';
@@ -47,13 +47,17 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
 /** mountainbakesFinance.html — no drawer mockup frame exists for this role; mirrors Branch/Production's own drawer shape. */
 export function FinanceDrawerContent({ navigation }: DrawerContentComponentProps) {
   const theme = useAppTheme();
+  const { clamp, ms } = useResponsive();
+  const logoSize = clamp(40, ms(48), 56);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
   return (
     <ScrollView style={{ backgroundColor: theme.colors.surface }} contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>
       <View style={[styles.header, { padding: theme.spacing.lg }]}>
-        <Image source={images.logo} style={styles.logo} />
+        <View style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, overflow: 'hidden' }}>
+          <Image source={images.logo} style={styles.logo} resizeMode="contain" />
+        </View>
         <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: theme.spacing.sm }]}>Mountain Bakes</Text>
         <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
           {user?.role ? (FINANCE_ROLE_LABELS[user.role as FinanceRole] ?? 'Finance') : 'Finance'}
@@ -123,6 +127,6 @@ export function FinanceDrawerContent({ navigation }: DrawerContentComponentProps
 
 const styles = StyleSheet.create({
   header: { alignItems: 'flex-start' },
-  logo: { width: 48, height: 48, borderRadius: 24 },
+  logo: { width: '100%', height: '100%' },
   item: { height: 44, justifyContent: 'center' },
 });

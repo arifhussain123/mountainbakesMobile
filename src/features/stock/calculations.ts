@@ -95,18 +95,9 @@ export function computeTotals(rows: StockRowWithDemand[]): StockTotals {
   );
 }
 
-// ─── Stock Check classification ────────────────────────────────────────────
+// ─── Stock Check classification (matches the web's result logic) ──────────
 
-export type StockCheckVerdict = 'matched' | 'short' | 'over' | 'notCounted';
-
-export interface StockCheckClassification {
-  productId: string;
-  productName: string;
-  balance: number;
-  counted: number | null;
-  diff: number | null;
-  verdict: StockCheckVerdict;
-}
+export type StockCheckVerdict = 'matched' | 'surplus' | 'deficit';
 
 /**
  * Empty-string counts mean "not counted" and must stay distinct from an
@@ -118,29 +109,69 @@ export function parseCountInput(raw: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function classifyCount(row: Pick<StockRow, 'productId' | 'productName' | 'balance'>, countedRaw: string | undefined): StockCheckClassification {
-  const counted = parseCountInput(countedRaw);
-  if (counted === null) {
-    return { productId: row.productId, productName: row.productName, balance: row.balance, counted: null, diff: null, verdict: 'notCounted' };
+/**
+ * `counted` vs `balance` for a single, ALREADY-counted product — the web's
+ * own verdicts: surplus (more on the shelf than the balance), deficit (less),
+ * matched (equal). Uncounted products are never passed in here; the caller
+ * (`buildCheckResult`) filters those out first, since "only products with an
+ * entered count are compared" is a listing rule, not part of this formula.
+ */
+export function classifyCount(balance: number, counted: number): StockCheckVerdict {
+  if (counted === balance) return 'matched';
+  return counted > balance ? 'surplus' : 'deficit';
+}
+
+export interface StockCheckDifference {
+  productId: string;
+  productName: string;
+  balance: number;
+  counted: number;
+  /** `counted - balance` — positive for surplus, negative for deficit. */
+  diff: number;
+  verdict: 'surplus' | 'deficit';
+}
+
+export interface StockCheckItem {
+  productId: string;
+  productName: string;
+  balance: number;
+  counted: number;
+}
+
+export interface CheckResult {
+  surplus: StockCheckDifference[];
+  deficit: StockCheckDifference[];
+  matchedCount: number;
+}
+
+/**
+ * Builds the web-style Verify result from already-counted items (the caller
+ * has already excluded anything with no entered count via `parseCountInput`).
+ * Matched items are counted in `matchedCount` only — never listed, per the
+ * brief ("Matched: counted in the summary only. Not listed anywhere.").
+ */
+export function buildCheckResult(items: StockCheckItem[]): CheckResult {
+  const surplus: StockCheckDifference[] = [];
+  const deficit: StockCheckDifference[] = [];
+  let matchedCount = 0;
+
+  for (const item of items) {
+    const verdict = classifyCount(item.balance, item.counted);
+    if (verdict === 'matched') {
+      matchedCount += 1;
+      continue;
+    }
+    const diff = item.counted - item.balance;
+    const difference: StockCheckDifference = {
+      productId: item.productId,
+      productName: item.productName,
+      balance: item.balance,
+      counted: item.counted,
+      diff,
+      verdict,
+    };
+    (verdict === 'surplus' ? surplus : deficit).push(difference);
   }
-  const diff = counted - row.balance;
-  const verdict: StockCheckVerdict = diff === 0 ? 'matched' : diff < 0 ? 'short' : 'over';
-  return { productId: row.productId, productName: row.productName, balance: row.balance, counted, diff, verdict };
-}
 
-export interface StockCheckSummary {
-  matched: number;
-  short: number;
-  over: number;
-  notCounted: number;
-}
-
-export function summarizeClassifications(classifications: StockCheckClassification[]): StockCheckSummary {
-  return classifications.reduce<StockCheckSummary>(
-    (acc, c) => {
-      acc[c.verdict] += 1;
-      return acc;
-    },
-    { matched: 0, short: 0, over: 0, notCounted: 0 },
-  );
+  return { surplus, deficit, matchedCount };
 }

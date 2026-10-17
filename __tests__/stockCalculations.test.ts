@@ -3,14 +3,16 @@
  */
 import type { ProductionOrder, StockRow } from '@/api';
 import {
+  buildCheckResult,
   classifyCount,
   computeTotals,
   computeWaitingDemand,
   filterListedRows,
   hasStockActivity,
   isHeldForStockCheck,
-  summarizeClassifications,
+  parseCountInput,
   withExpectedBalance,
+  type StockCheckItem,
 } from '@/features/stock/calculations';
 
 function row(overrides: Partial<StockRow> = {}): StockRow {
@@ -141,24 +143,99 @@ describe('withExpectedBalance / computeTotals', () => {
   });
 });
 
-describe('classifyCount / summarizeClassifications', () => {
-  it('treats an empty string as not counted, distinct from an explicit 0', () => {
-    expect(classifyCount(row({ balance: 5 }), undefined).verdict).toBe('notCounted');
-    expect(classifyCount(row({ balance: 5 }), '').verdict).toBe('notCounted');
-    expect(classifyCount(row({ balance: 5 }), '0').verdict).toBe('short');
+describe('parseCountInput', () => {
+  it('treats an empty string / undefined as not counted, distinct from an explicit 0', () => {
+    expect(parseCountInput(undefined)).toBeNull();
+    expect(parseCountInput('')).toBeNull();
+    expect(parseCountInput('   ')).toBeNull();
+    expect(parseCountInput('0')).toBe(0);
+  });
+});
+
+describe('classifyCount', () => {
+  it('classifies matched/surplus/deficit from counted vs balance', () => {
+    expect(classifyCount(10, 10)).toBe('matched');
+    expect(classifyCount(10, 8)).toBe('deficit');
+    expect(classifyCount(10, 12)).toBe('surplus');
   });
 
-  it('classifies matched/short/over from counted - balance', () => {
-    expect(classifyCount(row({ balance: 10 }), '10').verdict).toBe('matched');
-    expect(classifyCount(row({ balance: 10 }), '8').verdict).toBe('short');
-    expect(classifyCount(row({ balance: 10 }), '12').verdict).toBe('over');
+  it('a count of 0 against a positive balance is a deficit', () => {
+    expect(classifyCount(2, 0)).toBe('deficit');
+  });
+});
+
+function item(overrides: Partial<StockCheckItem> = {}): StockCheckItem {
+  return { productId: 'p1', productName: 'Cream Puff', balance: 0, counted: 0, ...overrides };
+}
+
+describe('buildCheckResult', () => {
+  it('all matched: nothing listed, matchedCount reflects every item', () => {
+    const result = buildCheckResult([item({ balance: 4, counted: 4 }), item({ productId: 'p2', balance: 3, counted: 3 })]);
+    expect(result.surplus).toEqual([]);
+    expect(result.deficit).toEqual([]);
+    expect(result.matchedCount).toBe(2);
   });
 
-  it('summarizes verdict counts', () => {
-    const rows = [row({ productId: 'a', balance: 10 }), row({ productId: 'b', balance: 5 }), row({ productId: 'c', balance: 2 })];
-    const counts: Record<string, string> = { a: '10', b: '3' };
-    const classifications = rows.map((r) => classifyCount(r, counts[r.productId]));
-    const summary = summarizeClassifications(classifications);
-    expect(summary).toEqual({ matched: 1, short: 1, over: 0, notCounted: 1 });
+  it('only surplus: Dry Cake 5 vs balance 4', () => {
+    const result = buildCheckResult([item({ productId: 'dry-cake', productName: 'Dry Cake', balance: 4, counted: 5 })]);
+    expect(result.surplus).toEqual([
+      { productId: 'dry-cake', productName: 'Dry Cake', balance: 4, counted: 5, diff: 1, verdict: 'surplus' },
+    ]);
+    expect(result.deficit).toEqual([]);
+    expect(result.matchedCount).toBe(0);
+  });
+
+  it('only deficit: Banana Bread 2 vs balance 3', () => {
+    const result = buildCheckResult([item({ productId: 'banana-bread', productName: 'Banana Bread', balance: 3, counted: 2 })]);
+    expect(result.deficit).toEqual([
+      { productId: 'banana-bread', productName: 'Banana Bread', balance: 3, counted: 2, diff: -1, verdict: 'deficit' },
+    ]);
+    expect(result.surplus).toEqual([]);
+    expect(result.matchedCount).toBe(0);
+  });
+
+  it('mixed: reference scenario — Dry Cake 5 (balance 4) and Banana Bread 2 (balance 3)', () => {
+    const result = buildCheckResult([
+      item({ productId: 'dry-cake', productName: 'Dry Cake', balance: 4, counted: 5 }),
+      item({ productId: 'banana-bread', productName: 'Banana Bread', balance: 3, counted: 2 }),
+    ]);
+    expect(result.surplus).toHaveLength(1);
+    expect(result.surplus[0]!.diff).toBe(1);
+    expect(result.deficit).toHaveLength(1);
+    expect(result.deficit[0]!.diff).toBe(-1);
+    expect(result.matchedCount).toBe(0);
+  });
+
+  it('uncounted products are never passed in — buildCheckResult has no notion of "not counted"', () => {
+    // The caller is responsible for filtering via parseCountInput before calling this.
+    const result = buildCheckResult([item({ balance: 4, counted: 4 })]);
+    expect(result.matchedCount).toBe(1);
+  });
+
+  it('a count of 0 against a balance of 2 is a deficit of -2, not ignored', () => {
+    const result = buildCheckResult([item({ productId: 'p1', balance: 2, counted: 0 })]);
+    expect(result.deficit).toEqual([{ productId: 'p1', productName: 'Cream Puff', balance: 2, counted: 0, diff: -2, verdict: 'deficit' }]);
+  });
+
+  it('reference scenario 2: Dry Cake 4 and Banana Bread 3 — both matched, nothing listed', () => {
+    const result = buildCheckResult([
+      item({ productId: 'dry-cake', productName: 'Dry Cake', balance: 4, counted: 4 }),
+      item({ productId: 'banana-bread', productName: 'Banana Bread', balance: 3, counted: 3 }),
+    ]);
+    expect(result.surplus).toEqual([]);
+    expect(result.deficit).toEqual([]);
+    expect(result.matchedCount).toBe(2);
+  });
+});
+
+describe('editing after Verify', () => {
+  it('re-running buildCheckResult with an updated count produces a fresh result — nothing is cached/stale', () => {
+    const before = buildCheckResult([item({ productId: 'p1', balance: 4, counted: 5 })]);
+    expect(before.surplus).toHaveLength(1);
+
+    // Simulates "Edit counts" -> change the count -> Verify again.
+    const after = buildCheckResult([item({ productId: 'p1', balance: 4, counted: 4 })]);
+    expect(after.surplus).toEqual([]);
+    expect(after.matchedCount).toBe(1);
   });
 });
