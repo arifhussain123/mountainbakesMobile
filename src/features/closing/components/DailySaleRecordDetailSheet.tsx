@@ -24,13 +24,26 @@ const STATUS_VARIANT: Record<DailySaleRecord['status'], StatusVariant> = {
   amended: 'neutral',
 };
 
-function Row({ label, value, explanation, danger }: { label: string; value: string; explanation?: string; danger?: boolean }) {
+function Row({
+  label,
+  value,
+  explanation,
+  danger,
+  success,
+}: {
+  label: string;
+  value: string;
+  explanation?: string;
+  danger?: boolean;
+  success?: boolean;
+}) {
   const theme = useAppTheme();
+  const valueColor = danger ? theme.colors.danger : success ? theme.colors.success : theme.colors.text;
   return (
     <View style={{ marginTop: 14 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>{label}</Text>
-        <Text style={[theme.typography.body, { color: danger ? theme.colors.danger : theme.colors.text, fontWeight: '700' }]}>{value}</Text>
+        <Text style={[theme.typography.body, { color: valueColor, fontWeight: '700' }]}>{value}</Text>
       </View>
       {explanation ? <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{explanation}</Text> : null}
     </View>
@@ -75,6 +88,12 @@ export function DailySaleRecordDetailSheet({ record }: DailySaleRecordDetailShee
         label="Company Share"
         value={formatCurrency(record.companyShare)}
         explanation={`Total Sale × ${record.companySharePct}% — this branch's configured company share.`}
+      />
+      <Row
+        label="Branch Share"
+        value={formatCurrency(record.branchShare)}
+        explanation={`Total Sale × ${record.branchSharePct}% — Admin's configured branch share.`}
+        success
       />
       <Row
         label="Cash on Table"

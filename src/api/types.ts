@@ -1249,6 +1249,8 @@ export interface DailySaleRecord {
   autoTotalSale: number;
   companySharePct: number;
   companyShare: number;
+  branchSharePct: number;
+  branchShare: number;
   autoCash: number;
   autoEasypaisa: number;
   autoFoodpanda: number;

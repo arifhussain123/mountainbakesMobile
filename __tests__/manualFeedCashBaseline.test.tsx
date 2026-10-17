@@ -33,6 +33,8 @@ function makeRecord(overrides: Partial<DailySaleRecord>): DailySaleRecord {
     autoTotalSale: 46650,
     companySharePct: 75,
     companyShare: 34987.5,
+    branchSharePct: 25,
+    branchShare: 11662.5,
     autoCash: 37100,
     autoEasypaisa: 9550,
     autoFoodpanda: 0,

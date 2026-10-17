@@ -173,10 +173,11 @@ export function DailySaleRecordListScreen() {
         (acc, r) => ({
           totalSale: acc.totalSale + r.autoTotalSale,
           companyShare: acc.companyShare + r.companyShare,
+          branchShare: acc.branchShare + r.branchShare,
           cashOnTable: acc.cashOnTable + r.expectedCashInHand,
           discount: acc.discount + r.discount,
         }),
-        { totalSale: 0, companyShare: 0, cashOnTable: 0, discount: 0 },
+        { totalSale: 0, companyShare: 0, branchShare: 0, cashOnTable: 0, discount: 0 },
       ),
     [filteredRecords],
   );
@@ -261,6 +262,7 @@ export function DailySaleRecordListScreen() {
                     rangeLabel={formatRangeLabel(rangeFrom, rangeTo)}
                     totalSale={summary.totalSale}
                     companyShare={aggregates.companyShare}
+                    branchShare={aggregates.branchShare}
                     cashOnTable={aggregates.cashOnTable}
                   />
                 </View>

@@ -7,6 +7,7 @@ export interface DailySaleHeroCardProps {
   rangeLabel: string;
   totalSale: number;
   companyShare: number;
+  branchShare: number;
   cashOnTable: number;
 }
 
@@ -16,7 +17,7 @@ export interface DailySaleHeroCardProps {
  * shape as the dashboard's `HeroSalesCard` (lines 107-113) adapted for this
  * screen's own figures instead of Net Amount/Orders.
  */
-export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, cashOnTable }: DailySaleHeroCardProps) {
+export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, branchShare, cashOnTable }: DailySaleHeroCardProps) {
   const theme = useAppTheme();
 
   return (
@@ -32,6 +33,12 @@ export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, cashOnT
         <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Company Share</Text>
           <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(companyShare)}</Text>
+        </View>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Branch Share</Text>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.success, marginTop: 2, fontWeight: '700' }]}>
+            {formatCurrency(branchShare)}
+          </Text>
         </View>
         <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Cash on Table</Text>

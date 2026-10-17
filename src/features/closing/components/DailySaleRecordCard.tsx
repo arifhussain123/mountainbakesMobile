@@ -81,6 +81,14 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
           </Text>
         </View>
       </View>
+      <View style={[styles.row, { marginTop: 4, justifyContent: 'flex-end' }]}>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>BRANCH SHARE</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 2, fontWeight: '700' }]}>
+            {formatCurrency(record.branchShare)}
+          </Text>
+        </View>
+      </View>
       <View style={[styles.grid, { marginTop: 10 }]}>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
           Cash <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatCurrency(record.autoCash)}</Text>
@@ -156,11 +164,6 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
           )}
         </View>
       </View>
-      {!notGenerated ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 8 }]}>
-          {hasCount ? 'System + Counted' : 'System'}
-        </Text>
-      ) : null}
       </Card>
     </Pressable>
   );
