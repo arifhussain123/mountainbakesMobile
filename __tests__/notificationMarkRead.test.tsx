@@ -38,7 +38,12 @@ function notification(id: string): AppNotification {
 // a mutable ref, so the optimistic cache update is observable without
 // rendering any real screen UI.
 function renderMarkRead(seed: NotificationFeedResponse) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // `gcTime: Infinity` on both — `0` garbage-collects the cache entry the
+  // instant it has no observer, which erases it before the test can read it
+  // back; the default (5 minutes, ref'd) instead keeps the Node process
+  // alive long after the test itself finishes. Infinity schedules no timer
+  // at all, and `afterEach` below clears each client explicitly.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { gcTime: Infinity } } });
   queryClient.setQueryData(queryKeys.notifications(), seed);
 
   const ref: { current: ReturnType<typeof useMarkNotificationsRead> | null } = { current: null };
@@ -57,17 +62,30 @@ function renderMarkRead(seed: NotificationFeedResponse) {
 }
 
 describe('useMarkNotificationsRead — optimistic cache update', () => {
+  const clients: QueryClient[] = [];
+
   beforeEach(() => {
     mockMarkNotificationsRead.mockReset();
+  });
+
+  afterEach(() => {
+    clients.forEach((c) => c.clear());
+    clients.length = 0;
   });
 
   it('adds the id to readIds immediately, before the server responds', async () => {
     mockMarkNotificationsRead.mockImplementation(() => new Promise(() => {})); // never resolves in this test
     const seed: NotificationFeedResponse = { notifications: [notification('a'), notification('b')], readIds: [] };
     const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
 
-    ReactTestRenderer.act(() => {
+    // `onMutate` awaits `cancelQueries()` before writing the optimistic
+    // cache, and TanStack Query's own re-render notification is batched via
+    // `setTimeout(0)` — flush both a microtask and a macrotask before
+    // asserting, all inside `act()` so React sees the resulting update.
+    await ReactTestRenderer.act(async () => {
       ref.current!.mutate(['a']);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
     const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
@@ -78,6 +96,7 @@ describe('useMarkNotificationsRead — optimistic cache update', () => {
     mockMarkNotificationsRead.mockRejectedValue(new Error('network down'));
     const seed: NotificationFeedResponse = { notifications: [notification('a')], readIds: [] };
     const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
 
     await ReactTestRenderer.act(async () => {
       try {
@@ -85,6 +104,7 @@ describe('useMarkNotificationsRead — optimistic cache update', () => {
       } catch {
         // expected — asserting the rollback, not the rejection
       }
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
     const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
@@ -95,9 +115,11 @@ describe('useMarkNotificationsRead — optimistic cache update', () => {
     mockMarkNotificationsRead.mockImplementation(() => new Promise(() => {}));
     const seed: NotificationFeedResponse = { notifications: [notification('a')], readIds: ['a'] };
     const { ref, queryClient } = renderMarkRead(seed);
+    clients.push(queryClient);
 
-    ReactTestRenderer.act(() => {
+    await ReactTestRenderer.act(async () => {
       ref.current!.mutate(['a']);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
     const cached = queryClient.getQueryData<NotificationFeedResponse>(queryKeys.notifications());
