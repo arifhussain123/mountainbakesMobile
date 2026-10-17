@@ -27,7 +27,7 @@ export interface OnboardingSlideProps {
  */
 export function OnboardingSlide({ content, width, active }: OnboardingSlideProps) {
   const theme = useAppTheme();
-  const { sw, sh, ms, clamp, isShort, usableHeight } = useResponsive();
+  const { width: deviceWidth, size, clamp, usableHeight } = useResponsive();
   const reduceMotion = useReducedMotion();
   const opacity = useSharedValue(reduceMotion ? 1 : 0);
   const translateY = useSharedValue(reduceMotion ? 0 : 12);
@@ -50,22 +50,39 @@ export function OnboardingSlide({ content, width, active }: OnboardingSlideProps
 
   const accessibleHeadline = `${content.headline.map((line) => line.text).join(' ')}.`;
 
-  const logoSize = clamp(80, Math.min(sw(110), usableHeight * 0.15), 140);
-  const headlineSize = isShort ? clamp(26, ms(26), 40) : clamp(26, ms(32), 40);
+  // On a short screen (usableHeight < 640, this task's own threshold — a
+  // slightly tighter bar than `isShort`'s general 700), gaps shrink first;
+  // the logo only shrinks toward its own floor once gaps are already at
+  // their minimum, so text never has to fight the logo for space twice.
+  const veryShort = usableHeight < 640;
+  const logoSize = clamp(130, Math.min(deviceWidth * 0.42, usableHeight * 0.2), 210);
+  const headlineSize = size(36, 28, 44);
+  const gapLogoToText = veryShort ? 12 : size(24, 16, 32);
+  const gapBodyTop = veryShort ? 10 : size(16, 12, 24);
+  const gapFeaturesTop = veryShort ? 12 : size(20, 14, 28);
 
   return (
     <View style={{ width, flex: 1 }}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.slide, { paddingTop: sh(8) }]}
+        contentContainerStyle={[styles.slide, { paddingTop: size(8, 4, 16) }]}
         showsVerticalScrollIndicator={false}
         bounces={false}>
-        <Image source={images.logo} style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, alignSelf: 'center', marginTop: sh(24) }} resizeMode="contain" />
+        <Image
+          source={images.logo}
+          style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, alignSelf: 'center', marginTop: size(24, 12, 32) }}
+          resizeMode="contain"
+        />
         <View style={styles.spacer} />
         <Animated.View style={animatedStyle}>
           <Text
             accessibilityLabel={accessibleHeadline}
-            style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text, fontSize: headlineSize, lineHeight: headlineSize * 1.1 }]}>
+            maxFontSizeMultiplier={1.2}
+            style={[
+              theme.typography.screenTitle,
+              styles.headline,
+              { color: theme.colors.text, fontSize: headlineSize, lineHeight: headlineSize * 1.1, marginTop: gapLogoToText },
+            ]}>
             {content.headline.map((line, i) => (
               <Text key={i} style={line.accent ? { color: theme.colors.primary } : undefined}>
                 {line.text.toUpperCase()}
@@ -74,15 +91,16 @@ export function OnboardingSlide({ content, width, active }: OnboardingSlideProps
             ))}
           </Text>
           <Text
+            maxFontSizeMultiplier={1.2}
             style={[
               theme.typography.body,
               styles.body,
-              { color: theme.colors.textSecondary, fontSize: clamp(13, ms(14), 16), maxWidth: Math.min(width - 48, 340), marginTop: sh(16) },
+              { color: theme.colors.textSecondary, fontSize: size(15, 13, 17), maxWidth: Math.min(deviceWidth - 48, 360), marginTop: gapBodyTop },
             ]}>
             {content.body}
           </Text>
           {content.features ? (
-            <View style={{ marginTop: sh(20), width: '100%' }}>
+            <View style={{ marginTop: gapFeaturesTop, width: '100%' }}>
               <FeatureStrip features={content.features} />
             </View>
           ) : null}

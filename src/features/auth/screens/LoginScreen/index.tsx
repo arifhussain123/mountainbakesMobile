@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import Animated, { Extrapolation, interpolate, useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { images } from '@/assets';
 import { Routes, type AuthStackParamList } from '@/navigation';
 import { useNetworkStatus } from '@/shared/hooks';
@@ -15,18 +16,44 @@ import { mapLoginError } from '../../mapLoginError';
 import { useLogin } from '../../useLogin';
 import { styles } from './styles';
 
+// Below this, the logo/headline are fully shrunk — a rough "keyboard is
+// substantially open" threshold, not tied to any one device's exact
+// keyboard height (which this doesn't need to match pixel-for-pixel, only
+// read as "shrinking as the keyboard rises").
+const KEYBOARD_SHRINK_RANGE = 150;
+const LOGIN_LOGO_SHRUNK = 56;
+
 export function LoginScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const rememberedEmail = useAuthStore((state) => state.rememberedEmail);
   const { isOffline } = useNetworkStatus();
   const loginMutation = useLogin();
-  const { width, sh, ms, clamp, contentWidth } = useResponsive();
-  const logoSize = clamp(48, width * 0.14, 64);
-  const fieldHeight = clamp(48, sh(52), 56);
-  const buttonHeight = clamp(48, sh(54), 58);
+  const { width, size, clamp, contentWidth } = useResponsive();
+  const logoSize = clamp(80, width * 0.24, 120);
+  const fieldHeight = size(52, 48, 56);
+  const inputFontSize = size(15, 14, 17);
+  const labelFontSize = size(13, 12, 15);
+  const buttonHeight = size(54, 48, 58);
+  const buttonLabelSize = size(16, 15, 18);
   const maxWidth = contentWidth(420);
-  const headlineSize = clamp(26, ms(32), 40);
+  const headlineSize = size(34, 28, 40);
+  const headlineSizeShrunk = size(26, 22, 30);
+
+  // `useAnimatedKeyboard()` tracks the native keyboard's own show/hide
+  // animation on the UI thread, so this stays perfectly in sync with it
+  // instead of guessing a duration — "smooth animation" per the brief,
+  // without hand-tuning a timing curve to match each platform's keyboard.
+  const keyboard = useAnimatedKeyboard();
+  const keyboardOpenFraction = useDerivedValue(() => interpolate(keyboard.height.value, [0, KEYBOARD_SHRINK_RANGE], [0, 1], Extrapolation.CLAMP));
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    const shrunkSize = interpolate(keyboardOpenFraction.value, [0, 1], [logoSize, LOGIN_LOGO_SHRUNK]);
+    return { width: shrunkSize, height: shrunkSize, borderRadius: shrunkSize / 2 };
+  });
+  const headlineAnimatedStyle = useAnimatedStyle(() => {
+    const shrunkSize = interpolate(keyboardOpenFraction.value, [0, 1], [headlineSize, headlineSizeShrunk]);
+    return { fontSize: shrunkSize, lineHeight: shrunkSize * 1.125 };
+  });
 
   const [rememberMe, setRememberMe] = useState(true);
   const [bannerError, setBannerError] = useState<string | null>(null);
@@ -69,15 +96,18 @@ export function LoginScreen() {
             contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.xl }]}
             keyboardShouldPersistTaps="handled">
             <View style={{ width: '100%', maxWidth, alignSelf: 'center' }}>
-              <Image source={images.logo} style={[styles.logo, { width: logoSize, height: logoSize, borderRadius: logoSize / 2 }]} />
+              <Animated.Image source={images.logo} style={[styles.logo, logoAnimatedStyle]} />
 
-              <Text
+              <Animated.Text
                 accessibilityRole="header"
-                style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text, fontSize: headlineSize, lineHeight: headlineSize * 1.125 }]}>
+                maxFontSizeMultiplier={1.2}
+                style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text }, headlineAnimatedStyle]}>
                 WELCOME{'\n'}
                 <Text style={{ color: theme.colors.primary }}>BACK</Text>
-              </Text>
-              <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textSecondary, fontSize: clamp(13, ms(15), 16) }]}>
+              </Animated.Text>
+              <Text
+                maxFontSizeMultiplier={1.2}
+                style={[theme.typography.body, styles.subtitle, { color: theme.colors.textSecondary, fontSize: size(14, 13, 16) }]}>
                 Sign in to open your branch.
               </Text>
 
@@ -101,6 +131,8 @@ export function LoginScreen() {
                     returnKeyType="next"
                     onSubmitEditing={() => passwordRef.current?.focus()}
                     height={fieldHeight}
+                    labelFontSize={labelFontSize}
+                    inputFontSize={inputFontSize}
                     testID="login-email"
                   />
                 )}
@@ -123,6 +155,8 @@ export function LoginScreen() {
                     returnKeyType="go"
                     onSubmitEditing={() => void onSubmit()}
                     height={fieldHeight}
+                    labelFontSize={labelFontSize}
+                    inputFontSize={inputFontSize}
                     testID="login-password"
                   />
                 )}
@@ -155,7 +189,16 @@ export function LoginScreen() {
               ) : null}
 
               <View style={{ marginTop: theme.spacing.xl }}>
-                <PillButton label="Sign In" onPress={() => void onSubmit()} loading={busy} disabled={busy} showArrow height={buttonHeight} testID="login-submit" />
+                <PillButton
+                  label="Sign In"
+                  onPress={() => void onSubmit()}
+                  loading={busy}
+                  disabled={busy}
+                  showArrow
+                  height={buttonHeight}
+                  labelFontSize={buttonLabelSize}
+                  testID="login-submit"
+                />
               </View>
             </View>
           </ScrollView>

@@ -4,12 +4,26 @@
 import {
   BASE_HEIGHT,
   BASE_WIDTH,
+  SCALE_BASE_HEIGHT,
+  SCALE_BASE_WIDTH,
   clamp,
   computeResponsiveMetrics,
+  computeScale,
   moderateScale,
   scaleByHeight,
   scaleByWidth,
 } from '@/shared/theme/responsive';
+
+// This task's own required coverage: 320x568 (iPhone SE), 360x800, 393x873
+// (the Samsung this was reported on), 412x915, 430x932, and a 600dp-wide tablet.
+const SCALE_SIZES: Array<{ width: number; height: number }> = [
+  { width: 320, height: 568 },
+  { width: 360, height: 800 },
+  { width: 393, height: 873 },
+  { width: 412, height: 915 },
+  { width: 430, height: 932 },
+  { width: 600, height: 960 },
+];
 
 // The task's required coverage: 320x640 (smallest supported Android), 360x800
 // and 393x873 (the Samsung this was reported on), 412x915 and 430x932 (large
@@ -132,5 +146,50 @@ describe('computeResponsiveMetrics', () => {
   it('contentWidth never exceeds device width even if max is larger (e.g. a 600px tablet border case)', () => {
     const m = computeResponsiveMetrics(600, 960, 0, 0);
     expect(m.contentWidth(480)).toBeLessThanOrEqual(600);
+  });
+});
+
+describe('computeScale', () => {
+  it('is exactly 1 at the 393x852 reference size', () => {
+    expect(computeScale(SCALE_BASE_WIDTH, SCALE_BASE_HEIGHT)).toBeCloseTo(1);
+  });
+
+  it('is the smaller of the width ratio and the usable-height ratio (never stretches past either dimension)', () => {
+    // Wide and short — height ratio should win.
+    expect(computeScale(900, 400)).toBeCloseTo(400 / SCALE_BASE_HEIGHT);
+    // Narrow and tall — width ratio should win.
+    expect(computeScale(200, 2000)).toBeCloseTo(200 / SCALE_BASE_WIDTH);
+  });
+
+  it.each(SCALE_SIZES)('is finite and positive at $widthx$heightpx', ({ width, height }) => {
+    const scale = computeScale(width, height);
+    expect(Number.isFinite(scale)).toBe(true);
+    expect(scale).toBeGreaterThan(0);
+  });
+});
+
+describe('useResponsive() metrics — scale/size', () => {
+  it('exposes scale computed the same way as computeScale, given the same insets', () => {
+    const m = computeResponsiveMetrics(SCALE_BASE_WIDTH, SCALE_BASE_HEIGHT, 0, 0);
+    expect(m.scale).toBeCloseTo(computeScale(SCALE_BASE_WIDTH, SCALE_BASE_HEIGHT));
+  });
+
+  it('size(base, min, max) matches base*scale at the reference size (scale=1)', () => {
+    const m = computeResponsiveMetrics(SCALE_BASE_WIDTH, SCALE_BASE_HEIGHT, 0, 0);
+    expect(m.size(30, 24, 36)).toBeCloseTo(30);
+  });
+
+  it('size() floors at min and ceils at max', () => {
+    const tiny = computeResponsiveMetrics(100, 200, 0, 0);
+    expect(tiny.size(30, 24, 36)).toBe(24);
+    const huge = computeResponsiveMetrics(2000, 3000, 0, 0);
+    expect(huge.size(30, 24, 36)).toBe(36);
+  });
+
+  it.each(SCALE_SIZES)('size() stays within [min, max] at $widthx$heightpx', ({ width, height }) => {
+    const m = computeResponsiveMetrics(width, height, 0, 0);
+    const value = m.size(30, 24, 36);
+    expect(value).toBeGreaterThanOrEqual(24);
+    expect(value).toBeLessThanOrEqual(36);
   });
 });

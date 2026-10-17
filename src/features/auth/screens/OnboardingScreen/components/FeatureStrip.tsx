@@ -10,10 +10,10 @@ export interface FeatureStripProps {
 /** mountainbakesBranch.html onboarding card: 3 equal cells, thin dividers, accent icon over a white label. */
 export function FeatureStrip({ features }: FeatureStripProps) {
   const theme = useAppTheme();
-  const { sh, sw, ms, clamp } = useResponsive();
+  const { sh, clamp, size } = useResponsive();
   const cellHeight = clamp(64, sh(76), 88);
-  const iconSize = clamp(18, sw(20), 24);
-  const labelSize = clamp(11, ms(12), 13);
+  const iconSize = size(22, 18, 26);
+  const labelSize = size(12, 11, 14);
 
   return (
     <View style={[styles.row, { minHeight: cellHeight, borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill, borderRadius: theme.radii.lg }]}>

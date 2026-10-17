@@ -18,6 +18,10 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   testID?: string;
   /** Overrides the fixed 52dp input height — Login computes this from `useResponsive()` so it scales with usable height on short screens. */
   height?: number;
+  /** Overrides the label text's fixed size — same responsive-sizing use case as `height`. */
+  labelFontSize?: number;
+  /** Overrides the input text's fixed 14sp size — same responsive-sizing use case as `height`. */
+  inputFontSize?: number;
 }
 
 /**
@@ -25,7 +29,7 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
  * `rgba(255,255,255,.04)` fill, `rgba(255,255,255,.18)` border, radius 16, 52dp
  * tall — border switches to `primary` on focus and `danger` on error.
  */
-export function TextField({ label, required, error, rightAccessory, inputRef, onFocus, onBlur, testID, height, ...inputProps }: TextFieldProps) {
+export function TextField({ label, required, error, rightAccessory, inputRef, onFocus, onBlur, testID, height, labelFontSize, inputFontSize, ...inputProps }: TextFieldProps) {
   const theme = useAppTheme();
   const [isFocused, setIsFocused] = useState(false);
 
@@ -33,7 +37,9 @@ export function TextField({ label, required, error, rightAccessory, inputRef, on
 
   return (
     <View style={styles.container}>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>
+      <Text
+        style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }, labelFontSize !== undefined ? { fontSize: labelFontSize } : null]}
+        maxFontSizeMultiplier={1.2}>
         {label}
         {required ? <Text style={{ color: theme.colors.danger }}> *</Text> : null}
       </Text>
@@ -54,7 +60,8 @@ export function TextField({ label, required, error, rightAccessory, inputRef, on
           accessibilityLabel={required ? `${label}, required` : label}
           accessibilityState={{ disabled: inputProps.editable === false }}
           placeholderTextColor={theme.colors.textFaint}
-          style={[styles.input, { color: theme.colors.text }]}
+          maxFontSizeMultiplier={1.2}
+          style={[styles.input, { color: theme.colors.text }, inputFontSize !== undefined ? { fontSize: inputFontSize } : null]}
           onFocus={(event) => {
             setIsFocused(true);
             onFocus?.(event);

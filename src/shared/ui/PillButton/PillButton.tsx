@@ -15,6 +15,8 @@ export interface PillButtonProps {
   accessibilityLabel?: string;
   /** Overrides the pill's fixed 52dp height — Login/Onboarding compute this from `useResponsive()` so the button scales with usable height on short screens. */
   height?: number;
+  /** Overrides the label's fixed 15sp size — same responsive-sizing use case as `height`. */
+  labelFontSize?: number;
 }
 
 /**
@@ -22,7 +24,7 @@ export interface PillButtonProps {
  * shape mountainbakesBranch.html's onboarding/login screens use, distinct from
  * `PrimaryButton`'s plain rounded-rect (kept as-is for every other screen).
  */
-export function PillButton({ label, onPress, showArrow, loading, disabled, testID, accessibilityLabel, height }: PillButtonProps) {
+export function PillButton({ label, onPress, showArrow, loading, disabled, testID, accessibilityLabel, height, labelFontSize }: PillButtonProps) {
   const theme = useAppTheme();
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
@@ -62,7 +64,9 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
           <ActivityIndicator color={theme.colors.primaryText} />
         ) : (
           <>
-            <Text style={[styles.label, { color: theme.colors.primaryText }]}>{label}</Text>
+            <Text style={[styles.label, { color: theme.colors.primaryText }, labelFontSize !== undefined ? { fontSize: labelFontSize } : null]} maxFontSizeMultiplier={1.2}>
+              {label}
+            </Text>
             {showArrow ? (
               <View style={[styles.chip, { backgroundColor: theme.colors.background }]}>
                 <Icon name="arrow-up-right" size={16} color={theme.colors.primary} />

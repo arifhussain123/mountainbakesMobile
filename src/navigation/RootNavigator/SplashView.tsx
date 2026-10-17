@@ -11,28 +11,31 @@ import { images } from '@/assets';
  * mountainbakesBranch.html screen 01: warm top-right glow, logo, title,
  * tagline, pulsing loader dot.
  *
- * Native-to-JS handoff: `android/.../styles.xml` + `BootTheme`'s
- * `bootSplashLogo` drawable renders the logo at a fixed 288dp (see the
- * generated `drawable-mdpi/bootsplash_logo.png`, 288x288 at 1x), centered on
- * the raw screen. `ios/.../BootSplash.storyboard` renders it at a fixed
- * 192pt, also screen-centered. Neither scales with device size or responds
- * to this screen's `useResponsive()` sizing — so the very first JS frame
- * must render the logo at that same native size and position, or there's a
- * visible jump the instant `App.tsx` calls `BootSplash.hide()`. The logo's
- * animated style below starts at that native size/scale and tweens to the
- * responsive final size over the same ~250ms the native fade itself takes.
+ * Native-to-JS handoff: regenerated via `react-native-bootsplash generate
+ * --logo-width 200 ...` for iOS (confirmed in `BootSplash.storyboard`: a
+ * 200x200pt image, screen-centered) and `--logo-width 192` for Android — the
+ * CLI itself refuses anything above 192dp there ("Logo exceeds 192x192dp and
+ * will be cropped by Android"), and the generated `drawable-mdpi/
+ * bootsplash_logo.png` is a consistent 1.5x of whatever width is requested
+ * (288px for a 192dp request — a quirk of this CLI's Android output, not a
+ * bug in this file), so 288 is Android's real effective native size, not
+ * 192. Neither platform scales with device size or responds to this
+ * screen's `useResponsive()` sizing — so the very first JS frame must render
+ * the logo at that same native size and position, or there's a visible jump
+ * the instant `App.tsx` calls `BootSplash.hide()`. The logo's animated style
+ * below starts at that native size/scale and tweens to the responsive final
+ * size over 300ms, per this task's own spec.
  */
-const NATIVE_BOOTSPLASH_LOGO_SIZE = Platform.select({ ios: 192, android: 288, default: 192 });
-const HANDOFF_DURATION_MS = 250;
+const NATIVE_BOOTSPLASH_LOGO_SIZE = Platform.select({ ios: 200, android: 288, default: 200 });
+const HANDOFF_DURATION_MS = 300;
 
 export function SplashView() {
   const theme = useAppTheme();
-  const { sw, sh, ms, clamp, isShort, usableHeight } = useResponsive();
+  const { width, size, clamp, isShort, usableHeight } = useResponsive();
   const bootstrapMessage = useAuthStore((state) => state.bootstrapMessage);
-  const bootstrapStep = useAuthStore((state) => state.bootstrapStep);
   const reduceMotion = useReducedMotion();
 
-  const logoSize = clamp(96, Math.min(sw(140), usableHeight * 0.18), 168);
+  const logoSize = clamp(160, Math.min(width * 0.5, usableHeight * 0.25), 240);
   // The whole block sits slightly above true center — 45% of usable height —
   // rather than dead center, per the design. The native splash's logo is
   // screen-centered (see note above), so the block animates up into place
@@ -68,27 +71,27 @@ export function SplashView() {
 
         <Animated.View style={textStyle}>
           <Text
-            style={[
-              theme.typography.screenTitle,
-              styles.title,
-              { color: theme.colors.text, fontSize: clamp(22, ms(28), 34), marginTop: sh(24) },
-            ]}>
+            style={[theme.typography.screenTitle, styles.title, { color: theme.colors.text, fontSize: size(30, 24, 36), marginTop: size(24, 16, 32) }]}
+            maxFontSizeMultiplier={1.2}>
             MOUNTAIN BAKES
           </Text>
-          <Text style={[theme.typography.bodySmall, styles.tagline, { color: theme.colors.textMuted, fontSize: clamp(12, ms(14), 16), marginTop: sh(8) }]}>
+          <Text
+            style={[theme.typography.bodySmall, styles.tagline, { color: theme.colors.textMuted, fontSize: size(15, 13, 18), marginTop: size(8, 6, 12) }]}
+            maxFontSizeMultiplier={1.2}>
             Fresh <Text style={{ color: theme.colors.primary }}>•</Text> Quality <Text style={{ color: theme.colors.primary }}>•</Text> Every Day
           </Text>
 
-          <View style={{ marginTop: sh(40), alignItems: 'center' }}>
-            <PulsingDot color={theme.colors.primary} reduceMotion={reduceMotion} />
-            {bootstrapMessage ? (
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 10 }]}>{bootstrapMessage}</Text>
-            ) : null}
-            {/* Dev-only, and only once a step has run 1.5s+ (see authStore's
-                `timeBootstrapStep`) — never flashes on a normal, fast boot. */}
-            {__DEV__ && bootstrapStep ? (
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4, opacity: 0.6 }]}>[{bootstrapStep}]</Text>
-            ) : null}
+          <View style={{ marginTop: size(40, 28, 56), alignItems: 'center' }}>
+            <PulsingDot color={theme.colors.primary} size={size(10, 8, 12)} reduceMotion={reduceMotion} />
+            {/* "Loading…" until a step has run 1.5s+ (authStore's
+                `timeBootstrapStep`), then a friendly message for what's
+                actually taking a while — never a raw step name like
+                "sessionRefresh" (dev builds log that to the console instead,
+                see authStore.ts). Never blank: a normal, fast boot still
+                reads "Loading…" the whole time it's on screen. */}
+            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 10, fontSize: size(13, 12, 15) }]} maxFontSizeMultiplier={1.2}>
+              {bootstrapMessage ?? 'Loading…'}
+            </Text>
           </View>
         </Animated.View>
       </Animated.View>
@@ -97,7 +100,7 @@ export function SplashView() {
 }
 
 /** The pulsing orange dot from the original spec — a plain `ActivityIndicator` reads as a generic "loading fragment", not this screen's own loader. */
-function PulsingDot({ color, reduceMotion }: { color: string; reduceMotion: boolean }) {
+function PulsingDot({ color, size, reduceMotion }: { color: string; size: number; reduceMotion: boolean }) {
   const opacity = useSharedValue(1);
 
   useEffect(() => {
@@ -112,12 +115,11 @@ function PulsingDot({ color, reduceMotion }: { color: string; reduceMotion: bool
   }, [reduceMotion]);
 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />;
+  return <Animated.View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style]} />;
 }
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center' },
   title: { textAlign: 'center', letterSpacing: 2, fontWeight: '700' },
   tagline: { textAlign: 'center' },
-  dot: { width: 10, height: 10, borderRadius: 5 },
 });

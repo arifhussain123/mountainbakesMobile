@@ -10,6 +10,7 @@
  */
 
 export function clamp(min: number, value: number, max: number): number {
+  'worklet';
   return Math.min(Math.max(value, min), max);
 }
 
@@ -68,6 +69,7 @@ export interface CardTransform {
  * blur, just the progress-driven dark tint every mode already has.
  */
 export function computeCardTransform(progress: number, screenWidth: number, reduceMotion: boolean): CardTransform {
+  'worklet';
   const p = clamp(0, progress, 1);
   if (reduceMotion) {
     return { translateX: screenWidth * CARD_TRANSLATE_X_RATIO * 0.5 * p, scale: 1, rotateYDeg: 0, borderRadius: 0, blurOpacity: 0 };

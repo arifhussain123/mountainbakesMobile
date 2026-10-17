@@ -65,6 +65,10 @@ export interface ResponsiveMetrics {
   isTablet: boolean;
   /** `clamp`, re-exposed on the metrics object for convenience at call sites that already destructured `useResponsive()`. */
   clamp: typeof clamp;
+  /** `min(width / 393, usableHeight / 852)` — this task's own uniform scale factor; see `size()`. */
+  scale: number;
+  /** `clamp(min, base * scale, max)` — the per-size-spec helper this task's screens use directly. */
+  size: (base: number, min: number, max: number) => number;
   sw: (n: number) => number;
   sh: (n: number) => number;
   ms: (n: number, factor?: number) => number;
@@ -74,11 +78,26 @@ export interface ResponsiveMetrics {
 
 export const DEFAULT_CONTENT_MAX_WIDTH = 480;
 
+/**
+ * The 393x852 reference this task's own `scale`/`size()` are measured
+ * against (a slightly taller baseline than `BASE_WIDTH`/`BASE_HEIGHT`'s
+ * 390x844 — the two aren't meant to be reconciled into one number; `sw`/
+ * `sh`/`ms` and `scale`/`size` are two independently-tuned scale systems
+ * kept side by side, not duplicates of each other).
+ */
+export const SCALE_BASE_WIDTH = 393;
+export const SCALE_BASE_HEIGHT = 852;
+
+export function computeScale(width: number, usableHeight: number): number {
+  return Math.min(width / SCALE_BASE_WIDTH, usableHeight / SCALE_BASE_HEIGHT);
+}
+
 /** The math `useResponsive()` wraps — kept free of React so it can be unit-tested directly at fixed sizes. */
 export function computeResponsiveMetrics(width: number, height: number, insetTop: number, insetBottom: number): ResponsiveMetrics {
   const usableHeight = height - insetTop - insetBottom;
   const isShort = usableHeight < SHORT_HEIGHT_THRESHOLD;
   const isTablet = width >= TABLET_WIDTH_THRESHOLD;
+  const scale = computeScale(width, usableHeight);
 
   return {
     width,
@@ -89,6 +108,8 @@ export function computeResponsiveMetrics(width: number, height: number, insetTop
     isShort,
     isTablet,
     clamp,
+    scale,
+    size: (base: number, min: number, max: number) => clamp(min, base * scale, max),
     sw: (n: number) => scaleByWidth(n, width),
     sh: (n: number) => scaleByHeight(n, usableHeight),
     ms: (n: number, factor = 0.5) => moderateScale(n, width, factor),

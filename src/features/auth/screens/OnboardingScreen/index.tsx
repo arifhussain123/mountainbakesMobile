@@ -23,7 +23,7 @@ const SLIDE_COUNT = ONBOARDING_SLIDES.length;
 export function OnboardingScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
-  const { contentWidth, sh, clamp } = useResponsive();
+  const { contentWidth, size } = useResponsive();
   // Capped to 480 and centered on a tablet (per the Onboarding/Login
   // responsive spec); on a phone this is just the device width.
   const SLIDE_WIDTH = contentWidth();
@@ -82,7 +82,8 @@ export function OnboardingScreen() {
 
   const currentSlide = ONBOARDING_SLIDES[index];
 
-  const buttonHeight = clamp(48, sh(54), 58);
+  const buttonHeight = size(54, 48, 60);
+  const buttonLabelSize = size(16, 15, 18);
 
   return (
     <Screen glow="warm" contentStyle={styles.container}>
@@ -104,8 +105,15 @@ export function OnboardingScreen() {
       />
 
       {/* `insetBottom` is already applied by `Screen`'s SafeAreaView as padding — this adds the extra 16dp gap above it the spec calls for. */}
-      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: sh(16) }]}>
-        <PillButton label={currentSlide.cta} onPress={handleNext} showArrow testID="onboarding-next" height={buttonHeight} />
+      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: size(16, 12, 24) }]}>
+        <PillButton
+          label={currentSlide.cta}
+          onPress={handleNext}
+          showArrow
+          testID="onboarding-next"
+          height={buttonHeight}
+          labelFontSize={buttonLabelSize}
+        />
 
         <View style={styles.pagerRow} accessibilityLabel={`Page ${index + 1} of ${SLIDE_COUNT}`}>
           <PagerDots count={SLIDE_COUNT} scrollProgress={scrollProgress} />
