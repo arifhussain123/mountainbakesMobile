@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
 import { formatCurrency } from '@/shared/utils';
 
 export interface BranchClosingHeroCardProps {
@@ -20,18 +20,18 @@ export function BranchClosingHeroCard({ net, sales, expenses }: BranchClosingHer
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg + 6, padding: theme.spacing.lg }]}>
-      <Text style={[theme.typography.label, { color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1.2 }]}>NET</Text>
-      <Text style={[theme.typography.screenTitle, { color: '#FFFFFF', fontSize: 36, marginTop: theme.spacing.sm }]}>
+      <Text style={[theme.typography.label, { color: theme.colors.primaryText, textTransform: 'uppercase', letterSpacing: 1.2 }]}>NET</Text>
+      <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, fontSize: 36, marginTop: theme.spacing.sm }]}>
         {formatCurrency(net)}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Sales</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{formatCurrency(sales)}</Text>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Sales</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(sales)}</Text>
         </View>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Expenses</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{formatCurrency(expenses)}</Text>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Expenses</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(expenses)}</Text>
         </View>
       </View>
     </View>

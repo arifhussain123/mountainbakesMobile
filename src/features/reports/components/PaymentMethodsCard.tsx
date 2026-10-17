@@ -11,8 +11,6 @@ export interface PaymentMethodsCardProps {
   onPressMethod?: (method: string) => void;
 }
 
-const PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF6B35', '#9D91E8'];
-
 /**
  * design UIandUX/mountainbakesBranch.html screen 23, lines 1113-1117 —
  * Reports' own Payment Methods card: a stacked proportion bar, then
@@ -23,6 +21,7 @@ const PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF6B35', '#9D91E8
  */
 export function PaymentMethodsCard({ methods, onPressMethod }: PaymentMethodsCardProps) {
   const theme = useAppTheme();
+  const palette = [theme.colors.secondary, theme.colors.lavender, theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const total = sumPaymentMethodRevenue(methods);
   const sorted = [...methods].sort((a, b) => b.total - a.total);
 
@@ -48,7 +47,7 @@ export function PaymentMethodsCard({ methods, onPressMethod }: PaymentMethodsCar
         {sorted.map((method, index) => {
           const pct = total > 0 ? (method.total / total) * 100 : 0;
           if (pct <= 0) return null;
-          return <View key={method.method} style={{ width: `${pct}%`, backgroundColor: PALETTE[index % PALETTE.length], height: '100%' }} />;
+          return <View key={method.method} style={{ width: `${pct}%`, backgroundColor: palette[index % palette.length], height: '100%' }} />;
         })}
       </View>
       {sorted.map((method, index) => {
@@ -64,7 +63,7 @@ export function PaymentMethodsCard({ methods, onPressMethod }: PaymentMethodsCar
               { paddingVertical: theme.spacing.sm },
               index < sorted.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
             ]}>
-            <View style={[styles.dot, { backgroundColor: PALETTE[index % PALETTE.length] }]} />
+            <View style={[styles.dot, { backgroundColor: palette[index % palette.length] }]} />
             <View style={styles.left}>
               <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', textTransform: 'capitalize' }]}>
                 {method.method} ({method.count} orders)

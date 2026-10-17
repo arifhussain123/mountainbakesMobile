@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
 import { formatCurrency } from '@/shared/utils';
 
 export interface HeroSalesCardProps {
@@ -32,15 +32,15 @@ export function HeroSalesCard({ periodLabel, salesSub, sales, netAmount, orders,
         {formatCurrency(sales)}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Net Amount</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{formatCurrency(netAmount)}</Text>
-          <Text style={[theme.typography.label, { color: theme.colors.text, opacity: 0.75, marginTop: 2 }]}>Sales – Expenses</Text>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Net Amount</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(netAmount)}</Text>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.text, opacity: 0.75, marginTop: 2 }]}>Sales – Expenses</Text>
         </View>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Orders</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{orders}</Text>
-          <Text style={[theme.typography.label, { color: theme.colors.text, opacity: 0.75, marginTop: 2 }]}>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Orders</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{orders}</Text>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.text, opacity: 0.75, marginTop: 2 }]}>
             {pending} pending · {cancelled} cancelled
           </Text>
         </View>

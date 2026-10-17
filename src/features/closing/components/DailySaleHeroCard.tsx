@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
 import { formatCurrency } from '@/shared/utils';
 
 export interface DailySaleHeroCardProps {
@@ -29,13 +29,13 @@ export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, cashOnT
         {formatCurrency(totalSale)}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Company Share</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{formatCurrency(companyShare)}</Text>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Company Share</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(companyShare)}</Text>
         </View>
-        <View style={[styles.tile, { backgroundColor: '#1C1917', borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Cash on Table</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>{formatCurrency(cashOnTable)}</Text>
+        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
+          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Cash on Table</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(cashOnTable)}</Text>
         </View>
       </View>
     </View>

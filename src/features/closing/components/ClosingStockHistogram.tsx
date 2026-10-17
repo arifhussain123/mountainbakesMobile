@@ -8,8 +8,6 @@ export interface ClosingStockHistogramProps {
   rows: StockRow[];
 }
 
-const DOT_PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF8A5C', '#9D91E8'];
-
 /**
  * Design lines 974-979 ("CLOSING STOCK HISTOGRAM") — a wrapped row of
  * clickable product filter chips (dot + name + balance), then a mini
@@ -21,6 +19,7 @@ const DOT_PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF8A5C', '#9D
  */
 export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
   const theme = useAppTheme();
+  const dotPalette = [theme.colors.secondary, theme.colors.lavender, theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const [selected, setSelected] = useState<string[]>([]);
 
   const toggle = (productId: string) => {
@@ -43,7 +42,7 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
       <View style={[styles.chipRow, { marginTop: theme.spacing.sm }]}>
         {rows.map((row, index) => {
           const active = selected.includes(row.productId);
-          const dot = DOT_PALETTE[index % DOT_PALETTE.length];
+          const dot = dotPalette[index % dotPalette.length];
           return (
             <Pressable
               key={row.productId}

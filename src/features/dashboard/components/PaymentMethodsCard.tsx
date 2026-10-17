@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsPaymentMethod } from '@/api';
@@ -9,11 +9,13 @@ export interface PaymentMethodsCardProps {
   methods: SalesAnalyticsPaymentMethod[];
 }
 
-const PALETTE = ['#7B6CD9', '#C9BFF0', '#34C38A', '#4EA8DE', '#FF6B35', '#9D91E8'];
-
 /** Design lines 161-166 — proportion bar + a dot/label/sub/amount row per payment method. */
 export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
   const theme = useAppTheme();
+  // Theme data colors, not a fixed hex list — accent-independent (per
+  // accents.ts's own rule) but still mode-aware, same as every other chart
+  // in this app already reads them.
+  const palette = [theme.colors.secondary, theme.colors.lavender, theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const total = methods.reduce((sum, m) => sum + m.total, 0);
   const sorted = [...methods].sort((a, b) => b.total - a.total);
 
@@ -39,11 +41,11 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
                     styles.barSegment,
                     {
                       width: `${pct}%`,
-                      backgroundColor: PALETTE[index % PALETTE.length],
+                      backgroundColor: palette[index % palette.length],
                       paddingLeft: index === 0 ? 8 : 6,
                     },
                   ]}>
-                  <Text style={[theme.typography.label, { color: '#1C1917', fontWeight: '700' }]} numberOfLines={1}>
+                  <Text style={[theme.typography.label, { color: ON_DARK_CHIP.fill, fontWeight: '700' }]} numberOfLines={1}>
                     {pct.toFixed(1)}%
                   </Text>
                 </View>
@@ -60,7 +62,7 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
                   { paddingVertical: theme.spacing.sm },
                   index < sorted.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
                 ]}>
-                <View style={[styles.dot, { backgroundColor: PALETTE[index % PALETTE.length] }]} />
+                <View style={[styles.dot, { backgroundColor: palette[index % palette.length] }]} />
                 <View style={styles.left}>
                   <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', textTransform: 'capitalize' }]}>
                     {method.method}

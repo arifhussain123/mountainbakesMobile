@@ -42,13 +42,6 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
   bank_account: 'Bank Account',
 };
 
-/** Design lines 959-960 — Cash/Easypaisa dot swatches; falls back to the theme's chart palette for any other method. */
-const PAYMENT_METHOD_DOT: Record<string, string> = {
-  cash: '#7B6CD9',
-  easypaisa: '#C9BFF0',
-};
-const DOT_FALLBACK = ['#34C38A', '#4EA8DE', '#FF8A5C', '#9D91E8'];
-
 /**
  * branchApp.md screen 20 — Branch Closing: the ledger's own end-of-day
  * reconciliation for one business date, read from `GET /api/branch-closing`
@@ -64,6 +57,12 @@ const DOT_FALLBACK = ['#34C38A', '#4EA8DE', '#FF8A5C', '#9D91E8'];
  */
 export function BranchClosingScreen() {
   const theme = useAppTheme();
+  // Design lines 959-960 — Cash/Easypaisa dot swatches; falls back to the
+  // theme's own chart palette for any other method. Theme colors, not a
+  // fixed hex list, so this follows mode (the accent itself never touches
+  // these — see accents.ts).
+  const paymentMethodDot: Record<string, string> = { cash: theme.colors.secondary, easypaisa: theme.colors.lavender };
+  const dotFallback = [theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const today = useMemo(() => getBusinessDate(), []);
   const [date, setDate] = useState(today);
   const [isExporting, setIsExporting] = useState(false);
@@ -277,8 +276,8 @@ export function BranchClosingScreen() {
                         styles.dot,
                         {
                           backgroundColor:
-                            PAYMENT_METHOD_DOT[pm.method] ??
-                            DOT_FALLBACK[i % DOT_FALLBACK.length],
+                            paymentMethodDot[pm.method] ??
+                            dotFallback[i % dotFallback.length],
                         },
                       ]}
                     />

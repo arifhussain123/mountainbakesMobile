@@ -19,13 +19,15 @@ export function CashInHandCard({ cashInHand, cashSales, cashExpenses }: CashInHa
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg + 6, padding: theme.spacing.lg }]}>
-      <Text style={[theme.typography.label, { color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1.2 }]}>CASH IN HAND</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.primaryText, textTransform: 'uppercase', letterSpacing: 1.2 }]}>
+        CASH IN HAND
+      </Text>
       <Text
         accessibilityLabel={`Cash in hand ${cashInHand.toLocaleString()} rupees: cash takings ${cashSales.toLocaleString()} minus cash expenses ${cashExpenses.toLocaleString()}`}
-        style={[theme.typography.screenTitle, { color: '#FFFFFF', fontSize: 38, marginTop: theme.spacing.sm }]}>
+        style={[theme.typography.screenTitle, { color: theme.colors.primaryText, fontSize: 38, marginTop: theme.spacing.sm }]}>
         {formatCurrency(cashInHand)}
       </Text>
-      <Text style={[theme.typography.bodySmall, { color: 'rgba(255,255,255,0.85)', marginTop: 6 }]}>
+      <Text style={[theme.typography.bodySmall, { color: theme.colors.primaryText, opacity: 0.85, marginTop: 6 }]}>
         Cash takings {formatCurrency(cashSales)} − cash expenses {formatCurrency(cashExpenses)}
       </Text>
     </View>

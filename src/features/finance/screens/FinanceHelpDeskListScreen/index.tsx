@@ -40,12 +40,12 @@ export function FinanceHelpDeskListScreen() {
   const list = useMemo(() => (tickets.data?.tickets ?? []).filter((t) => (queue === 'drafts' ? t.status === 'draft' : t.status !== 'draft')), [tickets.data, queue]);
 
   const statTiles = [
-    { label: 'Pending', value: stats.data?.open ?? 0, color: '#608CFF' },
-    { label: 'In Review', value: stats.data?.underReview ?? 0, color: '#FF8A5C' },
-    { label: 'High Priority', value: stats.data?.highPriority ?? 0, color: '#FF5A5F' },
-    { label: 'Waiting Finance', value: stats.data?.waiting ?? 0, color: '#A39A92' },
-    { label: 'Resolved', value: stats.data?.resolved ?? 0, color: '#34C38A' },
-    { label: 'My Drafts', value: stats.data?.draft ?? 0, color: '#857B73' },
+    { label: 'Pending', value: stats.data?.open ?? 0, color: theme.colors.infoAlt },
+    { label: 'In Review', value: stats.data?.underReview ?? 0, color: theme.colors.orange },
+    { label: 'High Priority', value: stats.data?.highPriority ?? 0, color: theme.colors.danger },
+    { label: 'Waiting Finance', value: stats.data?.waiting ?? 0, color: theme.colors.textSecondary },
+    { label: 'Resolved', value: stats.data?.resolved ?? 0, color: theme.colors.success },
+    { label: 'My Drafts', value: stats.data?.draft ?? 0, color: theme.colors.textFaint },
   ];
 
   return (
