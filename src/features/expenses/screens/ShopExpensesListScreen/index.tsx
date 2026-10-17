@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useExpenses } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SearchBar } from '@/shared/ui';
@@ -14,6 +16,8 @@ import { styles } from './styles';
 /** branchApp.md screen 16 — Shop Expenses: last 7 business days. */
 export function ShopExpensesListScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [search, setSearch] = useState('');
 
@@ -33,7 +37,7 @@ export function ShopExpensesListScreen() {
       <AppHeader
         title="Shop Expenses"
         subtitle={`Last 7 days · ${expenses.length} expenses`}
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <View style={{ paddingHorizontal: theme.spacing.lg }}>
         <PrimaryButton label="+ Shop Expense" onPress={() => sheetRef.current?.present()} />

@@ -4,6 +4,8 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBusinessDate, useCashTransfers } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, type CashStackParamList } from '@/navigation';
@@ -55,6 +57,8 @@ const CHANNEL_OPTIONS: FilterChipOption<CashTransferChannel | 'all'>[] = [
 /** branchApp.md screen 15 — Cash Transfers: the branch's own deposit history. */
 export function CashTransfersScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<CashStackParamList>>();
   const depositSheetRef = useRef<BottomSheetModal>(null);
   const dateRangeSheetRef = useRef<BottomSheetModal>(null);
@@ -131,7 +135,7 @@ export function CashTransfersScreen() {
       <AppHeader
         title="Cash Transfers"
         subtitle="Money handed to the company · last 90 days. Finance approves each transfer and posts the receipt."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
 
       <View style={styles.headerPad}>

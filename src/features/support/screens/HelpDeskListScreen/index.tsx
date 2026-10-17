@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import { useSupportTickets } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, openNewQuery, openQueryDetail } from '@/navigation';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
@@ -24,6 +26,8 @@ const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
 /** branchApp.md screen 24 — Help Desk: this branch's own queries. */
 export function HelpDeskListScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const { isOffline } = useNetworkStatus();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('open');
   const [search, setSearch] = useState('');
@@ -59,7 +63,7 @@ export function HelpDeskListScreen() {
       <AppHeader
         title="Help Desk"
         subtitle="Spotted a problem with a record? Send it to Admin. It stays here until it's resolved."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
 
       <View style={{ paddingHorizontal: theme.spacing.lg }}>

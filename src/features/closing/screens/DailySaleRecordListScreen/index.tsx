@@ -4,6 +4,8 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBusinessDate, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { openDrawer, Routes, type ClosingStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
@@ -92,6 +94,8 @@ function formatRangeLabel(from: string, to: string): string {
 /** branchApp.md screen 21 — Daily Sale Record: takings against what was physically counted. */
 export function DailySaleRecordListScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<ClosingStackParamList>>();
   const manualFeedSheetRef = useRef<BottomSheetModal>(null);
   const dateRangeSheetRef = useRef<BottomSheetModal>(null);
@@ -218,6 +222,8 @@ export function DailySaleRecordListScreen() {
         title="Daily Sale Record"
         subtitle="Committee Chowk Branch · takings vs what was counted"
         actions={[
+          ...appearanceActions,
+          bellAction,
           { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
           { icon: 'more', onPress: openOverflowMenu, accessibilityLabel: 'More actions' },
         ]}

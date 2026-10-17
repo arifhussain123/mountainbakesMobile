@@ -5,6 +5,8 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCancelProductionOrder, useProductionOrders } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
 import { Routes, openDrawer, useTabBarHeight, type OrdersStackParamList } from '@/navigation';
@@ -40,6 +42,8 @@ function compareOrders(a: ProductionOrder, b: ProductionOrder, sort: OrderSort):
 export function OrdersListScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<OrdersStackParamList>>();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [search, setSearch] = useState('');
@@ -87,7 +91,7 @@ export function OrdersListScreen() {
       <AppHeader
         title="New Orders"
         subtitle="Production Orders · Last 7 days"
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
 
       {isOffline ? (

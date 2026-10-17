@@ -88,8 +88,19 @@ export function useNavBadges(): NavBadges {
 
   useEffect(() => {
     setBadges(computeBadges());
+    // The cache notifies its subscribers synchronously, including from
+    // inside another component's render — e.g. a screen mounting its first
+    // `useQuery` builds a new QueryObserver inside a `useState` initializer,
+    // which registers the query and fires this subscriber mid-render. Updating
+    // this (unrelated) component's state synchronously at that point is
+    // exactly what triggers React's "Cannot update a component while
+    // rendering a different component" warning. Deferring to a microtask
+    // (via a resolved promise — `queueMicrotask` isn't in this project's TS
+    // lib) moves the update to right after the current render finishes —
+    // still "right after the mutation settles" for all practical purposes,
+    // just not literally inside someone else's render.
     const unsubscribe = queryClient.getQueryCache().subscribe(() => {
-      setBadges(computeBadges());
+      void Promise.resolve().then(() => setBadges(computeBadges()));
     });
     return unsubscribe;
   }, []);

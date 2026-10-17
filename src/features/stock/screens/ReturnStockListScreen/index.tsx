@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useBranchReturns, useReviseBranchReturn, useWithdrawBranchReturn } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
@@ -21,6 +23,8 @@ const STATUS_LABEL: Record<(typeof STATUS_FILTERS)[number], string> = {
 /** branchApp.md screen 13 — Return Stock: the branch's own return history, last 90 days. */
 export function ReturnStockListScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [editing, setEditing] = useState<BranchReturn | null>(null);
@@ -70,7 +74,7 @@ export function ReturnStockListScreen() {
       <AppHeader
         title="Return Stock"
         subtitle="Sent to production · last 90 days"
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <FlatList
         data={filtered}

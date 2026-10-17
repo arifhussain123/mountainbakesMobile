@@ -1,6 +1,8 @@
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { FINANCE_ROLE_LABELS, type FinanceRole, useFinanceDashboard } from '@/api';
-import { openComingSoon, openDrawer } from '@/navigation';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
+import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, LoadingSkeleton, Screen, StatCard } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -12,6 +14,8 @@ import { styles } from './styles';
 /** mountainbakesFinance.html screen 01 — today's composite + trend, not the monthly multi-chart view (see docs/mobile-finance-plan.md). */
 export function FinanceDashboardScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const user = useAuthStore((state) => state.user);
 
   const { data, isLoading, error, refetch, isRefetching } = useFinanceDashboard();
@@ -21,10 +25,7 @@ export function FinanceDashboardScreen() {
       <AppHeader
         title="Finance Dashboard"
         subtitle={user?.role ? (FINANCE_ROLE_LABELS[user.role as FinanceRole] ?? 'Finance') : 'Finance'}
-        actions={[
-          { icon: 'bell', onPress: () => openComingSoon('Notifications'), accessibilityLabel: 'Notifications' },
-          { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
-        ]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}

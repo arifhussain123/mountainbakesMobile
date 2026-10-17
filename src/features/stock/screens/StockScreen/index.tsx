@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, useTabBarHeight, type StockStackParamList } from '@/navigation';
@@ -65,6 +67,8 @@ function sortRows(rows: StockRowWithDemand[], key: StockSortKey): StockRowWithDe
 export function StockScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<StockStackParamList>>();
   const infoSheetRef = useRef<BottomSheetModal>(null);
   const sortSheetRef = useRef<BottomSheetModal>(null);
@@ -118,7 +122,11 @@ export function StockScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Stock" subtitle={dateLabel} actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader
+        title="Stock"
+        subtitle={dateLabel}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <View style={styles.headerPad}>
         <StockDateChipRow
           dateLabel={dateLabel}

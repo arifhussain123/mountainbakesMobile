@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { exportBranchClosingCsv, getBusinessDate, useBranchClosing, useStock } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer } from '@/navigation';
 import {
   BusinessDateControl,
@@ -57,6 +59,8 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
  */
 export function BranchClosingScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   // Design lines 959-960 — Cash/Easypaisa dot swatches; falls back to the
   // theme's own chart palette for any other method. Theme colors, not a
   // fixed hex list, so this follows mode (the accent itself never touches
@@ -135,7 +139,7 @@ export function BranchClosingScreen() {
       <AppHeader
         title="Branch Closing"
         subtitle="End-of-day summary. This is a read of the day, not a lock on it."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg }}

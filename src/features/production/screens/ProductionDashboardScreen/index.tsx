@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useProductionOverview } from '@/api';
 import type { ProductionDashboardPeriod, ProductionOrderStatus } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
@@ -68,6 +70,8 @@ function ChangeLabel({ value }: { value: number | null }) {
  */
 export function ProductionDashboardScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const user = useAuthStore((state) => state.user);
   const [period, setPeriod] = useState<ProductionDashboardPeriod>('week');
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -91,7 +95,10 @@ export function ProductionDashboardScreen() {
   if (isLoading) {
     return (
       <Screen>
-        <AppHeader title="Production Dashboard" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+        <AppHeader
+          title="Production Dashboard"
+          actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        />
         <View style={{ padding: theme.spacing.lg }}>
           <LoadingSkeleton height={220} />
         </View>
@@ -102,7 +109,10 @@ export function ProductionDashboardScreen() {
   if (error || !data) {
     return (
       <Screen>
-        <AppHeader title="Production Dashboard" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+        <AppHeader
+          title="Production Dashboard"
+          actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        />
         <View style={{ padding: theme.spacing.lg }}>
           <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
         </View>
@@ -134,7 +144,7 @@ export function ProductionDashboardScreen() {
       <AppHeader
         title="Production Dashboard"
         subtitle={user?.displayName ?? user?.email ?? undefined}
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg }}

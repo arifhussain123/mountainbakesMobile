@@ -3,6 +3,8 @@ import { FlatList, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSpecialEvents } from '@/api';
+import { useAppearanceHeaderActions } from '@/features/appearance';
+import { useNotificationBellAction } from '@/features/notifications';
 import { Routes, openDrawer, type EventsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
@@ -18,6 +20,8 @@ import { styles } from './styles';
  */
 export function SpecialEventsScreen() {
   const theme = useAppTheme();
+  const appearanceActions = useAppearanceHeaderActions();
+  const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<EventsStackParamList>>();
 
   const { data, isLoading, error, refetch, isRefetching } = useSpecialEvents();
@@ -36,7 +40,10 @@ export function SpecialEventsScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Special Events" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader
+        title="Special Events"
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <FlatList
         data={events}
         keyExtractor={(item) => item.id}
