@@ -28,8 +28,18 @@ export const HEADER_LOGO_SIZE = 40;
 export const HEADER_PADDING_VERTICAL = 12;
 export const HEADER_NAME_FONT_SIZE = 17;
 export const HEADER_ROLE_FONT_SIZE = 12;
-/** Logo height dominates the row (40 ≥ the two stacked text lines), so this is just `paddingVertical * 2 + logo size` — not a measured/guessed number. */
+/** Logo height dominates the row (40 ≥ the two stacked text lines), so this is just `paddingVertical * 2 + logo size` — not a measured/guessed number. Kept for reference/tests; the live row-fit math uses the header's actual (responsive) logo size instead — see `computeHeaderLogoSize`. */
 export const HEADER_HEIGHT = HEADER_PADDING_VERTICAL * 2 + HEADER_LOGO_SIZE;
+
+/** Min/baseline/max for the header logo's responsive size — stays close to the fixed 40dp this row-fit math was tuned against, so cross-device drift is small. */
+const HEADER_LOGO_MIN = 36;
+const HEADER_LOGO_MAX = 44;
+const HEADER_LOGO_BASELINE_WIDTH = 390;
+
+/** `clamp(36, 40 * (width / 390), 44)` — a moderate, width-only scale (no responsive.ts import here on purpose: this module stays dependency-free so its own tests don't need to mock window/insets). */
+export function computeHeaderLogoSize(width: number): number {
+  return clamp(HEADER_LOGO_MIN, HEADER_LOGO_SIZE * (width / HEADER_LOGO_BASELINE_WIDTH), HEADER_LOGO_MAX);
+}
 
 // ─── Branch strip ────────────────────────────────────────────────────────
 export const BRANCH_STRIP_HEIGHT = 40;
@@ -44,9 +54,18 @@ export const FOOTER_ROW_HEIGHT = 36;
 export const FOOTER_PADDING_TOP = 10;
 export const FOOTER_PADDING_BOTTOM = 8;
 export const FOOTER_ROW_TO_SYNC_GAP = 8;
-/** `paddingTop + row + gap + sync-line height (11sp * 1.25) + paddingBottom` — `insets.bottom` is added on top of this separately, never folded in, since it's a safe-area inset, not a drawer-content measurement. */
+/** The "Appearance" row (icon + label + current mode/accent summary + chevron), sitting above the name/avatar row. Compact — it's one more row competing for the same fixed footer budget every nav-item row is clamped against. */
+export const FOOTER_APPEARANCE_ROW_HEIGHT = 32;
+export const FOOTER_APPEARANCE_GAP = 8;
+/** `paddingTop + appearance row + gap + name/avatar row + gap + sync-line height (11sp * 1.25) + paddingBottom` — `insets.bottom` is added on top of this separately, never folded in, since it's a safe-area inset, not a drawer-content measurement. */
 export const FOOTER_HEIGHT = Math.round(
-  FOOTER_PADDING_TOP + FOOTER_ROW_HEIGHT + FOOTER_ROW_TO_SYNC_GAP + FOOTER_SYNC_FONT_SIZE * 1.25 + FOOTER_PADDING_BOTTOM,
+  FOOTER_PADDING_TOP +
+    FOOTER_APPEARANCE_ROW_HEIGHT +
+    FOOTER_APPEARANCE_GAP +
+    FOOTER_ROW_HEIGHT +
+    FOOTER_ROW_TO_SYNC_GAP +
+    FOOTER_SYNC_FONT_SIZE * 1.25 +
+    FOOTER_PADDING_BOTTOM,
 );
 
 // ─── Item rows ───────────────────────────────────────────────────────────
@@ -74,9 +93,23 @@ export interface DrawerRowMetrics {
  * `available = windowHeight - insets.top - insets.bottom - headerHeight -
  * branchHeight - footerHeight`, then `rowHeight = clamp(40, available /
  * itemCount, 52)` and the icon/font sizes derived from it.
+ *
+ * `headerLogoSize` defaults to the fixed `HEADER_LOGO_SIZE`, but the header's
+ * logo is now sized responsively (see `DrawerHeader`) — the caller passes its
+ * actual rendered size here so this formula can never drift out of sync with
+ * what's really on screen (a stale fixed header height would silently
+ * re-open the "Help Desk cut off behind the footer" bug this math exists to
+ * prevent).
  */
-export function computeDrawerRowMetrics(windowHeight: number, insetTop: number, insetBottom: number, itemCount: number): DrawerRowMetrics {
-  const available = windowHeight - insetTop - insetBottom - HEADER_HEIGHT - BRANCH_STRIP_HEIGHT - FOOTER_HEIGHT;
+export function computeDrawerRowMetrics(
+  windowHeight: number,
+  insetTop: number,
+  insetBottom: number,
+  itemCount: number,
+  headerLogoSize: number = HEADER_LOGO_SIZE,
+): DrawerRowMetrics {
+  const headerHeight = HEADER_PADDING_VERTICAL * 2 + headerLogoSize;
+  const available = windowHeight - insetTop - insetBottom - headerHeight - BRANCH_STRIP_HEIGHT - FOOTER_HEIGHT;
   const perItem = itemCount > 0 ? available / itemCount : ROW_MAX_HEIGHT;
   const rowHeight = clamp(ROW_MIN_HEIGHT, perItem, ROW_MAX_HEIGHT);
   const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);

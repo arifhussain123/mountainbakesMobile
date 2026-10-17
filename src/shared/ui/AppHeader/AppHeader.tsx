@@ -3,8 +3,11 @@ import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '../Icon';
 
 export interface AppHeaderAction {
+  /** Also doubles as this action's React key — two actions with the same icon in one header aren't supported (none currently need to be). */
   icon: IconName;
   onPress: () => void;
+  /** The Appearance quick-toggle (moon/sun): tap cycles Light/Dark, long-press opens the full sheet. */
+  onLongPress?: () => void;
   badgeCount?: number;
   accessibilityLabel: string;
 }
@@ -35,11 +38,15 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
               accessibilityRole="button"
               accessibilityLabel={action.accessibilityLabel}
               onPress={action.onPress}
+              onLongPress={action.onLongPress}
+              delayLongPress={action.onLongPress ? 350 : undefined}
               style={[styles.actionButton, { backgroundColor: theme.colors.border, borderRadius: theme.radii.pill }]}>
               <Icon name={action.icon} color={theme.colors.text} />
               {action.badgeCount ? (
                 <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={styles.badgeText}>{action.badgeCount > 9 ? '9+' : action.badgeCount}</Text>
+                  <Text style={[styles.badgeText, { color: theme.colors.primaryText }]}>
+                    {action.badgeCount > 9 ? '9+' : action.badgeCount}
+                  </Text>
                 </View>
               ) : null}
             </Pressable>
@@ -66,5 +73,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700' },
+  badgeText: { fontSize: 9, fontWeight: '700' },
 });

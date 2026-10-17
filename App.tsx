@@ -10,6 +10,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
 import { queryClient, startOfflineQueueRetryWorker } from '@/api';
+import { AppearanceSheet } from '@/features/appearance';
 import { RootNavigator } from '@/navigation';
 import { RootErrorBoundary } from '@/shared/components/RootErrorBoundary';
 import { ThemeProvider } from '@/shared/theme';
@@ -52,6 +53,7 @@ function App() {
             <ThemeProvider>
               <BottomSheetModalProvider>
                 <RootNavigator />
+                <AppearanceSheet />
               </BottomSheetModalProvider>
             </ThemeProvider>
           </SafeAreaProvider>

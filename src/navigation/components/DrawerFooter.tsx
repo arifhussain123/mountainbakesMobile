@@ -1,7 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import {
+  FOOTER_APPEARANCE_GAP,
+  FOOTER_APPEARANCE_ROW_HEIGHT,
   FOOTER_AVATAR_SIZE,
   FOOTER_EMAIL_FONT_SIZE,
   FOOTER_NAME_FONT_SIZE,
@@ -11,6 +14,8 @@ import {
   FOOTER_ROW_TO_SYNC_GAP,
   FOOTER_SYNC_FONT_SIZE,
 } from './drawerLayout';
+
+const MODE_LABEL: Record<'system' | 'light' | 'dark', string> = { system: 'System', light: 'Light', dark: 'Dark' };
 
 const appVersion = (require('../../../package.json') as { version: string }).version;
 
@@ -41,6 +46,8 @@ function initialsOf(name: string): string {
  */
 export function DrawerFooter({ name, email, pendingSyncCount, onSignOut, insetBottom }: DrawerFooterProps) {
   const theme = useAppTheme();
+  const openAppearance = useAppearanceSheetStore((s) => s.open);
+  const accentLabel = theme.accentOptions.find((a) => a.id === theme.accent)?.label ?? '';
 
   return (
     <View
@@ -55,6 +62,23 @@ export function DrawerFooter({ name, email, pendingSyncCount, onSignOut, insetBo
           backgroundColor: theme.colors.surface,
         },
       ]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Appearance, ${MODE_LABEL[theme.mode]}, ${accentLabel} accent`}
+        onPress={openAppearance}
+        style={[styles.appearanceRow, { height: FOOTER_APPEARANCE_ROW_HEIGHT, marginBottom: FOOTER_APPEARANCE_GAP }]}>
+        <Icon name="palette" size={16} color={theme.colors.textMuted} />
+        <Text style={{ color: theme.colors.text, fontSize: FOOTER_EMAIL_FONT_SIZE, fontWeight: '600', marginLeft: 8, flex: 1 }}>
+          Appearance
+        </Text>
+        <Text style={{ color: theme.colors.textMuted, fontSize: FOOTER_EMAIL_FONT_SIZE }}>
+          {MODE_LABEL[theme.mode]} · {accentLabel}
+        </Text>
+        <View style={{ marginLeft: 6 }}>
+          <Icon name="chevron-right" size={14} color={theme.colors.textMuted} />
+        </View>
+      </Pressable>
+
       <View style={[styles.row, { height: FOOTER_ROW_HEIGHT }]}>
         <View
           style={[
@@ -91,6 +115,7 @@ export function DrawerFooter({ name, email, pendingSyncCount, onSignOut, insetBo
 
 const styles = StyleSheet.create({
   container: {},
+  appearanceRow: { flexDirection: 'row', alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   signOutButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

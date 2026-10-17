@@ -38,6 +38,7 @@ export type IconName =
   | 'transfer'
   | 'bar-chart'
   | 'trending-up'
+  | 'trending-down'
   | 'layers'
   | 'grid'
   | 'calendar-check'
@@ -49,7 +50,10 @@ export type IconName =
   | 'info'
   | 'lock'
   | 'pencil'
-  | 'flag';
+  | 'flag'
+  | 'moon'
+  | 'sun'
+  | 'palette';
 
 export interface IconProps {
   name: IconName;
@@ -342,6 +346,12 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
           <Path d="M3 17l6-6 4 4 8-8M15 7h6v6" {...common} />
         </Svg>
       );
+    case 'trending-down':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 7l6 6 4-4 8 8M15 17h6v-6" {...common} />
+        </Svg>
+      );
     case 'layers':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -446,6 +456,42 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Line x1={5} y1={3} x2={5} y2={21} {...common} />
           <Path d="M5 4h13l-3 4 3 4H5" {...common} strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'moon':
+      // Appearance quick-toggle, shown when the resolved theme is light (tap to switch to dark).
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" {...common} strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'sun':
+      // Appearance quick-toggle, shown when the resolved theme is dark (tap to switch to light).
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={4.5} {...common} />
+          <Line x1={12} y1={2} x2={12} y2={4.5} {...common} />
+          <Line x1={12} y1={19.5} x2={12} y2={22} {...common} />
+          <Line x1={2} y1={12} x2={4.5} y2={12} {...common} />
+          <Line x1={19.5} y1={12} x2={22} y2={12} {...common} />
+          <Line x1={4.9} y1={4.9} x2={6.6} y2={6.6} {...common} />
+          <Line x1={17.4} y1={17.4} x2={19.1} y2={19.1} {...common} />
+          <Line x1={4.9} y1={19.1} x2={6.6} y2={17.4} {...common} />
+          <Line x1={17.4} y1={6.6} x2={19.1} y2={4.9} {...common} />
+        </Svg>
+      );
+    case 'palette':
+      // Appearance sheet's accent row.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d="M12 3a9 8 0 0 0 0 16c1.1 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-7-9-7Z"
+            {...common}
+            strokeLinejoin="round"
+          />
+          <Circle cx={7.5} cy={10.5} r={1.1} fill={common.stroke} stroke="none" />
+          <Circle cx={11} cy={7} r={1.1} fill={common.stroke} stroke="none" />
+          <Circle cx={15.5} cy={8} r={1.1} fill={common.stroke} stroke="none" />
         </Svg>
       );
     default:
