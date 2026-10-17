@@ -89,7 +89,14 @@ export function CashTransfersScreen() {
   const rawTransfers = useMemo(() => data?.transfers ?? [], [data]);
   const totalMatching = data?.total ?? 0;
 
-  const pendingWrites = useOfflineQueueStore((state) => state.writes.filter((w) => w.endpoint === '/cash-transfers' && w.method === 'post'));
+  // Select the stable `writes` array itself and filter in a `useMemo`, not
+  // inside the selector — zustand v5's hook re-invokes the selector on every
+  // render to check for tears, and a selector returning a brand-new array
+  // each time (`.filter()`) makes React think the store changed every single
+  // render, which is an infinite re-render loop ("Maximum update depth
+  // exceeded"), not just a missed memoization.
+  const writes = useOfflineQueueStore((state) => state.writes);
+  const pendingWrites = useMemo(() => writes.filter((w) => w.endpoint === '/cash-transfers' && w.method === 'post'), [writes]);
 
   const cacheKey = `cashTransfers:${dateRange.from}:${dateRange.to}:${statusFilter}`;
   const [cached, setCached] = useState<{ data: CashTransfersCachePayload; updatedAt: number } | null>(null);
@@ -105,7 +112,14 @@ export function CashTransfersScreen() {
   }, [cacheKey]);
 
   useEffect(() => {
-    if (rawTransfers.length > 0) void setCachedResponse(cacheKey, { transfers: rawTransfers });
+    // `Attachment.url` is a short-lived signed URL, re-minted on every real
+    // read — "never cache past a page load" (see its own doc comment).
+    // Persisting it to the offline cache would mean a later offline view
+    // shows a thumbnail that's silently expired/broken instead of the
+    // (honest) placeholder `TransferCard` already renders for "no photo".
+    if (rawTransfers.length > 0) {
+      void setCachedResponse(cacheKey, { transfers: rawTransfers.map((t) => ({ ...t, attachments: [] })) });
+    }
   }, [cacheKey, rawTransfers]);
 
   const showingCache = rawTransfers.length === 0 && !isLoading && !!cached;

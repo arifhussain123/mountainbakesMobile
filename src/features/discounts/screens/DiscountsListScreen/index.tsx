@@ -104,12 +104,21 @@ export function DiscountsListScreen() {
   const showingCache = rows.length === 0 && isOffline && !!cached?.data.length && !list.isLoading;
   const displayRows = rows.length > 0 ? rows : showingCache ? cached!.data : [];
 
-  const pendingDiscountIds = useOfflineQueueStore((state) =>
-    new Set(
-      state.writes
-        .filter((w) => (w.status === 'pending' || w.status === 'syncing') && w.endpoint.startsWith('/branch-discounts/'))
-        .map((w) => w.endpoint.replace('/branch-discounts/', '')),
-    ),
+  // Select the stable `writes` array and derive the `Set` in a `useMemo`,
+  // not inside the selector — zustand v5's hook re-invokes the selector on
+  // every render to check for tears, and a selector returning a brand-new
+  // `Set` each time makes React think the store changed every single render,
+  // which is an infinite re-render loop ("Maximum update depth exceeded"),
+  // not just a missed memoization.
+  const writes = useOfflineQueueStore((state) => state.writes);
+  const pendingDiscountIds = useMemo(
+    () =>
+      new Set(
+        writes
+          .filter((w) => (w.status === 'pending' || w.status === 'syncing') && w.endpoint.startsWith('/branch-discounts/'))
+          .map((w) => w.endpoint.replace('/branch-discounts/', '')),
+      ),
+    [writes],
   );
 
   const activeFilters: { key: string; label: string; onClear: () => void }[] = [];
