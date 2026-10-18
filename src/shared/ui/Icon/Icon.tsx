@@ -54,7 +54,8 @@ export type IconName =
   | 'moon'
   | 'sun'
   | 'palette'
-  | 'sort';
+  | 'sort'
+  | 'factory';
 
 export interface IconProps {
   name: IconName;
@@ -360,6 +361,14 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
             d="M12 3l4 2.3v4.6L12 12 8 9.9V5.3zM8 9.9l4 2.1v4.6l-4 2.3-4-2.3v-4.6zM16 9.9l4 2.1v4.6l-4 2.3-4-2.3"
             {...common}
           />
+        </Svg>
+      );
+    // Production Stock — lucide's `factory`, the web sidebar's own icon for it.
+    case 'factory':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" {...common} />
+          <Path d="M17 18h1M12 18h1M7 18h1" {...common} />
         </Svg>
       );
     case 'grid':

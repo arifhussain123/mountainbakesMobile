@@ -47,8 +47,8 @@ describe('the drawer, per server role', () => {
 
   it('a Branch Manager sees the Branch menu and their own branch — no Production screens', () => {
     const texts = renderDrawerFor(user('branch_manager', 'Committee Chowk'));
-    expect(texts).toEqual(expect.arrayContaining(['Branch Manager', 'Committee Chowk', 'New Orders', 'Cash Deposits', 'Branch Closing']));
-    for (const label of ['Production Stock', 'Branch Stock', 'Returns', 'Production User', 'All branches']) {
+    expect(texts).toEqual(expect.arrayContaining(['Branch Manager', 'Committee Chowk', 'MAIN', 'MONEY', 'New Orders', 'Cash Deposits', 'Branch Closing']));
+    for (const label of ['Production Stock', 'Branch Stock', 'Returns', 'Production User', 'Production · All branches', 'OVERVIEW', 'WORK']) {
       expect(texts).not.toContain(label);
     }
   });
@@ -56,8 +56,11 @@ describe('the drawer, per server role', () => {
   it('a Production User sees the Production menu across all branches — no Branch screens', () => {
     const texts = renderDrawerFor(user('production_user', null));
     expect(texts).toEqual(
-      expect.arrayContaining(['Production User', 'All branches', 'Orders', 'Sales', 'Production Stock', 'Branch Stock', 'Returns', 'Discounts']),
+      expect.arrayContaining(['Production User', 'Production · All branches', 'OVERVIEW', 'WORK', 'PLANNING', 'INSIGHTS', 'SUPPORT']),
     );
+    const menu = ['Dashboard', 'Orders', 'Sales', 'Production Stock', 'Branch Stock', 'Returns', 'Discounts', 'Events', 'Reports', 'Help Desk'];
+    // Exactly the 10 items, in the web's order (Appearance/Logout follow under Settings).
+    expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
     for (const label of ['New Orders', 'Cash Deposits', 'Shop Expenses', 'Branch Closing', 'Daily Sale Record', 'Return Stock', 'No branch assigned']) {
       expect(texts).not.toContain(label);
     }

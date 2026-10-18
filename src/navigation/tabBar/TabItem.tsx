@@ -74,8 +74,9 @@ export function TabItem({ label, icon, active, badgeCount, isMore, onPress, onPr
             active
               ? { color: theme.colors.primary, marginTop: 4, fontSize: 12, fontWeight: '700' }
               : { color: theme.colors.textFaint, marginTop: 4, fontSize: 11 },
+            styles.label,
           ]}
-          numberOfLines={1}
+          numberOfLines={2}
           adjustsFontSizeToFit
           minimumFontScale={0.85}>
           {label}
@@ -88,4 +89,7 @@ export function TabItem({ label, icon, active, badgeCount, isMore, onPress, onPr
 const styles = StyleSheet.create({
   touchTarget: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   content: { alignItems: 'center', justifyContent: 'center' },
+  // Two lines only ever happen for a long label ("Production Stock" in a ~72dp
+  // slot at 360dp): icon 22 + gap 4 + 2 × 16 line height = 58, inside the 64dp bar.
+  label: { textAlign: 'center' },
 });

@@ -1,7 +1,7 @@
 /**
  * @format
  */
-import { BRANCH_NAV_ITEMS, PRODUCTION_NAV_ITEMS, isNavItemActive } from '@/navigation/navItems';
+import { BRANCH_NAV_ITEMS, GROUP_LABEL, PRODUCTION_NAV_ITEMS, isNavItemActive } from '@/navigation/navItems';
 import { Routes } from '@/navigation/routes';
 
 describe('isNavItemActive', () => {
@@ -66,8 +66,46 @@ describe('PRODUCTION_NAV_ITEMS', () => {
     ]);
   });
 
-  it('badges Orders, Production Stock, Returns and Discounts', () => {
-    const badged = Object.fromEntries(PRODUCTION_NAV_ITEMS.map((i) => [i.key, i.badgeSource]));
-    expect(badged).toMatchObject({ orders: 'orders', productionStock: 'productionStock', returns: 'returns', discounts: 'discounts' });
+  it('maps each badge to its count, and leaves the rest unbadged', () => {
+    expect(Object.fromEntries(PRODUCTION_NAV_ITEMS.map((i) => [i.key, i.badgeSource]))).toEqual({
+      dashboard: null,
+      orders: 'orders',
+      sales: null,
+      productionStock: 'productionStock',
+      branchStock: null,
+      returns: 'returns',
+      discounts: 'discounts',
+      events: null,
+      reports: null,
+      helpDesk: 'helpDesk',
+    });
+  });
+
+  it('sits under Overview / Work / Planning / Insights / Support, in that order', () => {
+    const sections = PRODUCTION_NAV_ITEMS.map((i) => GROUP_LABEL[i.group]).filter((g, idx, all) => all[idx - 1] !== g);
+    expect(sections).toEqual(['Overview', 'Work', 'Planning', 'Insights', 'Support']);
+    expect(PRODUCTION_NAV_ITEMS.filter((i) => i.group === 'work').map((i) => i.label)).toEqual([
+      'Orders',
+      'Sales',
+      'Production Stock',
+      'Branch Stock',
+      'Returns',
+      'Discounts',
+    ]);
+  });
+
+  it('uses the brief\'s icons', () => {
+    expect(PRODUCTION_NAV_ITEMS.map((i) => i.icon)).toEqual([
+      'dashboard-grid',
+      'orders',
+      'sales',
+      'factory',
+      'layers',
+      'rotate-ccw',
+      'percent',
+      'calendar',
+      'bar-chart',
+      'headset',
+    ]);
   });
 });

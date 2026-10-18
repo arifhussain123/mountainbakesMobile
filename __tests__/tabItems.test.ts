@@ -31,13 +31,23 @@ describe.each([
 });
 
 describe('PRODUCTION_TAB_ITEMS', () => {
-  it('is Dashboard, Orders, Stock (Production Stock), Returns, More', () => {
+  it('is Dashboard, Orders, Production Stock, Returns, More', () => {
     expect(PRODUCTION_TAB_ITEMS.map((t) => [t.label, t.route])).toEqual([
       ['Dashboard', Routes.PRODUCTION_DASHBOARD_TAB],
       ['Orders', Routes.PRODUCTION_ORDERS_TAB],
-      ['Stock', Routes.PRODUCTION_STOCK_TAB],
+      ['Production Stock', Routes.PRODUCTION_STOCK_TAB],
       ['Returns', Routes.PRODUCTION_RETURNS_TAB],
       ['More', null],
     ]);
+  });
+
+  it('badges Orders, Production Stock and Returns from the same sources as the drawer', () => {
+    expect(Object.fromEntries(PRODUCTION_TAB_ITEMS.map((t) => [t.key, t.badgeSource]))).toEqual({
+      dashboard: null,
+      orders: 'orders',
+      productionStock: 'productionStock',
+      returns: 'returns',
+      more: null,
+    });
   });
 });

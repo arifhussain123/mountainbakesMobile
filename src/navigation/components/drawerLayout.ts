@@ -34,6 +34,17 @@ export const ROW_LABEL_FONT_SIZE = 16;
 export const ROW_ICON_LABEL_GAP = 16;
 export const SECTION_LABEL_FONT_SIZE = 11;
 
+/**
+ * Whether section labels earn their space on this screen: only when the menu's
+ * own rows (`rowCount` × `ROW_HEIGHT`) already fit the list area. On a shorter
+ * screen the rows scroll anyway, and a label there only pushes another row out
+ * of view. `listHeight` is the list area's measured height (0 before layout,
+ * which reads as "fits" so the first frame matches a tall screen).
+ */
+export function shouldShowSectionLabels(listHeight: number, rowCount: number): boolean {
+  return listHeight === 0 || listHeight >= rowCount * ROW_HEIGHT;
+}
+
 // ─── Footer (profile card) ───────────────────────────────────────────────
 export const FOOTER_AVATAR_SIZE = 48;
 export const FOOTER_NAME_FONT_SIZE = 15;

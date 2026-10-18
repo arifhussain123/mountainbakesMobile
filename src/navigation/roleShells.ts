@@ -1,4 +1,5 @@
-import type { UserRole } from '@/api/types';
+import type { SessionUser, UserRole } from '@/api/types';
+import { branchScopeLabel } from '@/shared/utils';
 import { useAuthStore } from '@/state';
 import { computeBranchBadges, computeNoBadges, computeProductionBadges, type NavBadges } from './navBadgeCounts';
 import { BRANCH_NAV_ITEMS, PRODUCTION_NAV_ITEMS, type NavItem } from './navItems';
@@ -16,10 +17,15 @@ export interface RoleShell {
   tabItems: TabItem[];
   /** Reads this shell's badge counts from the query cache — see `navBadgeCounts.ts`. */
   computeBadges: () => NavBadges;
+  /** The accent line under the drawer header: whose data this user is looking at. */
+  contextLine: (user: Pick<SessionUser, 'role' | 'branchName'>) => string;
+  /** `true` drops the drawer's section labels when the rows themselves don't fit (`shouldShowSectionLabels`); `false` always shows them. */
+  hideSectionLabelsWhenShort: boolean;
 }
 
-const FINANCE_SHELL: RoleShell = { route: Routes.FINANCE_DRAWER, navItems: [], tabItems: [], computeBadges: computeNoBadges };
-const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, navItems: [], tabItems: [], computeBadges: computeNoBadges };
+const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '', hideSectionLabelsWhenShort: false };
+const FINANCE_SHELL: RoleShell = { route: Routes.FINANCE_DRAWER, ...NO_MENU };
+const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, ...NO_MENU };
 
 /**
  * Every role-dependent navigation decision, keyed by the role the server put on
@@ -31,12 +37,24 @@ const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, navItems:
  * screen rather than borrowing a shell it was never designed for.
  */
 export const ROLE_SHELLS: Partial<Record<UserRole, RoleShell>> = {
-  branch_manager: { route: Routes.DRAWER, navItems: BRANCH_NAV_ITEMS, tabItems: BRANCH_TAB_ITEMS, computeBadges: computeBranchBadges },
+  branch_manager: {
+    route: Routes.DRAWER,
+    navItems: BRANCH_NAV_ITEMS,
+    tabItems: BRANCH_TAB_ITEMS,
+    computeBadges: computeBranchBadges,
+    contextLine: branchScopeLabel,
+    hideSectionLabelsWhenShort: false,
+  },
+  // No branch and no production-unit concept on the server: a production_user
+  // reads every branch (only `branch_manager` is branch-scoped), so the line
+  // says exactly that.
   production_user: {
     route: Routes.PRODUCTION_DRAWER,
     navItems: PRODUCTION_NAV_ITEMS,
     tabItems: PRODUCTION_TAB_ITEMS,
     computeBadges: computeProductionBadges,
+    contextLine: (user) => `Production · ${branchScopeLabel(user)}`,
+    hideSectionLabelsWhenShort: true,
   },
   finance_admin: FINANCE_SHELL,
   finance_manager: FINANCE_SHELL,

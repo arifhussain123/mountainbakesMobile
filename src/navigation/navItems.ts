@@ -9,7 +9,7 @@ export interface NavItem {
   key: string;
   label: string;
   icon: IconName;
-  group: 'main' | 'money' | 'endOfDay' | 'review' | 'planning' | 'support';
+  group: 'overview' | 'main' | 'work' | 'money' | 'endOfDay' | 'planning' | 'insights' | 'support';
   badgeSource: NavBadgeSource;
   /** Navigates via the drawer navigation prop. Kept here (not inlined in DrawerContent) so item order/config stays data, not UI code. */
   navigate: (navigation: DrawerNavigation) => void;
@@ -165,16 +165,17 @@ export const BRANCH_NAV_ITEMS: NavItem[] = [
 ];
 
 /**
- * The web's `PRODUCTION_NAV`, item for item and in its order. Production Stock
- * and Branch Stock share the Stock tab's stack (Branch Stock is a screen in it),
- * so Production Stock is matched by exclusion rather than by one leaf.
+ * The web's `PRODUCTION_NAV`, item for item and in its order, under the
+ * Overview / Work / Planning / Insights / Support sections. Production Stock
+ * and Branch Stock share the Stock tab's stack (Branch Stock is a screen in
+ * it), so Production Stock is matched by exclusion rather than by one leaf.
  */
 export const PRODUCTION_NAV_ITEMS: NavItem[] = [
   {
     key: 'dashboard',
     label: 'Dashboard',
     icon: 'dashboard-grid',
-    group: 'main',
+    group: 'overview',
     badgeSource: null,
     navigate: goToTab(Routes.PRODUCTION_TABS, Routes.PRODUCTION_DASHBOARD_TAB),
     activeMatch: { root: Routes.PRODUCTION_DASHBOARD_TAB },
@@ -183,7 +184,7 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     key: 'orders',
     label: 'Orders',
     icon: 'orders',
-    group: 'main',
+    group: 'work',
     badgeSource: 'orders',
     navigate: goToTab(Routes.PRODUCTION_TABS, Routes.PRODUCTION_ORDERS_TAB),
     activeMatch: { root: Routes.PRODUCTION_ORDERS_TAB },
@@ -192,7 +193,7 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     key: 'sales',
     label: 'Sales',
     icon: 'sales',
-    group: 'main',
+    group: 'work',
     badgeSource: null,
     navigate: goToStack(Routes.PRODUCTION_SALES_STACK),
     activeMatch: { root: Routes.PRODUCTION_SALES_STACK },
@@ -200,8 +201,8 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
   {
     key: 'productionStock',
     label: 'Production Stock',
-    icon: 'stock',
-    group: 'main',
+    icon: 'factory',
+    group: 'work',
     badgeSource: 'productionStock',
     navigate: goToTab(Routes.PRODUCTION_TABS, Routes.PRODUCTION_STOCK_TAB, Routes.PRODUCTION_STOCK_OVERVIEW),
     activeMatch: { root: Routes.PRODUCTION_STOCK_TAB, exceptLeaves: [Routes.PRODUCTION_BRANCH_STOCK] },
@@ -209,8 +210,8 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
   {
     key: 'branchStock',
     label: 'Branch Stock',
-    icon: 'building',
-    group: 'main',
+    icon: 'layers',
+    group: 'work',
     badgeSource: null,
     navigate: goToTab(Routes.PRODUCTION_TABS, Routes.PRODUCTION_STOCK_TAB, Routes.PRODUCTION_BRANCH_STOCK),
     activeMatch: { root: Routes.PRODUCTION_STOCK_TAB, leaf: Routes.PRODUCTION_BRANCH_STOCK },
@@ -219,7 +220,7 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     key: 'returns',
     label: 'Returns',
     icon: 'rotate-ccw',
-    group: 'review',
+    group: 'work',
     badgeSource: 'returns',
     navigate: goToTab(Routes.PRODUCTION_TABS, Routes.PRODUCTION_RETURNS_TAB),
     activeMatch: { root: Routes.PRODUCTION_RETURNS_TAB },
@@ -228,7 +229,7 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     key: 'discounts',
     label: 'Discounts',
     icon: 'percent',
-    group: 'review',
+    group: 'work',
     badgeSource: 'discounts',
     navigate: goToStack(Routes.PRODUCTION_DISCOUNTS_STACK),
     activeMatch: { root: Routes.PRODUCTION_DISCOUNTS_STACK },
@@ -246,7 +247,7 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     key: 'reports',
     label: 'Reports',
     icon: 'bar-chart',
-    group: 'planning',
+    group: 'insights',
     badgeSource: null,
     navigate: goToStack(Routes.PRODUCTION_REPORTS_STACK),
     activeMatch: { root: Routes.PRODUCTION_REPORTS_STACK },
@@ -272,11 +273,13 @@ export function isNavItemActive(item: NavItem, chain: string[]): boolean {
 }
 
 export const GROUP_LABEL: Record<NavItem['group'], string> = {
+  overview: 'Overview',
   main: 'Main',
+  work: 'Work',
   money: 'Money',
   endOfDay: 'End of day',
-  review: 'Review',
   planning: 'Planning',
+  insights: 'Insights',
   support: 'Support',
 };
 

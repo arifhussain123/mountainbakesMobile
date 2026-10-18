@@ -1,7 +1,16 @@
 /**
  * @format
  */
-import { CARD_BORDER_RADIUS, CARD_ROTATE_Y_DEG, CARD_SCALE_OPEN, CARD_TRANSLATE_X_RATIO, clamp, computeCardTransform } from '@/navigation/components/drawerLayout';
+import {
+  CARD_BORDER_RADIUS,
+  CARD_ROTATE_Y_DEG,
+  CARD_SCALE_OPEN,
+  CARD_TRANSLATE_X_RATIO,
+  ROW_HEIGHT,
+  clamp,
+  computeCardTransform,
+  shouldShowSectionLabels,
+} from '@/navigation/components/drawerLayout';
 
 // The three required Android sizes plus a 6.1" iPhone-ish width.
 const WIDTHS = [360, 393, 412, 390];
@@ -75,5 +84,24 @@ describe('computeCardTransform — reduceMotion fallback', () => {
     const reduced = computeCardTransform(1, width, true);
     expect(reduced.translateX).toBeCloseTo(full.translateX / 2);
     expect(reduced.translateX).toBeGreaterThan(0);
+  });
+});
+
+describe('shouldShowSectionLabels', () => {
+  // Production: 10 menu rows + Appearance + Logout.
+  const rows = 12;
+
+  it('keeps labels when every row already fits the list area', () => {
+    expect(shouldShowSectionLabels(rows * ROW_HEIGHT, rows)).toBe(true);
+    expect(shouldShowSectionLabels(900, rows)).toBe(true);
+  });
+
+  it('drops them once the rows alone overflow — a label would only push another row out of view', () => {
+    expect(shouldShowSectionLabels(rows * ROW_HEIGHT - 1, rows)).toBe(false);
+    expect(shouldShowSectionLabels(480, rows)).toBe(false);
+  });
+
+  it('treats the unmeasured first frame as tall, so labels do not flicker in on a tall screen', () => {
+    expect(shouldShowSectionLabels(0, rows)).toBe(true);
   });
 });

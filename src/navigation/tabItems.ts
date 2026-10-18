@@ -33,13 +33,14 @@ export const BRANCH_TAB_ITEMS: TabItem[] = [
 /**
  * Production's daily drivers: approve demands, watch the pool, review returns.
  * Sales moves behind More (the web keeps it in its primary four; on the phone
- * the returns queue is the more frequent task). "Stock" is Production Stock —
- * Branch Stock is a screen inside the same tab, reached from the drawer.
+ * the returns queue is the more frequent task). Branch Stock is a screen
+ * inside the Production Stock tab, reached from the drawer. "Production Stock"
+ * is the only label long enough to wrap; `TabItem` gives it a second line.
  */
 export const PRODUCTION_TAB_ITEMS: TabItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'home', route: Routes.PRODUCTION_DASHBOARD_TAB, badgeSource: null },
   { key: 'orders', label: 'Orders', icon: 'orders', route: Routes.PRODUCTION_ORDERS_TAB, badgeSource: 'orders' },
-  { key: 'stock', label: 'Stock', icon: 'stock', route: Routes.PRODUCTION_STOCK_TAB, badgeSource: 'productionStock' },
+  { key: 'productionStock', label: 'Production Stock', icon: 'factory', route: Routes.PRODUCTION_STOCK_TAB, badgeSource: 'productionStock' },
   { key: 'returns', label: 'Returns', icon: 'rotate-ccw', route: Routes.PRODUCTION_RETURNS_TAB, badgeSource: 'returns' },
   { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
 ];

@@ -33,6 +33,18 @@ describe('getRoleShell', () => {
   });
 });
 
+describe('drawer context line and section labels', () => {
+  it('shows the branch for a Branch Manager and the scope for a Production User', () => {
+    expect(getRoleShell('branch_manager').contextLine({ role: 'branch_manager', branchName: 'Committee Chowk' })).toBe('Committee Chowk');
+    expect(getRoleShell('production_user').contextLine({ role: 'production_user', branchName: null })).toBe('Production · All branches');
+  });
+
+  it('only Production drops section labels on short screens; Branch keeps its current behaviour', () => {
+    expect(getRoleShell('production_user').hideSectionLabelsWhenShort).toBe(true);
+    expect(getRoleShell('branch_manager').hideSectionLabelsWhenShort).toBe(false);
+  });
+});
+
 describe('role separation', () => {
   const branch = ROLE_SHELLS.branch_manager!;
   const production = ROLE_SHELLS.production_user!;

@@ -7,10 +7,10 @@ import { useAppTheme } from '@/shared/theme';
 import { GlowLayer, WARM_GLOW_RGB } from '@/shared/ui';
 import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
-import { branchScopeLabel, roleLabel } from '@/shared/utils';
+import { roleLabel } from '@/shared/utils';
 import { Routes } from '../routes';
 import { BranchStrip, DrawerFooter, DrawerHeader, DrawerItem, DrawerSectionLabel, SignOutSheet } from '../components';
-import { MENU_CONTENT_HORIZONTAL_PADDING, MENU_CONTENT_WIDTH_RATIO } from '../components/drawerLayout';
+import { MENU_CONTENT_HORIZONTAL_PADDING, MENU_CONTENT_WIDTH_RATIO, shouldShowSectionLabels } from '../components/drawerLayout';
 import { MountainWatermark } from '../components/MountainWatermark';
 import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive } from '../navItems';
 import { useRoleShell } from '../roleShells';
@@ -48,14 +48,17 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
   const logout = useAuthStore((s) => s.logout);
   const pendingCount = useOfflineQueueStore((s) => s.pendingCount);
   const failedCount = useOfflineQueueStore((s) => s.failedCount);
-  const { navItems } = useRoleShell();
+  const { navItems, contextLine, hideSectionLabelsWhenShort } = useRoleShell();
   const badges = useNavBadges();
   const openAppearance = useAppearanceSheetStore((s) => s.open);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [listHeight, setListHeight] = useState(0);
 
   const focusedChain = getFocusedChain(state);
   const userRoleLabel = user ? roleLabel(user.role) : '';
   const contentWidth = windowWidth * MENU_CONTENT_WIDTH_RATIO;
+  // The menu's rows plus the two Settings rows below it (Appearance, Logout).
+  const showSectionLabels = DRAWER_GROUPED && (!hideSectionLabelsWhenShort || shouldShowSectionLabels(listHeight, navItems.length + 2));
 
   const handleSignOut = () => {
     setSignOutOpen(false);
@@ -80,14 +83,14 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
 
       <View style={{ width: contentWidth }}>
         <DrawerHeader roleLabel={userRoleLabel} insetTop={insets.top} />
-        <BranchStrip branchName={user ? branchScopeLabel(user) : ''} />
+        {user ? <BranchStrip branchName={contextLine(user)} /> : null}
         <View style={[styles.headerDivider, { marginHorizontal: MENU_CONTENT_HORIZONTAL_PADDING, backgroundColor: theme.colors.border }]} />
       </View>
 
-      <View style={{ flex: 1, width: contentWidth }}>
+      <View style={{ flex: 1, width: contentWidth }} onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md }}>
           {navItems.map((item, index) => {
-            const showSectionLabel = DRAWER_GROUPED && item.group !== lastGroup;
+            const showSectionLabel = showSectionLabels && item.group !== lastGroup;
             const showDividerAbove = showSectionLabel && lastGroup !== null;
             lastGroup = item.group;
             return (
@@ -104,7 +107,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
             );
           })}
 
-          <DrawerSectionLabel label="Settings" showDividerAbove />
+          {showSectionLabels ? <DrawerSectionLabel label="Settings" showDividerAbove /> : null}
           <DrawerItem label="Appearance" icon="palette" active={false} onPress={openAppearance} />
           <DrawerItem label="Logout" icon="logout" active={false} destructive onPress={() => setSignOutOpen(true)} />
         </ScrollView>
