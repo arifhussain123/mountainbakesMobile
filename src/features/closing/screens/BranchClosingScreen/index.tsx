@@ -21,6 +21,11 @@ import {
   SyncBanner,
 } from '@/features/closing/components';
 import { buildClosingSummaryText } from '@/features/closing/api/shareSummary';
+import {
+  buildClosingReceiptText,
+  selectPrintableBalanceStock,
+  type ReceiptPaper,
+} from '@/features/closing/api/closingReceipt';
 import { countUnsyncedForDate } from '@/features/closing/api/unsyncedForDate';
 import { useAppTheme } from '@/shared/theme';
 import {
@@ -88,6 +93,8 @@ export function BranchClosingScreen() {
       ),
     [stockRows],
   );
+  // Positive balance only, for the printed receipt — the table below keeps every row.
+  const printableStock = useMemo(() => selectPrintableBalanceStock(stockRows), [stockRows]);
 
   const isLoading = closing.isLoading || stock.isLoading;
   const error = closing.error ?? stock.error;
@@ -116,8 +123,31 @@ export function BranchClosingScreen() {
   };
 
   // No printing pipeline exists anywhere in this app (confirmed in Step 0) —
-  // this is the same plain-text Share-sheet pattern Sales' receipt sharing
-  // and Production's own "POP Print" already use.
+  // both of these are the same plain-text Share-sheet pattern Sales' receipt
+  // sharing and Production's own "POP Print" already use. Share is the chat
+  // summary; Print is the fixed-width thermal slip (balance stock + payment
+  // details), padded to the chosen roll's width for a print-service app.
+  const handlePrintReceipt = () => {
+    // Never print a slip from half-loaded stock — an empty Balance Stock
+    // section would read as "nothing left on the shelf".
+    if (!closing.data || !totals || stock.isLoading || stock.error) return;
+    const { branchName, paymentMethods } = closing.data;
+    const print = (paper: ReceiptPaper) => {
+      void Share.share({
+        title: `Branch Closing ${date} — Receipt`,
+        message: buildClosingReceiptText(
+          { branchName, date, printedAt: new Date(), totals, paymentMethods, stockLines: printableStock },
+          paper,
+        ),
+      });
+    };
+    Alert.alert('Print Receipt', 'Choose the receipt paper width.', [
+      { text: '80 mm roll', onPress: () => print('80mm') },
+      { text: '58 mm roll', onPress: () => print('58mm') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const handleShareSummary = () => {
     if (!closing.data || !totals) return;
     void Share.share({
@@ -200,8 +230,36 @@ export function BranchClosingScreen() {
                 style={[
                   styles.pill,
                   {
+                    backgroundColor: theme.colors.border,
+                    borderRadius: theme.radii.md,
+                  },
+                ]}
+              >
+                <Icon
+                  name="arrow-up-right"
+                  size={13}
+                  color={theme.colors.text}
+                />
+                <Text
+                  style={[
+                    theme.typography.label,
+                    { color: theme.colors.text, fontWeight: '700' },
+                  ]}
+                >
+                  Share
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Print closing receipt"
+                disabled={!totals || stock.isLoading}
+                onPress={handlePrintReceipt}
+                style={[
+                  styles.pill,
+                  {
                     backgroundColor: theme.colors.primary,
                     borderRadius: theme.radii.md,
+                    opacity: !totals || stock.isLoading ? 0.6 : 1,
                   },
                 ]}
               >
@@ -216,7 +274,7 @@ export function BranchClosingScreen() {
                     { color: theme.colors.primaryText, fontWeight: '700' },
                   ]}
                 >
-                  Share
+                  Print
                 </Text>
               </Pressable>
             </View>
