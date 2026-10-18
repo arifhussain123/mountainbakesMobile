@@ -80,6 +80,15 @@ export function buildReturnsSummaryTiles(
   ];
 }
 
+/**
+ * The branches that get a row on Production's per-branch list: those with at
+ * least one return this month, in the server's order. The totals and Branches
+ * Reporting are the server's, so leaving out the zero rows changes no figure.
+ */
+export function reportingBranches(summary: MonthlyReturnsSummary): MonthlyReturnsSummary['branches'] {
+  return summary.branches.filter((b) => b.submitted.count > 0);
+}
+
 /** "3 items · Rs. 450" for an item-wise line. */
 export function describeProductLine(line: ProductReturnsLine): string {
   return `${line.qty.toLocaleString('en-US')} ${line.qty === 1 ? 'item' : 'items'} · ${formatCurrency(line.amount)}`;

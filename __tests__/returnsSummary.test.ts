@@ -9,6 +9,7 @@ import {
   describeProductLine,
   describeReturnValue,
   formatReturnsWindow,
+  reportingBranches,
   unpricedNote,
 } from '@/features/stock/returnsSummary';
 
@@ -86,6 +87,33 @@ describe('buildReturnsSummaryTiles', () => {
     const empty = { submitted: zero, pending: zero, accepted: zero, rejected: zero, returned: zero, unpricedCount: 0 };
     const tiles = buildReturnsSummaryTiles(summary(empty, { branchesReporting: 0 }), LABELS, { showBranches: true });
     expect(tiles.map((t) => t.value)).toEqual(['0', 'Rs. 0', '0', '0', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Rs. 0']);
+  });
+});
+
+describe('reportingBranches', () => {
+  const zero = { qty: 0, amount: 0, count: 0 };
+  const empty = { submitted: zero, pending: zero, accepted: zero, rejected: zero, returned: zero, unpricedCount: 0 };
+
+  it('lists only the branches with a return this month, in the server\'s order', () => {
+    const s = summary(totals(), {
+      branches: [
+        { branchId: 'a', branchName: 'DHA Branch', ...totals(), products: [] },
+        { branchId: 'b', branchName: 'Gulshan Branch', ...empty, products: [] },
+        { branchId: 'c', branchName: 'Bahria Branch', ...totals(), products: [] },
+      ],
+    });
+    expect(reportingBranches(s).map((b) => b.branchId)).toEqual(['a', 'c']);
+  });
+
+  it('is empty in a month with no returns anywhere', () => {
+    const s = summary(empty, { branchesReporting: 0 });
+    expect(reportingBranches(s)).toEqual([]);
+  });
+
+  it('a branch whose only returns were rejected still reports', () => {
+    const rejectedOnly = { ...empty, submitted: { qty: 1, amount: 200, count: 1 }, rejected: { qty: 1, amount: 200, count: 1 } };
+    const s = summary(totals(), { branches: [{ branchId: 'a', branchName: 'DHA Branch', ...rejectedOnly, products: [] }] });
+    expect(reportingBranches(s)).toHaveLength(1);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   buildReturnsSummaryTiles,
   describeProductLine,
   formatReturnsWindow,
+  reportingBranches,
   unpricedNote,
   type ReturnsSummaryStatus,
   type ReturnsSummaryTone,
@@ -54,6 +55,7 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
 
   const totals = summary?.totals;
   const note = totals ? unpricedNote(totals) : null;
+  const branches = summary ? reportingBranches(summary) : [];
 
   return (
     <Card>
@@ -94,7 +96,10 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
 
       {showBranches && summary && totals ? (
         <View style={{ marginTop: theme.spacing.md }}>
-          {summary.branches.map((b) => (
+          {branches.length === 0 ? (
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No branch has returns this month.</Text>
+          ) : null}
+          {branches.map((b) => (
             <BranchRow
               key={b.branchId}
               name={b.branchName}
@@ -106,7 +111,7 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
               toneColor={toneColor}
             />
           ))}
-          {summary.branches.length > 1 ? (
+          {branches.length > 1 ? (
             <BranchRow name="All Branches" totals={totals} statusLabels={statusLabels} toneColor={toneColor} emphasis />
           ) : null}
           <ProductList title="Item-wise, all branches" lines={summary.products} />
