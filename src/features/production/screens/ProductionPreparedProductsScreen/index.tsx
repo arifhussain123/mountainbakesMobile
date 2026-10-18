@@ -6,10 +6,12 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { styles } from './styles';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 
 /** mountainbakesProduction.html screen 08 — Today's Prepared Products: ADDS to what today already holds. */
 export function ProductionPreparedProductsScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const stock = useProductionStock();
   const prepare = usePrepareProduction();

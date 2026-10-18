@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { openDrawer } from '../helpers';
-import { TAB_ITEMS } from '../tabItems';
+import { useRoleShell } from '../roleShells';
 import { useNavBadges } from '../useNavBadges';
 import { useOfflineQueueStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
@@ -38,22 +38,27 @@ import { useTabBarVisibility } from './useTabBarVisibility';
  * an overlay (not a normal flex sibling reserving its own space). a tab-root
  * screen's scrollable content must pad itself by `useTabBarHeight()` or its
  * last item would sit behind the bar.
+ *
+ * The slots are the signed-in role's `tabItems` (`roleShells.ts`), matched to
+ * the navigator's routes by NAME — so a shell's `Tab.Screen` order never has
+ * to mirror its item order for taps and badges to land on the right tab.
  */
 export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
+  const { tabItems } = useRoleShell();
   const badges = useNavBadges();
   const failedSync = useOfflineQueueStore((s) => s.failedCount > 0);
   const visible = useTabBarVisibility();
 
-  const tabCount = TAB_ITEMS.length;
+  const tabCount = tabItems.length;
   const { tabWidth, bubbleSize, iconSize, notchWidth, notchDepth } = getTabBarLayout(width, tabCount);
   const totalBarHeight = BAR_CONTENT_HEIGHT + insets.bottom;
 
   const focusedRouteName = state.routes[state.index]?.name;
-  const focusedTabIndex = TAB_ITEMS.findIndex((t) => t.route === focusedRouteName);
+  const focusedTabIndex = tabItems.findIndex((t) => t.route === focusedRouteName);
   const activeIndex = focusedTabIndex >= 0 ? focusedTabIndex : 0;
 
   const initialNotchX = clampNotchX(tabWidth * (activeIndex + 0.5), width, notchWidth, CORNER_RADIUS);
@@ -105,13 +110,14 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
   const containerStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
   const handlePress = (index: number) => {
-    const item = TAB_ITEMS[index]!;
+    const item = tabItems[index]!;
     if (item.route === null) {
       // "More" — opens the drawer, never becomes the active tab.
       openDrawer();
       return;
     }
-    const event = navigation.emit({ type: 'tabPress', target: state.routes[index]?.key, canPreventDefault: true });
+    const target = state.routes.find((r) => r.name === item.route)?.key;
+    const event = navigation.emit({ type: 'tabPress', target, canPreventDefault: true });
     if (!event.defaultPrevented) {
       // Pressing the already-active tab resets its stack to the initial
       // screen — @react-navigation/bottom-tabs' own default `navigate`
@@ -131,9 +137,10 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
       </Svg>
 
       <View style={[styles.row, { height: BAR_CONTENT_HEIGHT }]}>
-        {TAB_ITEMS.map((item, index) => {
+        {tabItems.map((item, index) => {
           const isActive = index === activeIndex && item.route !== null;
-          const label = descriptors[state.routes[index]?.key ?? '']?.options.title ?? item.label;
+          const routeKey = state.routes.find((r) => r.name === item.route)?.key;
+          const label = (routeKey && descriptors[routeKey]?.options.title) || item.label;
           return (
             <TabItem
               key={item.key}
@@ -151,10 +158,10 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
       <ActiveBubble
         notchX={notchX}
-        icon={TAB_ITEMS[activeIndex]!.icon}
+        icon={tabItems[activeIndex]!.icon}
         diameter={bubbleSize}
         iconSize={iconSize}
-        showDot={failedSync && TAB_ITEMS[activeIndex]!.key === 'orders'}
+        showDot={failedSync && tabItems[activeIndex]!.key === 'orders'}
       />
     </Animated.View>
   );

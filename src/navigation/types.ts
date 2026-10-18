@@ -120,18 +120,19 @@ export type ProductionEventsStackParamList = {
 export type ProductionBottomTabParamList = {
   [Routes.PRODUCTION_DASHBOARD_TAB]: undefined;
   [Routes.PRODUCTION_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
-  [Routes.PRODUCTION_SALES_TAB]: NavigatorScreenParams<ProductionSalesStackParamList> | undefined;
   [Routes.PRODUCTION_STOCK_TAB]: NavigatorScreenParams<ProductionStockStackParamList> | undefined;
+  [Routes.PRODUCTION_RETURNS_TAB]: NavigatorScreenParams<ProductionReturnsStackParamList> | undefined;
   [Routes.PRODUCTION_MORE_TAB]: undefined;
 };
 
 export type ProductionDrawerParamList = {
   [Routes.PRODUCTION_TABS]: NavigatorScreenParams<ProductionBottomTabParamList> | undefined;
-  [Routes.PRODUCTION_RETURNS_STACK]: NavigatorScreenParams<ProductionReturnsStackParamList> | undefined;
+  [Routes.PRODUCTION_SALES_STACK]: NavigatorScreenParams<ProductionSalesStackParamList> | undefined;
   [Routes.PRODUCTION_DISCOUNTS_STACK]: NavigatorScreenParams<ProductionDiscountsStackParamList> | undefined;
   [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
   [Routes.PRODUCTION_REPORTS_STACK]: undefined;
   [Routes.PRODUCTION_HELP_DESK_STACK]: undefined;
+  [Routes.PROFILE]: undefined;
 };
 
 export type FinanceLedgerStackParamList = {

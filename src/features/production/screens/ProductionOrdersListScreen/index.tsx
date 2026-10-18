@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePrepareSpecialOrder, useProductionOrders, useProductionStock, useSpecialOrders } from '@/api';
-import { Routes, type ProductionOrdersStackParamList } from '@/navigation';
+import { Routes, useTabBarHeight, type ProductionOrdersStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -31,6 +31,7 @@ const HISTORY_STATUSES = ['verified', 'approved', 'rejected', 'cancelled'];
 /** mountainbakesProduction.html screen 02 — Production Orders: every branch's demand. */
 export function ProductionOrdersListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<ProductionOrdersStackParamList>>();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<(typeof TABS)[number]>('pending');
@@ -121,7 +122,7 @@ export function ProductionOrdersListScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             {openSpecialOrders.length > 0 ? (

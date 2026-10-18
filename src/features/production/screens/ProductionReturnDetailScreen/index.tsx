@@ -9,6 +9,7 @@ import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionReturn, ProductionReturnDisposition } from '@/api';
 import { styles } from './styles';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 
 const STATUS_LABEL: Record<ProductionReturn['status'], string> = {
   pending: 'Awaiting Review',
@@ -26,6 +27,7 @@ const DISPOSITION_OPTIONS: { value: ProductionReturnDisposition; label: string }
 /** mountainbakesProduction.html screen 10's own detail — approve, reject, or send back. */
 export function ProductionReturnDetailScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<ProductionReturnsStackParamList, 'ProductionReturnDetail'>>();
   const { returnId } = route.params;

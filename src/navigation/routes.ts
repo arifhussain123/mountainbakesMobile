@@ -88,8 +88,8 @@ export const Routes = {
   PRODUCTION_TABS: 'ProductionTabs',
   PRODUCTION_DASHBOARD_TAB: 'ProductionDashboardTab',
   PRODUCTION_ORDERS_TAB: 'ProductionOrdersTab',
-  PRODUCTION_SALES_TAB: 'ProductionSalesTab',
   PRODUCTION_STOCK_TAB: 'ProductionStockTab',
+  PRODUCTION_RETURNS_TAB: 'ProductionReturnsTab',
   PRODUCTION_MORE_TAB: 'ProductionMoreTab',
 
   PRODUCTION_DASHBOARD: 'ProductionDashboard',
@@ -97,6 +97,7 @@ export const Routes = {
   PRODUCTION_ORDERS_LIST: 'ProductionOrdersList',
   PRODUCTION_ORDER_DETAIL: 'ProductionOrderDetail',
 
+  PRODUCTION_SALES_STACK: 'ProductionSalesStack',
   PRODUCTION_SALES_LIST: 'ProductionSalesList',
   PRODUCTION_NEW_SALE: 'ProductionNewSale',
 
@@ -105,7 +106,6 @@ export const Routes = {
   PRODUCTION_STOCK_ADJUSTMENT: 'ProductionStockAdjustment',
   PRODUCTION_BRANCH_STOCK: 'ProductionBranchStock',
 
-  PRODUCTION_RETURNS_STACK: 'ProductionReturnsStack',
   PRODUCTION_RETURNS_LIST: 'ProductionReturnsList',
   PRODUCTION_RETURN_DETAIL: 'ProductionReturnDetail',
   PRODUCTION_NEW_RETURN: 'ProductionNewReturn',

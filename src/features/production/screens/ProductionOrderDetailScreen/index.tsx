@@ -14,6 +14,7 @@ import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionOrder } from '@/api';
 import { styles } from './styles';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 
 const STATUS_LABEL: Record<ProductionOrder['status'], string> = {
   pending: 'Pending',
@@ -83,6 +84,7 @@ function buildA4ChallanText(order: ProductionOrder, balance: ReturnType<typeof u
 /** mountainbakesProduction.html screen 03 — Order Detail: review one branch demand. */
 export function ProductionOrderDetailScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<ProductionOrdersStackParamList, 'ProductionOrderDetail'>>();
   const { orderId } = route.params;

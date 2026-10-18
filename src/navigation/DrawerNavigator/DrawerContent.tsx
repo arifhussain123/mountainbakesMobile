@@ -7,24 +7,16 @@ import { useAppTheme } from '@/shared/theme';
 import { GlowLayer, WARM_GLOW_RGB } from '@/shared/ui';
 import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
+import { branchScopeLabel, roleLabel } from '@/shared/utils';
 import { Routes } from '../routes';
 import { BranchStrip, DrawerFooter, DrawerHeader, DrawerItem, DrawerSectionLabel, SignOutSheet } from '../components';
 import { MENU_CONTENT_HORIZONTAL_PADDING, MENU_CONTENT_WIDTH_RATIO } from '../components/drawerLayout';
 import { MountainWatermark } from '../components/MountainWatermark';
-import { DRAWER_GROUPED, GROUP_LABEL, NAV_ITEMS, isNavItemActive } from '../navItems';
+import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive } from '../navItems';
+import { useRoleShell } from '../roleShells';
 import { useNavBadges } from '../useNavBadges';
 
 type AnyNavState = NavigationState | PartialState<NavigationState>;
-
-const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Super Admin',
-  branch_manager: 'Branch Manager',
-  production_user: 'Production',
-  finance_admin: 'Finance Admin',
-  finance_manager: 'Finance Manager',
-  accountant: 'Accountant',
-  finance_auditor: 'Finance Auditor',
-};
 
 /** Walks the focused route down through nested navigators, e.g. ["Tabs", "StockTab", "ReturnStockList"]. */
 function getFocusedChain(state: AnyNavState | undefined): string[] {
@@ -43,6 +35,10 @@ function getFocusedChain(state: AnyNavState | undefined): string[] {
  * ever sits under the tilted, part-opaque screen card (see
  * `DrawerScreenCard`, rendered around every screen, not here — this
  * component only ever renders the menu side).
+ *
+ * Shared by every shell that uses the slide-back drawer (Branch, Production):
+ * the items, badges and branch line all come from the signed-in role's shell
+ * (`roleShells.ts`), so this component never checks a role itself.
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const theme = useAppTheme();
@@ -52,12 +48,13 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
   const logout = useAuthStore((s) => s.logout);
   const pendingCount = useOfflineQueueStore((s) => s.pendingCount);
   const failedCount = useOfflineQueueStore((s) => s.failedCount);
+  const { navItems } = useRoleShell();
   const badges = useNavBadges();
   const openAppearance = useAppearanceSheetStore((s) => s.open);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const focusedChain = getFocusedChain(state);
-  const roleLabel = user ? (ROLE_LABEL[user.role] ?? user.role) : 'Branch Manager';
+  const userRoleLabel = user ? roleLabel(user.role) : '';
   const contentWidth = windowWidth * MENU_CONTENT_WIDTH_RATIO;
 
   const handleSignOut = () => {
@@ -66,7 +63,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     void logout();
   };
 
-  const activeIndex = NAV_ITEMS.findIndex((item) => isNavItemActive(item, focusedChain));
+  const activeIndex = navItems.findIndex((item) => isNavItemActive(item, focusedChain));
 
   let lastGroup: string | null = null;
 
@@ -82,14 +79,14 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
       ) : null}
 
       <View style={{ width: contentWidth }}>
-        <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} />
-        <BranchStrip branchName={user?.branchName ?? 'No branch assigned'} />
+        <DrawerHeader roleLabel={userRoleLabel} insetTop={insets.top} />
+        <BranchStrip branchName={user ? branchScopeLabel(user) : ''} />
         <View style={[styles.headerDivider, { marginHorizontal: MENU_CONTENT_HORIZONTAL_PADDING, backgroundColor: theme.colors.border }]} />
       </View>
 
       <View style={{ flex: 1, width: contentWidth }}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md }}>
-          {NAV_ITEMS.map((item, index) => {
+          {navItems.map((item, index) => {
             const showSectionLabel = DRAWER_GROUPED && item.group !== lastGroup;
             const showDividerAbove = showSectionLabel && lastGroup !== null;
             lastGroup = item.group;
@@ -115,7 +112,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
 
       <View style={{ width: contentWidth }}>
         <DrawerFooter
-          name={user?.displayName ?? roleLabel}
+          name={user?.displayName ?? userRoleLabel}
           pendingSyncCount={pendingCount + failedCount}
           onPressProfile={() => {
             navigation.closeDrawer();

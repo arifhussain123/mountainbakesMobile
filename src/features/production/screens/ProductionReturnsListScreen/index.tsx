@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBranches, useProductionReturns, useProductionReturnsSummary } from '@/api';
 import { MonthlyReturnsSummaryCard } from '@/features/stock';
-import { Routes, type ProductionReturnsStackParamList } from '@/navigation';
+import { Routes, useTabBarHeight, type ProductionReturnsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -25,6 +25,7 @@ const SUMMARY_STATUS_LABEL = { pending: 'Awaiting Review', accepted: 'Approved',
 /** mountainbakesProduction.html screen 10 — Product Returns: approve, reject, or send back. */
 export function ProductionReturnsListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<ProductionReturnsStackParamList>>();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<(typeof TABS)[number]>('all');
@@ -75,7 +76,7 @@ export function ProductionReturnsListScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>

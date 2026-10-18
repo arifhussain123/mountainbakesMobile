@@ -6,7 +6,7 @@ export interface TabItem {
   key: string;
   label: string;
   icon: IconName;
-  /** A `BottomTabParamList` route name, or `null` for "More" (opens the drawer, never becomes active). */
+  /** A bottom-tab route name, or `null` for "More" (opens the drawer, never becomes active). */
   route: string | null;
   badgeSource: NavBadgeSource;
 }
@@ -18,19 +18,28 @@ export interface TabItem {
  * matched set (`home`/`orders`/`sales`/`stock`/`more`) rather than generic
  * clipboard/cart glyphs.
  *
- * No permission filtering happens here today: confirmed in the Drawer task's
- * Step 0 that a branch_manager carries no per-item permission list, just one
- * role string, and the role-level split already happens above this (a
- * different role gets an entirely different tab navigator). The brief's "tab
- * the user lacks permission for is replaced" rule has nothing to filter
- * against yet — `TAB_ITEMS` is exported as a plain array rather than a
- * filtering function so that remains a one-line change if a real permission
- * list appears later.
+ * No permission filtering happens here: the server carries no per-item
+ * permission list, just one role string, and the role-level split is
+ * `ROLE_SHELLS` (`roleShells.ts`), which picks one of these arrays per role.
  */
-export const TAB_ITEMS: TabItem[] = [
+export const BRANCH_TAB_ITEMS: TabItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'home', route: Routes.HOME_TAB, badgeSource: null },
   { key: 'orders', label: 'Orders', icon: 'orders', route: Routes.ORDERS_TAB, badgeSource: 'orders' },
   { key: 'sales', label: 'Sales', icon: 'sales', route: Routes.SALES_TAB, badgeSource: null },
   { key: 'stock', label: 'Stock', icon: 'stock', route: Routes.STOCK_TAB, badgeSource: null },
+  { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
+];
+
+/**
+ * Production's daily drivers: approve demands, watch the pool, review returns.
+ * Sales moves behind More (the web keeps it in its primary four; on the phone
+ * the returns queue is the more frequent task). "Stock" is Production Stock —
+ * Branch Stock is a screen inside the same tab, reached from the drawer.
+ */
+export const PRODUCTION_TAB_ITEMS: TabItem[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'home', route: Routes.PRODUCTION_DASHBOARD_TAB, badgeSource: null },
+  { key: 'orders', label: 'Orders', icon: 'orders', route: Routes.PRODUCTION_ORDERS_TAB, badgeSource: 'orders' },
+  { key: 'stock', label: 'Stock', icon: 'stock', route: Routes.PRODUCTION_STOCK_TAB, badgeSource: 'productionStock' },
+  { key: 'returns', label: 'Returns', icon: 'rotate-ccw', route: Routes.PRODUCTION_RETURNS_TAB, badgeSource: 'returns' },
   { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
 ];

@@ -5,3 +5,4 @@ export type { DateRange, DateRangePreset } from './dateRange';
 export { withTimeout } from './withTimeout';
 export { formatMonthToDateLine, formatSummaryWindow } from './monthToDate';
 export { includesTerm } from './search';
+export { branchScopeLabel, roleLabel } from './roles';

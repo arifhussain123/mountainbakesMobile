@@ -4,7 +4,7 @@ import { useProductionBranchSummary, useProductionCurrentStock, useProductionOve
 import type { ProductionDashboardPeriod, ProductionOrderStatus } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
-import { openDrawer } from '@/navigation';
+import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
@@ -73,6 +73,7 @@ function ChangeLabel({ value }: { value: number | null }) {
  */
 export function ProductionDashboardScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
   const user = useAuthStore((state) => state.user);
@@ -155,7 +156,7 @@ export function ProductionDashboardScreen() {
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}

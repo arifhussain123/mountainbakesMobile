@@ -25,6 +25,19 @@ export function useProductionReturnsSummary(branchId: string | null) {
   });
 }
 
+/**
+ * How many returns still await Production's review — the Returns badge. One
+ * row requested; the server's exact `total` is the answer. Same default window
+ * as the Returns list itself (last 30 business days), so the badge and the
+ * list's Awaiting filter never disagree.
+ */
+export function useProductionReturnsAwaitingCount() {
+  return useQuery({
+    queryKey: queryKeys.productionReturnsAwaitingCount(),
+    queryFn: async () => (await productionReturnService.listProductionReturns({ status: 'pending', limit: 1 })).total,
+  });
+}
+
 export function useCreateProductionReturn() {
   const queryClient = useQueryClient();
   return useMutation({

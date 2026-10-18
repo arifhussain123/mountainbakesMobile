@@ -87,10 +87,14 @@ export const queryKeys = {
   productionStock: (date?: string) => ['productionStock', date ?? 'today'] as const,
   productionSales: (params?: { from?: string; to?: string }) => ['productionSales', params ?? {}] as const,
   productionReturns: (params?: { status?: string; search?: string }) => ['productionReturns', params ?? {}] as const,
+  productionReturnsAwaitingCount: () => ['productionReturns', 'awaitingCount'] as const,
   // Same idea for Production's per-branch summary — and the branch filter is part of it.
   productionReturnsSummary: (branchId: string | null, businessDate: string) =>
     ['productionReturns', 'summary', branchId, businessDate] as const,
   productionDiscounts: (params?: { status?: string; search?: string }) => ['productionDiscounts', params ?? {}] as const,
+  // Nav badges: just the server's count of claims/returns still awaiting
+  // review. Under their list roots so a review's invalidation refreshes them.
+  productionDiscountsAwaitingCount: () => ['productionDiscounts', 'awaitingCount'] as const,
   // Under ['productionDiscounts'] so a review refreshes it with the queue.
   productionDiscountSummary: (branchId: string | null, businessDate: string) =>
     ['productionDiscounts', 'summary', branchId, businessDate] as const,

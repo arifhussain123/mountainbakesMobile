@@ -44,7 +44,7 @@ export interface TabBarLayout {
   notchDepth: number;
 }
 
-/** `tabCount` is `TAB_ITEMS.length`, not a hard-coded 5, so this stays correct if a tab is ever added/removed. */
+/** `tabCount` is the shell's `tabItems.length`, not a hard-coded 5, so this stays correct if a tab is ever added/removed. */
 export function getTabBarLayout(width: number, tabCount: number): TabBarLayout {
   const tabWidth = width / tabCount;
   const bubbleSize = clamp(48, width * 0.14, 60);

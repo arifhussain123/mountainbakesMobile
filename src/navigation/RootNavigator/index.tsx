@@ -11,6 +11,7 @@ import { DrawerNavigator } from '../DrawerNavigator';
 import { FinanceDrawerNavigator } from '../FinanceDrawerNavigator';
 import { ProductionDrawerNavigator } from '../ProductionDrawerNavigator';
 import { navigationRef } from '../helpers';
+import { getRoleShell, type ShellRoute } from '../roleShells';
 import { Routes } from '../routes';
 import type { RootStackParamList } from '../types';
 import { SplashView } from './SplashView';
@@ -18,7 +19,12 @@ import { UnsupportedRoleView } from './UnsupportedRoleView';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const FINANCE_ROLES = new Set(['finance_admin', 'finance_manager', 'accountant', 'finance_auditor']);
+const SHELL_COMPONENT: Record<ShellRoute, ComponentType> = {
+  [Routes.DRAWER]: DrawerNavigator,
+  [Routes.PRODUCTION_DRAWER]: ProductionDrawerNavigator,
+  [Routes.FINANCE_DRAWER]: FinanceDrawerNavigator,
+  [Routes.UNSUPPORTED_ROLE]: UnsupportedRoleView,
+};
 
 /**
  * `NavigationContainer` paints its own chrome (the default-tab-bar/header
@@ -52,11 +58,11 @@ function useNavigationTheme(): NavigationTheme {
 
 /**
  * Decides Auth vs. which app shell from `authStore.status` + the signed-in
- * user's role — the one place that decision is made. `branch_manager` gets
- * the branchApp.md shell, `production_user` gets mountainbakesProduction.html's,
- * a finance role gets mountainbakesFinance.html's (placeholder until built),
- * and anything else (super_admin) gets an explicit "not built for this role"
- * screen rather than silently falling back to one it was never designed for.
+ * user's role. Which shell a role gets is `ROLE_SHELLS` (`roleShells.ts`), not
+ * decided here: `branch_manager` gets the branchApp.md shell, `production_user`
+ * mountainbakesProduction.html's, a finance role mountainbakesFinance.html's,
+ * and anything else (super_admin) an explicit "not built for this role" screen
+ * rather than one it was never designed for.
  */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
@@ -70,17 +76,13 @@ export function RootNavigator() {
 
   if (status === 'bootstrapping') return <SplashView />;
 
-  let mainScreen: { name: typeof Routes.DRAWER | typeof Routes.PRODUCTION_DRAWER | typeof Routes.FINANCE_DRAWER | typeof Routes.UNSUPPORTED_ROLE; component: ComponentType };
-  if (role === 'branch_manager') mainScreen = { name: Routes.DRAWER, component: DrawerNavigator };
-  else if (role === 'production_user') mainScreen = { name: Routes.PRODUCTION_DRAWER, component: ProductionDrawerNavigator };
-  else if (role && FINANCE_ROLES.has(role)) mainScreen = { name: Routes.FINANCE_DRAWER, component: FinanceDrawerNavigator };
-  else mainScreen = { name: Routes.UNSUPPORTED_ROLE, component: UnsupportedRoleView };
+  const shellRoute = getRoleShell(role).route;
 
   return (
     <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {status === 'signedIn' ? (
-          <Stack.Screen name={mainScreen.name} component={mainScreen.component} />
+          <Stack.Screen name={shellRoute} component={SHELL_COMPONENT[shellRoute]} />
         ) : (
           <Stack.Screen name={Routes.AUTH} component={AuthNavigator} />
         )}

@@ -21,6 +21,14 @@ export function useProductionDiscountSummary(branchId: string | null) {
   });
 }
 
+/** How many discount claims still await Production's review — the Discounts badge. Same window as the list (last 30 business days). */
+export function useProductionDiscountsAwaitingCount() {
+  return useQuery({
+    queryKey: queryKeys.productionDiscountsAwaitingCount(),
+    queryFn: async () => (await productionDiscountService.listProductionDiscounts({ status: 'pending', limit: 1 })).total,
+  });
+}
+
 export function useReviewProductionDiscount() {
   const queryClient = useQueryClient();
   return useMutation({

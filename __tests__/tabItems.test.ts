@@ -1,27 +1,43 @@
 /**
  * @format
  */
-import { TAB_ITEMS } from '@/navigation/tabItems';
+import { Routes } from '@/navigation/routes';
+import { BRANCH_TAB_ITEMS, PRODUCTION_TAB_ITEMS } from '@/navigation/tabItems';
 
-describe('TAB_ITEMS', () => {
+describe.each([
+  ['BRANCH_TAB_ITEMS', BRANCH_TAB_ITEMS],
+  ['PRODUCTION_TAB_ITEMS', PRODUCTION_TAB_ITEMS],
+])('%s', (_name, items) => {
   it('has exactly 5 slots: 4 navigable tabs + More', () => {
-    expect(TAB_ITEMS).toHaveLength(5);
+    expect(items).toHaveLength(5);
   });
 
   it('"More" has no route and never becomes active — the bar treats route === null as "open drawer, skip the notch"', () => {
-    const more = TAB_ITEMS[TAB_ITEMS.length - 1]!;
+    const more = items[items.length - 1]!;
     expect(more.key).toBe('more');
     expect(more.route).toBeNull();
   });
 
   it('every other tab has a real, distinct route', () => {
-    const routes = TAB_ITEMS.slice(0, -1).map((t) => t.route);
+    const routes = items.slice(0, -1).map((t) => t.route);
     expect(routes.every((r) => typeof r === 'string' && r.length > 0)).toBe(true);
     expect(new Set(routes).size).toBe(routes.length);
   });
 
   it('has distinct keys across all 5 slots', () => {
-    const keys = TAB_ITEMS.map((t) => t.key);
+    const keys = items.map((t) => t.key);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('PRODUCTION_TAB_ITEMS', () => {
+  it('is Dashboard, Orders, Stock (Production Stock), Returns, More', () => {
+    expect(PRODUCTION_TAB_ITEMS.map((t) => [t.label, t.route])).toEqual([
+      ['Dashboard', Routes.PRODUCTION_DASHBOARD_TAB],
+      ['Orders', Routes.PRODUCTION_ORDERS_TAB],
+      ['Stock', Routes.PRODUCTION_STOCK_TAB],
+      ['Returns', Routes.PRODUCTION_RETURNS_TAB],
+      ['More', null],
+    ]);
   });
 });

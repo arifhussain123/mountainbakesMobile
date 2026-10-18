@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useProductionBranchStock } from '@/api';
+import { useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -18,6 +19,7 @@ const PRODUCT_COL_WIDTH = 150;
  */
 export function ProductionBranchStockScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const [search, setSearch] = useState('');
   const { data, isLoading, error, refetch, isRefetching } = useProductionBranchStock();
 
@@ -38,7 +40,7 @@ export function ProductionBranchStockScreen() {
   return (
     <Screen>
       <AppHeader title="Branch Stock" subtitle="Every branch's balance, one product at a time" />
-      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm, flex: 1 }}>
+      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm, paddingBottom: tabBarHeight, flex: 1 }}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
 
         {isLoading ? <LoadingSkeleton height={300} /> : null}

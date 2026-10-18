@@ -9,6 +9,7 @@ import { PRODUCTION_ADJUSTMENT_LABELS, PRODUCTION_ADJUSTMENT_TYPES } from '@/api
 import type { Product, ProductionAdjustmentType } from '@/api';
 import { useProductionAdjustmentForm, type AdjustmentDirection } from '../../hooks';
 import { styles } from './styles';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 
 const DIRECTION_OPTIONS: { value: AdjustmentDirection; label: string }[] = [
   { value: 'out', label: 'Remove from Pool (−)' },
@@ -18,6 +19,7 @@ const DIRECTION_OPTIONS: { value: AdjustmentDirection; label: string }[] = [
 /** mountainbakesProduction.html screen 07's own "Adjustment" action — an authorised, signed correction. */
 export function ProductionStockAdjustmentScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const form = useProductionAdjustmentForm();
   const products = useProducts();

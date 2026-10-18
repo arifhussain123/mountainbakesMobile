@@ -14,11 +14,17 @@ export {
   useReviewProductionOrder,
   useVerifyProductionOrder,
 } from './useProductionOrdersApi';
-export { useProductionDiscounts, useProductionDiscountSummary, useReviewProductionDiscount } from './useProductionDiscountsApi';
+export {
+  useProductionDiscounts,
+  useProductionDiscountsAwaitingCount,
+  useProductionDiscountSummary,
+  useReviewProductionDiscount,
+} from './useProductionDiscountsApi';
 export { useCreateProductionAdjustment, usePrepareProduction, useProductionStock } from './useProductionStockApi';
 export {
   useCreateProductionReturn,
   useProductionReturns,
+  useProductionReturnsAwaitingCount,
   useProductionReturnsSummary,
   useReviewProductionReturn,
 } from './useProductionReturnsApi';
