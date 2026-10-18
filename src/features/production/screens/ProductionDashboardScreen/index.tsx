@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useProductionOverview } from '@/api';
+import { useProductionBranchSummary, useProductionCurrentStock, useProductionOverview } from '@/api';
 import type { ProductionDashboardPeriod, ProductionOrderStatus } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
@@ -11,13 +11,16 @@ import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAuthStore } from '@/state';
 import {
+  BranchGroupedColumns,
   FilterChip,
   ProductionDualLineChart,
   ProductionHeatmapCard,
   ProductionOrderStatusDonut,
   ProductionPlanList,
   RankedBarList,
+  StockColumns,
 } from '../../components';
+import { COLUMN_PLOT_HEIGHT } from '../../dashboardColumns';
 import { styles } from './styles';
 
 const PERIODS: { value: ProductionDashboardPeriod; label: string }[] = [
@@ -77,6 +80,11 @@ export function ProductionDashboardScreen() {
   const [branchId, setBranchId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, isRefetching } = useProductionOverview(period, branchId);
+  // The web dashboard's two column-chart sections: the branch list is every
+  // branch (never the filter), current stock is "right now" (never the period).
+  const branchSummary = useProductionBranchSummary(period);
+  const currentStock = useProductionCurrentStock(branchId);
+  const periodWord = period === 'today' ? 'day' : period === 'month' ? 'month' : 'week';
 
   const monthlyPoints = useMemo(
     () => (data?.week.monthly ?? []).map((m) => ({ label: m.month.slice(5), a: m.demand, b: m.produced })),
@@ -148,7 +156,17 @@ export function ProductionDashboardScreen() {
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={theme.colors.primary} />}>
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => {
+              void refetch();
+              void branchSummary.refetch();
+              void currentStock.refetch();
+            }}
+            tintColor={theme.colors.primary}
+          />
+        }>
         {/* Period filter */}
         <View style={[styles.periodRow, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
           {PERIODS.map((p) => (
@@ -288,20 +306,43 @@ export function ProductionDashboardScreen() {
           </View>
         </Card>
 
-        {/* Branch demand comparison */}
-        {week.branchCompare.length > 0 ? (
-          <Card style={{ marginTop: theme.spacing.md }}>
-            <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Branch demand comparison</Text>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginBottom: 10 }]}>
-              Tap a branch to filter the dashboard
-            </Text>
-            <RankedBarList
-              showRank={false}
-              rows={week.branchCompare.map((b) => ({ key: b.branchId, label: b.branchName, value: b.demand }))}
-              onPressRow={(key) => setBranchId(key === branchId ? null : key)}
+        {/* Branch-wise summary — the web dashboard's column chart */}
+        <Card style={{ marginTop: theme.spacing.md }}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Branch-wise summary</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginBottom: 10 }]}>
+            Units demanded, delivered and returned this {periodWord}, highest demand first. Tap a branch to filter the dashboard.
+          </Text>
+          {branchSummary.isLoading ? (
+            <LoadingSkeleton height={COLUMN_PLOT_HEIGHT} />
+          ) : branchSummary.error && !branchSummary.data ? (
+            <ErrorState message={mapErrorToMessage(branchSummary.error)} onRetry={() => void branchSummary.refetch()} />
+          ) : (branchSummary.data?.series.length ?? 0) === 0 ? (
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No active branches.</Text>
+          ) : (
+            <BranchGroupedColumns
+              rows={branchSummary.data!.series}
+              selectedId={branchId}
+              onSelect={(id) => setBranchId(id === branchId ? null : id)}
             />
-          </Card>
-        ) : null}
+          )}
+        </Card>
+
+        {/* Current stock — the web dashboard's column chart */}
+        <Card style={{ marginTop: theme.spacing.md }}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Current stock</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginBottom: 10 }]}>
+            Right now, whatever the period · production stock under branch stock, largest first
+          </Text>
+          {currentStock.isLoading ? (
+            <LoadingSkeleton height={COLUMN_PLOT_HEIGHT} />
+          ) : currentStock.error && !currentStock.data ? (
+            <ErrorState message={mapErrorToMessage(currentStock.error)} onRetry={() => void currentStock.refetch()} />
+          ) : (currentStock.data?.series.length ?? 0) === 0 ? (
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No products in stock records.</Text>
+          ) : (
+            <StockColumns rows={currentStock.data!.series} threshold={currentStock.data!.breakdown.threshold} />
+          )}
+        </Card>
 
         {/* Top 10 requested products */}
         {week.plan.length > 0 ? (

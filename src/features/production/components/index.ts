@@ -17,3 +17,7 @@ export { RankedBarList } from './RankedBarList';
 export type { RankedBarRow } from './RankedBarList';
 export { ReturnProductPickerModal } from './ReturnProductPickerModal';
 export { SpecialOrderCard } from './SpecialOrderCard';
+export { BranchGroupedColumns } from './BranchGroupedColumns';
+export type { BranchGroupedColumnsProps } from './BranchGroupedColumns';
+export { StockColumns } from './StockColumns';
+export type { StockColumnsProps } from './StockColumns';

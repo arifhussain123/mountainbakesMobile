@@ -99,6 +99,10 @@ export const queryKeys = {
   specialOrders: () => ['specialOrders'] as const,
   productionOverview: (period: 'today' | 'week' | 'month', branchId?: string | null) =>
     ['productionOverview', period, branchId ?? 'all'] as const,
+  // The web dashboard's Branch-wise and Current stock sections. Own roots: the
+  // branch list ignores the branch filter, and current stock ignores the period.
+  productionBranchSummary: (period: string) => ['productionBranchSummary', period] as const,
+  productionCurrentStock: (branchId: string | null) => ['productionCurrentStock', branchId] as const,
   productionBranchStock: () => ['productionBranchStock'] as const,
   productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
   notifications: () => ['notifications'] as const,

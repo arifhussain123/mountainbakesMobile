@@ -122,7 +122,13 @@ export {
 } from './useFinanceTicketsApi';
 export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
 export { usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
-export { useProductionBranchStock, useProductionOverview, useProductionReportSummary } from './useProductionOverviewApi';
+export {
+  useProductionBranchStock,
+  useProductionBranchSummary,
+  useProductionCurrentStock,
+  useProductionOverview,
+  useProductionReportSummary,
+} from './useProductionOverviewApi';
 export { usePackingUsage } from './useReportsApi';
 export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';
 export { useNotifications, useNotificationsWithReadState, useMarkNotificationsRead, mergeReadState } from './useNotificationsApi';

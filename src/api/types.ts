@@ -2911,3 +2911,46 @@ export interface MonthlyCashTransferSummary {
 export interface DataEngineAggregateResponse {
   rows: { group?: Record<string, string | number | boolean | null>; values: Record<string, number | null> }[];
 }
+
+// ─── Production Dashboard sections (`/api/production/dashboard/*`) ───────────
+// The web's redesigned dashboard sections — backend
+// shared/utils/production-dashboard.ts. Only the fields the mobile charts read
+// are typed; the server sends more (kpis, previous, comparisons, sparks).
+
+export interface ProductionBranchSummaryRow {
+  branchId: string;
+  branchName: string;
+  demanded: number;
+  delivered: number;
+  returned: number;
+  /** delivered ÷ demanded, %; null with no demand. */
+  fulfilment: number | null;
+}
+
+/** `GET /production/dashboard/branch-summary?period=` — every active branch, highest demand first. */
+export interface ProductionBranchSummarySection {
+  window: { period: ProductionDashboardPeriod; from: string; to: string };
+  series: ProductionBranchSummaryRow[];
+}
+
+export type ProductionStockState = 'ok' | 'low' | 'out';
+
+export interface ProductionCurrentStockRow {
+  productId: string;
+  productName: string;
+  /** Available in the central pool; can be negative (drawn from zero). */
+  production: number;
+  /** On branch shelves (one branch when filtered). */
+  branch: number;
+  /** What is physically there: each side counted from zero, never below. */
+  total: number;
+  state: ProductionStockState;
+}
+
+/** `GET /production/dashboard/current-stock?branchId=` — stock right now, largest first; no period. */
+export interface ProductionCurrentStockSection {
+  kpis: Record<'production' | 'branch' | 'inStock' | 'low' | 'out', number>;
+  series: ProductionCurrentStockRow[];
+  breakdown: { threshold: number; products: number };
+  branchId: string | null;
+}
