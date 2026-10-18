@@ -19,11 +19,13 @@ import { logger } from '@/shared/utils/logger';
 export type DeviceReauthResult = 'ok' | 'cancelled' | 'unavailable';
 
 const SERVICE = 'mountainbakes.reauth';
-const ACCESS = Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE;
 
 export async function requestDeviceReauth(title: string): Promise<DeviceReauthResult> {
   try {
-    if (!(await Keychain.isPasscodeAuthAvailable())) return 'unavailable';
+    // Read here, not at module load: this file is imported through the helpers
+    // barrel by every screen, including under test mocks that have no enums.
+    const ACCESS = Keychain.ACCESS_CONTROL?.BIOMETRY_ANY_OR_DEVICE_PASSCODE;
+    if (!ACCESS || !(await Keychain.isPasscodeAuthAvailable())) return 'unavailable';
     // (Re)written every time: an item stored before a lock was set up, or
     // invalidated by a biometrics change, would otherwise read without a prompt
     // or not at all.

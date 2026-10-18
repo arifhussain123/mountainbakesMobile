@@ -57,6 +57,8 @@ export function FinanceIncomeExpenseListScreen() {
 
   const [tab, setTab] = useState<(typeof TABS)[number]>('all');
   const [selected, setSelected] = useState<FinanceTransaction | null>(null);
+  // Which record's detail has been read to the end — the Approve gate's "scrolled to the end".
+  const [endSeenFor, setEndSeenFor] = useState<string | null>(null);
   const newSheetRef = useRef<BottomSheetModal>(null);
   const detailSheetRef = useRef<BottomSheetModal>(null);
   // One key per record, not per hook instance — this screen's quick-approve acts on a
@@ -179,8 +181,14 @@ export function FinanceIncomeExpenseListScreen() {
         <NewFinanceTransactionSheetContent onClose={() => newSheetRef.current?.dismiss()} onCreated={() => void refetch()} />
       </FormBottomSheet>
 
-      <FormBottomSheet title="Entry Detail" onRequestClose={() => detailSheetRef.current?.dismiss()} ref={detailSheetRef}>
-        {selected ? <FinanceTransactionDetailSheet entry={selected} onClose={() => detailSheetRef.current?.dismiss()} /> : null}
+      <FormBottomSheet
+        title="Entry Detail"
+        onRequestClose={() => detailSheetRef.current?.dismiss()}
+        ref={detailSheetRef}
+        onScrollEnd={() => setEndSeenFor(selected?.id ?? null)}>
+        {selected ? (
+          <FinanceTransactionDetailSheet entry={selected} onClose={() => detailSheetRef.current?.dismiss()} reachedEnd={endSeenFor === selected.id} />
+        ) : null}
       </FormBottomSheet>
     </Screen>
   );

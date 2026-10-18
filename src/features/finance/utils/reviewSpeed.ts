@@ -110,6 +110,13 @@ export const isFastApproval = (speed: ReviewSpeed | undefined) => Boolean(speed 
 /** Minimum time on the detail before Approve unlocks. */
 export const MIN_REVIEW_MS = 2_000;
 
+/**
+ * The review gate's switch — on by default. One place to turn it off (a build
+ * flag today; a Finance setting if the server ever grows one). The server does
+ * not enforce it: it discourages blind approvals, it does not prevent them.
+ */
+export const REVIEW_GATE_ENABLED = true;
+
 export interface ReviewGateInput {
   /** The configurable flag; on by default. Off unlocks Approve immediately. */
   enabled: boolean;

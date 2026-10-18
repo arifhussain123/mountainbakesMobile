@@ -150,7 +150,7 @@ export function BranchSalesTab() {
         const isFocused = focused === dayKey(item);
         return (
           <Card
-            style={{ marginBottom: theme.spacing.sm, borderWidth: isFocused ? 2 : 0, borderColor: theme.colors.primary }}
+            style={[{ marginBottom: theme.spacing.sm }, isFocused ? { borderWidth: 2, borderColor: theme.colors.primary } : null]}
             accessible
             accessibilityLabel={
               `${item.branchName}, ${formatDisplayDate(item.businessDate)}. Total sale ${moneyWords(item.autoTotalSale)}. ` +
