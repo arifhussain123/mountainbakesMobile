@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useProductionReturns } from '@/api';
+import { useBranches, useProductionReturns, useProductionReturnsSummary } from '@/api';
+import { MonthlyReturnsSummaryCard } from '@/features/stock';
 import { Routes, type ProductionReturnsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { ProductionReturnCard } from '../../components';
+import { FilterChip, ProductionReturnCard } from '../../components';
 import { styles } from './styles';
 
 const TABS = ['all', 'pending', 'accepted', 'rejected'] as const;
@@ -18,6 +19,8 @@ const TAB_LABEL: Record<(typeof TABS)[number], string> = {
   rejected: 'Rejected',
 };
 const REJECTED_STATUSES = ['rejected', 'returned'];
+// Same wording as ProductionReturnCard's status badges.
+const SUMMARY_STATUS_LABEL = { pending: 'Awaiting Review', accepted: 'Approved', rejected: 'Rejected', returned: 'Sent Back' };
 
 /** mountainbakesProduction.html screen 10 — Product Returns: approve, reject, or send back. */
 export function ProductionReturnsListScreen() {
@@ -25,9 +28,22 @@ export function ProductionReturnsListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProductionReturnsStackParamList>>();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<(typeof TABS)[number]>('all');
+  const [branchId, setBranchId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, isRefetching } = useProductionReturns();
-  const returns = useMemo(() => data?.returns ?? [], [data]);
+  const branches = useBranches();
+  // The branch chip narrows both the month-to-date summary (server-side) and
+  // the queue below. The queue is filtered here rather than re-requested so
+  // the Detail screen's lookup in this same cached list keeps finding its row.
+  const summary = useProductionReturnsSummary(branchId);
+  const returns = useMemo(
+    () => (data?.returns ?? []).filter((r) => branchId === null || r.branchId === branchId),
+    [data, branchId],
+  );
+  const onRefresh = () => {
+    void refetch();
+    void summary.refetch();
+  };
 
   const counts = useMemo(
     () => ({
@@ -61,6 +77,24 @@ export function ProductionReturnsListScreen() {
         contentContainerStyle={{ padding: theme.spacing.lg }}
         ListHeaderComponent={
           <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chipRow}>
+                <FilterChip label="All Branches" active={branchId === null} onPress={() => setBranchId(null)} />
+                {(branches.data?.branches ?? []).map((b) => (
+                  <FilterChip key={b.id} label={b.name.replace('Mountain Bakes ', '')} active={branchId === b.id} onPress={() => setBranchId(b.id)} />
+                ))}
+              </View>
+            </ScrollView>
+            <View style={{ height: theme.spacing.md }} />
+            <MonthlyReturnsSummaryCard
+              summary={summary.data}
+              isLoading={summary.isLoading}
+              error={summary.error}
+              onRetry={() => void summary.refetch()}
+              statusLabels={SUMMARY_STATUS_LABEL}
+              showBranches
+            />
+            <View style={{ height: theme.spacing.md }} />
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search reason, product or branch…" />
             <View style={[styles.tabsRow, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
               {TABS.map((option) => {
@@ -89,8 +123,8 @@ export function ProductionReturnsListScreen() {
         renderItem={({ item }) => (
           <ProductionReturnCard item={item} onPress={() => navigation.navigate(Routes.PRODUCTION_RETURN_DETAIL, { returnId: item.id })} />
         )}
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={isRefetching || summary.isRefetching}
+        onRefresh={onRefresh}
       />
     </Screen>
   );

@@ -1548,6 +1548,47 @@ export interface ProductionReturnListResponse {
   total: number;
 }
 
+// ─── Monthly Product Returns summary ────────────────────────────────────────
+// `GET /api/production-returns/summary` (Production, every branch or one) and
+// `GET /api/stock/returns/summary` (a branch, its own). Mirrors the backend's
+// `shared/utils/returns-summary.ts` field-for-field; summed in Postgres, never
+// reconstructed here. A "transaction" is one return row (one product, one
+// status); `amount` is qty × the product's price in force on the return's
+// business date, so a later price change never rewrites it.
+
+export interface ReturnsBucket {
+  qty: number;
+  amount: number;
+  count: number;
+}
+
+export interface ReturnsSummaryTotals {
+  /** Every return this month, whatever its status. */
+  submitted: ReturnsBucket;
+  pending: ReturnsBucket;
+  /** Approved — the only final, credited value. */
+  accepted: ReturnsBucket;
+  rejected: ReturnsBucket;
+  /** Sent back to the branch for correction. */
+  returned: ReturnsBucket;
+  /** Rows with no price on record — counted in qty, left out of amount. */
+  unpricedCount: number;
+}
+
+export interface BranchReturnsSummary extends ReturnsSummaryTotals {
+  branchId: string;
+  branchName: string;
+}
+
+export interface MonthlyReturnsSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  branches: BranchReturnsSummary[];
+  totals: ReturnsSummaryTotals;
+}
+
 export interface CreateProductionReturnInput {
   branchId: string;
   productId: string;

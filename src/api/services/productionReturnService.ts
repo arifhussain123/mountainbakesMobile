@@ -1,5 +1,10 @@
 import { apiClient } from '../client';
-import type { CreateProductionReturnInput, ProductionReturnListResponse, ReviewProductionReturnInput } from '../types';
+import type {
+  CreateProductionReturnInput,
+  MonthlyReturnsSummary,
+  ProductionReturnListResponse,
+  ReviewProductionReturnInput,
+} from '../types';
 
 export interface ListProductionReturnsParams {
   from?: string;
@@ -16,6 +21,15 @@ export interface ListProductionReturnsParams {
 /** `/api/production-returns` — last 30 days by default, newest first, server-paged. */
 export async function listProductionReturns(params?: ListProductionReturnsParams): Promise<ProductionReturnListResponse> {
   return apiClient.get<ProductionReturnListResponse>('/production-returns', params);
+}
+
+/**
+ * `/api/production-returns/summary` — this business month to date (1st → today,
+ * the server's clock), per branch × status, plus an overall total. `branchId`
+ * narrows it to one branch.
+ */
+export async function getProductionReturnsSummary(branchId?: string | null): Promise<MonthlyReturnsSummary> {
+  return apiClient.get<MonthlyReturnsSummary>('/production-returns/summary', branchId ? { branchId } : undefined);
 }
 
 /** Production recording a return it received directly — no branch screen involved. */

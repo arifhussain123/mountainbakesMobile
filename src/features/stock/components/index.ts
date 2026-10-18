@@ -4,6 +4,9 @@ export type { CountProgressFooterProps } from './CountProgressFooter';
 export { CountRow } from './CountRow';
 export type { CountRowProps } from './CountRow';
 
+export { MonthlyReturnsSummaryCard } from './MonthlyReturnsSummaryCard';
+export type { MonthlyReturnsSummaryCardProps } from './MonthlyReturnsSummaryCard';
+
 export { MovementRow } from './MovementRow';
 export type { MovementRowProps } from './MovementRow';
 

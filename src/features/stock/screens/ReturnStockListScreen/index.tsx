@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
-import { useBranchReturns, useReviseBranchReturn, useWithdrawBranchReturn } from '@/api';
+import { useBranchReturns, useBranchReturnsSummary, useReviseBranchReturn, useWithdrawBranchReturn } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer } from '@/navigation';
@@ -8,7 +8,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchReturn } from '@/api';
-import { ReturnStockCard, ReviseReturnModal } from '../../components';
+import { MonthlyReturnsSummaryCard, ReturnStockCard, ReviseReturnModal } from '../../components';
 import { styles } from './styles';
 
 const STATUS_FILTERS = ['All', 'pending', 'returned', 'accepted', 'rejected'] as const;
@@ -19,6 +19,7 @@ const STATUS_LABEL: Record<(typeof STATUS_FILTERS)[number], string> = {
   accepted: 'Accepted',
   rejected: 'Rejected',
 };
+const SUMMARY_STATUS_LABEL = { pending: 'Pending', returned: 'Sent Back', accepted: 'Accepted', rejected: 'Rejected' };
 
 /** branchApp.md screen 13 — Return Stock: the branch's own return history, last 90 days. */
 export function ReturnStockListScreen() {
@@ -30,6 +31,13 @@ export function ReturnStockListScreen() {
   const [editing, setEditing] = useState<BranchReturn | null>(null);
 
   const { data, isLoading, error, refetch, isRefetching } = useBranchReturns();
+  // This branch's month to date, from the server — refreshed by every return
+  // write below, since `invalidateReturns` covers the ['branchReturns'] prefix.
+  const summary = useBranchReturnsSummary();
+  const onRefresh = () => {
+    void refetch();
+    void summary.refetch();
+  };
   const revise = useReviseBranchReturn();
   const withdraw = useWithdrawBranchReturn();
 
@@ -82,6 +90,14 @@ export function ReturnStockListScreen() {
         contentContainerStyle={{ padding: theme.spacing.lg }}
         ListHeaderComponent={
           <View>
+            <MonthlyReturnsSummaryCard
+              summary={summary.data}
+              isLoading={summary.isLoading}
+              error={summary.error}
+              onRetry={() => void summary.refetch()}
+              statusLabels={SUMMARY_STATUS_LABEL}
+            />
+            <View style={{ height: theme.spacing.md }} />
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search reason or product…" />
             <View style={styles.filterRow}>
               {STATUS_FILTERS.map((option) => {
@@ -111,8 +127,8 @@ export function ReturnStockListScreen() {
           ) : undefined
         }
         renderItem={({ item }) => <ReturnStockCard item={item} onChange={() => setEditing(item)} onWithdraw={() => handleWithdraw(item)} />}
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={isRefetching || summary.isRefetching}
+        onRefresh={onRefresh}
       />
 
       <ReviseReturnModal

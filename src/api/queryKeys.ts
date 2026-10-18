@@ -18,6 +18,10 @@ export const queryKeys = {
   productionOrder: (id: string) => ['productionOrder', id] as const,
   packingMaterials: () => ['packingMaterials'] as const,
   branchReturns: (params?: { days?: number; status?: string }) => ['branchReturns', params ?? {}] as const,
+  // Month-to-date returns summary. Under the ['branchReturns'] prefix so every return
+  // write's invalidation reaches it; keyed by today's business date so a new day (and
+  // with it a new month) is a new key, never yesterday's figures served as today's.
+  branchReturnsSummary: (businessDate: string) => ['branchReturns', 'summary', businessDate] as const,
   branchDiscounts: (params?: { days?: number; status?: string }) => ['branchDiscounts', params ?? {}] as const,
   branchDiscountsList: (params: { from: string; to: string; status?: string; search?: string; sortBy?: string; sortDir?: string }) =>
     ['branchDiscountsList', params] as const,
@@ -66,6 +70,9 @@ export const queryKeys = {
   productionStock: (date?: string) => ['productionStock', date ?? 'today'] as const,
   productionSales: (params?: { from?: string; to?: string }) => ['productionSales', params ?? {}] as const,
   productionReturns: (params?: { status?: string; search?: string }) => ['productionReturns', params ?? {}] as const,
+  // Same idea for Production's per-branch summary — and the branch filter is part of it.
+  productionReturnsSummary: (branchId: string | null, businessDate: string) =>
+    ['productionReturns', 'summary', branchId, businessDate] as const,
   productionDiscounts: (params?: { status?: string; search?: string }) => ['productionDiscounts', params ?? {}] as const,
   branches: () => ['branches'] as const,
   productionOrderPreviousBalance: (orderId: string) => ['productionOrderPreviousBalance', orderId] as const,

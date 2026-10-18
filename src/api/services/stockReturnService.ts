@@ -1,7 +1,7 @@
 import { apiClient, generateIdempotencyKey, type MutationOptions } from '../client';
 import { getBusinessDate } from '../businessDate';
 import { getCurrentGeoPosition } from '../geo';
-import type { BranchReturn, BranchReturnListResponse, CreateBranchReturnInput } from '../types';
+import type { BranchReturn, BranchReturnListResponse, CreateBranchReturnInput, MonthlyReturnsSummary } from '../types';
 
 export interface ListBranchReturnsParams {
   days?: number;
@@ -12,6 +12,14 @@ export interface ListBranchReturnsParams {
 /** `/api/stock/returns` — the branch's own return history, most recent first. */
 export async function listBranchReturns(params?: ListBranchReturnsParams): Promise<BranchReturnListResponse> {
   return apiClient.get<BranchReturnListResponse>('/stock/returns', params);
+}
+
+/**
+ * `/api/stock/returns/summary` — the branch's own returns this business month
+ * to date, by status. The server reads the branch off the token.
+ */
+export async function getBranchReturnsSummary(): Promise<MonthlyReturnsSummary> {
+  return apiClient.get<MonthlyReturnsSummary>('/stock/returns/summary');
 }
 
 /**

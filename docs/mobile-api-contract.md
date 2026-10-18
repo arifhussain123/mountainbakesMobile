@@ -23,6 +23,7 @@ already exist on the backend (`backend/src/routes/*.routes.ts`); none are invent
 | POST | `/production-orders` | `productionOrderService.createProductionOrder` | items[{productId,qty}], packingItems?, requiredDate (required), businessDate? — idempotent, **no geofence** (confirmed absent from this route) |
 | GET | `/packing-materials` | `packingMaterialService.listPackingMaterials` | active materials only |
 | GET | `/stock/returns` | `stockReturnService.listBranchReturns` | branch's own return history, last 90 days |
+| GET | `/stock/returns/summary` | `stockReturnService.getBranchReturnsSummary` | branch's own returns, this business month to date (1st → today, server clock), per status; branch from the token. Added 2026-10-18 for the monthly returns summary |
 | POST | `/stock/return` | `stockReturnService.createBranchReturn` | items[{productId,qty}], reason?, attachmentIds (1 photo) — idempotent + geofenced |
 | PUT | `/stock/returns/:id` | `stockReturnService.reviseBranchReturn` | qty (new total, not a delta), reason? — only while pending/returned; geofenced |
 | DELETE | `/stock/returns/:id` | `stockReturnService.withdrawBranchReturn` | only while pending/returned; geofenced |
@@ -130,6 +131,7 @@ backend here. One row per endpoint the `production_user` app actually calls:
 | POST | `/production-stock/prepare` | `productionStockService.prepare` | `production-stock.routes.ts:42` | |
 | POST | `/production-stock/adjustment` | `productionStockService.adjust` | `production-stock.routes.ts:124` | All three stock routes `requireRole('super_admin','production_user')` only |
 | GET | `/production-returns` | `productionReturnService.listProductionReturns` | `production-returns.routes.ts:40` | |
+| GET | `/production-returns/summary` | `productionReturnService.getProductionReturnsSummary` | `production-returns.routes.ts:47` | month to date, per branch × status + overall total; `?branchId=` narrows. Added 2026-10-18 |
 | POST | `/production-returns` | `productionReturnService.createProductionReturn` | `production-returns.routes.ts:97` | `branchId` taken verbatim from body (line 99) — safe only because the whole router requires `super_admin`/`production_user` (`:22`), no branch role can call it |
 | PUT | `/production-returns/:id/review` | `productionReturnService` review action | `production-returns.routes.ts:172` | |
 | GET | `/production-discounts` | `productionDiscountService.listProductionDiscounts` | `production-discounts.routes.ts:73` | |
