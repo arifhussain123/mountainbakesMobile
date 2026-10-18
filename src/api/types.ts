@@ -1016,8 +1016,9 @@ export interface FinanceCashTransferSummary {
 
 // Finance Daily Closing's deposit check — `GET /api/finance/daily-sales`. Each
 // branch day's Company Share with the deposits the server set against it (by
-// amount, else the nearest; `deposit-reconciliation.ts` server-side). Only the
-// fields the Cash Transfers matching panel reads are declared.
+// amount, else the nearest; `deposit-reconciliation.ts` server-side). Each row
+// is the branch's own Daily Sale Record plus its reconciliation; the matching
+// panel only reads the `FinanceDailySaleDay` subset.
 
 export type DepositReconStatus = 'nothing_due' | 'not_received' | 'pending' | 'matched' | 'discrepancy';
 export type DepositMatchKind = 'amount' | 'nearest' | 'none';
@@ -1049,6 +1050,7 @@ export interface DailySaleReconciliation {
   deposits: BranchDayDeposit[];
 }
 
+/** The fields the deposit matching reads off a branch day. */
 export interface FinanceDailySaleDay {
   id: string | null;
   branchId: string;
@@ -1061,10 +1063,26 @@ export interface FinanceDailySaleDay {
   reconciliation: DailySaleReconciliation;
 }
 
+/** The whole row as the server sends it — what Daily Closing's Branch Sales tab shows. */
+export interface FinanceDailySaleRow extends DailySaleRecord {
+  reconciliation: DailySaleReconciliation;
+}
+
+/** The reconciliation over the whole window on show. */
+export interface FinanceDailySaleSummary {
+  expected: number;
+  received: number;
+  pending: number;
+  difference: number;
+  /** How many branch days sit in each state. */
+  counts: Record<DepositReconStatus, number>;
+}
+
 export interface FinanceDailySaleList {
   from: string;
   to: string;
-  records: FinanceDailySaleDay[];
+  records: FinanceDailySaleRow[];
+  reconciliation: FinanceDailySaleSummary;
   unmatchedDeposits: BranchDayDeposit[];
 }
 
