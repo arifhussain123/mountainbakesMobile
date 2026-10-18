@@ -17,7 +17,8 @@ export const queryKeys = {
   productionOrders: () => ['productionOrders'] as const,
   productionOrder: (id: string) => ['productionOrder', id] as const,
   packingMaterials: () => ['packingMaterials'] as const,
-  branchReturns: (params?: { days?: number; status?: string }) => ['branchReturns', params ?? {}] as const,
+  // Keyed by the whole filter (window, product, status, search, sort, page) — each is a different server answer.
+  branchReturns: (params?: Record<string, unknown>) => ['branchReturns', params ?? {}] as const,
   // Month-to-date returns summary. Under the ['branchReturns'] prefix so every return
   // write's invalidation reaches it; keyed by today's business date so a new day (and
   // with it a new month) is a new key, never yesterday's figures served as today's.

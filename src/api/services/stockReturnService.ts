@@ -5,11 +5,22 @@ import type { BranchReturn, BranchReturnListResponse, CreateBranchReturnInput, M
 
 export interface ListBranchReturnsParams {
   days?: number;
+  /** 'YYYY-MM-DD' business dates, inclusive; an explicit `from` overrides `days`. */
+  from?: string;
+  to?: string;
+  productId?: string;
   status?: string;
+  /** Server-side ilike over reason, product name and legacy id. */
+  search?: string;
+  sortBy?: 'createdAt' | 'date' | 'reviewedAt' | 'productName' | 'qty' | 'status';
+  sortDir?: 'asc' | 'desc';
+  /** Page size, clamped by the server to 1–200. */
+  limit?: number;
+  offset?: number;
   [key: string]: unknown;
 }
 
-/** `/api/stock/returns` — the branch's own return history, most recent first. */
+/** `/api/stock/returns` — the branch's own return history, filtered, sorted and paged on the server. */
 export async function listBranchReturns(params?: ListBranchReturnsParams): Promise<BranchReturnListResponse> {
   return apiClient.get<BranchReturnListResponse>('/stock/returns', params);
 }

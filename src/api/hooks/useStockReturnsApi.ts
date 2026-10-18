@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBusinessDate } from '../businessDate';
 import { queryKeys } from '../queryKeys';
 import { stockReturnService } from '../services';
@@ -9,6 +9,9 @@ export function useBranchReturns(params?: ListBranchReturnsParams) {
   return useQuery({
     queryKey: queryKeys.branchReturns(params),
     queryFn: () => stockReturnService.listBranchReturns(params),
+    // A new page, filter or sort keeps the current rows on screen until the
+    // next answer lands, rather than flashing an empty list in between.
+    placeholderData: keepPreviousData,
   });
 }
 
