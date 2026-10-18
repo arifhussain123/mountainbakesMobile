@@ -3,7 +3,7 @@ import { FlatList, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useProductionStock } from '@/api';
-import { Routes, type ProductionStockStackParamList } from '@/navigation';
+import { Routes, useTabBarHeight, type ProductionStockStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar, SecondaryButton } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
@@ -14,6 +14,7 @@ import { styles } from './styles';
 /** mountainbakesProduction.html screen 07 — Production Stock: the central pool, today. */
 export function ProductionStockOverviewScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<ProductionStockStackParamList>>();
   const [search, setSearch] = useState('');
 
@@ -56,11 +57,12 @@ export function ProductionStockOverviewScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.productId}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             <View style={styles.actionsRow}>
               <SecondaryButton label="Adjustment" onPress={() => navigation.navigate(Routes.PRODUCTION_STOCK_ADJUSTMENT)} />
+              <SecondaryButton label="Branch Stock" onPress={() => navigation.navigate(Routes.PRODUCTION_BRANCH_STOCK)} />
             </View>
             <View style={{ marginTop: 8 }}>
               <PrimaryButton

@@ -5,42 +5,40 @@ import { SalesStackNavigator } from '../SalesStackNavigator';
 import { OrdersStackNavigator } from '../OrdersStackNavigator';
 import { StockStackNavigator } from '../StockStackNavigator';
 import { Routes } from '../routes';
+import { NotchTabBar } from '../tabBar/NotchTabBar';
 import type { BottomTabParamList } from '../types';
 import { NoopScreen } from './NoopScreen';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
-const TAB_ICON: Record<string, IconName> = {
-  [Routes.HOME_TAB]: 'menu',
-  [Routes.SALES_TAB]: 'search',
-  [Routes.ORDERS_TAB]: 'check',
-  [Routes.STOCK_TAB]: 'refresh',
-  [Routes.MORE_TAB]: 'menu',
-};
-
 /**
- * CLAUDE.md Section 4: Home, Sales, Orders, Stock, More. "More" (which per
- * Section 4 opens the drawer, not its own stack) is out of Phase 1's build
- * scope — its `tabPress` is intercepted so tapping it never actually
- * navigates to the never-rendered `NoopScreen`.
+ * design UIandUX/mountainbakesBranch.html's own tab order — Home, Orders,
+ * Sales, Stock, More — which supersedes CLAUDE.md Section 4's listed order
+ * per the file's own "SUPERSEDED ON VISUALS/STRUCTURE" note.
+ *
+ * Rendering is entirely `NotchTabBar`'s (the animated notch bar) — icons,
+ * labels, badges and the "More opens the drawer, never active" rule all live
+ * in `tabItems.ts`/`NotchTabBar`, not here. "More"'s screen is still a real
+ * (never-rendered) `Tab.Screen` so React Navigation keeps a route/state slot
+ * for it; its `tabPress` is intercepted the same way as before so it never
+ * actually navigates to `NoopScreen`.
+ *
+ * `NotchTabBar` renders itself as a `position: 'absolute'` full-bleed overlay
+ * (flush to all three screen edges, its own background filling the area
+ * behind the system nav bar/home indicator) rather than a normal flex sibling
+ * that reserves its own space in this Navigator's layout — that's what makes
+ * edge-to-edge full-width possible, since no fixed-size flex slot has to be
+ * carved out for it first. The consequence: a tab-root screen's own
+ * scrollable content is NOT automatically kept clear of the bar the way it
+ * would be with a normal (non-floating) tab bar — each one pads its own
+ * scrollable content with `useTabBarHeight()` (see `tabBar/useTabBarHeight`).
  */
 export function BottomTabNavigator() {
-  const theme = useAppTheme();
-
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'menu'} color={color} size={size} />,
-      })}>
-      <Tab.Screen name={Routes.HOME_TAB} component={HomeStackNavigator} options={{ title: 'Home' }} />
-      <Tab.Screen name={Routes.SALES_TAB} component={SalesStackNavigator} options={{ title: 'Sales' }} />
+    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <NotchTabBar {...props} />}>
+      <Tab.Screen name={Routes.HOME_TAB} component={HomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.ORDERS_TAB} component={OrdersStackNavigator} options={{ title: 'Orders' }} />
+      <Tab.Screen name={Routes.SALES_TAB} component={SalesStackNavigator} options={{ title: 'Sales' }} />
       <Tab.Screen name={Routes.STOCK_TAB} component={StockStackNavigator} options={{ title: 'Stock' }} />
       <Tab.Screen
         name={Routes.MORE_TAB}

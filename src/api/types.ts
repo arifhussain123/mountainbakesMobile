@@ -47,7 +47,8 @@ export interface MeResponse {
 
 // ─── Dashboard: GET /api/reports/summary ──────────────────────────────────
 
-export type ReportPeriod = 'daily' | 'weekly' | 'monthly';
+/** `'yearly'` and an explicit `from`/`to` (sent as `period=custom`) are additions for Branch Reports — the Dashboard only ever uses `daily`/`weekly`/`monthly`. */
+export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
 export interface ReportDailyPoint {
   date: string;
@@ -77,23 +78,46 @@ export interface ReportSummary {
 
 // ─── Dashboard: GET /api/sales-analytics ──────────────────────────────────
 
+/**
+ * Field names match the server's `SalesAnalyticsDay` exactly
+ * (`sales-analytics.service.ts`) — this used to be typed as `{ revenue,
+ * orders }`, which doesn't exist on the actual response (the server sends
+ * `sales`/`transactions`). Every value read through the old names was
+ * silently `undefined`, which is why the Dashboard's "Last 7 Days" card and
+ * chart showed "Rs. NaN" / "undefined orders" instead of real numbers.
+ */
 export interface SalesAnalyticsDailyPoint {
   date: string;
-  revenue: number;
-  orders: number;
+  sales: number;
+  transactions: number;
 }
 
+/** Field names match the server's `SalesAnalyticsProduct` exactly — see `SalesAnalyticsDailyPoint`'s note; this had the same `totalQty`/`totalRevenue` vs. `qty`/`sales` mismatch for the Top Products card. */
 export interface SalesAnalyticsTopProduct {
   productId: string;
   productName: string;
-  totalQty: number;
-  totalRevenue: number;
+  /** `''` when the product has no category — the RPC's own `coalesce(min(category_name), '')`. */
+  categoryName: string;
+  qty: number;
+  sales: number;
 }
 
 export interface SalesAnalyticsPaymentMethod {
   method: string;
   total: number;
   count: number;
+}
+
+/**
+ * Previous-period comparison, only present when the request passed
+ * `compare: true`. `changePct`/`direction` are server-computed (never
+ * recomputed client-side) — `changePct` is `null` when the previous period had
+ * zero sales, rather than a fabricated divide-by-zero percentage.
+ */
+export interface SalesAnalyticsComparison {
+  sales: number;
+  changePct: number | null;
+  direction: 'up' | 'down' | 'stable';
 }
 
 export interface SalesAnalytics {
@@ -103,12 +127,12 @@ export interface SalesAnalytics {
   totalSales: number;
   totalTransactions: number;
   averageDailySales: number;
-  highestDay: { date: string; revenue: number } | null;
-  lowestDay: { date: string; revenue: number } | null;
+  highestDay: { date: string; sales: number; transactions: number } | null;
+  lowestDay: { date: string; sales: number; transactions: number } | null;
   daily: SalesAnalyticsDailyPoint[];
   topProducts: SalesAnalyticsTopProduct[];
   paymentMethods: SalesAnalyticsPaymentMethod[];
-  comparison?: unknown;
+  comparison?: SalesAnalyticsComparison;
   staffCount: number;
 }
 
@@ -278,6 +302,34 @@ export interface OrderListResponse {
   total: number;
 }
 
+/**
+ * The subset of `GET /api/settings` this app reads — a single global row
+ * (`gstEnabled`/`gstRate`), not per-branch or per-payment-method. The server
+ * has many more settings fields; only the ones this app actually uses are
+ * typed here.
+ */
+export interface AppSettings {
+  gstEnabled: boolean;
+  gstRate: number;
+}
+
+/**
+ * The Data Engine's paginated list wire shape (`backend/src/shared/types/data-engine.types.ts`),
+ * used for the one resource the mobile app reads this way: `GET /api/data/sales`
+ * — it's the authoritative, `business_date`-scoped sales count (`/api/orders`'s
+ * own count is a `created_at`-window count, which disagrees with it for a sale
+ * whose business date was backdated at sync time).
+ */
+export interface DataEnginePage<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 // ─── Production orders (branch demand to the central kitchen) ─────────────
 // NOT the same as `/api/orders` above — this is `/api/production-orders`,
 // the branch's own request for stock, built from `production-order.types.ts`.
@@ -322,11 +374,44 @@ export interface ProductionOrder {
   approvedByName: string | null;
   approvedAt: string | null;
   cancelReason?: string | null;
+  /**
+   * Stamped by `PUT /production-orders/:id/verify`. Gates `isVerified()`
+   * (`utils/demandLines.ts`) rather than `status === 'verified'` — an order
+   * approved before verification existed carries no timestamp and must not be
+   * read as counted-in.
+   */
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+  verifiedByName?: string | null;
+  /** Photos the branch attached when raising the demand. */
+  demandPhotos?: Attachment[];
+  /** Photos the branch attached when verifying what physically arrived. */
+  verificationPhotos?: Attachment[];
 }
 
 export interface ProductionOrderListResponse {
   orders: ProductionOrder[];
   total: number;
+}
+
+export interface VerifyProductionOrderItemInput {
+  productId: string;
+  verifiedQty: number;
+}
+
+export interface VerifyProductionOrderNewItemInput {
+  productId: string;
+  qty: number;
+}
+
+export interface VerifyProductionOrderInput {
+  verifiedItems: VerifyProductionOrderItemInput[];
+  newItems: VerifyProductionOrderNewItemInput[];
+  attachmentIds: string[];
+}
+
+export interface CancelProductionOrderInput {
+  reason: string;
 }
 
 export interface CreateProductionOrderItemInput {
@@ -347,6 +432,353 @@ export interface CreateProductionOrderInput {
   businessDate?: string;
 }
 
+// ─── Previous order balance (mountainbakesProduction.html screen 03 — "Previous
+// Order Balance" + "Returned since last order") ────────────────────────────
+// `GET /production-orders/:id/previous-balance` — what the branch owes for the
+// delivery immediately before this one, and what came back since. Mirrors
+// `backend/src/services/previous-balance.service.ts`'s `PreviousOrderBalance`
+// field-for-field — a display statement, not a live ledger (see that file's
+// own comment: it reports the same figure on every reprint).
+export interface PreviousOrderBalanceItem {
+  productName: string;
+  qty: number;
+  amount: number;
+}
+
+export interface PreviousOrderBalanceDiscountItem {
+  demandNumber: string;
+  amount: number;
+}
+
+export interface PreviousOrderBalancePaymentItem {
+  transferId: string;
+  amount: number;
+  [key: string]: unknown;
+}
+
+export interface PreviousOrderBalance {
+  previous: { demandNumber: string; date: string } | null;
+  orderedValue: number;
+  deliveredValue: number;
+  companySharePct: number;
+  companyShareValue: number;
+  returnsValue: number;
+  returnItems: PreviousOrderBalanceItem[];
+  discountsValue: number;
+  discountItems: PreviousOrderBalanceDiscountItem[];
+  amountToCollect: number;
+  paymentsReceivedValue: number;
+  paymentItems: PreviousOrderBalancePaymentItem[];
+  remainingBalance: number;
+}
+
+// ─── Special Orders (mountainbakesProduction.html screen 02 — "Special
+// Orders": a branch's one-off, sent straight to Production, NOT a demand line
+// and never counted in it) ───────────────────────────────────────────────────
+// `GET/PUT /api/special-orders` — its own resource (`special_orders` /
+// `special_order_items` tables, migration 143), distinct from
+// `production_orders`. Mirrors `backend/src/routes/special-orders.routes.ts`.
+
+export type SpecialOrderStatus = 'pending' | 'awaiting_verification' | 'verified' | 'approved';
+
+export interface SpecialOrderItem {
+  id: string;
+  productId: string;
+  itemName: string;
+  qty: number;
+  preparedQty: number | null;
+  verifiedQty: number | null;
+  amount: number;
+  description: string;
+  lineNo: number;
+  stockMovementId: string | null;
+  stockTransactionNo: string | null;
+  requestPhotos?: unknown[];
+}
+
+export interface SpecialOrder {
+  id: string;
+  orderNumber: string;
+  branchId: string;
+  branchName: string;
+  date: string;
+  requiredDate: string | null;
+  status: SpecialOrderStatus;
+  items: SpecialOrderItem[];
+  totalAmount: number;
+  createdBy: string | null;
+  createdByName: string | null;
+  submittedAt: string;
+  preparedBy: string | null;
+  preparedByName: string | null;
+  preparedAt: string | null;
+  verifiedBy: string | null;
+  verifiedByName: string | null;
+  verifiedAt: string | null;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  verificationPhotos?: unknown[];
+}
+
+export interface SpecialOrderListResponse {
+  orders: SpecialOrder[];
+  total: number;
+}
+
+export interface PrepareSpecialOrderItemInput {
+  itemId: string;
+  preparedQty: number;
+}
+
+export interface PrepareSpecialOrderInput {
+  items?: PrepareSpecialOrderItemInput[];
+}
+
+// ─── Production Dashboard overview (mountainbakesProduction.html screen 01)
+// ────────────────────────────────────────────────────────────────────────────
+// `GET /api/production/overview` — mirrors `backend/src/routes/production.routes.ts`
+// field-for-field. SQL-aggregated server-side (migrations 112/140/141), never
+// reduced from raw order rows on the client (CLAUDE.md §36).
+
+export type ProductionDashboardPeriod = 'today' | 'week' | 'month';
+
+export interface ProductionOverviewCards {
+  waitingOrders: number;
+  approvedOrders: number;
+  deliveredOrders: number;
+  changedOrders: number;
+  returnedProducts: number;
+  todayProduction: number;
+  weeklyProduction: number;
+  monthlyProduction: number;
+  totalBranches: number;
+  totalProducts: number;
+  totalDemandQty: number;
+  availableProductionStock: number;
+  branchReturnStock: number;
+}
+
+export interface ProductionDemandByDay {
+  date: string;
+  qty: number;
+  orders: number;
+}
+
+export interface ProductionDemandByMonth {
+  month: string;
+  qty: number;
+}
+
+export interface ProductionBranchDemand {
+  branchId: string;
+  branchName: string;
+  qty: number;
+}
+
+export interface ProductionTopProduct {
+  productId: string | null;
+  productName: string;
+  qty: number;
+}
+
+export interface ProductionOverviewBranch {
+  branchId: string;
+  branchName: string;
+}
+
+export interface ProductionKpiPair {
+  cur: number;
+  prev: number;
+}
+
+export interface ProductionWeekKpis {
+  demand: ProductionKpiPair;
+  delivered: ProductionKpiPair;
+  produced: ProductionKpiPair;
+  openOrders: ProductionKpiPair;
+  deliveredOrders: ProductionKpiPair;
+  returns: ProductionKpiPair;
+}
+
+export interface ProductionTrendPoint {
+  date: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionOrderStatusCounts {
+  pending: number;
+  awaitingVerification: number;
+  verified: number;
+  approved: number;
+  rejected: number;
+  /** Overlaps the other counts (a changed order is also verified/approved/…) — never a share of the total. */
+  changed: number;
+}
+
+export interface ProductionBranchCompare {
+  branchId: string;
+  branchName: string;
+  demand: number;
+  delivered: number;
+}
+
+export interface ProductionPlanRow {
+  productId: string | null;
+  productName: string;
+  demand: number;
+  produced: number;
+  stock: number;
+}
+
+export interface ProductionHeatmapRow {
+  branchId: string;
+  branchName: string;
+  values: number[];
+}
+
+export interface ProductionHeatmap {
+  products: { productId: string | null; productName: string }[];
+  rows: ProductionHeatmapRow[];
+}
+
+export interface ProductionRecentDemand {
+  id: string;
+  submittedAt: string;
+  branchName: string;
+  products: number;
+  units: number;
+  status: ProductionOrderStatus;
+  wasChanged: boolean;
+}
+
+export interface ProductionMonthlySeriesPoint {
+  month: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionHourlySeriesPoint {
+  hour: string;
+  demand: number;
+  produced: number;
+}
+
+export interface ProductionOverviewWeek {
+  period: ProductionDashboardPeriod;
+  from: string;
+  to: string;
+  prevFrom: string;
+  prevTo: string;
+  branchId: string | null;
+  kpis: ProductionWeekKpis;
+  trend: ProductionTrendPoint[];
+  orderStatus: ProductionOrderStatusCounts;
+  branchCompare: ProductionBranchCompare[];
+  plan: ProductionPlanRow[];
+  heat: ProductionHeatmap;
+  recent: ProductionRecentDemand[];
+  monthly: ProductionMonthlySeriesPoint[];
+  hourly: ProductionHourlySeriesPoint[];
+}
+
+export interface ProductionOverview {
+  cards: ProductionOverviewCards;
+  demandByDay: ProductionDemandByDay[];
+  demandByMonth: ProductionDemandByMonth[];
+  branchDemand: ProductionBranchDemand[];
+  topProducts: ProductionTopProduct[];
+  branches: ProductionOverviewBranch[];
+  week: ProductionOverviewWeek;
+}
+
+// ─── Production Dashboard — Branch Stock matrix (mountainbakesProduction.html
+// screen 09, "Branch Stock") ────────────────────────────────────────────────
+// `GET /api/production/branch-stock` — Product × Branch balance matrix,
+// `production_user`/`super_admin` only (NOT the same route as the
+// `super_admin`-only `GET /stock/history/branches` in `stock.routes.ts`).
+export interface ProductionBranchStockBranch {
+  branchId: string;
+  branchName: string;
+}
+
+export interface ProductionBranchStockRow {
+  productId: string;
+  productName: string;
+  byBranch: Record<string, number>;
+}
+
+export interface ProductionBranchStockResponse {
+  branches: ProductionBranchStockBranch[];
+  rows: ProductionBranchStockRow[];
+}
+
+// ─── Production Reports (mountainbakesProduction.html screen 13) ──────────
+// `GET /api/production-reports/summary` — its own reporting surface,
+// deliberately separate from `/api/reports` (sales/financials), which refuses
+// `production_user`. Ten report types sharing one generic
+// title/headers/rows shape — mirrors `backend/src/routes/production-reports.routes.ts`.
+
+export const PRODUCTION_REPORT_TYPES = [
+  'production',
+  'prepared-detail',
+  'branch-demand',
+  'approved-orders',
+  'pending-balance',
+  'returned-products',
+  'production-stock',
+  'branch-return-stock',
+  'branch-stock',
+  'collections',
+] as const;
+export type ProductionReportType = (typeof PRODUCTION_REPORT_TYPES)[number];
+
+export const PRODUCTION_REPORT_LABELS: Record<ProductionReportType, string> = {
+  production: 'Production',
+  'prepared-detail': 'Prepared Detail',
+  'branch-demand': 'Branch Demand',
+  'approved-orders': 'Approved Orders',
+  'pending-balance': 'Pending Balance',
+  'returned-products': 'Returned Products',
+  'production-stock': 'Production Stock',
+  'branch-return-stock': 'Branch Return Stock',
+  'branch-stock': 'Branch Stock',
+  collections: 'Collections',
+};
+
+/** Reports driven by an explicit from/to window instead of the period dropdown — mirrors `usesDateRange` server-side. */
+export const PRODUCTION_REPORT_USES_DATE_RANGE = new Set<ProductionReportType>(['prepared-detail', 'collections']);
+
+export type ProductionReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface ProductionReportPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface ProductionReportSummary {
+  title: string;
+  headers: string[];
+  rows: (string | number)[][];
+  specialRowCount?: number;
+  pagination?: ProductionReportPagination;
+}
+
+export interface GetProductionReportParams {
+  report: ProductionReportType;
+  period?: ProductionReportPeriod;
+  from?: string;
+  to?: string;
+  branchId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // ─── Packing materials ──────────────────────────────────────────────────────
 
 export interface PackingMaterial {
@@ -363,10 +795,15 @@ export interface PackingMaterialListResponse {
 
 // ─── Attachments (photo capture) ───────────────────────────────────────────
 // Extend this union only as a slice actually uploads against a new entity —
-// the full server-side list (`attachment.types.ts`) covers finance entities
-// this app never touches.
+// the full server-side list (`attachment.types.ts`) covers more than this app
+// touches.
 
-export type AttachmentEntity = 'branch_return' | 'cash_transfer';
+export type AttachmentEntity =
+  | 'branch_return'
+  | 'cash_transfer'
+  | 'finance_transaction'
+  | 'production_order_demand'
+  | 'production_order_verification';
 
 export interface Attachment {
   id: string;
@@ -407,6 +844,12 @@ export interface BranchReturn {
   reviewedByName: string | null;
   reviewedAt: string | null;
   photo?: Attachment | null;
+  /** The product's SKU, or null where none is set. */
+  productCode?: string | null;
+  /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */
+  unitPrice?: number | null;
+  /** qty × unitPrice, rounded to the paisa; null exactly when unitPrice is. */
+  amount?: number | null;
 }
 
 export interface BranchReturnListResponse {
@@ -428,7 +871,11 @@ export interface CreateBranchReturnInput {
 
 // ─── Branch discounts (Request Discount / Discounts) ───────────────────────
 // `/api/branch-discounts` — money claimed back against a production demand.
-// MOVES NO STOCK (unlike branch returns) — no idempotency key, no geofence.
+// MOVES NO STOCK (unlike branch returns) — no geofence. Create has no server-
+// side idempotency support (confirmed: no `idempotent(...)` middleware on the
+// POST route), so it requires connectivity rather than being queued for
+// blind retry; revise/withdraw are naturally idempotent (PUT/DELETE converge
+// to the same end state) and go through the offline write-queue.
 
 export type BranchDiscountStatus = 'pending' | 'approved' | 'rejected' | 'returned';
 
@@ -462,6 +909,12 @@ export interface CreateBranchDiscountInput {
   amount: number;
   reason: string;
   businessDate?: string;
+}
+
+/** `PUT /branch-discounts/:id` — no `productionOrderId`: re-pointing to a different demand isn't a "revision". */
+export interface ReviseBranchDiscountInput {
+  amount: number;
+  reason: string;
 }
 
 /**
@@ -523,6 +976,31 @@ export interface CreateCashTransferInput {
   note?: string;
   attachmentIds?: string[];
   businessDate?: string;
+}
+
+// Finance's own review side — `/api/finance/cash-transfers` (screen 03).
+
+export type CashTransferSortKey = 'date' | 'createdAt' | 'approvedAt' | 'transferNo' | 'voucherNo' | 'branchName' | 'amount' | 'fuelCharges' | 'status';
+
+export interface FinanceCashTransferQuery {
+  branchId?: string;
+  from?: string;
+  to?: string;
+  status?: CashTransferStatus;
+  paymentMethod?: CashTransferMethod;
+  search?: string;
+  sortBy?: CashTransferSortKey;
+  sortDir?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
+export interface ApproveCashTransferInput {
+  note?: string;
+}
+
+export interface RejectCashTransferInput {
+  reason: string;
 }
 
 // ─── Shop expenses ──────────────────────────────────────────────────────────
@@ -777,6 +1255,8 @@ export interface DailySaleRecord {
   autoTotalSale: number;
   companySharePct: number;
   companyShare: number;
+  branchSharePct: number;
+  branchShare: number;
   autoCash: number;
   autoEasypaisa: number;
   autoFoodpanda: number;
@@ -884,6 +1364,8 @@ export interface SupportDetailField {
 export interface SupportReference {
   type: SupportReferenceType;
   referenceId: string;
+  /** The record's own DB id — `support.routes.ts`'s `resolveReference` always sets this, but it's the actual table id, not the human reference number, so it's what "Open record" navigation needs for a detail route (`{ orderId }`/`{ transferId }`), not `referenceId`. */
+  entityId?: string;
   title: string;
   fields: SupportDetailField[];
 }
@@ -1026,6 +1508,8 @@ export interface ReviewProductionOrderInput {
 export interface BranchSummary {
   id: string;
   name: string;
+  /** Sent by `GET /api/branches` (which lists active branches unless asked otherwise). */
+  isActive?: boolean;
 }
 
 export interface BranchListResponse {
@@ -1065,11 +1549,71 @@ export interface ProductionReturn {
   reviewedByName: string | null;
   reviewedAt: string | null;
   photo?: Attachment | null;
+  /** The product's SKU, or null where none is set. */
+  productCode?: string | null;
+  /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */
+  unitPrice?: number | null;
+  /** qty × unitPrice, rounded to the paisa; null exactly when unitPrice is. */
+  amount?: number | null;
 }
 
 export interface ProductionReturnListResponse {
   returns: ProductionReturn[];
   total: number;
+}
+
+// ─── Monthly Product Returns summary ────────────────────────────────────────
+// `GET /api/production-returns/summary` (Production, every branch or one) and
+// `GET /api/stock/returns/summary` (a branch, its own). Mirrors the backend's
+// `shared/utils/returns-summary.ts` field-for-field; summed in Postgres, never
+// reconstructed here. A "transaction" is one return row (one product, one
+// status); `amount` is qty × the product's price in force on the return's
+// business date, so a later price change never rewrites it.
+
+export interface ReturnsBucket {
+  qty: number;
+  amount: number;
+  count: number;
+}
+
+export interface ReturnsSummaryTotals {
+  /** Every return this month, whatever its status. */
+  submitted: ReturnsBucket;
+  pending: ReturnsBucket;
+  /** Approved — the only final, credited value. */
+  accepted: ReturnsBucket;
+  rejected: ReturnsBucket;
+  /** Sent back to the branch for correction. */
+  returned: ReturnsBucket;
+  /** Rows with no price on record — counted in qty, left out of amount. */
+  unpricedCount: number;
+}
+
+/** One product's returns this month, every status — the product lines sum to `submitted`. */
+export interface ProductReturnsLine extends ReturnsBucket {
+  productId: string;
+  productName: string;
+  productCode: string | null;
+}
+
+export interface BranchReturnsSummary extends ReturnsSummaryTotals {
+  branchId: string;
+  branchName: string;
+  /** Item-wise, largest amount first. */
+  products: ProductReturnsLine[];
+}
+
+export interface MonthlyReturnsSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  branches: BranchReturnsSummary[];
+  totals: ReturnsSummaryTotals;
+  /** Item-wise across every branch in scope, largest amount first. */
+  products: ProductReturnsLine[];
+  /** Branches in scope with at least one return this month. */
+  branchesReporting: number;
 }
 
 export interface CreateProductionReturnInput {
@@ -1128,6 +1672,18 @@ export type FinanceAccount = 'cash' | 'bank';
 export const FINANCE_ACCOUNT_LABELS: Record<FinanceAccount, string> = { cash: 'Cash in Hand', bank: 'Bank' };
 
 export type FinancePaymentMethod = 'cash' | 'easypaisa' | 'bank_transfer' | 'cheque' | 'foodpanda' | 'online' | 'other';
+
+export const FINANCE_PAYMENT_METHODS: readonly FinancePaymentMethod[] = ['cash', 'easypaisa', 'bank_transfer', 'cheque', 'foodpanda', 'online', 'other'];
+
+export const FINANCE_PAYMENT_METHOD_LABELS: Record<FinancePaymentMethod, string> = {
+  cash: 'Cash',
+  easypaisa: 'Easypaisa',
+  bank_transfer: 'Bank Transfer',
+  cheque: 'Cheque',
+  foodpanda: 'Foodpanda',
+  online: 'Online',
+  other: 'Other',
+};
 
 export type LedgerHeadType = 'income' | 'expense';
 
@@ -1233,6 +1789,1035 @@ export interface FinanceSettings {
   updatedBy: string;
 }
 
+// ─── Finance: Daily Ledger (screen 02) ──────────────────────────────────────
+// `/api/finance/ledger` — strictly read-only from the UI's point of view; a
+// correction is one of the three `adjust`-gated actions below, never a plain edit.
+
+export interface LedgerQuery {
+  from?: string;
+  to?: string;
+  branchId?: string;
+  ledgerHeadId?: string;
+  type?: LedgerHeadType;
+  account?: FinanceAccount;
+  status?: LedgerEntryStatus;
+  sourceType?: LedgerSourceType;
+  voucherNo?: string;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LedgerPage {
+  entries: LedgerEntry[];
+  total: number;
+  openingBalance: number;
+  closingBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+}
+
+export interface LedgerSummary {
+  businessDate: string;
+  monthStart: string;
+  openingBalance: number;
+  totalReceived: number;
+  totalExpense: number;
+  balance: number;
+}
+
+/** `adjust` permission only — reverses, and optionally re-posts corrected. */
+export interface AdjustLedgerEntryInput {
+  reason: string;
+  correctedAmount?: number;
+  correctedDescription?: string;
+}
+
+export interface EditLedgerEntryChanges {
+  amount?: number;
+  entryDate?: string;
+  ledgerHeadId?: string;
+  branchId?: string;
+  paymentMethod?: string;
+  account?: FinanceAccount;
+  description?: string;
+}
+
+/** `adjust` permission — edits the SAME voucher in place (no reversal, no new entry). */
+export interface EditLedgerEntryInput {
+  reason: string;
+  changes: EditLedgerEntryChanges;
+  expected?: Partial<Record<keyof EditLedgerEntryChanges, string>>;
+}
+
+// ─── Finance: Ledger Heads (screens 16–17) ──────────────────────────────────
+
+export interface LedgerHead {
+  id: string;
+  code: string;
+  name: string;
+  type: LedgerHeadType;
+  description: string | null;
+  groupName: string | null;
+  isActive: boolean;
+  isSystem: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLedgerHeadInput {
+  code: string;
+  name: string;
+  type: LedgerHeadType;
+  description?: string | null;
+  groupName?: string | null;
+  sortOrder?: number;
+}
+
+export interface UpdateLedgerHeadInput {
+  name?: string;
+  description?: string | null;
+  groupName?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+// ─── Finance: Daily Closing (screen 18) ─────────────────────────────────────
+
+export interface FinanceDayClosing {
+  businessDate: string;
+  openingBalance: number;
+  openingCash: number;
+  openingBank: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netBalance: number;
+  cashInHand: number;
+  bankBalance: number;
+  closingBalance: number;
+  entryCount: number;
+  status: 'open' | 'closed';
+  closedBy: string | null;
+  closedByName: string | null;
+  closedAt: string | null;
+}
+
+// ─── Finance: Reports (screen 19) ───────────────────────────────────────────
+// One shape for all ten reports — the screen is a single generic viewer driven
+// by `type`, not ten bespoke ones.
+
+export const FINANCE_REPORT_TYPES = [
+  'daily_cash_book',
+  'general_ledger',
+  'income_statement',
+  'expense_report',
+  'profit_loss',
+  'company_share',
+  'branch_share',
+  'salary',
+  'partner_expense',
+  'trial_balance',
+] as const;
+export type FinanceReportType = (typeof FINANCE_REPORT_TYPES)[number];
+
+export const FINANCE_REPORT_LABELS: Record<FinanceReportType, string> = {
+  daily_cash_book: 'Daily Cash Book',
+  general_ledger: 'General Ledger',
+  income_statement: 'Income Statement',
+  expense_report: 'Expense Report',
+  profit_loss: 'Profit & Loss',
+  company_share: 'Company Share Report',
+  branch_share: 'Branch Share Report',
+  salary: 'Salary Report',
+  partner_expense: 'Partner Expense Report',
+  trial_balance: 'Trial Balance',
+};
+
+export type ReportCellFormat = 'text' | 'money' | 'number' | 'date';
+
+export interface FinanceReportColumn {
+  key: string;
+  label: string;
+  format?: ReportCellFormat;
+  align?: 'left' | 'right' | 'center';
+  width?: number;
+}
+
+export interface FinanceReportQuery {
+  type: FinanceReportType;
+  from?: string;
+  to?: string;
+  branchId?: string;
+  ledgerHeadId?: string;
+  partnerName?: string;
+  employeeId?: string;
+  department?: string;
+  salaryMonth?: string;
+}
+
+export interface FinanceReport {
+  type: FinanceReportType;
+  title: string;
+  subtitle: string;
+  periodFrom: string;
+  periodTo: string;
+  generatedAt: string;
+  generatedBy: string;
+  columns: FinanceReportColumn[];
+  rows: Record<string, string | number | null>[];
+  totals: Record<string, number>;
+  summary: { label: string; value: number; format?: ReportCellFormat }[];
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number; hasNext: boolean; hasPrevious: boolean };
+}
+
+// ─── Finance: Audit Trail (screen 20) ───────────────────────────────────────
+
+export type FinanceAuditAction =
+  | 'created' | 'updated' | 'submitted' | 'verified' | 'approved' | 'rejected'
+  | 'posted' | 'reversed' | 'adjusted' | 'locked' | 'imported' | 'settings_updated'
+  | 'salary_revised' | 'resigned' | 'resignation_cancelled' | 'resolved'
+  | 'reopened' | 'reopen_requested' | 'deleted' | 'amended' | 'restored' | 'recreated';
+
+export type FinanceAuditEntity =
+  | 'ledger_entry' | 'ledger_head' | 'finance_transaction' | 'income_approval'
+  | 'salary_payment' | 'employee_advance' | 'partner_expense' | 'employee'
+  | 'day_closing' | 'settings' | 'branch_share_payment' | 'finance_partner'
+  | 'finance_ticket' | 'cash_transfer';
+
+export interface FinanceAuditLog {
+  id: string;
+  entity: FinanceAuditEntity;
+  entityId: string | null;
+  entityRef: string | null;
+  action: FinanceAuditAction;
+  actorId: string | null;
+  actorName: string;
+  actorRole: string | null;
+  previousValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+  ipAddress: string | null;
+  deviceInfo: string | null;
+  createdAt: string;
+}
+
+export interface FinanceAuditQuery {
+  entity?: string;
+  entityId?: string;
+  action?: string;
+  actorId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'createdAt' | 'action' | 'entity' | 'entityRef' | 'actorName';
+  sortDir?: 'asc' | 'desc';
+}
+
+// ─── Finance: Income & Expense (screens 04–05) ──────────────────────────────
+// `/api/finance/income/entries` — manual documents. `txnType` is NEVER
+// client-sent; it is derived server-side from the chosen ledger head.
+
+export interface FinanceTransaction {
+  id: string;
+  txnNo: string;
+  txnType: LedgerHeadType;
+  ledgerHeadId: string;
+  ledgerHeadName: string;
+  branchId: string | null;
+  branchName: string | null;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  businessDate: string;
+  status: FinanceDocStatus;
+  referenceNo: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export type FinanceTransactionSortKey = 'txnNo' | 'businessDate' | 'ledgerHeadName' | 'description' | 'branchName' | 'notes' | 'amount' | 'paymentMethod' | 'status';
+
+export interface FinanceTransactionQuery {
+  status?: FinanceDocStatus | 'pending';
+  type?: LedgerHeadType;
+  branchId?: string;
+  ledgerHeadId?: string;
+  paymentMethod?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  limit?: number;
+  offset?: number;
+  sortBy?: FinanceTransactionSortKey;
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface CreateFinanceTransactionInput {
+  ledgerHeadId: string;
+  branchId?: string | null;
+  description: string;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  businessDate?: string;
+  referenceNo?: string | null;
+  notes?: string | null;
+  asDraft?: boolean;
+  confirmDuplicate?: boolean;
+  attachmentIds: string[];
+}
+
+export type UpdateFinanceTransactionInput = Partial<Omit<CreateFinanceTransactionInput, 'asDraft' | 'confirmDuplicate' | 'attachmentIds'>>;
+
+export interface UpdateFinanceSettingsInput {
+  companySharePct?: number;
+  branchSharePct?: number;
+  shareBasis?: ShareBasis;
+  openingCashBalance?: number;
+  openingBankBalance?: number;
+  openingBalanceDate?: string | null;
+  autoImportBranchIncome?: boolean;
+  requireAdminVerification?: boolean;
+  allowSuperAdminWrite?: boolean;
+}
+
+// ─── Finance: Payroll (screens 06–11) ───────────────────────────────────────
+// `finance-payroll.routes.ts`. baseSalary is NEVER directly editable — only via
+// a SalaryRevision; netSalary/totalAmount are always server-computed.
+
+export const RESIGNATION_REASONS = ['Personal reasons', 'Better opportunity', 'Relocation', 'Health', 'Further studies', 'Other'] as const;
+export type EmployeeResignationStatus = 'recorded' | 'cancelled';
+
+export interface EmployeeResignation {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  resignationDate: string;
+  resignationTime: string;
+  reason: string;
+  remarks: string | null;
+  status: EmployeeResignationStatus;
+  submittedByName: string;
+  cancelledByName: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceEmployee {
+  id: string;
+  employeeCode: string;
+  name: string;
+  department: string;
+  designation: string;
+  branchId: string | null;
+  branchName: string | null;
+  baseSalary: number;
+  pendingRevision: { newSalary: number; effectiveFrom: string; reason: string } | null;
+  phone: string | null;
+  joinedOn: string | null;
+  isActive: boolean;
+  resignation: EmployeeResignation | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalaryRevision {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  previousSalary: number;
+  newSalary: number;
+  reason: string;
+  effectiveFrom: string;
+  changedByName: string;
+  createdAt: string;
+}
+
+export interface SalaryPayment {
+  id: string;
+  salaryNo: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  salaryMonth: string;
+  grossSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  paymentDate: string | null;
+  paymentMethod: string;
+  account: FinanceAccount;
+  status: FinanceDocStatus;
+  notes: string | null;
+  createdByName: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface EmployeeAdvance {
+  id: string;
+  advanceNo: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  businessDate: string;
+  advanceAmount: number;
+  bonusAmount: number;
+  loanAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  status: FinanceDocStatus;
+  notes: string | null;
+  recoveredBySalaryId: string | null;
+  recoveredBySalaryNo: string | null;
+  recoveredAt: string | null;
+  isRecovered: boolean;
+  createdByName: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface EmployeeAdvanceSummary {
+  employeeId: string;
+  employeeName: string;
+  totalPaid: number;
+  totalRecovered: number;
+  outstanding: number;
+  outstandingBonus: number;
+  advances: EmployeeAdvance[];
+}
+
+export interface EmployeeProfile {
+  employee: FinanceEmployee;
+  resignations: EmployeeResignation[];
+  lastApprovedSalary: { salaryNo: string; salaryMonth: string; amount: number } | null;
+  allTimeApproved: number;
+}
+
+export interface ResignationImpact {
+  approvedAfter: { salaryNo: string; salaryMonth: string; amount: number }[];
+  pendingAfter: { salaryNo: string; salaryMonth: string; amount: number }[];
+}
+
+export interface CreateEmployeeInput {
+  name: string;
+  department: string;
+  designation: string;
+  branchId?: string | null;
+  baseSalary?: number;
+  phone?: string | null;
+  joinedOn?: string | null;
+}
+
+export type UpdateEmployeeInput = Partial<Omit<CreateEmployeeInput, 'baseSalary'>> & { isActive?: boolean };
+
+export interface CreateSalaryRevisionInput {
+  newSalary: number;
+  reason: string;
+  effectiveFrom: string;
+}
+
+export interface RecordResignationInput {
+  resignationDate: string;
+  resignationTime: string;
+  reason: string;
+  remarks?: string | null;
+}
+
+export interface CancelResignationInput {
+  reason: string;
+}
+
+export interface CreateSalaryPaymentInput {
+  employeeId: string;
+  salaryMonth: string;
+  grossSalary: number;
+  bonus?: number;
+  deductions?: number;
+  paymentDate?: string | null;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  notes?: string | null;
+  asDraft?: boolean;
+  recoverAdvanceIds?: string[];
+  attachmentIds: string[];
+}
+
+export interface CreateEmployeeAdvanceInput {
+  employeeId: string;
+  businessDate?: string;
+  advanceAmount?: number;
+  bonusAmount?: number;
+  loanAmount?: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  notes?: string | null;
+  asDraft?: boolean;
+  attachmentIds: string[];
+}
+
+export type SalaryQueryStatus = FinanceDocStatus | 'pending';
+
+export interface SalaryQuery {
+  status?: SalaryQueryStatus;
+  salaryMonth?: string;
+  employeeId?: string;
+  department?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdvanceQuery {
+  status?: SalaryQueryStatus;
+  employeeId?: string;
+  department?: string;
+  from?: string;
+  to?: string;
+  outstandingOnly?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Salary Ledger (screen 11) — read-only year grid, approved payslips only.
+
+export type LedgerCellState = 'paid' | 'unpaid' | 'none' | 'closed';
+
+export interface LedgerCell {
+  month: number;
+  amount: number;
+  count: number;
+  state: LedgerCellState;
+  flagged: boolean;
+  pendingCount: number;
+}
+
+export interface LedgerYearOption {
+  year: number;
+  hasRecords: boolean;
+}
+
+export const SALARY_LEDGER_STATUS_FILTERS = ['all', 'active', 'resigned', 'unpaid', 'pending'] as const;
+export type SalaryLedgerStatusFilter = (typeof SALARY_LEDGER_STATUS_FILTERS)[number];
+
+export interface SalaryLedgerRow {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  joinedOn: string | null;
+  isActive: boolean;
+  resignation: EmployeeResignation | null;
+  cells: LedgerCell[];
+  total: number;
+  unpaidMonths: number;
+  flaggedMonths: number;
+  hasPending: boolean;
+}
+
+export interface SalaryLedgerSummary {
+  totalApproved: number;
+  paymentCount: number;
+  employees: number;
+  activeEmployees: number;
+  resignedEmployees: number;
+  unpaidEmployeeMonths: number;
+  flaggedMonths: number;
+}
+
+export interface SalaryLedger {
+  year: number;
+  currentMonth: string;
+  years: LedgerYearOption[];
+  departments: string[];
+  summary: SalaryLedgerSummary;
+  rows: SalaryLedgerRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  monthTotals: number[];
+  yearTotal: number;
+}
+
+export interface SalaryLedgerQuery {
+  year?: number;
+  search?: string;
+  department?: string;
+  status?: SalaryLedgerStatusFilter;
+  sort?: 'code' | 'name' | 'total';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SalaryLedgerPayment {
+  id: string;
+  salaryNo: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  salaryMonth: string;
+  year: number;
+  month: number;
+  status: FinanceDocStatus;
+  grossSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  paymentDate: string | null;
+  paymentMethod: string;
+  account: FinanceAccount;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  voucherNo: string | null;
+  counted: boolean;
+  countedAmount: number;
+  afterResignation: boolean;
+}
+
+export interface SalaryLedgerPayments {
+  payments: SalaryLedgerPayment[];
+  total: number;
+  countedTotal: number;
+  countedCount: number;
+}
+
+// ─── Finance: Partners (screens 12–15) ──────────────────────────────────────
+// `finance-partners.routes.ts` (mounted at `/finance/partner-expenses`) and
+// `finance-branch-share.routes.ts`. The mockup's "Company Transaction Details"
+// (15) is the partner ledger (`/ledger`), not Branch Share Payments — no mockup
+// frame shows Branch Share Payments, so it isn't built here.
+
+export type PartnerType = 'founder' | 'co_founder';
+
+export interface FinancePartner {
+  id: string;
+  partnerCode: string;
+  name: string;
+  fatherName: string | null;
+  dateOfBirth: string | null;
+  joinedOn: string | null;
+  partnerType: PartnerType | null;
+  address: string | null;
+  contactNumber: string | null;
+  emergencyNumber: string | null;
+  sharePct: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PartnerTxnKind = 'advance' | 'draw';
+
+export interface PartnerExpense {
+  id: string;
+  expenseNo: string;
+  partnerId: string | null;
+  partnerName: string;
+  txnKind: PartnerTxnKind;
+  ledgerHeadId: string;
+  ledgerHeadName: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  account: FinanceAccount;
+  businessDate: string;
+  status: FinanceDocStatus;
+  requestedByName: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  notes: string | null;
+  ledgerEntryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+export interface PartnerShareRow {
+  id: string;
+  name: string;
+  sharePct: number;
+  sharePctAmount: number;
+  advancePaid: number;
+  drawPaid: number;
+  balance: number;
+}
+
+export interface PartnerShareSummary {
+  from: string | null;
+  to: string | null;
+  totalExpense: number;
+  totalCompanyShare: number;
+  grandTotal: number;
+  ledgerBalance: number;
+  partners: PartnerShareRow[];
+}
+
+export interface UpdateFinancePartnerInput {
+  fatherName?: string | null;
+  dateOfBirth?: string | null;
+  joinedOn?: string | null;
+  partnerType?: PartnerType | null;
+  address?: string | null;
+  contactNumber?: string | null;
+  emergencyNumber?: string | null;
+}
+
+export interface CreatePartnerExpenseInput {
+  partnerId: string;
+  txnKind: PartnerTxnKind;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  account: FinanceAccount;
+  businessDate?: string;
+  notes?: string | null;
+  asDraft?: boolean;
+  attachmentIds: string[];
+}
+
+export interface PartnerExpenseQuery {
+  status?: FinanceDocStatus | 'pending';
+  partnerId?: string;
+  partnerName?: string;
+  txnKind?: PartnerTxnKind;
+  from?: string;
+  to?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Partner ledger (screen 15 "Company Transaction Details") — read-only year grid.
+
+export interface PartnerLedgerRow {
+  partnerId: string;
+  partnerCode: string;
+  partnerName: string;
+  sharePct: number;
+  isActive: boolean;
+  cells: LedgerCell[];
+  total: number;
+  hasPending: boolean;
+}
+
+export interface PartnerLedgerSummary {
+  yearTotal: number;
+  transactionCount: number;
+  partners: number;
+  highestMonth: { month: number; amount: number } | null;
+  unassigned: { count: number; amount: number };
+}
+
+export interface PartnerLedger {
+  year: number;
+  years: LedgerYearOption[];
+  txnKind: PartnerTxnKind | null;
+  summary: PartnerLedgerSummary;
+  rows: PartnerLedgerRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  monthTotals: number[];
+  yearTotal: number;
+}
+
+export interface PartnerLedgerQuery {
+  year?: number;
+  search?: string;
+  txnKind?: PartnerTxnKind;
+  sort?: 'code' | 'name' | 'total';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PartnerLedgerTransaction {
+  id: string;
+  expenseNo: string;
+  partnerId: string | null;
+  partnerCode: string | null;
+  partnerName: string;
+  txnKind: PartnerTxnKind;
+  description: string;
+  amount: number;
+  businessDate: string;
+  ledgerDate: string;
+  year: number;
+  month: number;
+  status: FinanceDocStatus;
+  paymentMethod: string;
+  account: FinanceAccount;
+  notes: string | null;
+  requestedByName: string;
+  createdAt: string;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  voucherNo: string | null;
+  counted: boolean;
+  countedAmount: number;
+}
+
+export interface PartnerLedgerTransactions {
+  transactions: PartnerLedgerTransaction[];
+  total: number;
+  countedTotal: number;
+  countedCount: number;
+}
+
+export interface PartnerLedgerTransactionsQuery {
+  year?: number;
+  month?: number;
+  partnerId?: string;
+  txnKind?: PartnerTxnKind;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// ─── Finance: Help Desk (screens 21–22) ─────────────────────────────────────
+// `finance-tickets.routes.ts` (mounted at `/finance/tickets`) — a SEPARATE
+// ticket system from the Branch/Production Help Desk (`support.routes.ts`).
+// Mobile is scoped to view/report/discuss/request-reopen only, per an explicit
+// decision this session — every super_admin-only admin action (edit a query,
+// amend/correct/delete the underlying financial record, restore, recreate,
+// assign, change status, truly reopen) stays web-only and is not built here.
+
+export type FinanceTicketStatus = 'draft' | 'open' | 'under_review' | 'waiting_for_finance' | 'amended' | 'reopened' | 'resolved' | 'rejected' | 'closed';
+
+export const FINANCE_TICKET_STATUS_LABELS: Record<FinanceTicketStatus, string> = {
+  draft: 'Draft',
+  open: 'Pending',
+  under_review: 'In Review',
+  waiting_for_finance: 'Waiting Finance',
+  amended: 'Amended',
+  reopened: 'Reopened',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+  closed: 'Closed',
+};
+
+export const FINANCE_QUERY_TYPES = [
+  'income', 'expense', 'company_transaction', 'partner_advance', 'company_share',
+  'branch_share', 'salary', 'ledger', 'payment', 'stock_finance_difference', 'other', 'calculation_issue',
+] as const;
+export type FinanceQueryType = (typeof FINANCE_QUERY_TYPES)[number];
+
+export const FINANCE_QUERY_TYPE_LABELS: Record<FinanceQueryType, string> = {
+  income: 'Income',
+  expense: 'Expense',
+  company_transaction: 'Company Transaction',
+  partner_advance: 'Partner Advance',
+  company_share: 'Company Share',
+  branch_share: 'Branch Share',
+  salary: 'Salary',
+  ledger: 'Ledger',
+  payment: 'Payment',
+  stock_finance_difference: 'Stock/Finance Difference',
+  other: 'Other',
+  calculation_issue: 'Calculation Issue',
+};
+
+export const FINANCE_QUERY_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+export type FinanceQueryPriority = (typeof FINANCE_QUERY_PRIORITIES)[number];
+
+export type FinanceTicketReferenceType = 'ledger_entry' | 'income_approval' | 'finance_transaction' | 'salary_payment' | 'employee_advance' | 'partner_expense' | 'branch_share_payment' | 'order' | 'cash_transfer';
+
+export interface FinanceTicketReferenceLookup {
+  referenceType: FinanceTicketReferenceType;
+  referenceId: string;
+  referenceNo: string;
+  label: string;
+  snapshot: Record<string, unknown>;
+}
+
+export interface FinanceTicketMessage {
+  id: string;
+  ticketId: string;
+  authorName: string;
+  authorSide: 'finance' | 'admin';
+  body: string;
+  createdAt: string;
+  attachments?: Attachment[];
+}
+
+export interface FinanceTicket {
+  id: string;
+  queryNo: string;
+  queryType: FinanceQueryType;
+  priority: FinanceQueryPriority;
+  referenceType: FinanceTicketReferenceType | null;
+  referenceNo: string | null;
+  subject: string;
+  message: string;
+  status: FinanceTicketStatus;
+  amount: number | null;
+  branchName: string | null;
+  businessDate: string | null;
+  remarks: string | null;
+  adminResponse: string | null;
+  resolutionNote: string | null;
+  raisedByName: string;
+  assignedToName: string | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  reopenReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  messages?: FinanceTicketMessage[];
+  attachments?: Attachment[];
+}
+
+export interface FinanceTicketStats {
+  total: number;
+  draft: number;
+  open: number;
+  underReview: number;
+  waiting: number;
+  amended: number;
+  reopened: number;
+  resolved: number;
+  rejected: number;
+  closed: number;
+  highPriority: number;
+  urgent: number;
+  unassigned: number;
+  recent: number;
+  deleted: number;
+}
+
+export interface FinanceTicketQuery {
+  status?: FinanceTicketStatus | 'all';
+  queryType?: FinanceQueryType | 'all';
+  priority?: FinanceQueryPriority | 'all';
+  search?: string;
+  mine?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CreateFinanceTicketInput {
+  subject?: string;
+  queryType?: FinanceQueryType;
+  priority?: FinanceQueryPriority;
+  description: string;
+  amount?: number | null;
+  branchId?: string | null;
+  businessDate?: string | null;
+  remarks?: string | null;
+  referenceNo?: string | null;
+  draft?: boolean;
+  attachmentIds?: string[];
+}
+
+export interface FinanceTicketMessageInput {
+  body: string;
+  attachmentIds?: string[];
+}
+
+export interface RequestReopenFinanceTicketInput {
+  reason: string;
+}
+
+// ─── Notifications: GET /api/notifications, POST /api/notifications/read ──
+// Step 0: no unread-count or mark-all-read endpoint exists server-side — both
+// are derived/driven client-side from this one feed (capped at 50, newest
+// first, so "mark all" is always a single POST /read of the whole unread set).
+// No push (FCM/APNs/web-push) exists server-side either — `push.service.ts`'s
+// `sendPush()` is a no-op — so this is in-app only.
+
+export type NotificationType =
+  | 'order_created'
+  | 'order_ready'
+  | 'order_cancelled'
+  | 'low_stock'
+  | 'new_user'
+  | 'branch_added'
+  | 'price_changed'
+  | 'password_reset'
+  | 'production_demand'
+  | 'production_reviewed'
+  | 'production_return'
+  | 'production_order_verified'
+  | 'production_demand_cancelled'
+  | 'branch_discount'
+  | 'branch_discount_reviewed'
+  | 'cash_transfer'
+  | 'cash_transfer_reviewed'
+  | 'support_query'
+  | 'support_resolved'
+  | 'finance_query'
+  | 'finance_query_resolved'
+  | 'finance_query_updated'
+  | 'finance_query_message'
+  | 'finance_query_amended'
+  | 'event_created'
+  | 'event_reminder'
+  | 'event_demand_due'
+  | 'event_demand_submitted'
+  | 'event_demand_reviewed'
+  | 'event_production_updated'
+  | 'security_alert';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  /** The legacy per-row flag — Step 0: the feed's own `readIds` (below) is the one this app actually trusts, since a notification broadcast to a role/branch is "read" per-reader, not per-row. */
+  isRead: boolean;
+  targetUserId: string | null;
+  targetRole: string | null;
+  branchId: string | null;
+  /** The record this notification is about (a demand/discount/cash-transfer/support-ticket/event's own DB id) — used for deep-linking. `null` for types with nothing to link to (e.g. `security_alert`). */
+  relatedId: string | null;
+  createdAt: string;
+}
+
+export interface NotificationFeedResponse {
+  /** Newest first, capped at 50 server-side. */
+  notifications: AppNotification[];
+  /** Ids from `notifications` THIS reader has marked read — the authoritative read state (see `AppNotification.isRead`'s own note). */
+  readIds: string[];
+}
+
 // ─── Generic API error ─────────────────────────────────────────────────────
 
 export interface ApiError {
@@ -1241,4 +2826,131 @@ export interface ApiError {
   message: string;
   code?: string;
   details?: unknown;
+}
+
+// ─── Monthly Branch Discount summary ─────────────────────────────────────────
+// GET /api/production-discounts/summary and /api/branch-discounts/summary —
+// mirrors backend shared/utils/discount-summary.ts. The server sums; these are
+// only its shape.
+
+export interface DiscountBucket {
+  /** Rs. claimed. */
+  amount: number;
+  /** Claims (rows). */
+  count: number;
+}
+
+export interface DiscountSummaryTotals {
+  /** Every claim raised this month, all statuses. */
+  submitted: DiscountBucket;
+  pending: DiscountBucket;
+  /** The final, deducted figure — a box's "Total Discount". */
+  approved: DiscountBucket;
+  rejected: DiscountBucket;
+  returned: DiscountBucket;
+}
+
+export interface BranchDiscountTotals extends DiscountSummaryTotals {
+  branchId: string;
+  branchName: string;
+}
+
+export interface MonthlyDiscountSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  /** Every active branch in scope, alphabetical, Rs. 0 where nothing was claimed. */
+  branches: BranchDiscountTotals[];
+  totals: DiscountSummaryTotals;
+}
+
+// ─── Monthly Cash Transfer summary ───────────────────────────────────────────
+// GET /api/cash-transfers/monthly-summary — mirrors backend
+// shared/utils/cash-transfer-summary.ts. The server sums; these are only its
+// shape. The branch is the token's; the table's filters never apply to it.
+
+export interface CashTransferBucket {
+  /** Rs. */
+  amount: number;
+  /** Transfers with a non-zero amount for this figure. */
+  count: number;
+}
+
+export interface CashTransferSummaryTotals {
+  /** Total Amount, every status. */
+  transferred: CashTransferBucket;
+  cash: CashTransferBucket;
+  easypaisa: CashTransferBucket;
+  bank: CashTransferBucket;
+  /** Total Amount Finance approved. */
+  approved: CashTransferBucket;
+  /** Total Amount still awaiting Finance. */
+  pending: CashTransferBucket;
+  /** Total Amount Finance rejected. */
+  rejected: CashTransferBucket;
+  /** Fuel Charges, every status — never part of Total Amount. */
+  fuel: CashTransferBucket;
+}
+
+export interface MonthlyCashTransferSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  branchId: string;
+  /** Every live transfer in the window, fuel-only ones included. */
+  transfers: number;
+  totals: CashTransferSummaryTotals;
+}
+
+// ─── Data Engine aggregate (`GET /api/data/:resource/aggregate`) ─────────────
+// backend shared/types/data-engine.types.ts. Values are keyed `count` or
+// `metric:field`, e.g. `sum:amount`.
+
+export interface DataEngineAggregateResponse {
+  rows: { group?: Record<string, string | number | boolean | null>; values: Record<string, number | null> }[];
+}
+
+// ─── Production Dashboard sections (`/api/production/dashboard/*`) ───────────
+// The web's redesigned dashboard sections — backend
+// shared/utils/production-dashboard.ts. Only the fields the mobile charts read
+// are typed; the server sends more (kpis, previous, comparisons, sparks).
+
+export interface ProductionBranchSummaryRow {
+  branchId: string;
+  branchName: string;
+  demanded: number;
+  delivered: number;
+  returned: number;
+  /** delivered ÷ demanded, %; null with no demand. */
+  fulfilment: number | null;
+}
+
+/** `GET /production/dashboard/branch-summary?period=` — every active branch, highest demand first. */
+export interface ProductionBranchSummarySection {
+  window: { period: ProductionDashboardPeriod; from: string; to: string };
+  series: ProductionBranchSummaryRow[];
+}
+
+export type ProductionStockState = 'ok' | 'low' | 'out';
+
+export interface ProductionCurrentStockRow {
+  productId: string;
+  productName: string;
+  /** Available in the central pool; can be negative (drawn from zero). */
+  production: number;
+  /** On branch shelves (one branch when filtered). */
+  branch: number;
+  /** What is physically there: each side counted from zero, never below. */
+  total: number;
+  state: ProductionStockState;
+}
+
+/** `GET /production/dashboard/current-stock?branchId=` — stock right now, largest first; no period. */
+export interface ProductionCurrentStockSection {
+  kpis: Record<'production' | 'branch' | 'inStock' | 'low' | 'out', number>;
+  series: ProductionCurrentStockRow[];
+  breakdown: { threshold: number; products: number };
+  branchId: string | null;
 }

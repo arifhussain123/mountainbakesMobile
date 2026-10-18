@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useProductionDiscounts } from '@/api';
+import { useProductionDiscountSummary, useProductionDiscounts } from '@/api';
 import { Routes, type ProductionDiscountsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { MonthlyDiscountSummaryCard } from '@/features/discounts/components';
+import { useSummaryFocusRefresh } from '@/features/discounts/hooks';
 import { ProductionDiscountCard } from '../../components';
 import { styles } from './styles';
 
@@ -27,6 +29,9 @@ export function ProductionDiscountsListScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('all');
 
   const { data, isLoading, error, refetch, isRefetching } = useProductionDiscounts();
+  const summaryQ = useProductionDiscountSummary(null);
+  // Coming back from a claim's detail (or to the tab) refreshes the month's figures.
+  useSummaryFocusRefresh(summaryQ);
   const discounts = useMemo(() => data?.discounts ?? [], [data]);
 
   const counts = useMemo(
@@ -61,6 +66,17 @@ export function ProductionDiscountsListScreen() {
         contentContainerStyle={{ padding: theme.spacing.lg }}
         ListHeaderComponent={
           <View>
+            <View style={{ marginBottom: theme.spacing.md }}>
+              <MonthlyDiscountSummaryCard
+                summary={summaryQ.data}
+                isLoading={summaryQ.isLoading}
+                error={summaryQ.error}
+                onRetry={() => void summaryQ.refetch()}
+                isFetching={summaryQ.isFetching}
+                updatedAt={summaryQ.dataUpdatedAt}
+                showBranches
+              />
+            </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand #, reason or branch…" />
             <View style={[styles.tabsRow, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
               {TABS.map((option) => {
@@ -90,7 +106,10 @@ export function ProductionDiscountsListScreen() {
           <ProductionDiscountCard item={item} onPress={() => navigation.navigate(Routes.PRODUCTION_DISCOUNT_DETAIL, { discountId: item.id })} />
         )}
         refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        onRefresh={() => {
+          void refetch();
+          void summaryQ.refetch();
+        }}
       />
     </Screen>
   );

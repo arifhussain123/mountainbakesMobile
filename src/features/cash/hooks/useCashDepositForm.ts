@@ -1,7 +1,17 @@
 import { useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { discardAttachment, generateIdempotencyKey, uploadAttachment, useCreateCashTransfer } from '@/api';
+import {
+  discardAttachment,
+  generateIdempotencyKey,
+  getBusinessDate,
+  uploadAttachment,
+  useCashTransfers,
+  useCreateCashTransfer,
+  useDailySaleRecords,
+} from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { formatCurrency } from '@/shared/utils';
 import type { Attachment } from '@/api';
 
 const PHOTO_PICKER_OPTIONS = {
@@ -16,13 +26,29 @@ function parseAmount(raw: string): number {
   return Math.max(0, parseFloat(raw) || 0);
 }
 
+/** Blank for zero (a 0 field reads as "not entered", matching the web's own `amountText`), otherwise 2dp, trailing zeros trimmed. */
+function amountInputText(amount: number): string {
+  if (amount <= 0) return '';
+  const rounded = Math.round(amount * 100) / 100;
+  return String(rounded);
+}
+
 /**
- * branchApp.md screen 08 — Cash Deposit. "Auto" (fill from the Daily Sale
- * Record) is deliberately not wired — that record doesn't exist yet (Slice 8);
- * manual entry only until then, per the implementation plan's own note.
+ * branchApp.md screen 08 — Cash Deposit. "Auto" fills from the branch's own
+ * Daily Sale Record for today, ported from the web's `CashDepositModal.tsx`:
+ * cash = max(0, expectedCashInHand) ("Cash on Table"), easypaisa =
+ * autoEasypaisa, bank = autoBank. Foodpanda has no channel field — it's a
+ * hint only, keyed into Easypaisa by hand, never auto-filled. Auto refuses
+ * outright (never subtracts) once any non-rejected transfer already exists
+ * for today — there's no backend "already deposited" figure, so this is
+ * computed here via the same-day transfers list, matching the web's guard.
  */
 export function useCashDepositForm() {
   const createTransfer = useCreateCashTransfer();
+  const today = getBusinessDate();
+
+  const dailySaleQuery = useDailySaleRecords({ from: today, to: today });
+  const todayTransfersQuery = useCashTransfers({ from: today, to: today, limit: 10 });
 
   const [cashInput, setCashInput] = useState('');
   const [easypaisaInput, setEasypaisaInput] = useState('');
@@ -44,6 +70,35 @@ export function useCashDepositForm() {
   // "Payment proof photo is required" (CreateCashTransferSchema) whenever any
   // money beyond fuel is claimed — a fuel-only deposit may go without one.
   const photoRequired = totalAmount > 0;
+
+  const record = dailySaleQuery.data?.records[0];
+  const existingTransferToday = todayTransfersQuery.data?.transfers.find((t) => t.status !== 'rejected');
+
+  const handleAutoFill = () => {
+    if (existingTransferToday) {
+      Alert.alert('Auto-fill unavailable', `${existingTransferToday.transferNo} already covers this date — enter this deposit's amounts by hand.`);
+      return;
+    }
+    if (!record) {
+      Alert.alert('Auto-fill unavailable', 'No Daily Sale Record found for this date.');
+      return;
+    }
+    setCashInput(amountInputText(Math.max(0, record.expectedCashInHand)));
+    setEasypaisaInput(amountInputText(record.autoEasypaisa));
+    setBankInput(amountInputText(record.autoBank));
+  };
+
+  const autoFillDisabled = dailySaleQuery.isLoading || todayTransfersQuery.isLoading || !!existingTransferToday;
+
+  // "Encourage correct splits" (Phase 2) — a soft, non-blocking hint, never
+  // shown once Easypaisa/Bank already have something entered, and only when
+  // the day's record actually shows money in a channel the branch left at 0.
+  const splitHint =
+    record && cashAmount > 0 && easypaisaAmount === 0 && bankAmount === 0 && record.autoEasypaisa > 0
+      ? `Today's sales include Easypaisa ${formatCurrency(record.autoEasypaisa)}. Use Auto to split it correctly.`
+      : record && cashAmount > 0 && easypaisaAmount === 0 && bankAmount === 0 && record.autoBank > 0
+        ? `Today's sales include Bank ${formatCurrency(record.autoBank)}. Use Auto to split it correctly.`
+        : null;
 
   const capturePhoto = async (source: 'camera' | 'gallery') => {
     setSubmitError(null);
@@ -128,5 +183,8 @@ export function useCashDepositForm() {
     submitError,
     submit,
     clear,
+    handleAutoFill,
+    autoFillDisabled,
+    splitHint,
   };
 }

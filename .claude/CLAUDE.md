@@ -1,5 +1,7 @@
 # Mountain Bakes Branch Dashboard — React Native Agentic Development Prompt
 
+> **SUPERSEDED ON VISUALS/STRUCTURE (2026-10-15):** `design UIandUX/mountainbakesBranch.html` (plus `mountainbakesProduction.html` / `mountainbakesFinance.html` for the other roles) is the one source of truth for every screen's layout, sections, copy, and dark theme (`--bg #0B0C12`, `--ac #FF6B35`, glass cards). It is a literal, numbered mock (26 `data-screen-label` sections) meant to be reproduced faithfully in React Native — not reinterpreted. Where anything below (brand design in §3, "do NOT reproduce the screenshot literally" in §48, the light cream theme, the drawer section list in §5, the dashboard section order in §47) conflicts with that HTML file, the HTML file wins. Architecture/state-management/API-reuse guidance below (§2, §42-46) still applies.
+
 ## ROLE
 
 You are a senior React Native mobile architect, UI/UX designer, and autonomous coding agent.

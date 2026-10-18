@@ -89,22 +89,98 @@ confirms the shapes above.
 ## Build order (unchanged reasoning from the original audit, now backed by full contracts)
 
 1. **Navigation scaffold** — routes/types for all 23 screens, drawer + stacks, up front
-   (same pattern as Branch/Production's own Slice 1).
-2. **Dashboard (01)** — needs only already-confirmed `view`-level endpoints.
+   (same pattern as Branch/Production's own Slice 1). **Done.**
+2. **Dashboard (01)** — needs only already-confirmed `view`-level endpoints. **Done**
+   (today's composite from `GET /finance/dashboard`; the mockup's monthly multi-chart view
+   is deliberately deferred — see below).
 3. **Daily Ledger (02) / Reports (19) / Audit Trail (20) / Settings (23)** — same, all
-   `view`/`configure`-only reads plus one simple settings form.
-4. **Cash Transfers (03)** — view/approve, small and self-contained.
-5. **Ledger Heads (16–17) / Daily Closing (18)** — `configure`/`approve`, small.
+   `view`/`configure`-only reads plus one simple settings form. **Done.** Ledger is
+   view-only this slice (list + entry detail sheet) — the three `adjust`-gated correction
+   actions (reverse/edit/delete) are `finance_admin`-only and deferred to their own pass.
+   Reports renders all ten `FinanceReport` types from one generic viewer (chip picker +
+   fixed date-range presets, no date-picker library in this app); PDF/Excel/CSV export is
+   deferred — no file-download/share library exists yet. Settings is read-only unless the
+   signed-in user's permission (`financeCan(role, 'configure', allowSuperAdminWrite)`)
+   allows writes.
+4. **Cash Transfers (03)** — view/approve, small and self-contained. **Done** — list
+   (Pending/Approved/Rejected tabs) + detail (amount breakdown, proof-of-deposit photo,
+   approve-with-note or reject-with-reason). Approve/reject actions are gated by the
+   signed-in user's actual `approve` permission, not their role name.
+5. **Ledger Heads (16–17) / Daily Closing (18)** — `configure`/`approve`, small. **Done.**
+   Heads: grouped list (toggle active via a Switch, never a delete — heads are deactivated
+   only), create/edit as one bottom sheet (code/type locked once created). Closing: today's
+   figures + a Close Day action (gated on `approve`) + 30-day history.
 6. **Income & Expense (04–05)** — `view/create/approve`, moderate (duplicate-detection UX).
+   **Done** — this covers exactly what mockup screen 04 shows: the manual documents queue
+   (`entriesRouter`) with All/Pending Approval/Posted/Draft/Rejected tabs, inline View/
+   Approve/Reject, and a New Entry sheet (type → filters ledger-head chips, business date
+   fixed to today, amount, description, account, payment method, notes, a required receipt
+   photo, Save as Draft / Submit for Approval). **Not built, and NOT shown in this mockup
+   frame**: the separate three-step Branch Income approval queue
+   (`pending_verification → pending_approval → approved/rejected`, `GET/POST
+   /finance/income`) and its duplicate-detection confirm-resubmit flow on manual-entry
+   create (409 `duplicate_income`) — flagged for its own pass if/when the owner wants it
+   surfaced on mobile (today it's web-only).
 7. **Payroll (06–11)** — the largest single group: employees, resignations, salary
    revisions, payslips (with advance recovery picking), advances, salary ledger.
+   **Done.** Payroll (06): 3 tabs (Salaries/Advances/Employees), quick approve/reject on
+   pending items. New Payslip (07): employee picker, gross/bonus/deduction, computed net,
+   optional outstanding-advance recovery checklist (not in the mockup frame, added because
+   the backend's `recoverAdvanceIds` mechanism needs *some* UI to be usable — prefilled from
+   `/employees/:id/advance-summary`), required receipt photo. New Advance (08): same shape,
+   advance/bonus/loan → "Paid now" total. Add Employee (09): name/department/designation/
+   base salary (creation-only, per `UpdateEmployeeSchema` excluding it)/phone. Employee
+   Resignation (10): folded into an Employee Detail screen (profile card + resignation form
+   when active, resignation-on-file + Cancel when not) rather than its own top-level route,
+   since the backend's `GET /employees/:id` profile is the natural home for both. Salary
+   Ledger (11): read-only summary stats + per-employee 12-month cell grid, search/status
+   filters. `baseSalary` is never directly edited anywhere in the UI — only via the
+   create-employee form (once) or a future Salary Revision screen (not built this pass;
+   `createSalaryRevision`/`listSalaryRevisions` are wired in the API layer but have no screen
+   yet — flagged as a small follow-up, not silently dropped).
 8. **Partners (12–14) / Company Transaction Details (15)** — partner profile, partner
    advance/draw workflow, share summary, branch share payments (two-entry approval).
+   **Done**, with one scope correction found while reading the mockup closely: screen 15
+   "Company Transaction Details" is the **partner ledger** (`GET /partner-expenses/ledger`),
+   not Branch Share Payments — "Approved partner transactions per month... raised and
+   approved in Partner Transactions" is verbatim in the mockup, and no mockup frame shows
+   Branch Share Payments at all. So **Branch Share Payments
+   (`finance-branch-share.routes.ts`'s create/submit/approve/reject, the two-ledger-entry
+   posting) was not built — it has no mockup screen to build against.** Screen 12 "Partner
+   Transactions" turned out to be 4 tabs, not a single list: Advances, Draws, Share Summary
+   (the `PartnerShareSummary` reconciliation), and Partners (the fixed-four partner master —
+   name/sharePct are seed-time fixed, only biodata fields are editable, which is screen 14
+   "Partner Detail" folded in as an edit sheet rather than its own route, same reasoning as
+   Payroll's Employee Resignation). Screen 13 "New Partner Advance / Draw" is one form with
+   a type toggle, used from either the Advances or Draws tab.
 9. **Finance Help Desk (21–22)** — by far the most complex screen pair: reference-first
    query creation, drafts, messaging with auto status-flip, optimistic concurrency
    throughout, and (super_admin only) edit/amend/respond/assign/status/restore/recreate/
    correct-record/delete-record/reopen. Deliberately last — it reads and can MODIFY the
-   records every other slice above will have already built.
+   records every other slice above will have already built. **Done, scoped to
+   view/report/discuss/request-reopen** per the owner's explicit decision: mobile never
+   calls the `super_admin`-only admin actions (edit a query, amend/correct/delete the
+   underlying record, restore, recreate, assign, change status, truly reopen) — those stay
+   web-only. List (21): 6-stat grid (Pending/In Review/High Priority/Waiting
+   Finance/Resolved/My Drafts), Queue/My Drafts toggle, search. New Query (22):
+   reference-first (Reference ID + Find, auto-fills subject/queryType/amount server-side
+   when found) or Subject+QueryType when raised without one, Save Draft/Submit. Detail: the
+   message thread (own bubble color per side), a draft's own Submit action, and — only on a
+   terminal ticket (resolved/rejected/closed) — a Request Reopen form, which the UI is
+   explicit sends a REQUEST (202, status unchanged) rather than actually reopening it, since
+   this app never calls that endpoint as `super_admin`.
+
+## All 23 screens are now built
+
+This completes the Finance mobile app build started in this session. Every screen in
+`mountainbakesFinance.html` has a corresponding, wired React Native screen, verified clean
+(`tsc`/`eslint`/`jest`) after every slice. Two deliberate, documented scope decisions remain
+open for the owner, not silently resolved:
+- **Branch Share Payments** (`finance-branch-share.routes.ts`) has no mockup screen and was
+  not built (see the note under Partners/Company Transaction Details above).
+- **Finance Help Desk's `super_admin`-only admin surface** was deliberately excluded from
+  mobile per the owner's decision in this session — confirm that decision still holds before
+  considering the Help Desk "fully built" rather than "built to its agreed scope."
 
 ## Open items worth a decision before Slice 9 (Help Desk) is built
 

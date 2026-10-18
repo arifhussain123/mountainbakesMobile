@@ -1,98 +1,141 @@
-import { useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { images } from '@/assets';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { Routes, type AuthStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, Screen } from '@/shared/ui';
-import { styles } from './styles';
+import { useAppTheme, useResponsive } from '@/shared/theme';
+import { PillButton, Screen } from '@/shared/ui';
+import { OnboardingSlide } from './components/OnboardingSlide';
+import { PagerDots } from './components/PagerDots';
+import { ONBOARDING_SLIDES, type OnboardingSlideContent } from './onboardingContent';
 
 export const ONBOARDING_SEEN_KEY = 'mountainbakes.onboardingSeen';
 
-const SLIDES = [
-  {
-    title: 'Fresh\nfrom the\noven daily',
-    body: 'Sales, stock and orders for your branch, from the first bake to the evening close.',
-    features: ['Live sales', 'Stock', 'Daily close'] as const,
-    cta: 'Next',
-  },
-  {
-    // branchApp.md's own 2 AM Karachi business-day rule (api/businessDate.ts) —
-    // this copy describes the real rollover, not a separate invented one.
-    title: 'The day\nends at\n2 AM',
-    body: 'A sale rung up at 9pm belongs to that evening even if it reaches the office next morning. A late shift is never split across two days.',
-    features: null,
-    cta: 'Get Started',
-  },
-] as const;
+const SLIDE_COUNT = ONBOARDING_SLIDES.length;
 
-/** branchApp.md screens 02/02b — shown once, behind an AsyncStorage "seen" flag. */
+/**
+ * branchApp.md screens 02/02b — shown once, behind an AsyncStorage "seen"
+ * flag. 3-page swipeable pager (see onboardingContent.ts for which slides are
+ * real design-file copy vs. placeholder).
+ */
 export function OnboardingScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const { contentWidth, size } = useResponsive();
+  // Capped to 480 and centered on a tablet (per the Onboarding/Login
+  // responsive spec); on a phone this is just the device width.
+  const SLIDE_WIDTH = contentWidth();
   const [index, setIndex] = useState(0);
-  const slide = SLIDES[index];
+  const listRef = useRef<Animated.FlatList<OnboardingSlideContent>>(null);
+  const scrollProgress = useSharedValue(0);
 
-  const finish = () => {
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollProgress.value = event.contentOffset.x / SLIDE_WIDTH;
+  });
+
+  const finish = useCallback(() => {
     void AsyncStorage.setItem(ONBOARDING_SEEN_KEY, 'true');
     navigation.replace(Routes.LOGIN);
-  };
+  }, [navigation]);
 
-  const handleNext = () => {
-    if (index < SLIDES.length - 1) setIndex(index + 1);
+  const announcePage = useCallback((page: number) => {
+    AccessibilityInfo.announceForAccessibility(`Page ${page + 1} of ${SLIDE_COUNT}`);
+  }, []);
+
+  const goToIndex = useCallback(
+    (nextIndex: number) => {
+      listRef.current?.scrollToOffset({ offset: nextIndex * SLIDE_WIDTH, animated: true });
+      setIndex(nextIndex);
+      announcePage(nextIndex);
+    },
+    [announcePage, SLIDE_WIDTH],
+  );
+
+  const handleNext = useCallback(() => {
+    if (index < SLIDE_COUNT - 1) goToIndex(index + 1);
     else finish();
-  };
+  }, [index, goToIndex, finish]);
+
+  const handleMomentumScrollEnd = useCallback(
+    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / SLIDE_WIDTH);
+      setIndex(nextIndex);
+      announcePage(nextIndex);
+    },
+    [announcePage, SLIDE_WIDTH],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (index > 0) {
+          goToIndex(index - 1);
+          return true;
+        }
+        return false;
+      });
+      return () => subscription.remove();
+    }, [index, goToIndex]),
+  );
+
+  const currentSlide = ONBOARDING_SLIDES[index];
+
+  const buttonHeight = size(54, 48, 60);
+  const buttonLabelSize = size(16, 15, 18);
 
   return (
-    <Screen>
-      <View style={styles.content}>
-        <Image source={images.logo} style={styles.logo} />
-        <View style={styles.spacer} />
-        <Text style={[theme.typography.screenTitle, styles.title, { color: theme.colors.text, textTransform: 'uppercase' }]}>
-          {slide.title.split('\n').map((line, i) => (
-            <Text key={i} style={i === 1 ? { color: theme.colors.primary } : undefined}>
-              {line}
-              {i < slide.title.split('\n').length - 1 ? '\n' : ''}
-            </Text>
-          ))}
-        </Text>
-        <Text style={[theme.typography.body, styles.body, { color: theme.colors.textSecondary }]}>{slide.body}</Text>
+    <Screen glow="warm" contentStyle={styles.container}>
+      <Animated.FlatList
+        ref={listRef}
+        data={ONBOARDING_SLIDES}
+        keyExtractor={(_, i) => String(i)}
+        horizontal
+        pagingEnabled
+        bounces={false}
+        showsHorizontalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        renderItem={({ item, index: slideIndex }) => (
+          <OnboardingSlide content={item} width={SLIDE_WIDTH} active={slideIndex === index} />
+        )}
+        style={[styles.list, { width: SLIDE_WIDTH, alignSelf: 'center' }]}
+      />
 
-        {slide.features ? (
-          <View style={[styles.featuresRow, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-            {slide.features.map((label, i) => (
-              <View key={label} style={[styles.featureItem, i > 0 ? { ...styles.featureItemBordered, borderColor: theme.colors.border } : null]}>
-                <Icon name="check" size={18} color={theme.colors.primary} />
-                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>{label}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
+      {/* `insetBottom` is already applied by `Screen`'s SafeAreaView as padding — this adds the extra 16dp gap above it the spec calls for. */}
+      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: size(16, 12, 24) }]}>
+        <PillButton
+          label={currentSlide.cta}
           onPress={handleNext}
-          style={[styles.nextButton, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[theme.typography.body, { color: theme.colors.primaryText, fontWeight: '700' }]}>{slide.cta}</Text>
-        </Pressable>
+          showArrow
+          testID="onboarding-next"
+          height={buttonHeight}
+          labelFontSize={buttonLabelSize}
+        />
 
-        <View style={styles.dotsRow}>
-          {SLIDES.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, { width: i === index ? 18 : 4, backgroundColor: i === index ? theme.colors.primary : theme.colors.border }]}
-            />
-          ))}
+        <View style={styles.pagerRow} accessibilityLabel={`Page ${index + 1} of ${SLIDE_COUNT}`}>
+          <PagerDots count={SLIDE_COUNT} scrollProgress={scrollProgress} />
         </View>
 
-        {index === 0 ? (
-          <Pressable accessibilityRole="button" onPress={finish}>
-            <Text style={[theme.typography.body, styles.skip, { color: theme.colors.primary, fontWeight: '700' }]}>Skip</Text>
+        {currentSlide.showSkip ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Skip onboarding" onPress={finish} style={styles.skip}>
+            <Text style={[styles.skipLabel, { color: theme.colors.primary }]}>Skip</Text>
           </Pressable>
-        ) : null}
+        ) : (
+          <View style={styles.skip} />
+        )}
       </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { paddingTop: 8 },
+  list: { flex: 1 },
+  footer: { paddingHorizontal: 26, paddingBottom: 12 },
+  pagerRow: { marginTop: 16, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  skip: { marginTop: 4, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  skipLabel: { fontSize: 14, fontWeight: '700' },
+});

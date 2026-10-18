@@ -3,6 +3,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import type { ProductionReturn } from '@/api';
+import { describeReturnValue } from '@/features/stock';
 
 export interface ProductionReturnCardProps {
   item: ProductionReturn;
@@ -39,6 +40,9 @@ export function ProductionReturnCard({ item, onPress }: ProductionReturnCardProp
         <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
           {item.branchName}
         </Text>
+        <Text style={[theme.typography.label, { color: theme.colors.text, marginTop: 2 }]} numberOfLines={1}>
+          {describeReturnValue(item)}
+        </Text>
         <View style={[styles.topRow, { marginTop: 6 }]}>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
             {item.reason}
@@ -46,7 +50,8 @@ export function ProductionReturnCard({ item, onPress }: ProductionReturnCardProp
           <StatusBadge label={STATUS_LABEL[item.status] ?? item.status} variant={STATUS_VARIANT[item.status] ?? 'neutral'} />
         </View>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>
-          {formatDisplayDate(item.date)} · {item.source === 'branch' ? 'Branch' : 'Production'}
+          {item.id.slice(0, 8).toUpperCase()} · {formatDisplayDate(item.date)} · {item.source === 'branch' ? 'Branch' : 'Production'}
+          {item.createdByName ? ` · ${item.createdByName}` : ''}
         </Text>
       </Card>
     </Pressable>

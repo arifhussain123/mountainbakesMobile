@@ -1,10 +1,20 @@
-export { BudgetCard } from './BudgetCard';
-export type { BudgetCardProps } from './BudgetCard';
+export { DailyKpiGrid } from './DailyKpiGrid';
+export type { DailyKpiGridProps, DailyKpiItem } from './DailyKpiGrid';
+
+export { HeadingActions } from './HeadingActions';
+export type { HeadingActionsProps } from './HeadingActions';
+
+export { HeroSalesCard } from './HeroSalesCard';
+export type { HeroSalesCardProps } from './HeroSalesCard';
+
+export { LabeledListCard } from './LabeledListCard';
+export type { LabeledListCardProps, LabeledListRow } from './LabeledListCard';
 
 export { OrdersCard } from './OrdersCard';
 export type { OrdersCardProps } from './OrdersCard';
 
-export { QuickActions } from './QuickActions';
+export { PaymentMethodsCard } from './PaymentMethodsCard';
+export type { PaymentMethodsCardProps } from './PaymentMethodsCard';
 
 export { SalesChart } from './SalesChart';
 export type { SalesChartProps } from './SalesChart';
@@ -12,8 +22,20 @@ export type { SalesChartProps } from './SalesChart';
 export { SalesVsExpensesBar } from './SalesVsExpensesBar';
 export type { SalesVsExpensesBarProps } from './SalesVsExpensesBar';
 
-export { StockOverviewCard } from './StockOverviewCard';
-export type { StockOverviewCardProps } from './StockOverviewCard';
+export { SectionHeading } from './SectionHeading';
+export type { SectionHeadingProps } from './SectionHeading';
 
-export { TopProductsDonut } from './TopProductsDonut';
-export type { TopProductsDonutProps } from './TopProductsDonut';
+export { StockDetailTable } from './StockDetailTable';
+export type { StockDetailTableProps } from './StockDetailTable';
+
+export { StockFlowChart } from './StockFlowChart';
+export type { StockFlowChartProps } from './StockFlowChart';
+
+export { StockGrid } from './StockGrid';
+export type { StockGridProps } from './StockGrid';
+
+export { StockHistoryList } from './StockHistoryList';
+export type { StockHistoryListProps } from './StockHistoryList';
+
+export { TopProductsBars } from './TopProductsBars';
+export type { TopProductsBarsProps } from './TopProductsBars';

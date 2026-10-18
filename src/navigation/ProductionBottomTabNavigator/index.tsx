@@ -3,39 +3,28 @@ import { DrawerActions } from '@react-navigation/native';
 import { NoopScreen } from '../BottomTabNavigator/NoopScreen';
 import { ProductionHomeStackNavigator } from '../ProductionHomeStackNavigator';
 import { ProductionOrdersStackNavigator } from '../ProductionOrdersStackNavigator';
-import { ProductionSalesStackNavigator } from '../ProductionSalesStackNavigator';
+import { ProductionReturnsStackNavigator } from '../ProductionReturnsStackNavigator';
 import { ProductionStockStackNavigator } from '../ProductionStockStackNavigator';
 import { Routes } from '../routes';
+import { NotchTabBar } from '../tabBar/NotchTabBar';
 import type { ProductionBottomTabParamList } from '../types';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
 
 const Tab = createBottomTabNavigator<ProductionBottomTabParamList>();
 
-const TAB_ICON: Record<string, IconName> = {
-  [Routes.PRODUCTION_DASHBOARD_TAB]: 'menu',
-  [Routes.PRODUCTION_ORDERS_TAB]: 'check',
-  [Routes.PRODUCTION_SALES_TAB]: 'search',
-  [Routes.PRODUCTION_STOCK_TAB]: 'box',
-  [Routes.PRODUCTION_MORE_TAB]: 'menu',
-};
-
+/**
+ * Production's tabs — Dashboard, Orders, Production Stock, Returns,
+ * More — on the same `NotchTabBar` as the Branch shell. Icons, labels and
+ * badges are `PRODUCTION_TAB_ITEMS` (`tabItems.ts`); this only maps each route
+ * to its stack. Like the Branch shell, the bar is an absolute overlay, so each
+ * tab-root screen pads its own scroll content by `useTabBarHeight()`.
+ */
 export function ProductionBottomTabNavigator() {
-  const theme = useAppTheme();
-
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Icon name={TAB_ICON[route.name] ?? 'menu'} color={color} size={size} />,
-      })}>
+    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <NotchTabBar {...props} />}>
       <Tab.Screen name={Routes.PRODUCTION_DASHBOARD_TAB} component={ProductionHomeStackNavigator} options={{ title: 'Dashboard' }} />
       <Tab.Screen name={Routes.PRODUCTION_ORDERS_TAB} component={ProductionOrdersStackNavigator} options={{ title: 'Orders' }} />
-      <Tab.Screen name={Routes.PRODUCTION_SALES_TAB} component={ProductionSalesStackNavigator} options={{ title: 'Sales' }} />
-      <Tab.Screen name={Routes.PRODUCTION_STOCK_TAB} component={ProductionStockStackNavigator} options={{ title: 'Stock' }} />
+      <Tab.Screen name={Routes.PRODUCTION_STOCK_TAB} component={ProductionStockStackNavigator} options={{ title: 'Production Stock' }} />
+      <Tab.Screen name={Routes.PRODUCTION_RETURNS_TAB} component={ProductionReturnsStackNavigator} options={{ title: 'Returns' }} />
       <Tab.Screen
         name={Routes.PRODUCTION_MORE_TAB}
         component={NoopScreen}

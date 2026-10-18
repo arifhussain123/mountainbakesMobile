@@ -1,4 +1,5 @@
 export { NewProductionReturnScreen } from './screens/NewProductionReturnScreen';
+export { ProductionBranchStockScreen } from './screens/ProductionBranchStockScreen';
 export { ProductionDashboardScreen } from './screens/ProductionDashboardScreen';
 export { ProductionDiscountDetailScreen } from './screens/ProductionDiscountDetailScreen';
 export { ProductionDiscountsListScreen } from './screens/ProductionDiscountsListScreen';
@@ -8,6 +9,7 @@ export { ProductionNewSaleScreen } from './screens/ProductionNewSaleScreen';
 export { ProductionOrderDetailScreen } from './screens/ProductionOrderDetailScreen';
 export { ProductionOrdersListScreen } from './screens/ProductionOrdersListScreen';
 export { ProductionPreparedProductsScreen } from './screens/ProductionPreparedProductsScreen';
+export { ProductionReportsScreen } from './screens/ProductionReportsScreen';
 export { ProductionReturnDetailScreen } from './screens/ProductionReturnDetailScreen';
 export { ProductionReturnsListScreen } from './screens/ProductionReturnsListScreen';
 export { ProductionSalesListScreen } from './screens/ProductionSalesListScreen';

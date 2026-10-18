@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getBusinessDate } from '../businessDate';
 import { queryKeys } from '../queryKeys';
 import { stockReturnService } from '../services';
 import type { ListBranchReturnsParams } from '../services/stockReturnService';
@@ -8,6 +9,21 @@ export function useBranchReturns(params?: ListBranchReturnsParams) {
   return useQuery({
     queryKey: queryKeys.branchReturns(params),
     queryFn: () => stockReturnService.listBranchReturns(params),
+    // A new page, filter or sort keeps the current rows on screen until the
+    // next answer lands, rather than flashing an empty list in between.
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The branch's own returns this business month to date, by status — summed on
+ * the server, which also picks the branch from the token. Refreshed by every
+ * return write here (`invalidateReturns` covers the ['branchReturns'] prefix).
+ */
+export function useBranchReturnsSummary() {
+  return useQuery({
+    queryKey: queryKeys.branchReturnsSummary(getBusinessDate()),
+    queryFn: () => stockReturnService.getBranchReturnsSummary(),
   });
 }
 

@@ -1,8 +1,24 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { openNewQuery } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { Card, Icon } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { Expense } from '@/api';
+
+/** Icon-only "Report an issue" (the flag glyph `ReportIssueAction` also uses) — a compact variant for a dense list row, where the labeled-button version would be too tall per card. `expenseNumber` is always present here: `ExpenseCard` only ever renders a synced row, there is no locally-queued/unsynced expense concept in this app yet (Step 0). */
+function ReportIssueIconButton({ referenceId }: { referenceId: string }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Report an issue with ${referenceId}`}
+      hitSlop={8}
+      onPress={() => openNewQuery(referenceId)}
+      style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="flag" size={15} color={theme.colors.textFaint} />
+    </Pressable>
+  );
+}
 
 export interface ExpenseCardProps {
   item: Expense;
@@ -39,7 +55,10 @@ export function ExpenseCard({ item }: ExpenseCardProps) {
           {item.remarks}
         </Text>
       ) : null}
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 6 }]}>{item.expenseNumber}</Text>
+      <View style={[styles.row, { marginTop: 6, alignItems: 'center' }]}>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{item.expenseNumber}</Text>
+        <ReportIssueIconButton referenceId={item.expenseNumber} />
+      </View>
     </Card>
   );
 }

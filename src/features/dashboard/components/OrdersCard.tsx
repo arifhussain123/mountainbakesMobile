@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { useAppTheme } from '@/shared/theme';
-import { Card, StatusBadge } from '@/shared/ui';
+import { Card } from '@/shared/ui';
+import { completedOrders, orderCompletionPct } from '../calculations';
 
 export interface OrdersCardProps {
   total: number;
@@ -8,29 +10,54 @@ export interface OrdersCardProps {
   cancelled: number;
 }
 
-/** CLAUDE.md Section 9 — Total/Pending/Completed/Cancelled with consistent status colors. */
+const SIZE = 150;
+const STROKE = 16;
+const RADIUS = (SIZE - STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+/**
+ * Design lines 156-160 — the "Orders Today" donut (stroke-dasharray driven by
+ * the completed %, "N% COMPLETED" centered) + a label/value row list below it.
+ */
 export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
   const theme = useAppTheme();
-  const completed = Math.max(0, total - pending - cancelled);
+  const completed = completedOrders(total, pending, cancelled);
+  const pct = Math.round(orderCompletionPct(total, pending, cancelled) ?? 0);
+  const dash = (pct / 100) * CIRCUMFERENCE;
 
   const rows = [
-    { label: 'Total', value: total, variant: 'neutral' as const },
-    { label: 'Pending', value: pending, variant: 'warning' as const },
-    { label: 'Completed', value: completed, variant: 'success' as const },
-    { label: 'Cancelled', value: cancelled, variant: 'danger' as const },
+    { label: 'Total', value: total },
+    { label: 'Pending', value: pending },
+    { label: 'Completed', value: completed },
+    { label: 'Cancelled', value: cancelled },
   ];
 
   return (
-    <Card>
-      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Orders</Text>
-      <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.sm }}>
-        {rows.map((row) => (
-          <View key={row.label} style={styles.row}>
-            <Text style={[theme.typography.body, { color: theme.colors.text }]}>{row.label}</Text>
-            <View style={styles.right}>
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{row.value}</Text>
-              <StatusBadge label={row.label} variant={row.variant} />
-            </View>
+    <Card style={styles.card}>
+      <View style={styles.donutWrap}>
+        <Svg width={SIZE} height={SIZE} style={{ transform: [{ rotate: '-90deg' }] }}>
+          <Circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} stroke={theme.colors.border} strokeWidth={STROKE} fill="none" />
+          <Circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={RADIUS}
+            stroke={theme.colors.primary}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${CIRCUMFERENCE - dash}`}
+            fill="none"
+          />
+        </Svg>
+        <View style={styles.donutCenter}>
+          <Text style={[theme.typography.screenTitle, { color: theme.colors.text, fontSize: 28 }]}>{pct}%</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, letterSpacing: 1.2, marginTop: 4 }]}>COMPLETED</Text>
+        </View>
+      </View>
+      <View style={[styles.list, { marginTop: theme.spacing.md }]}>
+        {rows.map((row, index) => (
+          <View key={row.label} style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+            <Text style={[theme.typography.body, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '800' }]}>{row.value}</Text>
           </View>
         ))}
       </View>
@@ -39,6 +66,9 @@ export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  card: { alignItems: 'center' },
+  donutWrap: { width: SIZE, height: SIZE },
+  donutCenter: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  list: { alignSelf: 'stretch' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 11 },
 });

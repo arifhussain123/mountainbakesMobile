@@ -1,6 +1,7 @@
 export { RootNavigator } from './RootNavigator';
 export { Routes } from './routes';
-export { navigationRef, navigate, resetTo, openComingSoon, openDrawer, goBack } from './helpers';
+export { navigationRef, navigate, resetTo, openComingSoon, openDrawer, closeDrawer, goBack, openNewQuery, openQueryDetail, openNotifications, navigateToRecord } from './helpers';
+export { useTabBarHeight } from './tabBar/useTabBarHeight';
 export type {
   RootStackParamList,
   AuthStackParamList,
@@ -28,4 +29,7 @@ export type {
   FinanceDrawerParamList,
   FinanceBottomTabParamList,
   FinanceLedgerStackParamList,
+  FinanceCashTransfersStackParamList,
+  FinancePayrollStackParamList,
+  FinanceHelpDeskStackParamList,
 } from './types';

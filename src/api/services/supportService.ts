@@ -1,4 +1,4 @@
-import { apiClient } from '../client';
+import { apiClient, generateIdempotencyKey, type MutationOptions } from '../client';
 import type { SupportReference, SupportTicket, SupportTicketListResponse } from '../types';
 
 /** `/api/support` — own queue only for a branch_manager (server-enforced). */
@@ -12,8 +12,18 @@ export async function lookupSupportReference(ref: string): Promise<SupportRefere
   return reference;
 }
 
-/** `branch_manager`/`production_user` only. */
-export async function createSupportTicket(input: { referenceId: string; message: string }): Promise<SupportTicket> {
-  const { ticket } = await apiClient.post<{ ticket: SupportTicket }>('/support', input);
+/**
+ * `branch_manager`/`production_user` only. `idempotencyKey` is minted once
+ * per submission attempt by the caller (`useNewQueryForm`) and resent
+ * unchanged on every retry — same contract as `expenseService.createExpense`
+ * — so a flaky connection retrying this call can never raise the same query
+ * twice.
+ */
+export async function createSupportTicket(
+  input: { referenceId: string; message: string },
+  idempotencyKey: string = generateIdempotencyKey('support_ticket'),
+): Promise<SupportTicket> {
+  const options: MutationOptions = { idempotencyKey };
+  const { ticket } = await apiClient.post<{ ticket: SupportTicket }>('/support', input, options);
   return ticket;
 }

@@ -21,31 +21,34 @@ this is one RN codebase serving three role-specific app shells, not three separa
 
 | Screen | Endpoint(s) | Notes |
 |---|---|---|
-| 01 Production Dashboard | `GET /production-orders`, `GET /production-stock` | No `/reports/*` access for this role (`branch_manager`/`super_admin` only) — confirmed by reading `reports.routes.ts`'s `router.use`. Dashboard is composited from these two only. |
-| 02 Production Orders / 03 Order Detail | `GET /production-orders`, `PUT /:id/review`, `PUT /:id/final-approve` | No `GET /:id` exists — detail is looked up from the already-fetched list, same pattern as the Branch Event Demand screen. |
+| 01 Production Dashboard | `GET /api/production/overview` | **Updated 2026-10-15**: this endpoint already existed (`production.routes.ts`, SQL-aggregated server-side, migrations 112/140/141) and was missed by the original P1 pass, which composited the dashboard from `GET /production-orders`+`GET /production-stock` instead. The Dashboard was rebuilt against the real endpoint — see Slice P11. |
+| 02 Production Orders / 03 Order Detail | `GET /production-orders`, `PUT /:id/review`, `PUT /:id/final-approve`, `GET /:id/previous-balance`, `GET /api/special-orders`, `PUT /special-orders/:id/prepare` | No `GET /production-orders/:id` exists — detail is looked up from the already-fetched list, same pattern as the Branch Event Demand screen. The last three endpoints were added to this screen's scope in Slice P11/P12 (previous-balance, and Special Orders — its own resource, not a flag on `production-orders`, see migration 143). |
 | 05 Sales / 06 New Sale | `GET /orders/production-sales`, `POST /orders/production-sale` | Production's own counter sale — pulls from the **central pool**, not a branch's `stock`; supports `paymentMethod: 'staff'` (no money, required comment). Confirmed in `orders.routes.ts`. |
 | 07 Production Stock / 08 Prepared Products | `GET /production-stock`, `POST /production-stock/prepare`, `GET /production-stock/movements`, `POST /production-stock/adjustment` | `prepare` records "Today's Prepared Products"; `adjustment` is a correction, confirmed `production_user`+`super_admin` only. |
-| 09 Branch Stock | `GET /stock/history/branches` | **Not confirmed buildable yet** — that route is `super_admin` only in `stock.routes.ts` (`requireRole('super_admin')`); needs re-checking before this screen is built, or a different endpoint found. |
+| 09 Branch Stock | `GET /api/production/branch-stock` | **Updated 2026-10-15, un-blocked**: this is a DIFFERENT route from `GET /stock/history/branches` (which is genuinely `super_admin`-only in `stock.routes.ts`, as the original P5 note correctly found) — `production.routes.ts`'s own `/branch-stock` route is `production_user`/`super_admin`-accessible and was missed by that pass. Built in Slice P13. |
 | 10 Returns | `GET /production-returns`, `POST /production-returns`, `PUT /:id/review` | Production's own return-to-self plus reviewing a branch's incoming return. |
 | 11 Discounts | `GET /production-discounts`, `PUT /:id/review` | Production's review board for branch discount claims (the other half of the Branch app's Request Discount). |
-| 12 Special Events | `GET /special-events*` (admin/production views), event production-status endpoints | Not yet read in detail — needs its own backend pass before building. |
-| 13 Production Reports | — | **Blocked**: `/reports/*` refuses `production_user`. No endpoint confirmed yet; do not build until one is found or added. |
+| 12 Special Events | `GET /special-events*` (admin/production views), event production-status endpoints | Confirmed and built in Slice P8. |
+| 13 Production Reports | `GET /api/production-reports/summary`, `GET /api/production-reports/export` | **Updated 2026-10-15, un-blocked**: `production-reports.routes.ts` is Production's own reporting surface, deliberately separate from `/api/reports` (which genuinely refuses `production_user`, as the original P9 note correctly found) — the original pass only checked the latter. Built in Slice P13 (summary only; `/export` is deferred — see that slice). |
 | 14 Help Desk / 15 New Query | `GET /support`, `POST /support`, `GET /support/lookup` | Already confirmed `production_user`-accessible in the Branch build (Slice 10) — can reuse `supportService` as-is, just needs its own Production-side screen (own ticket list is already role-scoped server-side). |
 
 ## Status
 
 | Slice | Scope | Status |
 |---|---|---|
-| P1 | Foundation: role dispatch, full nav scaffolding (routes/types for all 15 screens), Production Dashboard (01) | **Done** |
-| P2 | Production Orders (02) + Order Detail (03) — review/send/reject/final-approve | **Done** |
+| P1 | Foundation: role dispatch, full nav scaffolding (routes/types for all 15 screens), Production Dashboard (01) | **Done** (superseded by P11) |
+| P2 | Production Orders (02) + Order Detail (03) — review/send/reject/final-approve | **Done** (extended by P12) |
 | P3 | Sales (05) / New Sale (06) | **Done** |
 | P4 | Production Stock (07) / Prepared Products (08) | **Done** |
-| P5 | Branch Stock (09) | Blocked — endpoint access needs re-confirming (see table above) |
+| P5 | Branch Stock (09) | **Done** (Slice P13) — was blocked on a re-check of endpoint access; a different, accessible route was found |
 | P6 | Returns (10) | **Done** |
 | P7 | Discounts (11) | **Done** |
 | P8 | Special Events (12) + event demand/preparation detail | **Done** |
-| P9 | Production Reports (13) | Blocked — no confirmed endpoint for this role |
+| P9 | Production Reports (13) | **Done** (Slice P13) — was blocked on "no confirmed endpoint"; a different, accessible endpoint was found |
 | P10 | Help Desk (14) / New Query (15) | **Done** — reuses `HelpDeskListScreen`/`supportService` as-is |
+| P11 | Production Dashboard (01) rebuild — all ~10 mockup sections from `GET /api/production/overview` | **Done**, 2026-10-15 |
+| P12 | Order Detail (03) Previous Balance/Returns/Print, Production Orders (02) Special Orders + Demand Summary | **Done**, 2026-10-15 |
+| P13 | Branch Stock (09) and Production Reports (13) un-blocked and built | **Done**, 2026-10-15 — export/print deferred on 13, same precedent as Finance Reports |
 
 ## Slice P8 detail (done)
 
@@ -283,23 +286,99 @@ device/emulator, same gap as every mutation path in this build so far.
 Not run: the live review flow against `/production-discounts` on a real device — no
 device/emulator, same gap as every mutation path in this build so far.
 
+## Slice P11 detail (done, 2026-10-15)
+
+- Discovered `GET /api/production/overview` (`production.routes.ts`) already existed and
+  already gave `production_user` everything the mockup's ~10-section Dashboard needs —
+  `cards` (counters), `demandByDay`/`demandByMonth`/`branchDemand`/`topProducts`
+  (`production_demand_overview`, migration 112), and a period/branch-filterable `week`
+  object (`production_dashboard_week`/`production_dashboard_series`, migrations 140/141:
+  kpis with prev-period comparisons, a daily trend, order-status counts, branch
+  comparison, a per-product plan with demand/produced/stock, a branch×product heatmap,
+  recent demands, a 12-month series, an hourly series for "Today"). No backend change.
+- `api/types.ts`: the full `ProductionOverview`/`ProductionOverviewWeek` shape, copied
+  field-for-field from the route and its three RPCs.
+- `api/services/productionOverviewService.ts` (new) + `useProductionOverviewApi.ts` (new):
+  `getProductionOverview(period, branchId)` / `useProductionOverview`.
+- New small chart/UI primitives, all plain `react-native-svg`/`View` (no new charting
+  dependency): `FilterChip`, `ProductionOrderStatusDonut` (stacked-arc technique),
+  `ProductionDualLineChart`, `RankedBarList`, `ProductionPlanList`, `ProductionHeatmapCard`.
+- `ProductionDashboardScreen` rebuilt in the mockup's own section order.
+- Verified: `npx tsc --noEmit` clean, `npx eslint src` 0 errors, `npx jest` 2/2 suites.
+
+## Slice P12 detail (done, 2026-10-15)
+
+- Order Detail (03): `GET /production-orders/:id/previous-balance` (already existed,
+  `previous-balance.service.ts`) wired for "Previous Order Balance" + "Returned since last
+  order"; Appr./Amount columns + a Totals row added to the products list; POP Print / A4
+  Challan buttons added using React Native's `Share` API — there is no native printer SDK
+  anywhere in this app's dependencies, so these share a plain-text rendition of the order
+  rather than printing directly (see the screen's own code comment and the
+  `pop-printer-setup` memory).
+- Production Orders (02): discovered Special Orders is its OWN resource
+  (`/api/special-orders`, `special_orders`/`special_order_items` tables, migration 143) —
+  not a flag on `production-orders` as the plan's own open-items guess had assumed. Built
+  a "Special Orders" sub-section (`SpecialOrderCard`, a Mark Prepared action wired to
+  `PUT /special-orders/:id/prepare`) and a "Demand Summary — Waiting Orders" table derived
+  client-side from the pending orders and production-stock balance this screen already
+  fetches (no new backend aggregation needed — the obvious candidate,
+  `GET /production-orders/balances`/`production_balances`, is confirmed DEPRECATED since
+  migration 74 and always reports zero; using it would have been misleading, so it was not
+  used).
+- Verified: `npx tsc --noEmit` clean, `npx eslint src` 0 errors, `npx jest` 2/2 suites.
+
+## Slice P13 detail (done, 2026-10-15)
+
+- Branch Stock (09): `GET /api/production/branch-stock` — confirmed via
+  `backend/src/routes/index.ts` that this is mounted under `/api/production`
+  (`production.routes.ts`, `requireRole('super_admin','production_user')`), a different
+  router from `/api/stock` (`stock.routes.ts`, where `GET /history/branches` genuinely IS
+  `super_admin`-only, confirming the original P5 finding was correct about THAT route — it
+  simply wasn't the only one). New `ProductionBranchStockScreen`: search, horizontally
+  scrollable Product×Branch matrix, color-coded legend (0/1–4/5+). Reached via a new
+  "Branch Stock" button on Production Stock (07) — it had no caller before, which would
+  have made it an orphaned route once un-blocked.
+- Production Reports (13): `GET /api/production-reports/summary` + `/export`
+  (`production-reports.routes.ts`, mounted at `/api/production-reports`, same role guard)
+  — confirmed this is a separate router from `/api/reports` (`reports.routes.ts`, which
+  does genuinely refuse `production_user`, confirming the original P9 finding about THAT
+  route). New `ProductionReportsScreen`: report-type chips (all 10 types) + period chips,
+  a generic headers/rows table (trailing TOTAL/footnote rows styled distinctly via
+  `specialRowCount`). Deferred, flagged in-screen rather than silently dropped: PDF/Excel/
+  CSV export and Print (`/export`) — no file-download/share library in this app yet, same
+  precedent as Finance Reports (screen 19); and a custom date range for the two
+  date-range-driven report types (Prepared Detail, Collections), which default to today.
+- Two small real fixes found by a read-only spot-check of screens 06/07/08/10/11/12/14/15/16
+  against the mockup: `ProductionReturnCard`/`ProductionDiscountCard` were missing the
+  mockup's short reference id, now `item.id.slice(0,8).toUpperCase()`. Everything else
+  spot-checked re-confirmed the existing "match" verdicts — no other new gaps found.
+- Verified: `npx tsc --noEmit` clean, `npx eslint src` 0 errors, `npx jest` 2/2 suites.
+
 ## Open items (owner's call, not assumed)
 
-- **Branch Stock (09)**: the obvious endpoint (`GET /stock/history/branches`) is
-  `super_admin`-only per `stock.routes.ts`. Either a production-accessible endpoint
-  exists elsewhere and needs finding, or this screen needs a backend change before it
-  can be built honestly.
-- **Production Reports (13)**: no endpoint confirmed. `/reports/*` explicitly refuses
-  `production_user`. Flag to the owner — either a production-facing report endpoint
-  needs to be added server-side, or this screen is descoped.
-- **Special Events (12)**: not yet investigated against this role's actual permissions —
-  needs its own read-the-routes pass before any screen work, same discipline as every
-  other slice in this build.
+- ~~**Branch Stock (09)**~~ **Resolved 2026-10-15**: `GET /api/production/branch-stock`
+  (`production.routes.ts`) is a different, `production_user`-accessible route from the
+  `super_admin`-only `GET /stock/history/branches` this item originally flagged. Built.
+- ~~**Production Reports (13)**~~ **Resolved 2026-10-15**: `GET /api/production-reports/summary`
+  (`production-reports.routes.ts`) is Production's own reporting surface, deliberately
+  separate from `/api/reports` (which does refuse `production_user`, as this item
+  originally found). Built — PDF/Excel/CSV export and Print still deferred (no
+  file-download/share library in this app yet, same precedent as Finance Reports).
+- ~~**Special Events (12)**~~ **Resolved** (Slice P8, done earlier this build).
 - **Order Detail's "Send to Branch" currently approves every line at its requested
   quantity** — the HTML reference may expect per-line quantity adjustment before
   sending; flagged rather than guessed at, since getting this wrong would misrepresent
-  what Production actually approved.
+  what Production actually approved. Still open.
+- **Production Reports (13)'s two date-range report types (Prepared Detail, Collections)
+  default to today only** — a custom from/to date picker is deferred (this app has no
+  date-picker UI anywhere outside the `DateFilter` daily/weekly/monthly segmented
+  control). Flagged, not silently limited.
 - Sales (05/06) is Production's own retail counter, pulling from the central pool with
   the `staff` payment method for internal consumption — distinct business logic from the
   Branch app's POS sale and needs its own careful read of `commitProductionSaleTransaction`
   before building, not a copy-paste of the Branch `useNewSaleForm`.
+- **Screen 16 (Drawer)'s mockup frame** appears to be a copy-paste of the Branch role's
+  drawer (it lists Cash Deposits/Shop Expenses/Branch Closing/Daily Sale Record, none of
+  which have any Production-side backing anywhere in this app or its backend). The built
+  `ProductionDrawerContent` deliberately keeps its own correct item list rather than
+  reproducing that apparent mockup error. Flagged for the project owner to confirm.

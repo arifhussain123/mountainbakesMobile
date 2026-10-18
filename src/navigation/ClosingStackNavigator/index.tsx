@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { BranchClosingScreen, DailySaleRecordListScreen } from '@/features/closing';
+import { BranchClosingScreen, DailySaleDetailScreen, DailySaleRecordListScreen } from '@/features/closing';
 import { Routes } from '../routes';
 import type { ClosingStackParamList } from '../types';
 
@@ -16,6 +16,7 @@ export function ClosingStackNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={Routes.BRANCH_CLOSING}>
       <Stack.Screen name={Routes.BRANCH_CLOSING} component={BranchClosingScreen} />
       <Stack.Screen name={Routes.DAILY_SALE_RECORD} component={DailySaleRecordListScreen} />
+      <Stack.Screen name={Routes.DAILY_SALE_DETAIL} component={DailySaleDetailScreen} />
     </Stack.Navigator>
   );
 }

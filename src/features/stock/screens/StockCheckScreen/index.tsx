@@ -1,93 +1,163 @@
-import { useMemo, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
-import { useStock } from '@/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, FlatList, Text, View } from 'react-native';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { getBusinessDate, useStock as useStockRows } from '@/api';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useAuthStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
-import { EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, SearchBar, SecondaryButton } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { StockCheckRow } from '../../components';
-import { styles } from './styles';
+import { buildCheckResult, isHeldForStockCheck, parseCountInput, type StockCheckItem } from '../../calculations';
+import { CountProgressFooter, CountRow, StockCheckResult } from '../../components';
+import { useStockCheckStore } from '../../useStockCheckStore';
+import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
+
+type ViewMode = 'counting' | 'result';
 
 /**
- * branchApp.md screen 12 — count what is on the shelf against the balance.
- * NOTHING HERE IS SAVED: there is no backend endpoint for a stock-check result,
- * this screen only compares a physical count against the live balance.
+ * branchApp.md screen 12 — full-screen counting mode. NOTHING HERE IS SAVED
+ * to the server: this only compares a physical count against the live
+ * balance. Only reachable for today (`StockScreen` disables the entry point
+ * on a past date), so there is no date param — the screen always counts
+ * against `getBusinessDate()`.
  */
-export function StockCheckSheetContent() {
+export function StockCheckScreen() {
+  useHideTabBarOnFocus();
   const theme = useAppTheme();
+  const branchId = useAuthStore((state) => state.user?.branchId);
+  const branchName = useAuthStore((state) => state.user?.branchName ?? 'Branch');
+  const businessDate = getBusinessDate();
+  const returnItemsSheetRef = useRef<BottomSheetModal>(null);
+
+  const { data, isLoading, error, refetch } = useStockRows();
+  const rows = useMemo(() => data?.rows ?? [], [data]);
+  const held = useMemo(() => rows.filter(isHeldForStockCheck), [rows]);
+  const hiddenAtZero = rows.length - held.length;
+
+  const store = useStockCheckStore();
   const [search, setSearch] = useState('');
-  const [counts, setCounts] = useState<Record<string, string>>({});
-  const { data, isLoading, error, refetch } = useStock();
-
-  // "Only stock held today is listed" (branchApp.md 12) — balance > 0 only.
-  const rows = useMemo(() => (data?.rows ?? []).filter((row) => row.balance > 0), [data]);
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((row) => row.productName.toLowerCase().includes(term));
-  }, [rows, search]);
-
-  const countedCount = useMemo(() => rows.filter((row) => (counts[row.productId] ?? '').trim() !== '').length, [rows, counts]);
-
-  const setCount = (productId: string, text: string) => setCounts((prev) => ({ ...prev, [productId]: text }));
-  const clear = () => setCounts({});
-
-  const handleVerify = () => {
-    const mismatches = rows
-      .map((row) => {
-        const raw = counts[row.productId];
-        if (raw === undefined || raw.trim() === '') return null;
-        const count = parseInt(raw, 10) || 0;
-        const diff = count - row.balance;
-        return diff !== 0 ? { name: row.productName, diff } : null;
-      })
-      .filter((m): m is { name: string; diff: number } => m !== null);
-
-    if (mismatches.length === 0) {
-      Alert.alert('All Matched', `${countedCount} of ${rows.length} products counted — every count matched the balance.`);
-      return;
-    }
-    Alert.alert(
-      'Differences Found',
-      mismatches.map((m) => `${m.name}: ${m.diff > 0 ? `+${m.diff} over` : `${m.diff} short`}`).join('\n'),
-    );
+  const [view, setView] = useState<ViewMode>('counting');
+  // `any`, matching `TextField`/`QtyStepper`'s own `inputRef` typing — RN
+  // 0.87's generated `TextInput` ref type and its own class instance type
+  // (which actually has `.focus`) disagree with each other.
+  const inputRefs = useRef<Record<string, React.RefObject<any>>>({});
+  const getInputRef = (productId: string): React.RefObject<any> => {
+    inputRefs.current[productId] ??= { current: null };
+    return inputRefs.current[productId]!;
   };
 
+  useEffect(() => {
+    if (branchId) void store.load(branchId, businessDate);
+  }, [branchId, businessDate]); // eslint-disable-line react-hooks/exhaustive-deps -- `store` is a stable Zustand hook result, not a dependency
+
+  const countedCount = useMemo(
+    () => held.filter((row) => (store.counts[row.productId] ?? '').trim() !== '').length,
+    [held, store.counts],
+  );
+
+  const visibleRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return held;
+    return held.filter((row) => row.productName.toLowerCase().includes(term));
+  }, [held, search]);
+
+  const hasResumableCount = store.loaded && Object.keys(store.counts).length > 0 && view === 'counting';
+
+  const handleClear = () => {
+    Alert.alert('Clear all counts?', 'This removes every count entered so far.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Clear', style: 'destructive', onPress: () => void store.clear() },
+    ]);
+  };
+
+  // Only products with an entered count are compared — uncounted products are
+  // ignored entirely (never shown as a 0-vs-balance deficit).
+  const checkResult = useMemo(() => {
+    const items: StockCheckItem[] = [];
+    for (const row of held) {
+      const counted = parseCountInput(store.counts[row.productId]);
+      if (counted === null) continue;
+      items.push({ productId: row.productId, productName: row.productName, balance: row.balance, counted });
+    }
+    return buildCheckResult(items);
+  }, [held, store.counts]);
+
+  const handleVerify = () => setView('result');
+
+  // "Edit counts" closes the result and restores the full counting list with
+  // every entered count kept; changing any count afterward is read fresh
+  // from `store.counts` the next time Verify is pressed, so there's no stale
+  // result to separately invalidate.
+  const handleEditCounts = () => setView('counting');
+
+  if (view === 'result') {
+    return (
+      <Screen>
+        <AppHeader title="Stock Check Result" subtitle={`${branchName} · ${businessDate}`} />
+        <View style={{ padding: theme.spacing.lg }}>
+          <StockCheckResult
+            result={checkResult}
+            onEditCounts={handleEditCounts}
+            onOpenReturnItems={() => returnItemsSheetRef.current?.present()}
+          />
+        </View>
+        <FormBottomSheet ref={returnItemsSheetRef} title="Return Items" onRequestClose={() => returnItemsSheetRef.current?.dismiss()}>
+          <ReturnItemsSheetContent onClose={() => returnItemsSheetRef.current?.dismiss()} />
+        </FormBottomSheet>
+      </Screen>
+    );
+  }
+
   return (
-    <View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-        Only stock held today is listed. Nothing on this screen is saved — it only compares your count against the balance.
-      </Text>
-      <View style={{ marginTop: theme.spacing.md }}>
+    <Screen>
+      <AppHeader title="Stock Check" subtitle={`${branchName} · ${businessDate}`} />
+      <View style={{ paddingHorizontal: theme.spacing.lg }}>
+        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
+          Count what is on the shelf, then Verify. Nothing here is saved to the server; it only compares your count with the balance.
+        </Text>
+        {hasResumableCount ? (
+          <Text style={[theme.typography.label, { color: theme.colors.primary, marginTop: 8, fontWeight: '700' }]}>
+            Resume count ({countedCount} of {held.length})
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.md }}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
       </View>
-      <View style={[styles.tableHeader, { borderBottomColor: theme.colors.border }]}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, flex: 1 }]}>PRODUCT</Text>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 56, textAlign: 'center' }]}>BALANCE</Text>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, width: 76, textAlign: 'center' }]}>COUNT</Text>
-      </View>
-      {isLoading ? <LoadingSkeleton height={100} /> : null}
-      {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
-      {!isLoading && !error && filtered.length === 0 ? (
+
+      {isLoading ? <View style={{ padding: theme.spacing.lg }}><LoadingSkeleton height={100} /></View> : null}
+      {error ? (
+        <View style={{ padding: theme.spacing.lg }}>
+          <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
+        </View>
+      ) : null}
+      {!isLoading && !error && visibleRows.length === 0 ? (
         <EmptyState title="No Stock Held" message="There is nothing in balance today to check." />
       ) : null}
-      {filtered.map((row) => (
-        <StockCheckRow key={row.productId} row={row} countInput={counts[row.productId] ?? ''} onChangeCount={(text) => setCount(row.productId, text)} />
-      ))}
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface, marginTop: theme.spacing.lg }]}>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-          Counted <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{countedCount}</Text> of {rows.length} held
-        </Text>
-        <View style={styles.actionsRow}>
-          <View style={{ flex: 1 }}>
-            <SecondaryButton label="Clear" onPress={clear} />
-          </View>
-          <View style={{ flex: 1.4 }}>
-            <PrimaryButton label="Verify" onPress={handleVerify} disabled={countedCount === 0} />
-          </View>
-        </View>
-      </View>
-    </View>
+      <FlatList
+        data={visibleRows}
+        keyExtractor={(item) => item.productId}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: theme.spacing.lg }}
+        renderItem={({ item, index }) => (
+          <CountRow
+            inputRef={getInputRef(item.productId)}
+            productName={item.productName}
+            balance={item.balance}
+            countInput={store.counts[item.productId] ?? ''}
+            onChangeCount={(text) => store.setCount(item.productId, text)}
+            returnKeyType={index < visibleRows.length - 1 ? 'next' : 'done'}
+            onSubmitEditing={() => {
+              const next = visibleRows[index + 1];
+              if (next) getInputRef(next.productId).current?.focus();
+            }}
+          />
+        )}
+      />
+
+      <CountProgressFooter countedCount={countedCount} heldCount={held.length} hiddenAtZero={hiddenAtZero} onClear={handleClear} onVerify={handleVerify} />
+    </Screen>
   );
 }

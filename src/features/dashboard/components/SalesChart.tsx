@@ -7,34 +7,51 @@ import type { SalesAnalyticsDailyPoint } from '@/api';
 
 export interface SalesChartProps {
   data: SalesAnalyticsDailyPoint[];
+  /** The reference line drawn across the chart — `averageDailySales` from `/sales-analytics` (design line 139's "Avg Rs. X"). */
+  average?: number;
 }
 
 /** CLAUDE.md Section 14 — touch-interactive bars, tap shows the exact value. */
-export function SalesChart({ data }: SalesChartProps) {
+export function SalesChart({ data, average = 0 }: SalesChartProps) {
   const theme = useAppTheme();
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1);
-  const maxRevenue = Math.max(1, ...data.map((d) => d.revenue));
+  const highestSales = Math.max(1, ...data.map((d) => d.sales));
+  const maxSales = Math.max(highestSales, average);
   const selected = data[selectedIndex];
+  const averageLineBottomPct = average > 0 ? Math.min(96, (average / maxSales) * 100) : null;
 
   return (
     <Card>
       <View style={styles.headerRow}>
         <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Daily Sales</Text>
+        {average > 0 ? (
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Avg {formatCurrency(average)}</Text>
+        ) : null}
       </View>
       {selected ? (
         <View style={[styles.selectedRow, { backgroundColor: theme.colors.background, borderRadius: theme.radii.sm, marginTop: theme.spacing.sm }]}>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatDisplayDate(selected.date)}</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>
-            {formatCurrency(selected.revenue)} <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {selected.orders} orders</Text>
+            {formatCurrency(selected.sales)} <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {selected.transactions} orders</Text>
           </Text>
         </View>
       ) : null}
       <View style={[styles.chart, { marginTop: theme.spacing.lg, borderBottomColor: theme.colors.border }]}>
+        {averageLineBottomPct !== null ? (
+          <View pointerEvents="none" style={[styles.averageLine, { bottom: `${averageLineBottomPct}%`, borderColor: theme.colors.textFaint }]} />
+        ) : null}
         {data.map((point, index) => {
-          const heightPct = (point.revenue / maxRevenue) * 100;
+          const heightPct = (point.sales / maxSales) * 100;
           const active = index === selectedIndex;
           return (
-            <Pressable key={point.date} onPress={() => setSelectedIndex(index)} style={styles.barColumn}>
+            <Pressable
+              key={point.date}
+              onPress={() => setSelectedIndex(index)}
+              style={styles.barColumn}
+              accessibilityRole="button"
+              accessibilityLabel={`${formatDisplayDate(point.date)}, ${formatCurrency(point.sales)}, ${point.transactions} orders${
+                point.sales === highestSales ? ', highest' : ''
+              }`}>
               <View
                 style={[
                   styles.bar,
@@ -57,14 +74,18 @@ export function SalesChart({ data }: SalesChartProps) {
           </Text>
         ))}
       </View>
+      <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: theme.spacing.sm }]}>
+        Tap a bar for the exact amount.
+      </Text>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   selectedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10 },
   chart: { height: 140, flexDirection: 'row', alignItems: 'flex-end', borderBottomWidth: 1 },
+  averageLine: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderStyle: 'dashed' },
   barColumn: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 3 },
   bar: { width: '100%' },
   labelsRow: { flexDirection: 'row', marginTop: 6 },

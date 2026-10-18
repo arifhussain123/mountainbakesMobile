@@ -3,6 +3,7 @@ import { generateIdempotencyKey, useCreatePosSale, useProducts, useStock } from 
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAuthStore } from '@/state';
 import type { InsufficientStockDetail, PaymentMethod, Product } from '@/api';
+import { resolveDiscount } from '../calculations';
 
 interface SaleLine {
   key: string;
@@ -13,17 +14,6 @@ interface SaleLine {
 
 let nextKey = 0;
 const newLine = (): SaleLine => ({ key: String(nextKey++), product: null, qty: 1, discountInput: '' });
-
-/** `"10%"` or a flat amount, matching the reference design's own convention. */
-function resolveDiscount(raw: string, lineGross: number): number {
-  const trimmed = raw.trim();
-  if (!trimmed) return 0;
-  if (trimmed.endsWith('%')) {
-    const pct = parseFloat(trimmed) || 0;
-    return Math.round(lineGross * pct) / 100;
-  }
-  return Math.min(lineGross, Math.max(0, parseFloat(trimmed) || 0));
-}
 
 export function useNewSaleForm() {
   const branchId = useAuthStore((state) => state.user?.branchId ?? null);
@@ -74,7 +64,8 @@ export function useNewSaleForm() {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   };
 
-  const addLine = () => setLines((prev) => [...prev, newLine()]);
+  // New lines go on top, under the Add Item button — as the web's sale form has it.
+  const addLine = () => setLines((prev) => [newLine(), ...prev]);
   const removeLine = (key: string) => setLines((prev) => (prev.length > 1 ? prev.filter((line) => line.key !== key) : prev));
 
   const submit = async (): Promise<boolean> => {

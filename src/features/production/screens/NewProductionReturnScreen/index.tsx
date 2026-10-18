@@ -8,6 +8,7 @@ import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchSummary, Product } from '@/api';
 import { BranchPickerModal, ReturnProductPickerModal } from '../../components';
 import { styles } from './styles';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 
 /**
  * mountainbakesProduction.html screen 10's own "+ Record Return" — Production
@@ -16,6 +17,7 @@ import { styles } from './styles';
  */
 export function NewProductionReturnScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const branches = useBranches();
   const products = useProducts();

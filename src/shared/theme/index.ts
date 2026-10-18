@@ -1,38 +1,23 @@
-import { darkColors, type ThemeColors } from './colors';
-import { radii } from './radii';
-import { cardShadow } from './shadows';
-import { spacing } from './spacing';
-import { typography } from './typography';
-
-export { lightColors, darkColors } from './colors';
-export type { ThemeColors } from './colors';
+export { lightColors, darkColors, buildColors, ON_DARK_CHIP } from './colors';
+export type { ThemeColors, ThemeMode } from './colors';
+export { ACCENTS, ACCENT_LIST, DEFAULT_ACCENT, isAccentId } from './accents';
+export type { AccentId, AccentDef } from './accents';
+export { useThemeStore } from './themeStore';
+export type { ThemeModeSetting } from './themeStore';
+export { ThemeProvider, useTheme } from './ThemeProvider';
+export type { Theme } from './ThemeProvider';
 export { spacing } from './spacing';
 export { radii } from './radii';
 export { typography } from './typography';
 export { cardShadow } from './shadows';
-
-export interface Theme {
-  colors: ThemeColors;
-  spacing: typeof spacing;
-  radii: typeof radii;
-  typography: typeof typography;
-  cardShadow: typeof cardShadow;
-  isDark: boolean;
-}
+export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type ResponsiveMetrics } from './responsive';
 
 /**
- * The single theme accessor every screen/component uses — never import
- * `lightColors`/`darkColors` directly outside this file. branchApp.md fixes
- * this app to one dark "Branch" theme (mountainbakesBranch.html's default
- * look) rather than following the OS light/dark setting — there is no toggle.
+ * Compatibility wrapper — every screen built before this task calls
+ * `useAppTheme()`, expecting the shape `{ colors, spacing, radii, typography,
+ * cardShadow, isDark }`. `useTheme()` returns a superset of that (adds
+ * `mode`/`resolvedMode`/`accent`/`accentOptions`/the setters), so this is a
+ * same-reference passthrough, not a second theme system — there's exactly
+ * one source of truth (`ThemeProvider`), just two hook names onto it.
  */
-export function useAppTheme(): Theme {
-  return {
-    colors: darkColors,
-    spacing,
-    radii,
-    typography,
-    cardShadow,
-    isDark: true,
-  };
-}
+export { useTheme as useAppTheme } from './ThemeProvider';

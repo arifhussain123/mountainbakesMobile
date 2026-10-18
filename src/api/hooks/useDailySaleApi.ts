@@ -4,10 +4,11 @@ import { dailySaleService } from '../services';
 import type { ListDailySaleRecordsParams } from '../services/dailySaleService';
 import type { FeedDailySaleRecordInput } from '../types';
 
-export function useDailySaleRecords(params?: ListDailySaleRecordsParams) {
+export function useDailySaleRecords(params?: ListDailySaleRecordsParams, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.dailySaleRecords(params),
     queryFn: () => dailySaleService.listDailySaleRecords(params),
+    enabled,
   });
 }
 

@@ -1,2 +1,3 @@
 export { CashDepositSheetContent } from './screens/CashDepositScreen';
-export { CashTransfersListScreen } from './screens/CashTransfersListScreen';
+export { CashTransferDetailScreen } from './screens/CashTransferDetailScreen';
+export { CashTransfersScreen } from './screens/CashTransfersScreen';

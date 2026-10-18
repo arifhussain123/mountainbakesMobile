@@ -7,17 +7,25 @@ import * as dailySaleService from './dailySaleService';
 import * as dashboardService from './dashboardService';
 import * as discountService from './discountService';
 import * as expenseService from './expenseService';
+import * as financePartnersService from './financePartnersService';
+import * as financePayrollService from './financePayrollService';
 import * as financeService from './financeService';
+import * as financeTicketsService from './financeTicketsService';
+import * as notificationService from './notificationService';
 import * as packingMaterialService from './packingMaterialService';
 import * as productService from './productService';
 import * as productionDiscountService from './productionDiscountService';
 import * as productionOrderService from './productionOrderService';
+import * as productionOverviewService from './productionOverviewService';
+import * as productionReportService from './productionReportService';
 import * as productionReturnService from './productionReturnService';
 import * as productionSaleService from './productionSaleService';
 import * as productionStockService from './productionStockService';
 import * as reportService from './reportService';
 import * as salesService from './salesService';
+import * as settingsService from './settingsService';
 import * as specialEventService from './specialEventService';
+import * as specialOrderService from './specialOrderService';
 import * as stockService from './stockService';
 import * as stockReturnService from './stockReturnService';
 import * as supportService from './supportService';
@@ -32,17 +40,25 @@ export {
   dashboardService,
   discountService,
   expenseService,
+  financePartnersService,
+  financePayrollService,
   financeService,
+  financeTicketsService,
+  notificationService,
   packingMaterialService,
   productService,
   productionDiscountService,
   productionOrderService,
+  productionOverviewService,
+  productionReportService,
   productionReturnService,
   productionSaleService,
   productionStockService,
   reportService,
   salesService,
+  settingsService,
   specialEventService,
+  specialOrderService,
   stockService,
   stockReturnService,
   supportService,

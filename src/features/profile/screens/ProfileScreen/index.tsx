@@ -2,16 +2,7 @@ import { Text, View } from 'react-native';
 import { useAuthStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, Screen } from '@/shared/ui';
-
-const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Super Admin',
-  branch_manager: 'Branch Manager',
-  production_user: 'Production',
-  finance_admin: 'Finance Admin',
-  finance_manager: 'Finance Manager',
-  accountant: 'Accountant',
-  finance_auditor: 'Finance Auditor',
-};
+import { branchScopeLabel, roleLabel } from '@/shared/utils';
 
 /** branchApp.md screen 26 (Account section) — Profile. */
 export function ProfileScreen() {
@@ -33,11 +24,11 @@ export function ProfileScreen() {
 
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>ROLE</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>
-            {user ? ROLE_LABEL[user.role] ?? user.role : '—'}
+            {user ? roleLabel(user.role) : '—'}
           </Text>
 
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>BRANCH</Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{user?.branchName ?? 'No branch assigned'}</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{user ? branchScopeLabel(user) : '—'}</Text>
         </Card>
       </View>
     </Screen>

@@ -8,23 +8,28 @@ export type HomeStackParamList = {
 export type SalesStackParamList = {
   [Routes.SALES_LIST]: undefined;
   [Routes.NEW_SALE]: undefined;
+  [Routes.SALE_DETAIL]: { orderId: string };
 };
 
 export type StockStackParamList = {
   [Routes.STOCK_OVERVIEW]: undefined;
+  [Routes.STOCK_CHECK]: undefined;
   [Routes.RETURN_STOCK_LIST]: undefined;
 };
 
 export type OrdersStackParamList = {
   [Routes.ORDERS_LIST]: undefined;
+  [Routes.ORDER_DETAIL]: { orderId: string };
 };
 
 export type DiscountsStackParamList = {
   [Routes.DISCOUNTS_LIST]: undefined;
+  [Routes.DISCOUNT_DETAIL]: { discountId: string };
 };
 
 export type CashStackParamList = {
   [Routes.CASH_TRANSFERS_LIST]: undefined;
+  [Routes.CASH_TRANSFER_DETAIL]: { transferId: string };
 };
 
 export type ExpensesStackParamList = {
@@ -39,6 +44,7 @@ export type EventsStackParamList = {
 export type ClosingStackParamList = {
   [Routes.BRANCH_CLOSING]: undefined;
   [Routes.DAILY_SALE_RECORD]: undefined;
+  [Routes.DAILY_SALE_DETAIL]: { businessDate: string };
 };
 
 export type ReportsStackParamList = {
@@ -73,6 +79,7 @@ export type DrawerParamList = {
 export type AuthStackParamList = {
   [Routes.ONBOARDING]: undefined;
   [Routes.LOGIN]: undefined;
+  [Routes.FORGOT_PASSWORD]: undefined;
 };
 
 // ─── Production app (production_user) ─────────────────────────────────────
@@ -113,50 +120,75 @@ export type ProductionEventsStackParamList = {
 export type ProductionBottomTabParamList = {
   [Routes.PRODUCTION_DASHBOARD_TAB]: undefined;
   [Routes.PRODUCTION_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
-  [Routes.PRODUCTION_SALES_TAB]: NavigatorScreenParams<ProductionSalesStackParamList> | undefined;
   [Routes.PRODUCTION_STOCK_TAB]: NavigatorScreenParams<ProductionStockStackParamList> | undefined;
+  [Routes.PRODUCTION_RETURNS_TAB]: NavigatorScreenParams<ProductionReturnsStackParamList> | undefined;
   [Routes.PRODUCTION_MORE_TAB]: undefined;
 };
 
 export type ProductionDrawerParamList = {
   [Routes.PRODUCTION_TABS]: NavigatorScreenParams<ProductionBottomTabParamList> | undefined;
-  [Routes.PRODUCTION_RETURNS_STACK]: NavigatorScreenParams<ProductionReturnsStackParamList> | undefined;
+  [Routes.PRODUCTION_SALES_STACK]: NavigatorScreenParams<ProductionSalesStackParamList> | undefined;
   [Routes.PRODUCTION_DISCOUNTS_STACK]: NavigatorScreenParams<ProductionDiscountsStackParamList> | undefined;
   [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
   [Routes.PRODUCTION_REPORTS_STACK]: undefined;
   [Routes.PRODUCTION_HELP_DESK_STACK]: undefined;
+  [Routes.PROFILE]: undefined;
 };
 
 export type FinanceLedgerStackParamList = {
   [Routes.FINANCE_LEDGER_LIST]: undefined;
 };
 
+export type FinanceCashTransfersStackParamList = {
+  [Routes.FINANCE_CASH_TRANSFERS_LIST]: undefined;
+  [Routes.FINANCE_CASH_TRANSFER_DETAIL]: { transferId: string };
+};
+
+export type FinanceHelpDeskStackParamList = {
+  [Routes.FINANCE_HELP_DESK_LIST]: undefined;
+  [Routes.FINANCE_TICKET_DETAIL]: { ticketId: string };
+};
+
+export type FinancePayrollStackParamList = {
+  [Routes.FINANCE_PAYROLL_LIST]: undefined;
+  [Routes.FINANCE_EMPLOYEE_DETAIL]: { employeeId: string };
+  [Routes.FINANCE_SALARY_LEDGER]: undefined;
+};
+
 export type FinanceBottomTabParamList = {
   [Routes.FINANCE_DASHBOARD_TAB]: undefined;
   [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
-  [Routes.FINANCE_CASH_TRANSFERS_TAB]: undefined;
+  [Routes.FINANCE_CASH_TRANSFERS_TAB]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
   [Routes.FINANCE_INCOME_EXPENSE_TAB]: undefined;
   [Routes.FINANCE_MORE_TAB]: undefined;
 };
 
 export type FinanceDrawerParamList = {
   [Routes.FINANCE_TABS]: NavigatorScreenParams<FinanceBottomTabParamList> | undefined;
-  [Routes.FINANCE_PAYROLL_STACK]: undefined;
+  [Routes.FINANCE_PAYROLL_STACK]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
   [Routes.FINANCE_PARTNERS_STACK]: undefined;
   [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
   [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;
   [Routes.FINANCE_CLOSING_STACK]: undefined;
   [Routes.FINANCE_REPORTS_STACK]: undefined;
   [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
-  [Routes.FINANCE_HELP_DESK_STACK]: undefined;
+  [Routes.FINANCE_HELP_DESK_STACK]: NavigatorScreenParams<FinanceHelpDeskStackParamList> | undefined;
   [Routes.FINANCE_SETTINGS_STACK]: undefined;
+  [Routes.PROFILE]: undefined;
 };
 
 export type RootStackParamList = {
-  [Routes.LOGIN]: undefined;
+  [Routes.AUTH]: undefined;
   [Routes.DRAWER]: NavigatorScreenParams<DrawerParamList> | undefined;
   [Routes.PRODUCTION_DRAWER]: NavigatorScreenParams<ProductionDrawerParamList> | undefined;
   [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;
   [Routes.UNSUPPORTED_ROLE]: undefined;
   [Routes.COMING_SOON]: { title: string };
+  // Modal, reachable from any screen (Help Desk's own list push there too) —
+  // same "root-level destination" pattern as COMING_SOON, since a Sale/Order/
+  // Expense/Stock/Cash Transfer screen that wants to open these lives in an
+  // unrelated stack several navigators away.
+  [Routes.QUERY_DETAIL]: { ticketId: string };
+  [Routes.NEW_QUERY]: { prefillReferenceId?: string } | undefined;
+  [Routes.NOTIFICATIONS]: undefined;
 };

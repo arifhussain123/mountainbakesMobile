@@ -27,6 +27,16 @@ export function getBusinessDate(now: Date = new Date()): string {
   return dateStr(toKarachi(shifted));
 }
 
+/**
+ * 'YYYY-MM-01' of the current business month — mirrors the backend's
+ * `businessMonthStartStr()`. The month turns over with the business day, at
+ * 02:00 Karachi on the 1st, so a month-to-date window starting here moves to
+ * the new month by itself.
+ */
+export function getBusinessMonthStart(now: Date = new Date()): string {
+  return `${getBusinessDate(now).slice(0, 7)}-01`;
+}
+
 function addDaysStr(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

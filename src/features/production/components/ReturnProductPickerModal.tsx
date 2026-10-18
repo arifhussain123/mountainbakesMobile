@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, SearchBar } from '@/shared/ui';
 import type { Product } from '@/api';

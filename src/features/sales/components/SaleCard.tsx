@@ -1,48 +1,88 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Card, StatusBadge } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { StatusBadge } from '@/shared/ui';
+import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import type { Order } from '@/api';
 
 export interface SaleCardProps {
   order: Order;
+  onPress?: () => void;
+  /** Set by the offline sync queue (Phase 2) — absent for an already-synced sale fetched from the server. */
+  syncState?: 'pending' | 'failed';
 }
 
-const PAYMENT_LABEL: Record<string, string> = {
+export const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Cash',
   easypaisa: 'Easypaisa',
   foodpanda: 'Foodpanda',
-  bank_account: 'Bank Account',
+  bank_account: 'Bank',
 };
 
-/** CLAUDE.md Section 19 — Sale History cards. */
-export function SaleCard({ order }: SaleCardProps) {
+/** Color-coded per payment method, matched against `src/shared/theme/colors.ts` tokens. */
+export function paymentMethodColor(theme: ReturnType<typeof useAppTheme>, method: string): string {
+  switch (method) {
+    case 'cash':
+      return theme.colors.success;
+    case 'easypaisa':
+      return theme.colors.info;
+    case 'foodpanda':
+      return theme.colors.danger;
+    case 'bank_account':
+      return theme.colors.violet;
+    default:
+      return theme.colors.textSecondary;
+  }
+}
+
+/**
+ * Design `09 Sales` lines 457-461 — the `{{ slList }}` sale card: customer
+ * name, `{{s.id}} · {{s.time}}` subline, amount + color-coded payment pill
+ * top-right, then a `products · N units` summary line below.
+ */
+export function SaleCard({ order, onPress, syncState }: SaleCardProps) {
   const theme = useAppTheme();
-  const itemsSummary = order.items.map((item) => `${item.productName} × ${item.qty}`).join(', ');
+  const payColor = paymentMethodColor(theme, order.paymentMethod);
+  const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
+  const productsLine = order.items.map((item) => item.productName).join(', ');
 
   return (
-    <Card style={{ marginBottom: 10 }}>
-      <View style={styles.row}>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{order.orderNumber}</Text>
-        <StatusBadge label={PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod} variant="info" />
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      onPress={onPress}
+      style={[styles.card, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+      {syncState ? (
+        <View style={{ marginBottom: 8, alignSelf: 'flex-start' }}>
+          <StatusBadge label={syncState === 'pending' ? 'Waiting to sync' : 'Sync failed · Fix'} variant={syncState === 'pending' ? 'warning' : 'danger'} />
+        </View>
+      ) : null}
+      <View style={styles.topRow}>
+        <View style={styles.leftCol}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
+            {order.customerName || 'Walking Customer'}
+          </Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
+            {order.orderNumber} · {formatDisplayTime(order.createdAt)}
+          </Text>
+        </View>
+        <View style={styles.rightCol}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
+          <View style={[styles.payPill, { backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
+            <Text style={[styles.payPillText, { color: payColor }]}>{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</Text>
+          </View>
+        </View>
       </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-        {formatDisplayDate(order.businessDate)} · {formatDisplayTime(order.createdAt)}
+      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]} numberOfLines={2}>
+        {productsLine} <Text style={{ color: theme.colors.textFaint }}>· {totalQty} units</Text>
       </Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 8 }]}>CUSTOMER</Text>
-      <Text style={[theme.typography.body, { color: theme.colors.text }]}>{order.customerName || 'Walking Customer'}</Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 8 }]}>ITEMS</Text>
-      <Text style={[theme.typography.body, { color: theme.colors.text }]} numberOfLines={2}>
-        {itemsSummary}
-      </Text>
-      <View style={[styles.row, { marginTop: 10, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 8 }]}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Total</Text>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.primary }]}>{formatCurrency(order.grandTotal)}</Text>
-      </View>
-    </Card>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  card: { marginBottom: 8, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
+  leftCol: { flex: 1, minWidth: 0 },
+  rightCol: { alignItems: 'flex-end', gap: 5 },
+  payPill: { paddingHorizontal: 9, paddingVertical: 3 },
+  payPillText: { fontSize: 10, fontWeight: '700' },
 });

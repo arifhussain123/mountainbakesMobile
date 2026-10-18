@@ -1,6 +1,6 @@
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { createSqliteQueueStorage, createWriteQueue, type QueuedWrite } from '@/shared/offline';
+import { createSqliteQueueStorage, createWriteQueue, getOfflineDb, type QueuedWrite } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state/offlineQueueStore';
 import { apiClient } from './client';
 import { queryClient } from './queryClient';
@@ -41,6 +41,18 @@ export function enqueueOfflineWrite(input: EnqueueWriteInput): Promise<string> {
 
 export function flushOfflineQueue(): Promise<void> {
   return queue.flush();
+}
+
+/**
+ * Sign-out's "sign out anyway" path (the Drawer's Sign Out sheet): the user
+ * was told these entries would be deleted from the phone, so this makes that
+ * literally true rather than leaving orphaned rows a future session's flush
+ * would try to replay under a token that no longer exists.
+ */
+export async function clearOfflineQueue(): Promise<void> {
+  const db = getOfflineDb();
+  await db.execute('DELETE FROM write_queue');
+  useOfflineQueueStore.getState().setWrites([]);
 }
 
 let retryWorkerStarted = false;

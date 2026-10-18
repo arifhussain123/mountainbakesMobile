@@ -1,134 +1,143 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { NavigationState, PartialState } from '@react-navigation/native';
 import { useAppTheme } from '@/shared/theme';
-import { images } from '@/assets';
-import { useAuthStore } from '@/state';
+import { GlowLayer, WARM_GLOW_RGB } from '@/shared/ui';
+import { useAppearanceSheetStore } from '@/features/appearance';
+import { useAuthStore, useOfflineQueueStore } from '@/state';
+import { roleLabel } from '@/shared/utils';
 import { Routes } from '../routes';
-import { openComingSoon } from '../helpers';
+import { BranchStrip, DrawerFooter, DrawerHeader, DrawerItem, DrawerSectionLabel, SignOutSheet } from '../components';
+import { MENU_CONTENT_HORIZONTAL_PADDING, MENU_CONTENT_WIDTH_RATIO, shouldShowSectionLabels } from '../components/drawerLayout';
+import { MountainWatermark } from '../components/MountainWatermark';
+import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive } from '../navItems';
+import { useRoleShell } from '../roleShells';
+import { useNavBadges } from '../useNavBadges';
 
-interface MenuItem {
-  label: string;
-  onPress: (navigation: DrawerContentComponentProps['navigation']) => void;
+type AnyNavState = NavigationState | PartialState<NavigationState>;
+
+/** Walks the focused route down through nested navigators, e.g. ["Tabs", "StockTab", "ReturnStockList"]. */
+function getFocusedChain(state: AnyNavState | undefined): string[] {
+  if (!state || !state.routes || state.routes.length === 0) return [];
+  const index = state.index ?? state.routes.length - 1;
+  const route = state.routes[index];
+  if (!route) return [];
+  const nested = (route as { state?: AnyNavState }).state;
+  return [route.name, ...getFocusedChain(nested)];
 }
 
-const goToTab = (tab: string, screen?: string) => (navigation: DrawerContentComponentProps['navigation']) => {
-  navigation.closeDrawer();
-  navigation.navigate(Routes.TABS, { screen: tab, params: screen ? { screen } : undefined });
-};
-
-const goToDrawerStack = (stack: string, screen?: string) => (navigation: DrawerContentComponentProps['navigation']) => {
-  navigation.closeDrawer();
-  navigation.navigate(stack, screen ? { screen } : undefined);
-};
-
-const comingSoon = (title: string) => (navigation: DrawerContentComponentProps['navigation']) => {
-  navigation.closeDrawer();
-  openComingSoon(title);
-};
-
-/** CLAUDE.md Section 5's Main / Management / Support / Account groups. */
-const SECTIONS: { title: string; items: MenuItem[] }[] = [
-  {
-    title: 'Main',
-    items: [
-      { label: 'Dashboard', onPress: goToTab(Routes.HOME_TAB) },
-      { label: 'New Sale', onPress: goToTab(Routes.SALES_TAB, Routes.NEW_SALE) },
-      { label: 'Sales History', onPress: goToTab(Routes.SALES_TAB, Routes.SALES_LIST) },
-      { label: 'Orders', onPress: goToTab(Routes.ORDERS_TAB) },
-      { label: 'Stock', onPress: goToTab(Routes.STOCK_TAB) },
-      { label: 'Stock History', onPress: comingSoon('Stock History') },
-      { label: 'Branch Demand', onPress: comingSoon('Branch Demand') },
-      { label: 'Returns', onPress: goToTab(Routes.STOCK_TAB, Routes.RETURN_STOCK_LIST) },
-      { label: 'Discounts', onPress: goToDrawerStack(Routes.DISCOUNTS_STACK) },
-      { label: 'Cash Deposits', onPress: goToDrawerStack(Routes.CASH_STACK) },
-      { label: 'Expenses', onPress: goToDrawerStack(Routes.EXPENSES_STACK) },
-      { label: 'Special Events', onPress: goToDrawerStack(Routes.EVENTS_STACK) },
-      { label: 'Branch Closing', onPress: goToDrawerStack(Routes.CLOSING_STACK, Routes.BRANCH_CLOSING) },
-      { label: 'Daily Sale Record', onPress: goToDrawerStack(Routes.CLOSING_STACK, Routes.DAILY_SALE_RECORD) },
-      { label: 'Reports', onPress: goToDrawerStack(Routes.REPORTS_STACK) },
-    ],
-  },
-  {
-    title: 'Management',
-    items: [
-      { label: 'Products', onPress: comingSoon('Products') },
-      { label: 'Price List', onPress: comingSoon('Price List') },
-      { label: 'Packaging Materials', onPress: comingSoon('Packaging Materials') },
-      { label: 'Notifications', onPress: comingSoon('Notifications') },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [
-      { label: 'Support Center', onPress: comingSoon('Support Center') },
-      { label: 'Help Desk', onPress: goToDrawerStack(Routes.HELP_DESK_STACK) },
-    ],
-  },
-  {
-    title: 'Account',
-    items: [
-      { label: 'Profile', onPress: goToDrawerStack(Routes.PROFILE) },
-      { label: 'Settings', onPress: goToDrawerStack(Routes.SETTINGS) },
-    ],
-  },
-];
-
-export function DrawerContent({ navigation }: DrawerContentComponentProps) {
+/**
+ * "3D slide-back" menu — full-screen charcoal background (warm top-left glow
+ * + a diagonal mountain-outline watermark), with the actual header/branch
+ * line/item list/footer constrained to `MENU_CONTENT_WIDTH_RATIO` so nothing
+ * ever sits under the tilted, part-opaque screen card (see
+ * `DrawerScreenCard`, rendered around every screen, not here — this
+ * component only ever renders the menu side).
+ *
+ * Shared by every role's shell (Branch, Production, Finance):
+ * the items, badges and branch line all come from the signed-in role's shell
+ * (`roleShells.ts`), so this component never checks a role itself.
+ */
+export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const theme = useAppTheme();
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const pendingCount = useOfflineQueueStore((s) => s.pendingCount);
+  const failedCount = useOfflineQueueStore((s) => s.failedCount);
+  const { navItems, contextLine, hideSectionLabelsWhenShort } = useRoleShell();
+  const badges = useNavBadges();
+  const openAppearance = useAppearanceSheetStore((s) => s.open);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [listHeight, setListHeight] = useState(0);
+
+  const focusedChain = getFocusedChain(state);
+  const userRoleLabel = user ? roleLabel(user.role) : '';
+  const contentWidth = windowWidth * MENU_CONTENT_WIDTH_RATIO;
+  // The menu's rows plus the two Settings rows below it (Appearance, Logout).
+  const showSectionLabels = DRAWER_GROUPED && (!hideSectionLabelsWhenShort || shouldShowSectionLabels(listHeight, navItems.length + 2));
+
+  const handleSignOut = () => {
+    setSignOutOpen(false);
+    navigation.closeDrawer();
+    void logout();
+  };
+
+  const activeIndex = navItems.findIndex((item) => isNavItemActive(item, focusedChain));
+
+  let lastGroup: string | null = null;
 
   return (
-    <ScrollView style={{ backgroundColor: theme.colors.surface }} contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>
-      <View style={[styles.header, { padding: theme.spacing.lg }]}>
-        <Image source={images.logo} style={styles.logo} />
-        <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: theme.spacing.sm }]}>Mountain Bakes</Text>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-          {user?.branchName ?? 'No branch assigned'}
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.22} corner="topLeft" />
+      <MountainWatermark />
+
+      {__DEV__ ? (
+        <Text style={{ position: 'absolute', top: insets.top, color: 'lime', fontSize: 9, zIndex: 10 }}>
+          chain={JSON.stringify(focusedChain)} activeIndex={activeIndex}
         </Text>
+      ) : null}
+
+      <View style={{ width: contentWidth }}>
+        <DrawerHeader roleLabel={userRoleLabel} insetTop={insets.top} />
+        {user ? <BranchStrip branchName={contextLine(user)} /> : null}
+        <View style={[styles.headerDivider, { marginHorizontal: MENU_CONTENT_HORIZONTAL_PADDING, backgroundColor: theme.colors.border }]} />
       </View>
 
-      {SECTIONS.map((section) => (
-        <View key={section.title} style={{ marginTop: theme.spacing.md }}>
-          <Text
-            style={[
-              theme.typography.label,
-              { color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.lg, textTransform: 'uppercase', letterSpacing: 0.6 },
-            ]}>
-            {section.title}
-          </Text>
-          {section.items.map((item) => (
-            <Pressable
-              key={item.label}
-              accessibilityRole="button"
-              onPress={() => item.onPress(navigation)}
-              style={({ pressed }) => [
-                styles.item,
-                { paddingHorizontal: theme.spacing.lg, backgroundColor: pressed ? theme.colors.background : 'transparent' },
-              ]}>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ))}
+      <View style={{ flex: 1, width: contentWidth }} onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md }}>
+          {navItems.map((item, index) => {
+            const showSectionLabel = showSectionLabels && item.group !== lastGroup;
+            const showDividerAbove = showSectionLabel && lastGroup !== null;
+            lastGroup = item.group;
+            return (
+              <View key={item.key}>
+                {showSectionLabel ? <DrawerSectionLabel label={GROUP_LABEL[item.group]} showDividerAbove={showDividerAbove} /> : null}
+                <DrawerItem
+                  label={item.label}
+                  icon={item.icon}
+                  active={index === activeIndex}
+                  badgeCount={item.badgeSource ? badges[item.badgeSource] : undefined}
+                  badgeDot={item.badgeDot}
+                  onPress={() => item.navigate(navigation)}
+                />
+              </View>
+            );
+          })}
 
-      <View style={{ marginTop: theme.spacing.xl, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.md }}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
+          {showSectionLabels ? <DrawerSectionLabel label="Settings" showDividerAbove /> : null}
+          <DrawerItem label="Appearance" icon="palette" active={false} onPress={openAppearance} />
+          <DrawerItem label="Logout" icon="logout" active={false} destructive onPress={() => setSignOutOpen(true)} />
+        </ScrollView>
+      </View>
+
+      <View style={{ width: contentWidth }}>
+        <DrawerFooter
+          name={user?.displayName ?? userRoleLabel}
+          pendingSyncCount={pendingCount + failedCount}
+          onPressProfile={() => {
             navigation.closeDrawer();
-            void logout();
+            navigation.navigate(Routes.PROFILE);
           }}
-          style={[styles.item, { paddingHorizontal: theme.spacing.lg }]}>
-          <Text style={[theme.typography.body, { color: theme.colors.danger, fontWeight: '600' }]}>Logout</Text>
-        </Pressable>
+          insetBottom={insets.bottom}
+        />
       </View>
-    </ScrollView>
+
+      <SignOutSheet
+        visible={signOutOpen}
+        pendingCount={pendingCount}
+        failedCount={failedCount}
+        onSignOut={handleSignOut}
+        onClose={() => setSignOutOpen(false)}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'flex-start' },
-  logo: { width: 48, height: 48, borderRadius: 24 },
-  item: { height: 44, justifyContent: 'center' },
+  container: { flex: 1 },
+  headerDivider: { height: StyleSheet.hairlineWidth, marginTop: 4 },
 });

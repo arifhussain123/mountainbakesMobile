@@ -1,6 +1,7 @@
 /** Every route name used anywhere in the app — never a hardcoded string elsewhere. */
 export const Routes = {
   // Root stack
+  AUTH: 'Auth',
   DRAWER: 'Drawer',
   PRODUCTION_DRAWER: 'ProductionDrawer',
   FINANCE_DRAWER: 'FinanceDrawer',
@@ -30,19 +31,24 @@ export const Routes = {
   // Sales stack
   SALES_LIST: 'SalesList',
   NEW_SALE: 'NewSale',
+  SALE_DETAIL: 'SaleDetail',
 
   // Stock stack
   STOCK_OVERVIEW: 'StockOverview',
+  STOCK_CHECK: 'StockCheck',
   RETURN_STOCK_LIST: 'ReturnStockList',
 
   // Orders stack
   ORDERS_LIST: 'OrdersList',
+  ORDER_DETAIL: 'OrderDetail',
 
   // Discounts stack
   DISCOUNTS_LIST: 'DiscountsList',
+  DISCOUNT_DETAIL: 'DiscountDetail',
 
   // Cash stack
   CASH_TRANSFERS_LIST: 'CashTransfersList',
+  CASH_TRANSFER_DETAIL: 'CashTransferDetail',
 
   // Expenses stack
   SHOP_EXPENSES_LIST: 'ShopExpensesList',
@@ -54,12 +60,20 @@ export const Routes = {
   // Closing stack
   BRANCH_CLOSING: 'BranchClosing',
   DAILY_SALE_RECORD: 'DailySaleRecord',
+  DAILY_SALE_DETAIL: 'DailySaleDetail',
 
   // Reports stack
   REPORTS: 'Reports',
 
-  // Help desk stack
+  // Help desk stack (QUERY_DETAIL/NEW_QUERY are root-level modals — see RootStackParamList — so
+  // "Report an issue" from any other stack can reach them the same way COMING_SOON does)
   HELP_DESK: 'HelpDesk',
+  QUERY_DETAIL: 'QueryDetail',
+  NEW_QUERY: 'NewQuery',
+
+  // Notifications — root-level modal, same reasoning as QUERY_DETAIL/NEW_QUERY:
+  // the bell lives in several module headers, not one stack.
+  NOTIFICATIONS: 'Notifications',
 
   // Account
   PROFILE: 'Profile',
@@ -68,13 +82,14 @@ export const Routes = {
   // Auth stack
   ONBOARDING: 'Onboarding',
   LOGIN: 'Login',
+  FORGOT_PASSWORD: 'ForgotPassword',
 
   // ─── Production app (production_user) ──────────────────────────────────
   PRODUCTION_TABS: 'ProductionTabs',
   PRODUCTION_DASHBOARD_TAB: 'ProductionDashboardTab',
   PRODUCTION_ORDERS_TAB: 'ProductionOrdersTab',
-  PRODUCTION_SALES_TAB: 'ProductionSalesTab',
   PRODUCTION_STOCK_TAB: 'ProductionStockTab',
+  PRODUCTION_RETURNS_TAB: 'ProductionReturnsTab',
   PRODUCTION_MORE_TAB: 'ProductionMoreTab',
 
   PRODUCTION_DASHBOARD: 'ProductionDashboard',
@@ -82,6 +97,7 @@ export const Routes = {
   PRODUCTION_ORDERS_LIST: 'ProductionOrdersList',
   PRODUCTION_ORDER_DETAIL: 'ProductionOrderDetail',
 
+  PRODUCTION_SALES_STACK: 'ProductionSalesStack',
   PRODUCTION_SALES_LIST: 'ProductionSalesList',
   PRODUCTION_NEW_SALE: 'ProductionNewSale',
 
@@ -90,7 +106,6 @@ export const Routes = {
   PRODUCTION_STOCK_ADJUSTMENT: 'ProductionStockAdjustment',
   PRODUCTION_BRANCH_STOCK: 'ProductionBranchStock',
 
-  PRODUCTION_RETURNS_STACK: 'ProductionReturnsStack',
   PRODUCTION_RETURNS_LIST: 'ProductionReturnsList',
   PRODUCTION_RETURN_DETAIL: 'ProductionReturnDetail',
   PRODUCTION_NEW_RETURN: 'ProductionNewReturn',
@@ -122,11 +137,20 @@ export const Routes = {
   FINANCE_LEDGER_STACK: 'FinanceLedgerStack',
   FINANCE_LEDGER_LIST: 'FinanceLedgerList',
 
+  FINANCE_CASH_TRANSFERS_LIST: 'FinanceCashTransfersList',
+  FINANCE_CASH_TRANSFER_DETAIL: 'FinanceCashTransferDetail',
+
   FINANCE_PAYROLL_STACK: 'FinancePayrollStack',
+  FINANCE_PAYROLL_LIST: 'FinancePayrollList',
+  FINANCE_EMPLOYEE_DETAIL: 'FinanceEmployeeDetail',
+  FINANCE_SALARY_LEDGER: 'FinanceSalaryLedger',
   FINANCE_PARTNERS_STACK: 'FinancePartnersStack',
   FINANCE_COMPANY_TRANSACTION_DETAILS_STACK: 'FinanceCompanyTransactionDetailsStack',
   FINANCE_LEDGER_HEADS_STACK: 'FinanceLedgerHeadsStack',
   FINANCE_CLOSING_STACK: 'FinanceClosingStack',
+  FINANCE_HELP_DESK_LIST: 'FinanceHelpDeskList',
+  FINANCE_TICKET_DETAIL: 'FinanceTicketDetail',
+
   FINANCE_REPORTS_STACK: 'FinanceReportsStack',
   FINANCE_AUDIT_TRAIL_STACK: 'FinanceAuditTrailStack',
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',

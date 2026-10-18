@@ -23,7 +23,17 @@ export function CashDepositSheetContent({ onClose }: CashDepositSheetContentProp
 
   return (
     <View>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PAYMENT DETAILS</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PAYMENT DETAILS</Text>
+        <Pressable accessibilityRole="button" onPress={form.handleAutoFill} disabled={form.autoFillDisabled}>
+          <Text style={[theme.typography.label, { color: form.autoFillDisabled ? theme.colors.textFaint : theme.colors.primary, fontWeight: '700' }]}>
+            Auto
+          </Text>
+        </Pressable>
+      </View>
+      {form.splitHint ? (
+        <Text style={[theme.typography.label, { color: theme.colors.warning, marginTop: 4 }]}>{form.splitHint}</Text>
+      ) : null}
       <View style={[styles.fieldsRow, { marginTop: 8 }]}>
         <View style={{ flex: 1 }}>
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Cash</Text>

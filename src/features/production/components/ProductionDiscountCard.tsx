@@ -41,7 +41,9 @@ export function ProductionDiscountCard({ item, onPress }: ProductionDiscountCard
           {item.branchName}
         </Text>
         <View style={[styles.row, { marginTop: 4 }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{item.demandNumber}</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+            {item.demandNumber} · {item.id.slice(0, 8).toUpperCase()}
+          </Text>
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{formatDisplayDate(item.date)}</Text>
         </View>
       </Card>
