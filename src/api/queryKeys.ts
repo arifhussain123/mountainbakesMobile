@@ -24,6 +24,9 @@ export const queryKeys = {
   // with it a new month) is a new key, never yesterday's figures served as today's.
   branchReturnsSummary: (businessDate: string) => ['branchReturns', 'summary', businessDate] as const,
   branchDiscounts: (params?: { days?: number; status?: string }) => ['branchDiscounts', params ?? {}] as const,
+  // Month-to-date discount summary. Under ['branchDiscounts'] so every claim write
+  // refreshes it; keyed by business date so a new month is a new key.
+  branchDiscountSummary: (businessDate: string) => ['branchDiscounts', 'summary', businessDate] as const,
   branchDiscountsList: (params: { from: string; to: string; status?: string; search?: string; sortBy?: string; sortDir?: string }) =>
     ['branchDiscountsList', params] as const,
   cashTransfers: (params?: unknown) => ['cashTransfers', params ?? {}] as const,
@@ -75,6 +78,9 @@ export const queryKeys = {
   productionReturnsSummary: (branchId: string | null, businessDate: string) =>
     ['productionReturns', 'summary', branchId, businessDate] as const,
   productionDiscounts: (params?: { status?: string; search?: string }) => ['productionDiscounts', params ?? {}] as const,
+  // Under ['productionDiscounts'] so a review refreshes it with the queue.
+  productionDiscountSummary: (branchId: string | null, businessDate: string) =>
+    ['productionDiscounts', 'summary', branchId, businessDate] as const,
   branches: () => ['branches'] as const,
   productionOrderPreviousBalance: (orderId: string) => ['productionOrderPreviousBalance', orderId] as const,
   specialOrders: () => ['specialOrders'] as const,

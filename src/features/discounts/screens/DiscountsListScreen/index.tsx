@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { getBusinessDate, useBranchDiscountsList } from '@/api';
+import { getBusinessDate, useBranchDiscountSummary, useBranchDiscountsList } from '@/api';
 import { Routes, openDrawer, type DiscountsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue, useNetworkStatus } from '@/shared/hooks';
@@ -24,7 +24,7 @@ import {
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchDiscount, BranchDiscountStatus } from '@/api';
-import { DiscountCard, SortSheet, WithdrawConfirmSheet, type DiscountSortField } from '../../components';
+import { DiscountCard, MonthlyDiscountSummaryCard, SortSheet, WithdrawConfirmSheet, type DiscountSortField } from '../../components';
 import { useDiscountActions } from '../../hooks';
 import { RequestDiscountSheetContent } from '../RequestDiscountScreen';
 import { styles } from './styles';
@@ -82,6 +82,7 @@ export function DiscountsListScreen() {
     sortDir: SORT_DIRECTION[sortField],
   };
   const list = useBranchDiscountsList(queryParams);
+  const summaryQ = useBranchDiscountSummary();
   const rows = useMemo(() => list.data?.pages.flatMap((page) => page.discounts) ?? [], [list.data]);
   const total = list.data?.pages[0]?.total ?? null;
 
@@ -207,6 +208,14 @@ export function DiscountsListScreen() {
         }}
         ListHeaderComponent={
           <View>
+            <View style={{ marginBottom: theme.spacing.md }}>
+              <MonthlyDiscountSummaryCard
+                summary={summaryQ.data}
+                isLoading={summaryQ.isLoading}
+                error={summaryQ.error}
+                onRetry={() => void summaryQ.refetch()}
+              />
+            </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand # or reason…" />
             <View style={styles.filterRow}>
               <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
@@ -283,7 +292,10 @@ export function DiscountsListScreen() {
           ) : undefined
         }
         refreshing={list.isRefetching}
-        onRefresh={() => void list.refetch()}
+        onRefresh={() => {
+          void list.refetch();
+          void summaryQ.refetch();
+        }}
       />
 
       <FormBottomSheet

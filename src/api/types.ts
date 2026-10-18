@@ -2825,3 +2825,40 @@ export interface ApiError {
   code?: string;
   details?: unknown;
 }
+
+// ─── Monthly Branch Discount summary ─────────────────────────────────────────
+// GET /api/production-discounts/summary and /api/branch-discounts/summary —
+// mirrors backend shared/utils/discount-summary.ts. The server sums; these are
+// only its shape.
+
+export interface DiscountBucket {
+  /** Rs. claimed. */
+  amount: number;
+  /** Claims (rows). */
+  count: number;
+}
+
+export interface DiscountSummaryTotals {
+  /** Every claim raised this month, all statuses. */
+  submitted: DiscountBucket;
+  pending: DiscountBucket;
+  /** The final, deducted figure — a box's "Total Discount". */
+  approved: DiscountBucket;
+  rejected: DiscountBucket;
+  returned: DiscountBucket;
+}
+
+export interface BranchDiscountTotals extends DiscountSummaryTotals {
+  branchId: string;
+  branchName: string;
+}
+
+export interface MonthlyDiscountSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  /** Every active branch in scope, alphabetical, Rs. 0 where nothing was claimed. */
+  branches: BranchDiscountTotals[];
+  totals: DiscountSummaryTotals;
+}

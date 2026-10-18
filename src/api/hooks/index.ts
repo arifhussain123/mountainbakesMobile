@@ -14,7 +14,7 @@ export {
   useReviewProductionOrder,
   useVerifyProductionOrder,
 } from './useProductionOrdersApi';
-export { useProductionDiscounts, useReviewProductionDiscount } from './useProductionDiscountsApi';
+export { useProductionDiscounts, useProductionDiscountSummary, useReviewProductionDiscount } from './useProductionDiscountsApi';
 export { useCreateProductionAdjustment, usePrepareProduction, useProductionStock } from './useProductionStockApi';
 export {
   useCreateProductionReturn,
@@ -33,7 +33,7 @@ export {
   useReviseBranchReturn,
   useWithdrawBranchReturn,
 } from './useStockReturnsApi';
-export { useBranchDiscounts, useBranchDiscountsList, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
+export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
 export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses } from './useExpensesApi';
 export {

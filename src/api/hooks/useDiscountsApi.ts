@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getBusinessDate } from '../businessDate';
 import { queryKeys } from '../queryKeys';
 import { discountService } from '../services';
 import type { ListBranchDiscountsPageParams, ListBranchDiscountsParams } from '../services/discountService';
@@ -8,6 +9,15 @@ export function useBranchDiscounts(params?: ListBranchDiscountsParams) {
   return useQuery({
     queryKey: queryKeys.branchDiscounts(params),
     queryFn: () => discountService.listBranchDiscounts(params),
+  });
+}
+
+/** The branch's own discount claims this business month, summed on the server. */
+export function useBranchDiscountSummary() {
+  return useQuery({
+    queryKey: queryKeys.branchDiscountSummary(getBusinessDate()),
+    queryFn: () => discountService.getBranchDiscountSummary(),
+    placeholderData: keepPreviousData,
   });
 }
 

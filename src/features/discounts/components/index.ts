@@ -9,3 +9,6 @@ export type { WithdrawConfirmSheetProps } from './WithdrawConfirmSheet';
 
 export { SortSheet, DISCOUNT_SORT_OPTIONS } from './SortSheet';
 export type { DiscountSortField, SortSheetProps } from './SortSheet';
+
+export { MonthlyDiscountSummaryCard } from './MonthlyDiscountSummaryCard';
+export type { MonthlyDiscountSummaryCardProps } from './MonthlyDiscountSummaryCard';
