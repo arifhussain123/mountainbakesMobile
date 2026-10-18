@@ -10,6 +10,7 @@ import {
   type FinanceDocStatus,
   type FinanceTransaction,
 } from '@/api';
+import { useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -49,12 +50,15 @@ const STATUS_LABEL: Record<FinanceDocStatus, string> = {
 /** mountainbakesFinance.html screen 04 — Income & Expense: manual documents only. Branch Income's own 3-step approval queue is a separate thing, not shown in this mockup frame, and is deferred (see docs/mobile-finance-plan.md). */
 export function FinanceIncomeExpenseListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const role = useAuthStore((state) => state.user?.role);
   const canCreate = financeCan(role, 'create');
   const canApprove = financeCan(role, 'approve');
 
   const [tab, setTab] = useState<(typeof TABS)[number]>('all');
   const [selected, setSelected] = useState<FinanceTransaction | null>(null);
+  // Which record's detail has been read to the end — the Approve gate's "scrolled to the end".
+  const [endSeenFor, setEndSeenFor] = useState<string | null>(null);
   const newSheetRef = useRef<BottomSheetModal>(null);
   const detailSheetRef = useRef<BottomSheetModal>(null);
   // One key per record, not per hook instance — this screen's quick-approve acts on a
@@ -96,7 +100,7 @@ export function FinanceIncomeExpenseListScreen() {
       <FlatList
         data={entries}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             {canCreate ? (
@@ -177,8 +181,14 @@ export function FinanceIncomeExpenseListScreen() {
         <NewFinanceTransactionSheetContent onClose={() => newSheetRef.current?.dismiss()} onCreated={() => void refetch()} />
       </FormBottomSheet>
 
-      <FormBottomSheet title="Entry Detail" onRequestClose={() => detailSheetRef.current?.dismiss()} ref={detailSheetRef}>
-        {selected ? <FinanceTransactionDetailSheet entry={selected} onClose={() => detailSheetRef.current?.dismiss()} /> : null}
+      <FormBottomSheet
+        title="Entry Detail"
+        onRequestClose={() => detailSheetRef.current?.dismiss()}
+        ref={detailSheetRef}
+        onScrollEnd={() => setEndSeenFor(selected?.id ?? null)}>
+        {selected ? (
+          <FinanceTransactionDetailSheet entry={selected} onClose={() => detailSheetRef.current?.dismiss()} reachedEnd={endSeenFor === selected.id} />
+        ) : null}
       </FormBottomSheet>
     </Screen>
   );

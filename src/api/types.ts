@@ -1003,6 +1003,89 @@ export interface RejectCashTransferInput {
   reason: string;
 }
 
+/** `GET /api/finance/cash-transfers/summary` — the list's own filters, summed in Postgres. */
+export interface FinanceCashTransferSummary {
+  from: string | null;
+  to: string | null;
+  /** `amount` excludes fuel, as a transfer's Total does. */
+  totals: { count: number; amount: number; cash: number; easypaisa: number; bank: number; fuel: number };
+  pending: { count: number; amount: number };
+  approved: { count: number; amount: number };
+  rejected: { count: number; amount: number };
+}
+
+// Finance Daily Closing's deposit check — `GET /api/finance/daily-sales`. Each
+// branch day's Company Share with the deposits the server set against it (by
+// amount, else the nearest; `deposit-reconciliation.ts` server-side). Each row
+// is the branch's own Daily Sale Record plus its reconciliation; the matching
+// panel only reads the `FinanceDailySaleDay` subset.
+
+export type DepositReconStatus = 'nothing_due' | 'not_received' | 'pending' | 'matched' | 'discrepancy';
+export type DepositMatchKind = 'amount' | 'nearest' | 'none';
+
+export interface BranchDayDeposit {
+  id: string;
+  transferNo: string;
+  voucherNo: string | null;
+  status: 'pending' | 'approved';
+  branchId: string;
+  branchName: string;
+  /** The date the deposit was handed over, not the sales day it pays for. */
+  businessDate: string;
+  amount: number;
+  cashAmount: number;
+  easypaisaAmount: number;
+  bankAmount: number;
+}
+
+export interface DailySaleReconciliation {
+  expected: number;
+  received: number;
+  pending: number;
+  /** Company Share − approved received. */
+  difference: number;
+  status: DepositReconStatus;
+  match: DepositMatchKind;
+  provisional: boolean;
+  deposits: BranchDayDeposit[];
+}
+
+/** The fields the deposit matching reads off a branch day. */
+export interface FinanceDailySaleDay {
+  id: string | null;
+  branchId: string;
+  branchName: string;
+  businessDate: string;
+  status: DailySaleRecordStatus;
+  autoTotalSale: number;
+  companySharePct: number;
+  companyShare: number;
+  reconciliation: DailySaleReconciliation;
+}
+
+/** The whole row as the server sends it — what Daily Closing's Branch Sales tab shows. */
+export interface FinanceDailySaleRow extends DailySaleRecord {
+  reconciliation: DailySaleReconciliation;
+}
+
+/** The reconciliation over the whole window on show. */
+export interface FinanceDailySaleSummary {
+  expected: number;
+  received: number;
+  pending: number;
+  difference: number;
+  /** How many branch days sit in each state. */
+  counts: Record<DepositReconStatus, number>;
+}
+
+export interface FinanceDailySaleList {
+  from: string;
+  to: string;
+  records: FinanceDailySaleRow[];
+  reconciliation: FinanceDailySaleSummary;
+  unmatchedDeposits: BranchDayDeposit[];
+}
+
 // ─── Shop expenses ──────────────────────────────────────────────────────────
 // `/api/expenses` — cash/easypaisa only, today-only date for a branch role,
 // no edit/delete.

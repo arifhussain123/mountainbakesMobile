@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isApiError } from '../client';
 import { queryKeys } from '../queryKeys';
 import { financeService } from '../services';
 import type {
@@ -206,10 +207,51 @@ export function useFinanceAudit(query: FinanceAuditQuery) {
 
 // ─── Cash Transfers (03) ─────────────────────────────────────────────────────
 
-export function useFinanceCashTransfers(query: FinanceCashTransferQuery) {
+export function useFinanceCashTransfers(query: FinanceCashTransferQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.financeCashTransfers(query),
     queryFn: () => financeService.listFinanceCashTransfers(query),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+const CASH_TRANSFERS_PAGE = 50;
+
+/** The list, 50 a page, for infinite scroll. Same filters as `useFinanceCashTransferSummary`. */
+export function useFinanceCashTransferPages(query: Omit<FinanceCashTransferQuery, 'limit' | 'offset'>, options?: { enabled?: boolean }) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.financeCashTransfersPages(query),
+    queryFn: ({ pageParam }) => financeService.listFinanceCashTransfers({ ...query, limit: CASH_TRANSFERS_PAGE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.transfers.length, 0);
+      return loaded < lastPage.total && lastPage.transfers.length > 0 ? loaded : undefined;
+    },
+    placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * The summary strip's figures. An API without the endpoint yet answers 404 —
+ * that is "not available", not an error to retry; the strip hides itself.
+ */
+export function useFinanceCashTransferSummary(query: Omit<FinanceCashTransferQuery, 'sortBy' | 'sortDir' | 'limit' | 'offset'>) {
+  return useQuery({
+    queryKey: queryKeys.financeCashTransferSummary(query),
+    queryFn: () => financeService.getFinanceCashTransferSummary(query),
+    placeholderData: keepPreviousData,
+    retry: (count, error) => !(isApiError(error) && error.status === 404) && count < 2,
+  });
+}
+
+/** Daily Closing's branch days over a window — the source of every Cash Transfers match badge. */
+export function useFinanceDailySales(params: { from: string; to: string; branchId?: string } | null) {
+  return useQuery({
+    queryKey: queryKeys.financeDailySales(params),
+    queryFn: () => financeService.listFinanceDailySales(params!),
+    enabled: !!params,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -221,9 +263,24 @@ export function useFinanceCashTransfer(id: string) {
   });
 }
 
-function invalidateCashTransfers(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: ['financeCashTransfers'] });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.pendingApprovals() });
+/**
+ * A decision moves more than the list: the transfer itself, the summary (both
+ * under ['financeCashTransfers']), Daily Closing's deposit status, and — for an
+ * approval — the RV- vouchers in the Daily Ledger and the dashboard's figures.
+ */
+function invalidateCashTransfers(queryClient: ReturnType<typeof useQueryClient>, id: string) {
+  for (const queryKey of [
+    ['financeCashTransfers'],
+    queryKeys.financeCashTransfer(id),
+    ['financeDailySales'],
+    queryKeys.pendingApprovals(),
+    ['ledgerPage'],
+    ['ledgerSummary'],
+    ['dayClosing'],
+    ['financeDashboard'],
+  ]) {
+    void queryClient.invalidateQueries({ queryKey });
+  }
 }
 
 export function useApproveFinanceCashTransfer() {
@@ -231,7 +288,8 @@ export function useApproveFinanceCashTransfer() {
   return useMutation({
     mutationFn: ({ id, input, idempotencyKey }: { id: string; input: ApproveCashTransferInput; idempotencyKey?: string }) =>
       financeService.approveFinanceCashTransfer(id, input, idempotencyKey),
-    onSuccess: () => invalidateCashTransfers(queryClient),
+    // On error too: a 409 means someone else decided first, and the screen must show their decision.
+    onSettled: (_data, _error, { id }) => invalidateCashTransfers(queryClient, id),
   });
 }
 
@@ -240,6 +298,6 @@ export function useRejectFinanceCashTransfer() {
   return useMutation({
     mutationFn: ({ id, input, idempotencyKey }: { id: string; input: RejectCashTransferInput; idempotencyKey?: string }) =>
       financeService.rejectFinanceCashTransfer(id, input, idempotencyKey),
-    onSuccess: () => invalidateCashTransfers(queryClient),
+    onSettled: (_data, _error, { id }) => invalidateCashTransfers(queryClient, id),
   });
 }

@@ -80,6 +80,14 @@ describe('role separation', () => {
     expect(finance.navItems.flatMap(targetsOf).filter((r) => branchRoutes.has(r))).toEqual([]);
   });
 
+  it('Finance rides the same notch tab bar, with only Finance tabs and More last', () => {
+    const finance = ROLE_SHELLS.finance_admin!;
+    expect(finance.tabItems.map((t) => t.label)).toEqual(['Dashboard', 'Ledger', 'Transfers', 'Reports', 'More']);
+    for (const tab of finance.tabItems) if (tab.route) expect(FINANCE_ROUTES.has(tab.route)).toBe(true);
+    expect(finance.tabItems.at(-1)!.route).toBeNull();
+    expect(finance.tabItems.find((t) => t.key === 'transfers')!.badgeSource).toBe('cashTransfers');
+  });
+
   it('the two shells share no route at all', () => {
     const branchRoutes = new Set(branch.navItems.flatMap(targetsOf));
     const productionRoutes = production.navItems.flatMap(targetsOf);
