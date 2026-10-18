@@ -1,95 +1,114 @@
 /**
- * Pure sizing/math for the "3D slide-back" drawer — kept separate from the
- * components so it's testable without rendering anything.
+ * Pure sizing math for the drawer — kept separate from the components so the
+ * "does everything fit without scrolling" arithmetic is testable without
+ * rendering anything.
  *
- * Unlike the previous pill/divider drawer, row sizes here are FIXED (the
- * brief specifies them literally: 52dp rows, 40dp tiles), not computed to
- * shrink-to-fit — the item list scrolls in its own area instead (see
- * `DrawerContent`), so there's no clamp arithmetic left to test beyond the
- * screen-card transform itself.
+ * The header/branch strip/footer components build their styles from the same
+ * constants used in `computeDrawerRowMetrics`'s subtraction, so the fixed
+ * heights subtracted there always match what those components render.
+ * `insets.top`/`insets.bottom` are added by the components on top of these
+ * heights, never folded into them.
  */
 
 export function clamp(min: number, value: number, max: number): number {
-  'worklet';
   return Math.min(Math.max(value, min), max);
 }
 
+/** `Math.min(windowWidth * 0.78, 300)` — recomputed on every render, so rotation updates it. */
+export function getDrawerWidth(windowWidth: number): number {
+  return Math.min(windowWidth * 0.78, 300);
+}
+
 // ─── Header ──────────────────────────────────────────────────────────────
-export const HEADER_LOGO_SIZE = 56;
-export const HEADER_TITLE_FONT_SIZE = 22;
-export const HEADER_ROLE_FONT_SIZE = 12;
-export const BRANCH_LINE_FONT_SIZE = 14;
+export const HEADER_LOGO_SIZE = 44;
+export const HEADER_PADDING_VERTICAL = 12;
+export const HEADER_TITLE_FONT_SIZE = 17;
+export const HEADER_ROLE_FONT_SIZE = 13;
+/** The logo is taller than the two stacked text lines, so the row is `padding * 2 + logo`. */
+export const HEADER_HEIGHT = HEADER_PADDING_VERTICAL * 2 + HEADER_LOGO_SIZE;
 
-// ─── Menu content ────────────────────────────────────────────────────────
-/** The menu's background (glow + watermark) fills the whole screen, but its header/items/footer never run wider than this — otherwise a long label would sit under the tilted, part-opaque screen card. */
-export const MENU_CONTENT_WIDTH_RATIO = 0.66;
-export const MENU_CONTENT_HORIZONTAL_PADDING = 20;
+// ─── Branch strip ────────────────────────────────────────────────────────
+export const BRANCH_STRIP_HEIGHT = 40;
+export const BRANCH_STRIP_FONT_SIZE = 14;
 
-// ─── Item rows (icon-tile style) ────────────────────────────────────────
-export const ROW_HEIGHT = 52;
-export const ROW_TILE_SIZE = 40;
-export const ROW_TILE_RADIUS = 12;
-export const ROW_ICON_SIZE = 20;
-export const ROW_LABEL_FONT_SIZE = 16;
-export const ROW_ICON_LABEL_GAP = 16;
-export const SECTION_LABEL_FONT_SIZE = 11;
-
-/**
- * Whether section labels earn their space on this screen: only when the menu's
- * own rows (`rowCount` × `ROW_HEIGHT`) already fit the list area. On a shorter
- * screen the rows scroll anyway, and a label there only pushes another row out
- * of view. `listHeight` is the list area's measured height (0 before layout,
- * which reads as "fits" so the first frame matches a tall screen).
- */
-export function shouldShowSectionLabels(listHeight: number, rowCount: number): boolean {
-  return listHeight === 0 || listHeight >= rowCount * ROW_HEIGHT;
-}
-
-// ─── Footer (profile card) ───────────────────────────────────────────────
-export const FOOTER_AVATAR_SIZE = 48;
-export const FOOTER_NAME_FONT_SIZE = 15;
-export const FOOTER_SUBTEXT_FONT_SIZE = 12;
+// ─── Footer ──────────────────────────────────────────────────────────────
+export const FOOTER_NAME_FONT_SIZE = 14;
+export const FOOTER_EMAIL_FONT_SIZE = 12;
 export const FOOTER_SYNC_FONT_SIZE = 11;
-export const FOOTER_PADDING_VERTICAL = 14;
+export const FOOTER_SYNC_LINE_HEIGHT = 14;
+export const FOOTER_ROW_HEIGHT = 36;
+export const FOOTER_BUTTON_SIZE = 36;
+export const FOOTER_PADDING_TOP = 10;
+export const FOOTER_PADDING_BOTTOM = 8;
+export const FOOTER_ROW_TO_SYNC_GAP = 6;
+export const FOOTER_HEIGHT = FOOTER_PADDING_TOP + FOOTER_ROW_HEIGHT + FOOTER_ROW_TO_SYNC_GAP + FOOTER_SYNC_LINE_HEIGHT + FOOTER_PADDING_BOTTOM;
+/** Below this drawer width the Sign out button is icon-only. */
+export const FOOTER_SIGN_OUT_LABEL_MIN_WIDTH = 296;
 
-// ─── Screen card transform (the open/close "3D slide-back" effect) ───────
-/** Fraction of screen width the card slides right by, fully open. */
-export const CARD_TRANSLATE_X_RATIO = 0.68;
-/** Fully-open scale (1 = closed/full size). */
-export const CARD_SCALE_OPEN = 0.82;
-/** Fully-open Y-axis tilt, degrees (negative = top tilts away from the viewer). */
-export const CARD_ROTATE_Y_DEG = -12;
-export const CARD_BORDER_RADIUS = 28;
-export const CARD_PERSPECTIVE = 1000;
-/** Blur/tint fully-open opacity — same progress-driven fade as the transform. */
-export const CARD_BLUR_AMOUNT = 8;
+// ─── Item rows ───────────────────────────────────────────────────────────
+export const ROW_MIN_HEIGHT = 40;
+export const ROW_MAX_HEIGHT = 52;
+export const ROW_HORIZONTAL_PADDING = 16;
+export const ROW_ICON_LABEL_GAP = 14;
+export const ROW_ICON_MIN = 18;
+export const ROW_ICON_MAX = 22;
+export const ROW_FONT_MIN = 14;
+export const ROW_FONT_MAX = 16;
+export const ROW_CHEVRON_SIZE = 16;
+export const ROW_ACTIVE_BAR_WIDTH = 3;
+/** System font scale is respected but capped here so a long label can't wrap or outgrow its row. */
+export const ROW_LABEL_MAX_FONT_SCALE = 1.2;
 
-export interface CardTransform {
-  translateX: number;
-  scale: number;
-  rotateYDeg: number;
-  borderRadius: number;
-  blurOpacity: number;
+// ─── Section labels ──────────────────────────────────────────────────────
+export const SECTION_LABEL_FONT_SIZE = 11;
+export const SECTION_LABEL_LINE_HEIGHT = 14;
+export const SECTION_LABEL_MARGIN_TOP = 10;
+export const SECTION_LABEL_MARGIN_BOTTOM = 4;
+export const SECTION_LABEL_HEIGHT = SECTION_LABEL_MARGIN_TOP + SECTION_LABEL_LINE_HEIGHT + SECTION_LABEL_MARGIN_BOTTOM;
+
+export interface DrawerRowMetrics {
+  rowHeight: number;
+  iconSize: number;
+  fontSize: number;
+  lineHeight: number;
+  /** Labels are shown only when every row still gets at least `ROW_MIN_HEIGHT` with them in place. */
+  showSectionLabels: boolean;
+  /** True once rows would have to drop below `ROW_MIN_HEIGHT` — the cue to scroll the item list instead. */
+  needsScroll: boolean;
+}
+
+/** Space left for the item list once the header, branch strip, footer and both safe-area insets are taken out. */
+export function computeAvailableListHeight(windowHeight: number, insetTop: number, insetBottom: number): number {
+  return windowHeight - insetTop - insetBottom - HEADER_HEIGHT - BRANCH_STRIP_HEIGHT - FOOTER_HEIGHT;
 }
 
 /**
- * `progress` is the drawer's own 0 (closed) → 1 (open) value. `reduceMotion`
- * collapses this to the brief's required fallback: a plain horizontal slide
- * (half the usual distance — the card never fully leaves the screen's right
- * portion, since there's no scale/tilt shrinking it) with no rotation and no
- * blur, just the progress-driven dark tint every mode already has.
+ * `rowHeight = clamp(40, available / itemCount, 52)`, with the icon and font
+ * sizes derived from it. `available` is the list area's height — measured by
+ * `DrawerMenu` once laid out, `computeAvailableListHeight` before that.
+ * Section labels (`sectionCount` of them) are kept only if the rows still
+ * reach 40dp after paying for the labels' height; otherwise they're dropped
+ * and the rows get the whole list area.
  */
-export function computeCardTransform(progress: number, screenWidth: number, reduceMotion: boolean): CardTransform {
-  'worklet';
-  const p = clamp(0, progress, 1);
-  if (reduceMotion) {
-    return { translateX: screenWidth * CARD_TRANSLATE_X_RATIO * 0.5 * p, scale: 1, rotateYDeg: 0, borderRadius: 0, blurOpacity: 0 };
-  }
+export function computeDrawerRowMetrics(available: number, itemCount: number, sectionCount = 0): DrawerRowMetrics {
+  const count = Math.max(itemCount, 1);
+  const withLabels = (available - sectionCount * SECTION_LABEL_HEIGHT) / count;
+  const showSectionLabels = sectionCount > 0 && withLabels >= ROW_MIN_HEIGHT;
+  const perItem = showSectionLabels ? withLabels : available / count;
+  const rowHeight = clamp(ROW_MIN_HEIGHT, perItem, ROW_MAX_HEIGHT);
+  const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);
+  const fontSize = clamp(ROW_FONT_MIN, rowHeight * 0.34, ROW_FONT_MAX);
   return {
-    translateX: screenWidth * CARD_TRANSLATE_X_RATIO * p,
-    scale: 1 - (1 - CARD_SCALE_OPEN) * p,
-    rotateYDeg: CARD_ROTATE_Y_DEG * p,
-    borderRadius: CARD_BORDER_RADIUS * p,
-    blurOpacity: p,
+    rowHeight,
+    iconSize,
+    fontSize,
+    lineHeight: fontSize * 1.2,
+    showSectionLabels,
+    needsScroll: perItem < ROW_MIN_HEIGHT,
   };
+}
+
+/** How many section labels a grouped list renders: one at each change of group (a group that comes back later gets a second label). */
+export function countSections(groups: readonly string[]): number {
+  return groups.filter((group, i) => i === 0 || group !== groups[i - 1]).length;
 }

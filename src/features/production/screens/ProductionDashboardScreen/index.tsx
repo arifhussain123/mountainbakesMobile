@@ -7,7 +7,7 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
-import { formatDisplayDate } from '@/shared/utils';
+import { formatCount, formatDisplayDate, formatPercent, percentChange, percentOf } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAuthStore } from '@/state';
 import {
@@ -46,20 +46,19 @@ const RECENT_STATUS_VARIANT: Record<ProductionOrderStatus, StatusVariant> = {
   cancelled: 'neutral',
 };
 
-/** `(cur-prev)/prev * 100`, formatted like the mockup's own change pills — null when there is no previous-period figure to compare against. */
-function pctChange(cur: number, prev: number): number | null {
-  if (prev === 0) return cur === 0 ? 0 : null;
-  return ((cur - prev) / prev) * 100;
-}
-
-function ChangeLabel({ value }: { value: number | null }) {
+/**
+ * A change pill like the mockup's — from the shared `percentChange`, which is
+ * `null` when there is no previous-period figure to compare against (or an
+ * input isn't a finite number), and then nothing is drawn.
+ */
+function ChangeLabel({ value, field }: { value: number | null; field: string }) {
   const theme = useAppTheme();
-  if (value === null) return null;
+  if (value === null || !Number.isFinite(value)) return null;
   const positive = value >= 0;
   return (
     <Text style={[theme.typography.label, { color: positive ? theme.colors.success : theme.colors.danger }]}>
       {positive ? '+' : '−'}
-      {Math.abs(value).toFixed(1)}%
+      {formatPercent(Math.abs(value), field)}
     </Text>
   );
 }
@@ -130,15 +129,18 @@ export function ProductionDashboardScreen() {
   }
 
   const { week, cards } = data;
-  const demandPct = pctChange(week.kpis.demand.cur, week.kpis.demand.prev);
-  const producedPct = pctChange(week.kpis.produced.cur, week.kpis.produced.prev);
-  const deliveredOrdersPct = pctChange(week.kpis.deliveredOrders.cur, week.kpis.deliveredOrders.prev);
-  const returnsPct = pctChange(week.kpis.returns.cur, week.kpis.returns.prev);
-  const percentOfDemand = week.kpis.demand.cur > 0 ? Math.round((week.kpis.produced.cur / week.kpis.demand.cur) * 100) : 0;
-  const fulfilmentRate =
-    week.kpis.demand.cur > 0
-      ? Math.min(100, ((week.kpis.produced.cur + cards.availableProductionStock) / week.kpis.demand.cur) * 100)
-      : 100;
+  const demandPct = percentChange(week.kpis.demand.cur, week.kpis.demand.prev);
+  const producedPct = percentChange(week.kpis.produced.cur, week.kpis.produced.prev);
+  const deliveredOrdersPct = percentChange(week.kpis.deliveredOrders.cur, week.kpis.deliveredOrders.prev);
+  const returnsPct = percentChange(week.kpis.returns.cur, week.kpis.returns.prev);
+  // No demand this period: 0% of demand produced, and nothing left unfulfilled
+  // (100%) — the existing conventions, now only for a real zero base. A
+  // non-finite input gives `null` from `percentOf` and renders as "-".
+  const hasDemand = week.kpis.demand.cur > 0;
+  const producedShare = percentOf(week.kpis.produced.cur, week.kpis.demand.cur);
+  const percentOfDemand = hasDemand ? (producedShare === null ? null : Math.round(producedShare)) : 0;
+  const coverShare = percentOf(week.kpis.produced.cur + cards.availableProductionStock, week.kpis.demand.cur);
+  const fulfilmentRate = hasDemand ? (coverShare === null ? null : Math.min(100, coverShare)) : 100;
 
   const donutSegments = [
     { key: 'pending', value: week.orderStatus.pending, color: theme.colors.warning, label: 'Pending' },
@@ -191,23 +193,23 @@ export function ProductionDashboardScreen() {
             <Text style={[theme.typography.label, { color: '#FFFFFF', letterSpacing: 1 }]}>
               TOTAL DEMAND · {period === 'today' ? 'TODAY' : period === 'month' ? 'THIS MONTH' : 'THIS WEEK'}
             </Text>
-            <ChangeLabel value={demandPct} />
+            <ChangeLabel value={demandPct} field="kpis.demand" />
           </View>
           <Text style={[theme.typography.screenTitle, { color: '#FFFFFF', fontSize: 34, marginTop: 6 }]}>
-            {week.kpis.demand.cur} <Text style={{ fontSize: 14, fontWeight: '600' }}>units</Text>
+            {formatCount(week.kpis.demand.cur, 'kpis.demand.cur')} <Text style={{ fontSize: 14, fontWeight: '600' }}>units</Text>
           </Text>
           <View style={styles.heroSubRow}>
             <View style={[styles.heroSubCard, { backgroundColor: '#1C1917' }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={[theme.typography.label, { color: '#A39A92' }]}>Produced</Text>
-                <ChangeLabel value={producedPct} />
+                <ChangeLabel value={producedPct} field="kpis.produced" />
               </View>
-              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{week.kpis.produced.cur}</Text>
-              <Text style={[theme.typography.label, { color: '#857B73' }]}>{percentOfDemand}% of demand</Text>
+              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{formatCount(week.kpis.produced.cur, 'kpis.produced.cur')}</Text>
+              <Text style={[theme.typography.label, { color: '#857B73' }]}>{formatPercent(percentOfDemand, 'percentOfDemand', { digits: 0 })} of demand</Text>
             </View>
             <View style={[styles.heroSubCard, { backgroundColor: '#1C1917' }]}>
               <Text style={[theme.typography.label, { color: '#A39A92' }]}>Fulfilment rate</Text>
-              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{fulfilmentRate.toFixed(1)}%</Text>
+              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{formatPercent(fulfilmentRate, 'fulfilmentRate')}</Text>
               <Text style={[theme.typography.label, { color: '#857B73' }]}>incl. available stock</Text>
             </View>
           </View>
@@ -217,18 +219,18 @@ export function ProductionDashboardScreen() {
         <View style={styles.statGrid}>
           <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Open orders</Text>
-            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{week.kpis.openOrders.cur}</Text>
+            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.openOrders.cur, 'kpis.openOrders.cur')}</Text>
             <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>waiting approval</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Delivered</Text>
-            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{week.kpis.deliveredOrders.cur}</Text>
-            <ChangeLabel value={deliveredOrdersPct} />
+            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.deliveredOrders.cur, 'kpis.deliveredOrders.cur')}</Text>
+            <ChangeLabel value={deliveredOrdersPct} field="kpis.deliveredOrders" />
           </View>
           <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Returned</Text>
-            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{week.kpis.returns.cur}</Text>
-            <ChangeLabel value={returnsPct} />
+            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.returns.cur, 'kpis.returns.cur')}</Text>
+            <ChangeLabel value={returnsPct} field="kpis.returns" />
           </View>
         </View>
 

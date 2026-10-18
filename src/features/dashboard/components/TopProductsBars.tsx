@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
-import { formatCurrency } from '@/shared/utils';
+import { formatCount, formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsTopProduct } from '@/api';
 import { barScalePct } from '../calculations';
 
@@ -47,14 +47,14 @@ export function TopProductsBars({ products }: TopProductsBarsProps) {
                 <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
                   {product.productName}
                 </Text>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.sales)}</Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.sales, 'topProducts.sales')}</Text>
               </View>
               <View style={{ marginTop: 7, gap: 4 }}>
                 <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.sales, maxSales))}%`, backgroundColor: theme.colors.secondary }]} />
                 <View style={styles.qtyRow}>
                   <View style={[styles.bar, { width: `${Math.max(2, barScalePct(product.qty, maxQty))}%`, backgroundColor: theme.colors.primary }]} />
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                    {product.qty}
+                    {formatCount(product.qty, 'topProducts.qty')}
                   </Text>
                 </View>
               </View>

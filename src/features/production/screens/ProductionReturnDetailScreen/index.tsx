@@ -4,7 +4,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import { useProductionReturns, useReviewProductionReturn } from '@/api';
 import type { ProductionReturnsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, PrimaryButton, Screen, SecondaryButton, StatusBadge } from '@/shared/ui';
+import { AppHeader, PhotoViewer, PrimaryButton, Screen, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionReturn, ProductionReturnDisposition } from '@/api';
@@ -32,12 +32,13 @@ export function ProductionReturnDetailScreen() {
   const route = useRoute<RouteProp<ProductionReturnsStackParamList, 'ProductionReturnDetail'>>();
   const { returnId } = route.params;
 
-  const { data } = useProductionReturns();
+  const { data, refetch } = useProductionReturns();
   const item = useMemo(() => data?.returns.find((r) => r.id === returnId), [data, returnId]);
 
   const review = useReviewProductionReturn();
   const [disposition, setDisposition] = useState<ProductionReturnDisposition>('saleable');
   const [dispositionNote, setDispositionNote] = useState('');
+  const [photoVisible, setPhotoVisible] = useState(false);
 
   if (!item) {
     return (
@@ -110,9 +111,13 @@ export function ProductionReturnDetailScreen() {
         {item.photo ? (
           <View style={{ marginTop: theme.spacing.lg }}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PHOTO</Text>
-            <View style={{ marginTop: 6, aspectRatio: 1, maxWidth: 220, borderRadius: theme.radii.md, overflow: 'hidden' }}>
-              <Image source={{ uri: item.photo.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open return photo"
+              onPress={() => setPhotoVisible(true)}
+              style={{ marginTop: 6, aspectRatio: 1, maxWidth: 220, borderRadius: theme.radii.md, overflow: 'hidden' }}>
+              <Image source={{ uri: item.photo.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" onError={() => void refetch()} />
+            </Pressable>
           </View>
         ) : null}
 
@@ -168,6 +173,13 @@ export function ProductionReturnDetailScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <PhotoViewer
+        visible={photoVisible}
+        uri={item.photo?.url ?? null}
+        accessibilityLabel={`Return photo of ${item.productName}`}
+        onClose={() => setPhotoVisible(false)}
+        onImageError={() => void refetch()}
+      />
     </Screen>
   );
 }

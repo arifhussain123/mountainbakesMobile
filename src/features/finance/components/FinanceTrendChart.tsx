@@ -13,7 +13,7 @@ export interface FinanceTrendChartProps {
 export function FinanceTrendChart({ data }: FinanceTrendChartProps) {
   const theme = useAppTheme();
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1);
-  const maxAbs = Math.max(1, ...data.map((d) => Math.abs(d.net)));
+  const maxAbs = Math.max(1, ...data.map((d) => (Number.isFinite(d.net) ? Math.abs(d.net) : 0)));
   const selected = data[selectedIndex];
 
   return (
@@ -24,10 +24,10 @@ export function FinanceTrendChart({ data }: FinanceTrendChartProps) {
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatDisplayDate(selected.businessDate)}</Text>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[theme.typography.body, { color: selected.net >= 0 ? theme.colors.success : theme.colors.danger, fontWeight: '700' }]}>
-              {formatCurrency(selected.net)}
+              {formatCurrency(selected.net, 'trend.net')}
             </Text>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              {formatCurrency(selected.income)} in · {formatCurrency(selected.expenses)} out
+              {formatCurrency(selected.income, 'trend.income')} in · {formatCurrency(selected.expenses, 'trend.expenses')} out
             </Text>
           </View>
         </View>
