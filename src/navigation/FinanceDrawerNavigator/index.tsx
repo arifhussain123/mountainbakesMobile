@@ -13,6 +13,7 @@ import { FinanceHelpDeskStackNavigator } from '../FinanceHelpDeskStackNavigator'
 import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
+import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
 import { FinanceDrawerContent } from './FinanceDrawerContent';
 
 const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
@@ -27,8 +28,10 @@ const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
  * status, truly reopen) stays web-only.
  */
 export function FinanceDrawerNavigator() {
+  const screenOptions = useDrawerScreenOptions();
+
   return (
-    <Drawer.Navigator screenOptions={{ headerShown: false }} drawerContent={(props) => <FinanceDrawerContent {...props} />}>
+    <Drawer.Navigator screenOptions={screenOptions} drawerContent={(props) => <FinanceDrawerContent {...props} />}>
       <Drawer.Screen name={Routes.FINANCE_TABS} component={FinanceBottomTabNavigator} />
       <Drawer.Screen name={Routes.FINANCE_PAYROLL_STACK} component={FinancePayrollStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={FinancePartnersScreen} />

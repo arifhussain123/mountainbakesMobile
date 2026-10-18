@@ -1,31 +1,32 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { BRANCH_LINE_FONT_SIZE } from './drawerLayout';
+import { BRANCH_STRIP_FONT_SIZE, BRANCH_STRIP_HEIGHT, ROW_HORIZONTAL_PADDING } from './drawerLayout';
 
 export interface BranchStripProps {
   branchName: string;
 }
 
 /**
- * The signed-in branch's name, in `colors.primary` (the brief's "colors.accent"
- * — this app's actual accent token), on its own line under the header. No
- * chevron/picker: `SessionUser.branchId`/`branchName` are singular fields —
- * confirmed in an earlier pass that there is no multi-branch switching
- * anywhere in this app's data model, so a chevron (only for that case, per
- * the brief) never applies here.
+ * The role shell's context line (the branch, or "Production · All branches")
+ * as a 40dp band on `colors.surface`, text in the accent. A label, not a
+ * picker: `SessionUser.branchId`/`branchName` are singular, with no
+ * multi-branch switching anywhere in the data model.
  */
 export function BranchStrip({ branchName }: BranchStripProps) {
   const theme = useAppTheme();
   return (
-    <Text
-      style={[styles.text, { color: theme.colors.primary, fontSize: BRANCH_LINE_FONT_SIZE, marginBottom: theme.spacing.md }]}
-      numberOfLines={1}
-      ellipsizeMode="tail">
-      {branchName}
-    </Text>
+    <View style={[styles.strip, { height: BRANCH_STRIP_HEIGHT, paddingHorizontal: ROW_HORIZONTAL_PADDING, backgroundColor: theme.colors.surface }]}>
+      <Text
+        style={{ color: theme.colors.primary, fontSize: BRANCH_STRIP_FONT_SIZE, fontWeight: '600' }}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        maxFontSizeMultiplier={1.2}>
+        {branchName}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  text: { paddingHorizontal: 20, fontWeight: '700' },
+  strip: { justifyContent: 'center' },
 });

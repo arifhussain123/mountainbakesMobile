@@ -1,26 +1,31 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { MENU_CONTENT_HORIZONTAL_PADDING, SECTION_LABEL_FONT_SIZE } from './drawerLayout';
+import {
+  ROW_HORIZONTAL_PADDING,
+  SECTION_LABEL_FONT_SIZE,
+  SECTION_LABEL_LINE_HEIGHT,
+  SECTION_LABEL_MARGIN_BOTTOM,
+  SECTION_LABEL_MARGIN_TOP,
+} from './drawerLayout';
 
-export interface DrawerSectionLabelProps {
-  label: string;
-  /** Hairline above every section except the first — sections are separated this way now, not per-item dividers. */
-  showDividerAbove: boolean;
-}
-
-export function DrawerSectionLabel({ label, showDividerAbove }: DrawerSectionLabelProps) {
+/** Muted, uppercased group heading — its height is `drawerLayout.ts#SECTION_LABEL_HEIGHT`. */
+export function DrawerSectionLabel({ label }: { label: string }) {
   const theme = useAppTheme();
   return (
-    <View>
-      {showDividerAbove ? (
-        <View style={[styles.divider, { marginHorizontal: MENU_CONTENT_HORIZONTAL_PADDING, backgroundColor: theme.colors.border }]} />
-      ) : null}
-      <Text style={[styles.label, { color: theme.colors.textMuted, fontSize: SECTION_LABEL_FONT_SIZE }]}>{label.toUpperCase()}</Text>
-    </View>
+    <Text style={[styles.label, { color: theme.colors.textMuted }]} numberOfLines={1} maxFontSizeMultiplier={1}>
+      {label.toUpperCase()}
+    </Text>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { paddingHorizontal: 20, marginTop: 16, marginBottom: 6, letterSpacing: 1.2, fontWeight: '600' },
-  divider: { height: StyleSheet.hairlineWidth, marginTop: 8 },
+  label: {
+    paddingHorizontal: ROW_HORIZONTAL_PADDING,
+    marginTop: SECTION_LABEL_MARGIN_TOP,
+    marginBottom: SECTION_LABEL_MARGIN_BOTTOM,
+    fontSize: SECTION_LABEL_FONT_SIZE,
+    lineHeight: SECTION_LABEL_LINE_HEIGHT,
+    letterSpacing: 1.2,
+    fontWeight: '600',
+  },
 });

@@ -1,36 +1,27 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { images } from '@/assets';
 import { useAppTheme } from '@/shared/theme';
-import { HEADER_LOGO_SIZE, HEADER_ROLE_FONT_SIZE, HEADER_TITLE_FONT_SIZE } from './drawerLayout';
+import { HEADER_LOGO_SIZE, HEADER_PADDING_VERTICAL, HEADER_ROLE_FONT_SIZE, HEADER_TITLE_FONT_SIZE, ROW_HORIZONTAL_PADDING } from './drawerLayout';
 
 export interface DrawerHeaderProps {
   roleLabel: string;
-  /** Status-bar safe-area inset, added ABOVE the header's own padding. */
+  /** Status-bar safe-area inset, added ABOVE the header's own padding — `drawerLayout.ts#HEADER_HEIGHT` deliberately excludes it. */
   insetTop: number;
 }
 
-/**
- * Logo badge + "MOUNTAIN BAKES" + role — the fixed top of the menu, above
- * the branch line and the content divider. Title wants Space Grotesk Bold
- * per the brief; no Space Grotesk font file exists anywhere in this repo
- * (same gap flagged on the Splash/Onboarding/Login task) — this renders in
- * the system font, bold + letter-spaced, until that's supplied.
- */
+/** Logo + "Mountain Bakes" + role on `colors.background`, starting below the status bar. */
 export function DrawerHeader({ roleLabel, insetTop }: DrawerHeaderProps) {
   const theme = useAppTheme();
   return (
-    <View style={[styles.row, { paddingTop: insetTop + theme.spacing.lg, paddingHorizontal: 20, paddingBottom: theme.spacing.md }]}>
+    <View style={[styles.row, { paddingTop: insetTop + HEADER_PADDING_VERTICAL, paddingBottom: HEADER_PADDING_VERTICAL, paddingHorizontal: ROW_HORIZONTAL_PADDING }]}>
       <View style={{ width: HEADER_LOGO_SIZE, height: HEADER_LOGO_SIZE, borderRadius: HEADER_LOGO_SIZE / 2, overflow: 'hidden' }}>
         <Image source={images.logo} style={styles.logo} resizeMode="contain" />
       </View>
       <View style={{ marginLeft: theme.spacing.md, flexShrink: 1 }}>
-        <Text
-          style={{ color: theme.colors.text, fontSize: HEADER_TITLE_FONT_SIZE, fontWeight: '800', letterSpacing: 2 }}
-          numberOfLines={1}
-          ellipsizeMode="tail">
-          MOUNTAIN BAKES
+        <Text style={{ color: theme.colors.text, fontSize: HEADER_TITLE_FONT_SIZE, fontWeight: '700' }} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          Mountain Bakes
         </Text>
-        <Text style={{ color: theme.colors.textMuted, fontSize: HEADER_ROLE_FONT_SIZE, letterSpacing: 1, marginTop: 2 }} numberOfLines={1}>
+        <Text style={{ color: theme.colors.textMuted, fontSize: HEADER_ROLE_FONT_SIZE, marginTop: 2 }} numberOfLines={1} maxFontSizeMultiplier={1.2}>
           {roleLabel}
         </Text>
       </View>

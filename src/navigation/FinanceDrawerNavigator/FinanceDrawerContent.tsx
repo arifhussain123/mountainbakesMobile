@@ -1,132 +1,73 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { FINANCE_ROLE_LABELS, type FinanceRole } from '@/api';
-import { useAppTheme, useResponsive } from '@/shared/theme';
-import { images } from '@/assets';
+import type { IconName } from '@/shared/ui';
+import { branchScopeLabel } from '@/shared/utils';
 import { useAuthStore } from '@/state';
+import { getFocusedChain } from '../DrawerNavigator/DrawerContent';
+import { DrawerMenu, type DrawerMenuRow } from '../components/DrawerMenu';
 import { Routes } from '../routes';
+
+type FinanceNavigation = DrawerContentComponentProps['navigation'];
 
 interface MenuItem {
   label: string;
-  onPress: (navigation: DrawerContentComponentProps['navigation']) => void;
+  icon: IconName;
+  section: string;
+  /** A tab of `FINANCE_TABS`, or a drawer-level stack. */
+  target: { tab: string } | { stack: string };
 }
 
-const goToTab = (tab: string, screen?: string) => (navigation: DrawerContentComponentProps['navigation']) => {
-  navigation.closeDrawer();
-  navigation.navigate(Routes.FINANCE_TABS, { screen: tab, params: screen ? { screen } : undefined });
-};
-
-const goToDrawerStack = (stack: string) => (navigation: DrawerContentComponentProps['navigation']) => {
-  navigation.closeDrawer();
-  navigation.navigate(stack);
-};
-
-const SECTIONS: { title: string; items: MenuItem[] }[] = [
-  {
-    title: 'Main',
-    items: [
-      { label: 'Dashboard', onPress: goToTab(Routes.FINANCE_DASHBOARD_TAB) },
-      { label: 'Daily Ledger', onPress: goToTab(Routes.FINANCE_LEDGER_TAB) },
-      { label: 'Cash Transfers', onPress: goToTab(Routes.FINANCE_CASH_TRANSFERS_TAB) },
-      { label: 'Income & Expense', onPress: goToTab(Routes.FINANCE_INCOME_EXPENSE_TAB) },
-      { label: 'Payroll', onPress: goToDrawerStack(Routes.FINANCE_PAYROLL_STACK) },
-      { label: 'Partner Transactions', onPress: goToDrawerStack(Routes.FINANCE_PARTNERS_STACK) },
-      { label: 'Company Transaction Details', onPress: goToDrawerStack(Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK) },
-      { label: 'Ledger Heads', onPress: goToDrawerStack(Routes.FINANCE_LEDGER_HEADS_STACK) },
-      { label: 'Daily Closing', onPress: goToDrawerStack(Routes.FINANCE_CLOSING_STACK) },
-      { label: 'Reports', onPress: goToDrawerStack(Routes.FINANCE_REPORTS_STACK) },
-      { label: 'Audit Trail', onPress: goToDrawerStack(Routes.FINANCE_AUDIT_TRAIL_STACK) },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [{ label: 'Help Desk', onPress: goToDrawerStack(Routes.FINANCE_HELP_DESK_STACK) }],
-  },
+const MENU: MenuItem[] = [
+  { label: 'Dashboard', icon: 'dashboard-grid', section: 'Main', target: { tab: Routes.FINANCE_DASHBOARD_TAB } },
+  { label: 'Daily Ledger', icon: 'ledger', section: 'Main', target: { tab: Routes.FINANCE_LEDGER_TAB } },
+  { label: 'Cash Transfers', icon: 'transfer', section: 'Main', target: { tab: Routes.FINANCE_CASH_TRANSFERS_TAB } },
+  { label: 'Income & Expense', icon: 'trending-up', section: 'Main', target: { tab: Routes.FINANCE_INCOME_EXPENSE_TAB } },
+  { label: 'Payroll', icon: 'wallet', section: 'Main', target: { stack: Routes.FINANCE_PAYROLL_STACK } },
+  { label: 'Partner Transactions', icon: 'user', section: 'Main', target: { stack: Routes.FINANCE_PARTNERS_STACK } },
+  { label: 'Company Transaction Details', icon: 'building', section: 'Main', target: { stack: Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK } },
+  { label: 'Ledger Heads', icon: 'hash', section: 'Main', target: { stack: Routes.FINANCE_LEDGER_HEADS_STACK } },
+  { label: 'Daily Closing', icon: 'calendar-check', section: 'Main', target: { stack: Routes.FINANCE_CLOSING_STACK } },
+  { label: 'Reports', icon: 'bar-chart', section: 'Main', target: { stack: Routes.FINANCE_REPORTS_STACK } },
+  { label: 'Audit Trail', icon: 'clock', section: 'Main', target: { stack: Routes.FINANCE_AUDIT_TRAIL_STACK } },
+  { label: 'Help Desk', icon: 'headset', section: 'Support', target: { stack: Routes.FINANCE_HELP_DESK_STACK } },
+  { label: 'Settings', icon: 'grid', section: 'Account', target: { stack: Routes.FINANCE_SETTINGS_STACK } },
 ];
 
-/** mountainbakesFinance.html — no drawer mockup frame exists for this role; mirrors Branch/Production's own drawer shape. */
-export function FinanceDrawerContent({ navigation }: DrawerContentComponentProps) {
-  const theme = useAppTheme();
-  const { clamp, ms } = useResponsive();
-  const logoSize = clamp(40, ms(48), 56);
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-
-  return (
-    <ScrollView style={{ backgroundColor: theme.colors.surface }} contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>
-      <View style={[styles.header, { padding: theme.spacing.lg }]}>
-        <View style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, overflow: 'hidden' }}>
-          <Image source={images.logo} style={styles.logo} resizeMode="contain" />
-        </View>
-        <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: theme.spacing.sm }]}>Mountain Bakes</Text>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-          {user?.role ? (FINANCE_ROLE_LABELS[user.role as FinanceRole] ?? 'Finance') : 'Finance'}
-        </Text>
-      </View>
-
-      {SECTIONS.map((section) => (
-        <View key={section.title} style={{ marginTop: theme.spacing.md }}>
-          <Text
-            style={[
-              theme.typography.label,
-              { color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.lg, textTransform: 'uppercase', letterSpacing: 0.6 },
-            ]}>
-            {section.title}
-          </Text>
-          {section.items.map((item) => (
-            <Pressable
-              key={item.label}
-              accessibilityRole="button"
-              onPress={() => item.onPress(navigation)}
-              style={({ pressed }) => [
-                styles.item,
-                { paddingHorizontal: theme.spacing.lg, backgroundColor: pressed ? theme.colors.background : 'transparent' },
-              ]}>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ))}
-
-      <View style={{ marginTop: theme.spacing.md }}>
-        <Text
-          style={[
-            theme.typography.label,
-            { color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.lg, textTransform: 'uppercase', letterSpacing: 0.6 },
-          ]}>
-          Account
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => goToDrawerStack(Routes.FINANCE_SETTINGS_STACK)(navigation)}
-          style={({ pressed }) => [
-            styles.item,
-            { paddingHorizontal: theme.spacing.lg, backgroundColor: pressed ? theme.colors.background : 'transparent' },
-          ]}>
-          <Text style={[theme.typography.body, { color: theme.colors.text }]}>Settings</Text>
-        </Pressable>
-      </View>
-
-      <View style={{ marginTop: theme.spacing.xl, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.md }}>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.lg }]}>
-          {user?.displayName ?? user?.email}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            navigation.closeDrawer();
-            void logout();
-          }}
-          style={[styles.item, { paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.sm }]}>
-          <Text style={[theme.typography.body, { color: theme.colors.danger, fontWeight: '600' }]}>Sign Out</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
-  );
+function navigateTo(navigation: FinanceNavigation, target: MenuItem['target']) {
+  navigation.closeDrawer();
+  if ('tab' in target) navigation.navigate(Routes.FINANCE_TABS, { screen: target.tab });
+  else navigation.navigate(target.stack);
 }
 
-const styles = StyleSheet.create({
-  header: { alignItems: 'flex-start' },
-  logo: { width: '100%', height: '100%' },
-  item: { height: 44, justifyContent: 'center' },
-});
+function isActive(target: MenuItem['target'], chain: string[]): boolean {
+  return 'tab' in target ? chain[0] === Routes.FINANCE_TABS && chain[1] === target.tab : chain[0] === target.stack;
+}
+
+/**
+ * mountainbakesFinance.html — no drawer mockup frame exists for this role.
+ * Its menu stays its own (the Finance shell has no `navItems` yet), but the
+ * layout is the shared `DrawerMenu`, so it looks exactly like the Branch and
+ * Production drawers.
+ */
+export function FinanceDrawerContent({ navigation, state }: DrawerContentComponentProps) {
+  const user = useAuthStore((s) => s.user);
+  const chain = getFocusedChain(state);
+
+  const rows: DrawerMenuRow[] = MENU.map((item) => ({
+    key: item.label,
+    label: item.label,
+    icon: item.icon,
+    section: item.section,
+    active: isActive(item.target, chain),
+    onPress: () => navigateTo(navigation, item.target),
+  }));
+
+  return (
+    <DrawerMenu
+      roleLabel={user?.role ? (FINANCE_ROLE_LABELS[user.role as FinanceRole] ?? 'Finance') : 'Finance'}
+      contextLine={user ? `Finance · ${branchScopeLabel(user)}` : ''}
+      rows={rows}
+      closeDrawer={navigation.closeDrawer}
+    />
+  );
+}

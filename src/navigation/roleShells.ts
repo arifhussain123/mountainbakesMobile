@@ -19,11 +19,9 @@ export interface RoleShell {
   computeBadges: () => NavBadges;
   /** The accent line under the drawer header: whose data this user is looking at. */
   contextLine: (user: Pick<SessionUser, 'role' | 'branchName'>) => string;
-  /** `true` drops the drawer's section labels when the rows themselves don't fit (`shouldShowSectionLabels`); `false` always shows them. */
-  hideSectionLabelsWhenShort: boolean;
 }
 
-const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '', hideSectionLabelsWhenShort: false };
+const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '' };
 const FINANCE_SHELL: RoleShell = { route: Routes.FINANCE_DRAWER, ...NO_MENU };
 const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, ...NO_MENU };
 
@@ -43,7 +41,6 @@ export const ROLE_SHELLS: Partial<Record<UserRole, RoleShell>> = {
     tabItems: BRANCH_TAB_ITEMS,
     computeBadges: computeBranchBadges,
     contextLine: branchScopeLabel,
-    hideSectionLabelsWhenShort: false,
   },
   // No branch and no production-unit concept on the server: a production_user
   // reads every branch (only `branch_manager` is branch-scoped), so the line
@@ -54,7 +51,6 @@ export const ROLE_SHELLS: Partial<Record<UserRole, RoleShell>> = {
     tabItems: PRODUCTION_TAB_ITEMS,
     computeBadges: computeProductionBadges,
     contextLine: (user) => `Production · ${branchScopeLabel(user)}`,
-    hideSectionLabelsWhenShort: true,
   },
   finance_admin: FINANCE_SHELL,
   finance_manager: FINANCE_SHELL,

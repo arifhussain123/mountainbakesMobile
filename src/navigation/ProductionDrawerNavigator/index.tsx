@@ -9,42 +9,34 @@ import { ProductionHelpDeskStackNavigator } from '../ProductionHelpDeskStackNavi
 import { ProductionSalesStackNavigator } from '../ProductionSalesStackNavigator';
 import { Routes } from '../routes';
 import type { ProductionDrawerParamList } from '../types';
-import { withDrawerScreenCard } from '../components/withDrawerScreenCard';
+import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
 import { useProductionNavCounts } from './useProductionNavCounts';
 
 const Drawer = createDrawerNavigator<ProductionDrawerParamList>();
 
-// Module scope, same reason as `DrawerNavigator` — see `withDrawerScreenCard`.
-const TabsWithCard = withDrawerScreenCard(ProductionBottomTabNavigator);
-const SalesStackWithCard = withDrawerScreenCard(ProductionSalesStackNavigator);
-const DiscountsStackWithCard = withDrawerScreenCard(ProductionDiscountsStackNavigator);
-const EventsStackWithCard = withDrawerScreenCard(ProductionEventsStackNavigator);
-const ReportsWithCard = withDrawerScreenCard(ProductionReportsScreen);
-const HelpDeskStackWithCard = withDrawerScreenCard(ProductionHelpDeskStackNavigator);
-const ProfileWithCard = withDrawerScreenCard(ProfileScreen);
-
 /**
  * mountainbakesProduction.html — the `production_user` app shell. Same
- * slide-back drawer as the Branch shell (`DrawerContent`, see `DrawerNavigator`
- * for the `drawerType: 'back'` reasoning); what it lists comes from
+ * drawer as the Branch shell (`DrawerContent` + `useDrawerScreenOptions`);
+ * what it lists comes from
  * `PRODUCTION_NAV_ITEMS` through the role's shell, so the two roles share the
  * chrome and never each other's screens. Every Production screen is registered
  * here or in `ProductionBottomTabNavigator`, and none of the Branch ones.
  */
 export function ProductionDrawerNavigator() {
   useProductionNavCounts();
+  const screenOptions = useDrawerScreenOptions();
 
   return (
     <Drawer.Navigator
-      screenOptions={{ headerShown: false, drawerType: 'back', drawerStyle: { width: '100%', backgroundColor: 'transparent' }, overlayColor: 'transparent' }}
+      screenOptions={screenOptions}
       drawerContent={(props) => <DrawerContent {...props} />}>
-      <Drawer.Screen name={Routes.PRODUCTION_TABS} component={TabsWithCard} />
-      <Drawer.Screen name={Routes.PRODUCTION_SALES_STACK} component={SalesStackWithCard} />
-      <Drawer.Screen name={Routes.PRODUCTION_DISCOUNTS_STACK} component={DiscountsStackWithCard} />
-      <Drawer.Screen name={Routes.PRODUCTION_EVENTS_STACK} component={EventsStackWithCard} />
-      <Drawer.Screen name={Routes.PRODUCTION_REPORTS_STACK} component={ReportsWithCard} />
-      <Drawer.Screen name={Routes.PRODUCTION_HELP_DESK_STACK} component={HelpDeskStackWithCard} />
-      <Drawer.Screen name={Routes.PROFILE} component={ProfileWithCard} />
+      <Drawer.Screen name={Routes.PRODUCTION_TABS} component={ProductionBottomTabNavigator} />
+      <Drawer.Screen name={Routes.PRODUCTION_SALES_STACK} component={ProductionSalesStackNavigator} />
+      <Drawer.Screen name={Routes.PRODUCTION_DISCOUNTS_STACK} component={ProductionDiscountsStackNavigator} />
+      <Drawer.Screen name={Routes.PRODUCTION_EVENTS_STACK} component={ProductionEventsStackNavigator} />
+      <Drawer.Screen name={Routes.PRODUCTION_REPORTS_STACK} component={ProductionReportsScreen} />
+      <Drawer.Screen name={Routes.PRODUCTION_HELP_DESK_STACK} component={ProductionHelpDeskStackNavigator} />
+      <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
     </Drawer.Navigator>
   );
 }
