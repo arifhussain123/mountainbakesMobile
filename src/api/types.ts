@@ -844,6 +844,12 @@ export interface BranchReturn {
   reviewedByName: string | null;
   reviewedAt: string | null;
   photo?: Attachment | null;
+  /** The product's SKU, or null where none is set. */
+  productCode?: string | null;
+  /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */
+  unitPrice?: number | null;
+  /** qty × unitPrice, rounded to the paisa; null exactly when unitPrice is. */
+  amount?: number | null;
 }
 
 export interface BranchReturnListResponse {
@@ -1541,6 +1547,12 @@ export interface ProductionReturn {
   reviewedByName: string | null;
   reviewedAt: string | null;
   photo?: Attachment | null;
+  /** The product's SKU, or null where none is set. */
+  productCode?: string | null;
+  /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */
+  unitPrice?: number | null;
+  /** qty × unitPrice, rounded to the paisa; null exactly when unitPrice is. */
+  amount?: number | null;
 }
 
 export interface ProductionReturnListResponse {
@@ -1575,9 +1587,18 @@ export interface ReturnsSummaryTotals {
   unpricedCount: number;
 }
 
+/** One product's returns this month, every status — the product lines sum to `submitted`. */
+export interface ProductReturnsLine extends ReturnsBucket {
+  productId: string;
+  productName: string;
+  productCode: string | null;
+}
+
 export interface BranchReturnsSummary extends ReturnsSummaryTotals {
   branchId: string;
   branchName: string;
+  /** Item-wise, largest amount first. */
+  products: ProductReturnsLine[];
 }
 
 export interface MonthlyReturnsSummary {
@@ -1587,6 +1608,10 @@ export interface MonthlyReturnsSummary {
   to: string;
   branches: BranchReturnsSummary[];
   totals: ReturnsSummaryTotals;
+  /** Item-wise across every branch in scope, largest amount first. */
+  products: ProductReturnsLine[];
+  /** Branches in scope with at least one return this month. */
+  branchesReporting: number;
 }
 
 export interface CreateProductionReturnInput {

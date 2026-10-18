@@ -1,11 +1,13 @@
 /**
  * @format
  */
-import type { ReturnsSummaryTotals } from '@/api';
+import type { MonthlyReturnsSummary, ReturnsSummaryTotals } from '@/api';
 import { queryKeys } from '@/api/queryKeys';
 import {
   buildReturnsSummaryTiles,
   describeBucket,
+  describeProductLine,
+  describeReturnValue,
   formatReturnsWindow,
   unpricedNote,
 } from '@/features/stock/returnsSummary';
@@ -25,6 +27,22 @@ function totals(overrides: Partial<ReturnsSummaryTotals> = {}): ReturnsSummaryTo
   };
 }
 
+function summary(t: ReturnsSummaryTotals = totals(), overrides: Partial<MonthlyReturnsSummary> = {}): MonthlyReturnsSummary {
+  return {
+    from: '2026-10-01',
+    to: '2026-10-18',
+    branches: [
+      { branchId: 'a', branchName: 'DHA Branch', ...t, products: [] },
+      { branchId: 'b', branchName: 'Gulshan Branch', ...t, products: [] },
+      { branchId: 'c', branchName: 'Bahria Branch', ...t, products: [] },
+    ],
+    totals: t,
+    products: [],
+    branchesReporting: 2,
+    ...overrides,
+  };
+}
+
 describe('formatReturnsWindow', () => {
   it('states the server-reported window in full', () => {
     expect(formatReturnsWindow('2026-10-01', '2026-10-18')).toBe('1 October 2026 – 18 October 2026');
@@ -36,35 +54,52 @@ describe('formatReturnsWindow', () => {
 });
 
 describe('buildReturnsSummaryTiles', () => {
-  it('lays out the server figures without changing any of them', () => {
-    const tiles = buildReturnsSummaryTiles(totals(), LABELS);
+  it('lays out the server figures without changing any of them, in the web\'s order', () => {
+    const tiles = buildReturnsSummaryTiles(summary(), LABELS);
     expect(tiles.map((t) => [t.label, t.value])).toEqual([
       ['Total Returned Items', '11'],
-      ['All Submitted', 'Rs. 1,450'],
+      ['Total Return Amount', 'Rs. 1,450'],
+      ['Return Transactions', '6'],
       ['Approved', 'Rs. 650'],
       ['Awaiting Review', 'Rs. 300'],
       ['Rejected', 'Rs. 200'],
       ['Sent Back', 'Rs. 300'],
     ]);
-    expect(tiles[0]!.sub).toBe('6 returns');
-    expect(tiles[2]!.sub).toBe('4 items · 2 returns');
+    expect(tiles.find((t) => t.key === 'accepted')!.sub).toBe('4 items · 2 returns');
   });
 
-  it('keeps All Submitted and Approved as separate tiles', () => {
-    const tiles = buildReturnsSummaryTiles(totals(), LABELS);
-    const submitted = tiles.find((t) => t.key === 'submitted')!;
-    const approved = tiles.find((t) => t.key === 'accepted')!;
-    expect(submitted.value).not.toBe(approved.value);
-    expect(approved.tone).toBe('success');
+  it('adds Branches Reporting only on Production\'s all-branch view', () => {
+    expect(buildReturnsSummaryTiles(summary(), LABELS).some((t) => t.key === 'branches')).toBe(false);
+    const branches = buildReturnsSummaryTiles(summary(), LABELS, { showBranches: true }).find((t) => t.key === 'branches')!;
+    expect(branches.value).toBe('2');
+    expect(branches.sub).toBe('of 3 branches');
+  });
+
+  it('keeps the month\'s total and the Approved figure as separate tiles', () => {
+    const tiles = buildReturnsSummaryTiles(summary(), LABELS);
+    expect(tiles.find((t) => t.key === 'amount')!.value).not.toBe(tiles.find((t) => t.key === 'accepted')!.value);
+    expect(tiles.find((t) => t.key === 'accepted')!.tone).toBe('success');
   });
 
   it('an empty month is all zeros, not blanks', () => {
     const zero = { qty: 0, amount: 0, count: 0 };
-    const tiles = buildReturnsSummaryTiles(
-      { submitted: zero, pending: zero, accepted: zero, rejected: zero, returned: zero, unpricedCount: 0 },
-      LABELS,
-    );
-    expect(tiles.map((t) => t.value)).toEqual(['0', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Rs. 0']);
+    const empty = { submitted: zero, pending: zero, accepted: zero, rejected: zero, returned: zero, unpricedCount: 0 };
+    const tiles = buildReturnsSummaryTiles(summary(empty, { branchesReporting: 0 }), LABELS, { showBranches: true });
+    expect(tiles.map((t) => t.value)).toEqual(['0', 'Rs. 0', '0', '0', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Rs. 0']);
+  });
+});
+
+describe('describeReturnValue / describeProductLine', () => {
+  it('states a row\'s code, unit price on the day, quantity and amount', () => {
+    expect(describeReturnValue({ qty: 2, productCode: 'FP-01', unitPrice: 150, amount: 300 })).toBe('FP-01 · Rs. 150 × 2 = Rs. 300');
+  });
+
+  it('says a row has no price rather than showing Rs. 0', () => {
+    expect(describeReturnValue({ qty: 2, productCode: null, unitPrice: null, amount: null })).toBe('No price on record');
+  });
+
+  it('describes an item-wise line', () => {
+    expect(describeProductLine({ productId: 'p', productName: 'Lotus', productCode: null, qty: 5, amount: 750, count: 2 })).toBe('5 items · Rs. 750');
   });
 });
 

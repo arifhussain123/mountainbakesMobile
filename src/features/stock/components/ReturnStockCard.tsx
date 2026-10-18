@@ -4,6 +4,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, PhotoViewer, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
+import { describeReturnValue } from '../returnsSummary';
 
 export interface ReturnStockCardProps {
   item: BranchReturn;
@@ -55,6 +56,9 @@ export function ReturnStockCard({ item, onChange, onWithdraw }: ReturnStockCardP
           </View>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
             {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
+          </Text>
+          <Text style={[theme.typography.label, { color: theme.colors.text, marginTop: 2 }]} numberOfLines={1}>
+            {describeReturnValue(item)}
           </Text>
           {item.reason ? (
             <Text style={[theme.typography.bodySmall, { color: theme.colors.text, marginTop: 6 }]} numberOfLines={2}>

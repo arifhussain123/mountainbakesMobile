@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils';
-import type { ReturnsBucket, ReturnsSummaryTotals } from '@/api';
+import type { MonthlyReturnsSummary, ProductReturnsLine, ReturnsBucket, ReturnsSummaryTotals } from '@/api';
 
 /**
  * Layout helpers for the monthly Product Returns summary, shared by the
@@ -45,18 +45,31 @@ export function describeBucket(bucket: ReturnsBucket): string {
 }
 
 /**
- * The summary's tiles in display order: the month's whole volume, its whole
- * value, then one per status. "All Submitted" and the Approved tile stay
- * separate so a request still awaiting review is never read as a credited
- * return.
+ * The summary's tiles in display order — the same as the web's: the month's
+ * volume, value and transaction count (every status), Branches Reporting on
+ * Production's all-branch view, then one per status splitting that same total
+ * so a request still awaiting review is never read as a credited return.
  */
 export function buildReturnsSummaryTiles(
-  totals: ReturnsSummaryTotals,
+  summary: MonthlyReturnsSummary,
   statusLabels: Record<ReturnsSummaryStatus, string>,
+  { showBranches = false }: { showBranches?: boolean } = {},
 ): ReturnsSummaryTile[] {
+  const totals = summary.totals;
+  const branchCount = summary.branches.length;
   return [
-    { key: 'qty', label: 'Total Returned Items', value: totals.submitted.qty.toLocaleString('en-US'), sub: plural(totals.submitted.count), tone: 'neutral' },
-    { key: 'submitted', label: 'All Submitted', value: formatCurrency(totals.submitted.amount), sub: 'every status, this month', tone: 'neutral' },
+    { key: 'qty', label: 'Total Returned Items', value: totals.submitted.qty.toLocaleString('en-US'), sub: 'every status, this month', tone: 'neutral' },
+    { key: 'amount', label: 'Total Return Amount', value: formatCurrency(totals.submitted.amount), sub: 'at each day’s price', tone: 'neutral' },
+    { key: 'count', label: 'Return Transactions', value: totals.submitted.count.toLocaleString('en-US'), sub: 'one per product returned', tone: 'neutral' },
+    ...(showBranches
+      ? [{
+          key: 'branches',
+          label: 'Branches Reporting',
+          value: String(summary.branchesReporting),
+          sub: `of ${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}`,
+          tone: 'neutral' as const,
+        }]
+      : []),
     ...RETURNS_SUMMARY_STATUS_ORDER.map((status) => ({
       key: status,
       label: statusLabels[status],
@@ -65,6 +78,21 @@ export function buildReturnsSummaryTiles(
       tone: RETURNS_SUMMARY_STATUS_TONE[status],
     })),
   ];
+}
+
+/** "3 items · Rs. 450" for an item-wise line. */
+export function describeProductLine(line: ProductReturnsLine): string {
+  return `${line.qty.toLocaleString('en-US')} ${line.qty === 1 ? 'item' : 'items'} · ${formatCurrency(line.amount)}`;
+}
+
+/**
+ * One return row's value line, as the server priced it: "FP-01 · Rs. 150 × 2 =
+ * Rs. 300". A row with no price on record says so instead of showing Rs. 0.
+ */
+export function describeReturnValue(item: { qty: number; productCode?: string | null; unitPrice?: number | null; amount?: number | null }): string {
+  const code = item.productCode ? `${item.productCode} · ` : '';
+  if (item.unitPrice == null || item.amount == null) return `${code}No price on record`;
+  return `${code}${formatCurrency(item.unitPrice)} × ${item.qty.toLocaleString('en-US')} = ${formatCurrency(item.amount)}`;
 }
 
 /** The caveat line for returns with no price on record, or null when there are none. */
