@@ -109,8 +109,9 @@ export interface SalesAnalyticsPaymentMethod {
 }
 
 /**
- * Previous-period comparison, only present when the request passed
- * `compare: true`. `changePct`/`direction` are server-computed (never
+ * Previous-period comparison — `null` (not absent) unless the request passed
+ * `compare: true` and the window has days to compare (`comparisonFrom()` in
+ * `sales-analytics.service.ts` returns `null` otherwise). `changePct`/`direction` are server-computed (never
  * recomputed client-side) — `changePct` is `null` when the previous period had
  * zero sales, rather than a fabricated divide-by-zero percentage.
  */
@@ -132,7 +133,7 @@ export interface SalesAnalytics {
   daily: SalesAnalyticsDailyPoint[];
   topProducts: SalesAnalyticsTopProduct[];
   paymentMethods: SalesAnalyticsPaymentMethod[];
-  comparison?: SalesAnalyticsComparison;
+  comparison: SalesAnalyticsComparison | null;
   staffCount: number;
 }
 

@@ -23,6 +23,12 @@ describe('sharePct', () => {
   it('returns null when whole is negative', () => {
     expect(sharePct(100, -5)).toBeNull();
   });
+
+  it('returns null (never NaN) when either input is not a finite number', () => {
+    expect(sharePct(NaN, 100)).toBeNull();
+    expect(sharePct(undefined as unknown as number, 100)).toBeNull();
+    expect(sharePct(100, NaN)).toBeNull();
+  });
 });
 
 describe('barScalePct', () => {
@@ -42,6 +48,11 @@ describe('barScalePct', () => {
   it('returns 0 for a non-positive max', () => {
     expect(barScalePct(50, 0)).toBe(0);
   });
+
+  it('returns 0 (never NaN) for a non-finite value or max', () => {
+    expect(barScalePct(NaN, 200)).toBe(0);
+    expect(barScalePct(50, NaN)).toBe(0);
+  });
 });
 
 describe('completedOrders / orderCompletionPct', () => {
@@ -52,6 +63,11 @@ describe('completedOrders / orderCompletionPct', () => {
 
   it('never goes negative when pending+cancelled exceeds total', () => {
     expect(completedOrders(5, 4, 4)).toBe(0);
+  });
+
+  it('gives no donut percentage (null, not NaN) when there are no orders, or a count is missing', () => {
+    expect(orderCompletionPct(0, 0, 0)).toBeNull();
+    expect(orderCompletionPct(undefined as unknown as number, 0, 0)).toBeNull();
   });
 
   it('computes the donut percentage from completed/total', () => {

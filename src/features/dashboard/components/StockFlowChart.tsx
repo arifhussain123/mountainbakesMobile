@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
+import { formatCount } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 import { barScalePct } from '../calculations';
 
@@ -18,7 +19,7 @@ export function StockFlowChart({ row }: StockFlowChartProps) {
     { id: 'sold', label: 'SOLD', value: row.soldQty, color: theme.colors.danger },
     { id: 'remaining', label: 'REMAINING', value: row.balanceQty, color: theme.colors.primary },
   ];
-  const max = Math.max(1, ...bars.map((bar) => bar.value));
+  const max = Math.max(1, ...bars.map((bar) => (Number.isFinite(bar.value) ? bar.value : 0)));
 
   return (
     <Card>
@@ -28,7 +29,7 @@ export function StockFlowChart({ row }: StockFlowChartProps) {
       <View style={[styles.chart, { marginTop: theme.spacing.md, borderBottomColor: theme.colors.border }]}>
         {bars.map((bar) => (
           <View key={bar.id} style={styles.column}>
-            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{bar.value}</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCount(bar.value, `stockFlow.${bar.id}`)}</Text>
             <View
               style={[
                 styles.bar,

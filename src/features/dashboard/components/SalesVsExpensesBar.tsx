@@ -19,7 +19,7 @@ export interface SalesVsExpensesBarProps {
  */
 export function SalesVsExpensesBar({ dayLabel, sales, discounts, expenses, net }: SalesVsExpensesBarProps) {
   const theme = useAppTheme();
-  const max = Math.max(1, sales, discounts, expenses, Math.abs(net));
+  const max = Math.max(1, ...[sales, discounts, expenses, Math.abs(net)].filter(Number.isFinite));
 
   const rows = [
     { label: 'Sales', kind: 'TOTAL', value: sales, color: theme.colors.primary },
@@ -40,7 +40,7 @@ export function SalesVsExpensesBar({ dayLabel, sales, discounts, expenses, net }
               <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>
                 {row.label} <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{row.kind}</Text>
               </Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(row.value)}</Text>
+              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(row.value, `salesVsDeductions.${row.label}`)}</Text>
             </View>
             <View style={[styles.track, { backgroundColor: theme.colors.border, borderRadius: theme.radii.pill, marginTop: 6 }]}>
               <View

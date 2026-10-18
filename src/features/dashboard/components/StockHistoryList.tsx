@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { formatCurrency, formatDisplayDate, formatSigned } from '@/shared/utils';
+import { formatCount, formatCurrency, formatDisplayDate, formatSigned } from '@/shared/utils';
 import { computeStockHistoryRetAdj } from '../calculations';
 import type { BranchStockHistoryRow } from '@/api';
 
@@ -17,10 +17,10 @@ export function StockHistoryList({ rows }: StockHistoryListProps) {
       {rows.map((row) => {
         const retAdj = computeStockHistoryRetAdj(row);
         const cells = [
-          { id: 'prev', label: 'PREV', value: String(row.openingQty), color: theme.colors.text },
-          { id: 'new', label: 'NEW', value: String(row.newQty), color: theme.colors.success },
-          { id: 'sold', label: 'SOLD', value: String(row.soldQty), color: theme.colors.danger },
-          { id: 'adj', label: 'RET/ADJ', value: formatSigned(retAdj), color: theme.colors.violet },
+          { id: 'prev', label: 'PREV', value: formatCount(row.openingQty, 'stockHistory.openingQty'), color: theme.colors.text },
+          { id: 'new', label: 'NEW', value: formatCount(row.newQty, 'stockHistory.newQty'), color: theme.colors.success },
+          { id: 'sold', label: 'SOLD', value: formatCount(row.soldQty, 'stockHistory.soldQty'), color: theme.colors.danger },
+          { id: 'adj', label: 'RET/ADJ', value: Number.isFinite(retAdj) ? formatSigned(retAdj) : formatCount(retAdj, 'stockHistory.retAdj'), color: theme.colors.violet },
         ];
         return (
           <View
@@ -29,9 +29,9 @@ export function StockHistoryList({ rows }: StockHistoryListProps) {
             <View style={styles.headerRow}>
               <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatDisplayDate(row.date)}</Text>
               <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', textAlign: 'right' }]}>
-                {row.balanceQty}{' '}
+                {formatCount(row.balanceQty, 'stockHistory.balanceQty')}{' '}
                 <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, fontWeight: '400' }]}>
-                  left · {formatCurrency(row.balanceAmount)}
+                  left · {formatCurrency(row.balanceAmount, 'stockHistory.balanceAmount')}
                 </Text>
               </Text>
             </View>

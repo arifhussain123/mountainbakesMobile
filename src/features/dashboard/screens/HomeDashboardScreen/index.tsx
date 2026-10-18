@@ -17,7 +17,7 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, DateFilter, type DatePeriod, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { formatCount, formatCurrency, formatDisplayDate, formatDisplayTime, formatPercent } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
@@ -93,7 +93,13 @@ export function HomeDashboardScreen() {
   // "Branch" (not role) per the shared offline/db.ts comment: one SQLite "last
   // successful response" row per branch+period+date, overwritten on every
   // successful fetch, read back only while offline.
-  const cacheKey = `dashboard:${branchId}:${period}:${today}`;
+  //
+  // `v2`: payloads cached by builds that typed `/sales-analytics` under the
+  // wrong field names (`revenue`/`orders`, `totalRevenue`/`totalQty`) are a
+  // different shape — read back offline, every one of those fields is
+  // `undefined` ("Rs. NaN", "undefined orders"). Bumping the key means an
+  // old-shape row is simply never read; it is overwritten/ignored, not parsed.
+  const cacheKey = `dashboard:v2:${branchId}:${period}:${today}`;
   const [cached, setCached] = useState<{ data: DashboardCachePayload; updatedAt: number } | null>(null);
 
   useEffect(() => {
@@ -140,7 +146,7 @@ export function HomeDashboardScreen() {
       ? 'Comparing…'
       : comparison.changePct === null
         ? 'No prior period data'
-        : `${comparison.changePct >= 0 ? '+' : ''}${comparison.changePct.toFixed(1)}% vs previous period`;
+        : `${formatPercent(comparison.changePct, 'comparison.changePct', { signed: true })} vs previous period`;
   const comparisonDot = !compare || !comparison ? theme.colors.secondary : comparison.direction === 'down' ? theme.colors.danger : theme.colors.success;
 
   return (
@@ -176,7 +182,7 @@ export function HomeDashboardScreen() {
             <View style={styles.section}>
               <HeroSalesCard
                 periodLabel={PERIOD_LABEL[period]}
-                salesSub={`${data.summary.totalOrders} orders`}
+                salesSub={`${formatCount(data.summary.totalOrders, 'summary.totalOrders')} orders`}
                 sales={data.summary.totalRevenue}
                 netAmount={data.summary.totalProfit}
                 orders={data.summary.totalOrders}
@@ -193,10 +199,10 @@ export function HomeDashboardScreen() {
                 rows={(
                   [
                     data.summary.totalDiscount > 0
-                      ? { id: 'discounts', label: 'Discounts', sub: 'Applied today', value: formatCurrency(data.summary.totalDiscount), color: theme.colors.danger }
+                      ? { id: 'discounts', label: 'Discounts', sub: 'Applied today', value: formatCurrency(data.summary.totalDiscount, 'summary.totalDiscount'), color: theme.colors.danger }
                       : null,
                     data.summary.totalExpenses > 0
-                      ? { id: 'expenses', label: 'Expenses', sub: 'Logged today', value: formatCurrency(data.summary.totalExpenses), color: theme.colors.danger }
+                      ? { id: 'expenses', label: 'Expenses', sub: 'Logged today', value: formatCurrency(data.summary.totalExpenses, 'summary.totalExpenses'), color: theme.colors.danger }
                       : null,
                   ].filter(Boolean) as LabeledListRow[]
                 )}
@@ -212,8 +218,8 @@ export function HomeDashboardScreen() {
                   (point): LabeledListRow => ({
                     id: point.date,
                     label: formatDisplayDate(point.date),
-                    sub: `${point.transactions} orders`,
-                    value: formatCurrency(point.sales),
+                    sub: `${formatCount(point.transactions, 'daily.transactions')} orders`,
+                    value: formatCurrency(point.sales, 'daily.sales'),
                   }),
                 )}
               />
@@ -244,21 +250,21 @@ export function HomeDashboardScreen() {
               <DailyKpiGrid
                 kpis={(
                   [
-                    { id: 'today', label: "Today's Sales", value: formatCurrency(data.analytics.todaySales), sub: 'As of now', dot: theme.colors.primary },
-                    { id: 'total', label: 'Total Sales', value: formatCurrency(data.analytics.totalSales), sub: comparisonSub, dot: comparisonDot },
-                    { id: 'transactions', label: 'Transactions', value: String(data.analytics.totalTransactions), sub: 'This period', dot: theme.colors.info },
-                    { id: 'average', label: 'Avg Daily', value: formatCurrency(data.analytics.averageDailySales), sub: 'Per day', dot: theme.colors.success },
+                    { id: 'today', label: "Today's Sales", value: formatCurrency(data.analytics.todaySales, 'analytics.todaySales'), sub: 'As of now', dot: theme.colors.primary },
+                    { id: 'total', label: 'Total Sales', value: formatCurrency(data.analytics.totalSales, 'analytics.totalSales'), sub: comparisonSub, dot: comparisonDot },
+                    { id: 'transactions', label: 'Transactions', value: formatCount(data.analytics.totalTransactions, 'analytics.totalTransactions'), sub: 'This period', dot: theme.colors.info },
+                    { id: 'average', label: 'Avg Daily', value: formatCurrency(data.analytics.averageDailySales, 'analytics.averageDailySales'), sub: 'Per day', dot: theme.colors.success },
                     {
                       id: 'highest',
                       label: 'Highest Day',
-                      value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.sales) : '—',
+                      value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.sales, 'analytics.highestDay.sales') : '—',
                       sub: data.analytics.highestDay ? formatDisplayDate(data.analytics.highestDay.date) : 'No data',
                       dot: theme.colors.violet,
                     },
                     {
                       id: 'lowest',
                       label: 'Lowest Day',
-                      value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.sales) : '—',
+                      value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.sales, 'analytics.lowestDay.sales') : '—',
                       sub: data.analytics.lowestDay ? formatDisplayDate(data.analytics.lowestDay.date) : 'No data',
                       dot: theme.colors.danger,
                     },

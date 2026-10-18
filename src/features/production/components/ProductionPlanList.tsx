@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { formatPercent } from '@/shared/utils';
 import type { ProductionPlanRow } from '@/api';
 import { FilterChip } from './FilterChip';
 
@@ -86,7 +87,7 @@ export function ProductionPlanList({ rows }: ProductionPlanListProps) {
                   }}
                 />
               </View>
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{row.coverage}%</Text>
+              <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{formatPercent(row.coverage, 'plan.coverage', { digits: 0 })}</Text>
             </View>
           </View>
         ))}

@@ -1,12 +1,15 @@
 import type { BranchStockHistoryRow } from '@/api';
+import { percentOf } from '@/shared/utils';
 
 /**
- * `part` as a percentage of `whole`, or `null` when `whole` is zero/negative —
- * never a fabricated 0%. Mirrors the web client's `share()` (branch-v2/model.ts)
- * used for Expenses %/Discounts % of Sales and the Payment Methods mix.
+ * `part` as a percentage of `whole`, or `null` when `whole` is zero/negative
+ * (or either input isn't a finite number) — never a fabricated 0%, never NaN.
+ * Mirrors the web client's `share()` (branch-v2/model.ts) used for Expenses
+ * %/Discounts % of Sales and the Payment Methods mix. Delegates to the shared
+ * `percentOf` so every dashboard's percentages follow one rule.
  */
 export function sharePct(part: number, whole: number): number | null {
-  return whole > 0 ? (part / whole) * 100 : null;
+  return percentOf(part, whole);
 }
 
 /**

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
+import { barScalePct } from '../calculations';
 
 export interface SalesChartProps {
   data: SalesAnalyticsDailyPoint[];
@@ -15,24 +16,26 @@ export interface SalesChartProps {
 export function SalesChart({ data, average = 0 }: SalesChartProps) {
   const theme = useAppTheme();
   const [selectedIndex, setSelectedIndex] = useState(data.length - 1);
-  const highestSales = Math.max(1, ...data.map((d) => d.sales));
-  const maxSales = Math.max(highestSales, average);
+  // Non-finite values are left out of the scale (never `Math.max(…, NaN)` = NaN for every bar).
+  const highestSales = Math.max(1, ...data.map((d) => (Number.isFinite(d.sales) ? d.sales : 0)));
+  const maxSales = Number.isFinite(average) ? Math.max(highestSales, average) : highestSales;
   const selected = data[selectedIndex];
-  const averageLineBottomPct = average > 0 ? Math.min(96, (average / maxSales) * 100) : null;
+  const averageLineBottomPct = average > 0 ? Math.min(96, barScalePct(average, maxSales)) : null;
 
   return (
     <Card>
       <View style={styles.headerRow}>
         <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Daily Sales</Text>
         {average > 0 ? (
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Avg {formatCurrency(average)}</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Avg {formatCurrency(average, 'averageDailySales')}</Text>
         ) : null}
       </View>
       {selected ? (
         <View style={[styles.selectedRow, { backgroundColor: theme.colors.background, borderRadius: theme.radii.sm, marginTop: theme.spacing.sm }]}>
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatDisplayDate(selected.date)}</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>
-            {formatCurrency(selected.sales)} <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {selected.transactions} orders</Text>
+            {formatCurrency(selected.sales, 'daily.sales')}{' '}
+            <Text style={{ color: theme.colors.textSecondary, fontWeight: '400' }}>· {formatCount(selected.transactions, 'daily.transactions')} orders</Text>
           </Text>
         </View>
       ) : null}
@@ -41,7 +44,7 @@ export function SalesChart({ data, average = 0 }: SalesChartProps) {
           <View pointerEvents="none" style={[styles.averageLine, { bottom: `${averageLineBottomPct}%`, borderColor: theme.colors.textFaint }]} />
         ) : null}
         {data.map((point, index) => {
-          const heightPct = (point.sales / maxSales) * 100;
+          const heightPct = barScalePct(point.sales, maxSales);
           const active = index === selectedIndex;
           return (
             <Pressable
@@ -49,7 +52,7 @@ export function SalesChart({ data, average = 0 }: SalesChartProps) {
               onPress={() => setSelectedIndex(index)}
               style={styles.barColumn}
               accessibilityRole="button"
-              accessibilityLabel={`${formatDisplayDate(point.date)}, ${formatCurrency(point.sales)}, ${point.transactions} orders${
+              accessibilityLabel={`${formatDisplayDate(point.date)}, ${formatCurrency(point.sales, 'daily.sales')}, ${formatCount(point.transactions, 'daily.transactions')} orders${
                 point.sales === highestSales ? ', highest' : ''
               }`}>
               <View

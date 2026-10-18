@@ -41,18 +41,18 @@ export function FinanceDashboardScreen() {
         ) : data ? (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.section} contentContainerStyle={{ gap: theme.spacing.sm }}>
-              <StatCard label="Today's Income" value={formatCurrency(data.todayIncome)} valueColor={theme.colors.success} />
-              <StatCard label="Today's Expenses" value={formatCurrency(data.todayExpenses)} valueColor={theme.colors.danger} />
-              <StatCard label="Net Cash Balance" value={formatCurrency(data.netCashBalance)} />
-              <StatCard label="Company Share" value={formatCurrency(data.companyShare)} />
-              <StatCard label="Branch Share" value={formatCurrency(data.branchShare)} />
+              <StatCard label="Today's Income" value={formatCurrency(data.todayIncome, 'todayIncome')} valueColor={theme.colors.success} />
+              <StatCard label="Today's Expenses" value={formatCurrency(data.todayExpenses, 'todayExpenses')} valueColor={theme.colors.danger} />
+              <StatCard label="Net Cash Balance" value={formatCurrency(data.netCashBalance, 'netCashBalance')} />
+              <StatCard label="Company Share" value={formatCurrency(data.companyShare, 'companyShare')} />
+              <StatCard label="Branch Share" value={formatCurrency(data.branchShare, 'branchShare')} />
             </ScrollView>
 
             <Card style={styles.section}>
               <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Cash &amp; Bank</Text>
               <View style={[styles.row, { marginTop: theme.spacing.md }]}>
-                <StatCard label="Cash in Hand" value={formatCurrency(data.cashInHand)} />
-                <StatCard label="Bank" value={formatCurrency(data.bankBalance)} />
+                <StatCard label="Cash in Hand" value={formatCurrency(data.cashInHand, 'cashInHand')} />
+                <StatCard label="Bank" value={formatCurrency(data.bankBalance, 'bankBalance')} />
               </View>
             </Card>
 
@@ -62,12 +62,12 @@ export function FinanceDashboardScreen() {
                 <View style={[styles.row, { marginTop: theme.spacing.md }]}>
                   <StatCard
                     label={`Income (${data.pendingIncomeApprovals})`}
-                    value={formatCurrency(data.pendingIncomeAmount)}
+                    value={formatCurrency(data.pendingIncomeAmount, 'pendingIncomeAmount')}
                     valueColor={theme.colors.warning}
                   />
                   <StatCard
                     label={`Expense (${data.pendingExpenseApprovals})`}
-                    value={formatCurrency(data.pendingExpenseAmount)}
+                    value={formatCurrency(data.pendingExpenseAmount, 'pendingExpenseAmount')}
                     valueColor={theme.colors.warning}
                   />
                 </View>

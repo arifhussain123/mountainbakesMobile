@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
-import { formatCurrency } from '@/shared/utils';
+import { formatCount, formatCurrency } from '@/shared/utils';
 
 export interface HeroSalesCardProps {
   /** e.g. "Today", "This Week", "This Month" — the active `DateFilter` label. */
@@ -29,19 +29,19 @@ export function HeroSalesCard({ periodLabel, salesSub, sales, netAmount, orders,
         <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primaryText }]}>{salesSub}</Text>
       </View>
       <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, fontSize: 36, marginTop: theme.spacing.sm }]}>
-        {formatCurrency(sales)}
+        {formatCurrency(sales, 'sales')}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
         <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Net Amount</Text>
-          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(netAmount)}</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(netAmount, 'netAmount')}</Text>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.text, opacity: 0.75, marginTop: 2 }]}>Sales – Expenses</Text>
         </View>
         <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Orders</Text>
-          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{orders}</Text>
+          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCount(orders, 'orders')}</Text>
           <Text style={[theme.typography.label, { color: ON_DARK_CHIP.text, opacity: 0.75, marginTop: 2 }]}>
-            {pending} pending · {cancelled} cancelled
+            {formatCount(pending, 'pending')} pending · {formatCount(cancelled, 'cancelled')} cancelled
           </Text>
         </View>
       </View>

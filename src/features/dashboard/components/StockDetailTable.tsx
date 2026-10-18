@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
-import { formatCurrency, formatDisplayDate } from '@/shared/utils';
+import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 
 export interface StockDetailTableProps {
@@ -38,8 +38,8 @@ export function StockDetailTable({ row, date, agrees, unexplained }: StockDetail
             <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{item.label}</Text>
             <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{displayDate}</Text>
           </View>
-          <Text style={[theme.typography.body, styles.qtyCell, { color: item.color, fontWeight: '700' }]}>{item.q}</Text>
-          <Text style={[theme.typography.bodySmall, styles.amtCell, { color: item.color, fontWeight: '700' }]}>{formatCurrency(item.a)}</Text>
+          <Text style={[theme.typography.body, styles.qtyCell, { color: item.color, fontWeight: '700' }]}>{formatCount(item.q, `stockDetail.${item.id}Qty`)}</Text>
+          <Text style={[theme.typography.bodySmall, styles.amtCell, { color: item.color, fontWeight: '700' }]}>{formatCurrency(item.a, `stockDetail.${item.id}Amount`)}</Text>
         </View>
       ))}
       <View style={styles.footer}>
@@ -50,7 +50,7 @@ export function StockDetailTable({ row, date, agrees, unexplained }: StockDetail
           </>
         ) : (
           <Text style={[theme.typography.label, { color: theme.colors.warning, fontWeight: '700' }]}>
-            ⚠ Stock Difference Detected — {unexplained} unexplained
+            ⚠ Stock Difference Detected — {formatCount(unexplained, 'reconciliation.unexplained')} unexplained
           </Text>
         )}
       </View>

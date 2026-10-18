@@ -1,7 +1,28 @@
 /**
  * @format
  */
-import { formatCurrency, formatDisplayDate, formatDisplayTime, formatRelativeTime, formatSigned } from '@/shared/utils';
+import {
+  formatCount,
+  formatCurrency,
+  formatDisplayDate,
+  formatDisplayTime,
+  formatPercent,
+  formatRelativeTime,
+  formatSigned,
+  percentChange,
+  percentOf,
+} from '@/shared/utils';
+
+// Rejected values log a dev-only `console.warn` (once per formatter+field).
+// Silenced for the whole file so the expected warnings don't clutter output;
+// the tests that care about the warning assert on this spy directly.
+let warnSpy: jest.SpyInstance;
+beforeEach(() => {
+  warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterEach(() => {
+  warnSpy.mockRestore();
+});
 
 describe('formatCurrency', () => {
   it('formats a whole number with thousands separators', () => {
@@ -64,6 +85,144 @@ describe('formatCurrency', () => {
   it('formats a numeric string the same as its number equivalent', () => {
     expect(formatCurrency('34050')).toBe('Rs. 34,050');
     expect(formatCurrency('19387.5')).toBe('Rs. 19,387.5');
+  });
+
+  it('returns "-" (never "Rs. NaN") for a rejected value even when a field name is passed', () => {
+    expect(formatCurrency(undefined, 'sales')).toBe('-');
+    expect(formatCurrency(NaN, 'net')).toBe('-');
+    expect(formatCurrency(null, 'expenses')).toBe('-');
+  });
+
+  it('warns in dev with the field name when it rejects a value', () => {
+    formatCurrency(undefined, 'warnTest.sales');
+    expect(warnSpy).toHaveBeenCalledWith('[formatCurrency] non-numeric value for "warnTest.sales": undefined');
+  });
+
+  it('shows a rejected string value quoted in the warning', () => {
+    formatCurrency('abc', 'warnTest.stringAmount');
+    expect(warnSpy).toHaveBeenCalledWith('[formatCurrency] non-numeric value for "warnTest.stringAmount": "abc"');
+  });
+
+  it('warns only once per field, however many times it is rejected', () => {
+    formatCurrency(NaN, 'warnTest.once');
+    formatCurrency(NaN, 'warnTest.once');
+    formatCurrency(undefined, 'warnTest.once');
+    expect(warnSpy.mock.calls.filter(([msg]) => String(msg).includes('"warnTest.once"'))).toHaveLength(1);
+  });
+
+  it('does not warn for a valid amount', () => {
+    formatCurrency(34050, 'warnTest.valid');
+    formatCurrency('19387.5', 'warnTest.valid');
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not warn outside __DEV__', () => {
+    const g = globalThis as unknown as { __DEV__: boolean };
+    const previous = g.__DEV__;
+    g.__DEV__ = false;
+    try {
+      expect(formatCurrency(undefined, 'warnTest.prod')).toBe('-');
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      g.__DEV__ = previous;
+    }
+  });
+});
+
+describe('formatCount', () => {
+  it('formats a finite count as plain digits', () => {
+    expect(formatCount(43)).toBe('43');
+    expect(formatCount(0)).toBe('0');
+    expect(formatCount(-7)).toBe('-7');
+    expect(formatCount('12')).toBe('12');
+  });
+
+  it('returns "-" (never "NaN"/"undefined") for null/undefined/NaN/Infinity/""', () => {
+    expect(formatCount(undefined)).toBe('-');
+    expect(formatCount(null)).toBe('-');
+    expect(formatCount(NaN)).toBe('-');
+    expect(formatCount(Infinity)).toBe('-');
+    expect(formatCount('')).toBe('-');
+  });
+
+  it('warns in dev with the field name when it rejects a value', () => {
+    formatCount(undefined, 'warnTest.transactions');
+    expect(warnSpy).toHaveBeenCalledWith('[formatCount] non-numeric value for "warnTest.transactions": undefined');
+  });
+});
+
+describe('formatPercent', () => {
+  it('formats to one decimal place by default', () => {
+    expect(formatPercent(6.9603)).toBe('7.0%');
+    expect(formatPercent(28)).toBe('28.0%');
+  });
+
+  it('honours digits', () => {
+    expect(formatPercent(97.6, undefined, { digits: 0 })).toBe('98%');
+  });
+
+  it('prefixes "+" only on a positive value when signed', () => {
+    expect(formatPercent(12.5, undefined, { signed: true })).toBe('+12.5%');
+    expect(formatPercent(-3.2, undefined, { signed: true })).toBe('-3.2%');
+    expect(formatPercent(0, undefined, { signed: true })).toBe('0.0%');
+  });
+
+  it('returns "-" for null (no base) without warning — a deliberate "no percentage"', () => {
+    expect(formatPercent(null, 'warnTest.nullPct')).toBe('-');
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns "-" (never "NaN%"/"Infinity%") for undefined/NaN/Infinity, and warns with the field name', () => {
+    expect(formatPercent(undefined)).toBe('-');
+    expect(formatPercent(Infinity)).toBe('-');
+    expect(formatPercent(NaN, 'warnTest.share')).toBe('-');
+    expect(warnSpy).toHaveBeenCalledWith('[formatPercent] non-numeric value for "warnTest.share": NaN');
+  });
+});
+
+describe('percentOf', () => {
+  it('computes part as a percentage of whole', () => {
+    expect(percentOf(37, 40)).toBeCloseTo(92.5, 5);
+  });
+
+  it('returns null (not NaN/Infinity, not a fabricated 0) when the base is 0', () => {
+    expect(percentOf(100, 0)).toBeNull();
+    expect(percentOf(0, 0)).toBeNull();
+  });
+
+  it('returns null for a negative base', () => {
+    expect(percentOf(5, -10)).toBeNull();
+  });
+
+  it('returns null for a non-finite input', () => {
+    expect(percentOf(NaN, 10)).toBeNull();
+    expect(percentOf(undefined as unknown as number, 10)).toBeNull();
+    expect(percentOf(10, Infinity)).toBeNull();
+  });
+
+  it('renders as "-" for a 0 base through formatPercent', () => {
+    expect(formatPercent(percentOf(2370, 0))).toBe('-');
+  });
+});
+
+describe('percentChange', () => {
+  it('computes the change against the previous figure', () => {
+    expect(percentChange(120, 100)).toBeCloseTo(20, 5);
+    expect(percentChange(80, 100)).toBeCloseTo(-20, 5);
+  });
+
+  it('is 0 when both figures are 0 (nothing changed)', () => {
+    expect(percentChange(0, 0)).toBe(0);
+  });
+
+  it('is null (never Infinity) when the previous figure is 0 and the current is not', () => {
+    expect(percentChange(50, 0)).toBeNull();
+    expect(formatPercent(percentChange(50, 0))).toBe('-');
+  });
+
+  it('is null for a non-finite input', () => {
+    expect(percentChange(NaN, 10)).toBeNull();
+    expect(percentChange(10, undefined as unknown as number)).toBeNull();
   });
 });
 

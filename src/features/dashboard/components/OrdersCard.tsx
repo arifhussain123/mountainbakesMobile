@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
+import { formatCount } from '@/shared/utils';
 import { completedOrders, orderCompletionPct } from '../calculations';
 
 export interface OrdersCardProps {
@@ -57,7 +58,7 @@ export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
         {rows.map((row, index) => (
           <View key={row.label} style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
             <Text style={[theme.typography.body, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '800' }]}>{row.value}</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '800' }]}>{formatCount(row.value, `orders.${row.label}`)}</Text>
           </View>
         ))}
       </View>

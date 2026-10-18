@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
-import { formatCurrency } from '@/shared/utils';
+import { formatCount, formatCurrency, formatPercent } from '@/shared/utils';
 import type { SalesAnalyticsPaymentMethod } from '@/api';
 import { sharePct } from '../calculations';
 
@@ -46,7 +46,7 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
                     },
                   ]}>
                   <Text style={[theme.typography.label, { color: ON_DARK_CHIP.fill, fontWeight: '700' }]} numberOfLines={1}>
-                    {pct.toFixed(1)}%
+                    {formatPercent(pct, 'paymentMethods.share')}
                   </Text>
                 </View>
               );
@@ -68,10 +68,10 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
                     {method.method}
                   </Text>
                   <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-                    {method.count} sales · {pct.toFixed(1)}%
+                    {formatCount(method.count, 'paymentMethods.count')} sales · {formatPercent(pct, 'paymentMethods.share')}
                   </Text>
                 </View>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(method.total)}</Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(method.total, 'paymentMethods.total')}</Text>
               </View>
             );
           })}
