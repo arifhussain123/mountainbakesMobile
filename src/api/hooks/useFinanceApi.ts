@@ -159,10 +159,11 @@ export function useRejectFinanceTransaction() {
 
 // ─── Daily Closing (18) ──────────────────────────────────────────────────────
 
-export function useDayClosing(businessDate?: string) {
+export function useDayClosing(businessDate?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.dayClosing(businessDate),
     queryFn: () => financeService.getDayClosing(businessDate),
+    enabled: options?.enabled,
   });
 }
 

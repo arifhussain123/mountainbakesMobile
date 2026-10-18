@@ -1,8 +1,8 @@
 import type { SessionUser, UserRole } from '@/api/types';
 import { branchScopeLabel } from '@/shared/utils';
 import { useAuthStore } from '@/state';
-import { computeBranchBadges, computeNoBadges, computeProductionBadges, type NavBadges } from './navBadgeCounts';
-import { BRANCH_NAV_ITEMS, PRODUCTION_NAV_ITEMS, type NavItem } from './navItems';
+import { computeBranchBadges, computeFinanceBadges, computeNoBadges, computeProductionBadges, type NavBadges } from './navBadgeCounts';
+import { BRANCH_NAV_ITEMS, FINANCE_NAV_ITEMS, PRODUCTION_NAV_ITEMS, type NavItem } from './navItems';
 import { Routes } from './routes';
 import { BRANCH_TAB_ITEMS, PRODUCTION_TAB_ITEMS, type TabItem } from './tabItems';
 
@@ -11,7 +11,7 @@ export type ShellRoute = typeof Routes.DRAWER | typeof Routes.PRODUCTION_DRAWER 
 
 export interface RoleShell {
   route: ShellRoute;
-  /** Drawer menu. Empty for a shell that draws its own (Finance). */
+  /** Drawer menu. */
   navItems: NavItem[];
   /** Notch tab bar slots. Empty for a shell that uses its own tab bar (Finance). */
   tabItems: TabItem[];
@@ -23,9 +23,25 @@ export interface RoleShell {
   hideSectionLabelsWhenShort: boolean;
 }
 
-const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '', hideSectionLabelsWhenShort: false };
-const FINANCE_SHELL: RoleShell = { route: Routes.FINANCE_DRAWER, ...NO_MENU };
-const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, ...NO_MENU };
+// The four finance roles share one menu across every branch (only
+// `branch_manager` is branch-scoped on the server). Finance keeps its own
+// stock bottom-tab bar (`FinanceBottomTabNavigator`), so no notch tab items.
+const FINANCE_SHELL: RoleShell = {
+  route: Routes.FINANCE_DRAWER,
+  navItems: FINANCE_NAV_ITEMS,
+  tabItems: [],
+  computeBadges: computeFinanceBadges,
+  contextLine: (user) => `Finance · ${branchScopeLabel(user)}`,
+  hideSectionLabelsWhenShort: true,
+};
+const UNSUPPORTED_SHELL: RoleShell = {
+  route: Routes.UNSUPPORTED_ROLE,
+  navItems: [],
+  tabItems: [],
+  computeBadges: computeNoBadges,
+  contextLine: () => '',
+  hideSectionLabelsWhenShort: false,
+};
 
 /**
  * Every role-dependent navigation decision, keyed by the role the server put on

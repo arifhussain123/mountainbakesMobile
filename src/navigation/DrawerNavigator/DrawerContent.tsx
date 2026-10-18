@@ -36,7 +36,7 @@ function getFocusedChain(state: AnyNavState | undefined): string[] {
  * `DrawerScreenCard`, rendered around every screen, not here — this
  * component only ever renders the menu side).
  *
- * Shared by every shell that uses the slide-back drawer (Branch, Production):
+ * Shared by every role's shell (Branch, Production, Finance):
  * the items, badges and branch line all come from the signed-in role's shell
  * (`roleShells.ts`), so this component never checks a role itself.
  */
@@ -101,6 +101,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
                   icon={item.icon}
                   active={index === activeIndex}
                   badgeCount={item.badgeSource ? badges[item.badgeSource] : undefined}
+                  badgeDot={item.badgeDot}
                   onPress={() => item.navigate(navigation)}
                 />
               </View>

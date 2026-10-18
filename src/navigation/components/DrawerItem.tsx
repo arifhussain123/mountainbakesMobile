@@ -10,6 +10,8 @@ export interface DrawerItemProps {
   active: boolean;
   badgeCount?: number;
   failedSync?: boolean;
+  /** Show `badgeCount` as an amber dot (a state, e.g. "day still open") instead of a number. */
+  badgeDot?: boolean;
   onPress: () => void;
   /** Red tint tile/icon/label — the Logout row only. */
   destructive?: boolean;
@@ -20,9 +22,9 @@ export interface DrawerItemProps {
  * label, no per-item divider or trailing chevron (removed per this
  * redesign — section hairlines do that job now, see `DrawerContent`).
  */
-export function DrawerItem({ label, icon, active, badgeCount, failedSync, onPress, destructive }: DrawerItemProps) {
+export function DrawerItem({ label, icon, active, badgeCount, failedSync, badgeDot, onPress, destructive }: DrawerItemProps) {
   const theme = useAppTheme();
-  const badgeLabel = badgeCount ? `, ${badgeCount} need action` : '';
+  const badgeLabel = badgeCount ? (badgeDot ? ', needs attention' : `, ${badgeCount} need action`) : '';
   const tileBg = destructive ? `${theme.colors.danger}1F` : active ? theme.colors.primary : theme.colors.surface;
   const iconColor = destructive ? theme.colors.danger : active ? theme.colors.background : theme.colors.text;
   const textColor = destructive ? theme.colors.danger : theme.colors.text;
@@ -51,7 +53,15 @@ export function DrawerItem({ label, icon, active, badgeCount, failedSync, onPres
         ellipsizeMode="tail">
         {label}
       </Text>
-      {failedSync ? <NavBadge count={0} dot /> : badgeCount ? <NavBadge count={badgeCount} /> : null}
+      {failedSync ? (
+        <NavBadge count={0} dot />
+      ) : badgeCount ? (
+        badgeDot ? (
+          <NavBadge count={0} dot dotTone="warning" />
+        ) : (
+          <NavBadge count={badgeCount} />
+        )
+      ) : null}
     </Pressable>
   );
 }

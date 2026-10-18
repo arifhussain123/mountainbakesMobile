@@ -3,7 +3,7 @@
  */
 import { queryClient, queryKeys } from '@/api';
 import type { BranchDiscountListResponse, ProductionOrderListResponse, ProductionStockListResponse } from '@/api';
-import { computeBranchBadges, computeProductionBadges } from '@/navigation/navBadgeCounts';
+import { FINANCE_PENDING_TRANSFERS_QUERY, computeBranchBadges, computeFinanceBadges, computeProductionBadges } from '@/navigation/navBadgeCounts';
 import type { NavItem } from '@/navigation/navItems';
 import { ROLE_SHELLS, getRoleShell } from '@/navigation/roleShells';
 import { Routes } from '@/navigation/routes';
@@ -11,6 +11,12 @@ import { Routes } from '@/navigation/routes';
 const PRODUCTION_ROUTES = new Set(
   Object.entries(Routes)
     .filter(([key]) => key.startsWith('PRODUCTION_'))
+    .map(([, name]) => name as string),
+);
+
+const FINANCE_ROUTES = new Set(
+  Object.entries(Routes)
+    .filter(([key]) => key.startsWith('FINANCE_'))
     .map(([, name]) => name as string),
 );
 
@@ -37,6 +43,7 @@ describe('drawer context line and section labels', () => {
   it('shows the branch for a Branch Manager and the scope for a Production User', () => {
     expect(getRoleShell('branch_manager').contextLine({ role: 'branch_manager', branchName: 'Committee Chowk' })).toBe('Committee Chowk');
     expect(getRoleShell('production_user').contextLine({ role: 'production_user', branchName: null })).toBe('Production · All branches');
+    expect(getRoleShell('finance_admin').contextLine({ role: 'finance_admin', branchName: null })).toBe('Finance · All branches');
   });
 
   it('only Production drops section labels on short screens; Branch keeps its current behaviour', () => {
@@ -61,6 +68,16 @@ describe('role separation', () => {
       for (const route of targetsOf(item)) expect(PRODUCTION_ROUTES.has(route)).toBe(true);
     }
     for (const tab of production.tabItems) if (tab.route) expect(PRODUCTION_ROUTES.has(tab.route)).toBe(true);
+  });
+
+  it('every finance role gets the same Finance menu, which only ever offers Finance screens (or Coming Soon for Approvals)', () => {
+    const finance = ROLE_SHELLS.finance_admin!;
+    for (const role of ['finance_manager', 'accountant', 'finance_auditor'] as const) expect(ROLE_SHELLS[role]).toBe(finance);
+    for (const item of finance.navItems) {
+      for (const route of targetsOf(item)) expect(FINANCE_ROUTES.has(route) || route === Routes.COMING_SOON).toBe(true);
+    }
+    const branchRoutes = new Set([...branch.navItems, ...production.navItems].flatMap(targetsOf));
+    expect(finance.navItems.flatMap(targetsOf).filter((r) => branchRoutes.has(r))).toEqual([]);
   });
 
   it('the two shells share no route at all', () => {
@@ -105,6 +122,33 @@ describe('nav badges', () => {
     const badges = computeProductionBadges();
     expect(badges.returns).toBe(4);
     expect(badges).not.toHaveProperty('discounts');
+  });
+
+  it('Finance: Approvals and Cash Transfers are counts, Help Desk is the Waiting-for-Finance bucket', () => {
+    queryClient.setQueryData(queryKeys.pendingApprovals(), [{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+    queryClient.setQueryData(queryKeys.financeCashTransfers(FINANCE_PENDING_TRANSFERS_QUERY), { transfers: [{}], total: 5 });
+    queryClient.setQueryData(queryKeys.financeTicketStats(), { waiting: 2, open: 9 });
+    const badges = computeFinanceBadges();
+    expect(badges).toMatchObject({ approvals: 3, cashTransfers: 5, helpDesk: 2 });
+    // Finance never reads the Branch/Production queues.
+    expect(badges).not.toHaveProperty('orders');
+  });
+
+  it("Finance: Daily Closing's dot shows only while the server's business day is still open", () => {
+    queryClient.setQueryData(queryKeys.financeDashboard(), { businessDate: '2026-10-18' });
+    queryClient.setQueryData(queryKeys.dayClosing('2026-10-17'), { status: 'open' });
+    expect(computeFinanceBadges()).not.toHaveProperty('dailyClosing');
+    queryClient.setQueryData(queryKeys.dayClosing('2026-10-18'), { status: 'open' });
+    expect(computeFinanceBadges().dailyClosing).toBe(1);
+    queryClient.setQueryData(queryKeys.dayClosing('2026-10-18'), { status: 'closed' });
+    expect(computeFinanceBadges()).not.toHaveProperty('dailyClosing');
+  });
+
+  it("Finance: Settings' warning dot follows \"Allow Super Admin to modify finance records\"", () => {
+    queryClient.setQueryData(queryKeys.financeSettings(), { allowSuperAdminWrite: false });
+    expect(computeFinanceBadges()).not.toHaveProperty('financeSettings');
+    queryClient.setQueryData(queryKeys.financeSettings(), { allowSuperAdminWrite: true });
+    expect(computeFinanceBadges().financeSettings).toBe(1);
   });
 
   it("neither role reads the other's queues", () => {

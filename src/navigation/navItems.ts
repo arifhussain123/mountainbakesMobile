@@ -1,7 +1,19 @@
 import type { IconName } from '@/shared/ui';
 import { Routes } from './routes';
 
-export type NavBadgeSource = 'orders' | 'discounts' | 'events' | 'dailySale' | 'helpDesk' | 'returns' | 'productionStock' | null;
+export type NavBadgeSource =
+  | 'orders'
+  | 'discounts'
+  | 'events'
+  | 'dailySale'
+  | 'helpDesk'
+  | 'returns'
+  | 'productionStock'
+  | 'approvals'
+  | 'cashTransfers'
+  | 'dailyClosing'
+  | 'financeSettings'
+  | null;
 
 type DrawerNavigation = { navigate: (...args: never[]) => void; closeDrawer: () => void };
 
@@ -9,8 +21,10 @@ export interface NavItem {
   key: string;
   label: string;
   icon: IconName;
-  group: 'overview' | 'main' | 'work' | 'money' | 'endOfDay' | 'planning' | 'insights' | 'support';
+  group: 'overview' | 'main' | 'work' | 'money' | 'endOfDay' | 'planning' | 'insights' | 'support' | 'books' | 'people' | 'partners' | 'setup';
   badgeSource: NavBadgeSource;
+  /** Show the badge as an amber dot (a state, not a count) rather than a number. */
+  badgeDot?: boolean;
   /** Navigates via the drawer navigation prop. Kept here (not inlined in DrawerContent) so item order/config stays data, not UI code. */
   navigate: (navigation: DrawerNavigation) => void;
   /**
@@ -263,6 +277,162 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const openComingSoon = (title: string) => (navigation: DrawerNavigation) => {
+  navigation.closeDrawer();
+  (navigation.navigate as (name: string, params?: unknown) => void)(Routes.COMING_SOON, { title });
+};
+
+/**
+ * The four finance roles' menu (finance_admin/finance_manager/accountant/
+ * finance_auditor share one shell — the server gates each finance endpoint by
+ * `requireFinance(permission)`, and the screens themselves hide the write
+ * actions a role can't take). Labels stay one line, so the web's "Company
+ * Transaction Details" is shortened here; the screen keeps the full title.
+ *
+ * Approvals has no mobile inbox yet (`GET /finance/pending-approvals` is
+ * wired, the screen isn't), so it opens Coming Soon while its badge still
+ * shows the real pending count.
+ */
+export const FINANCE_NAV_ITEMS: NavItem[] = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: 'dashboard-grid',
+    group: 'overview',
+    badgeSource: null,
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_DASHBOARD_TAB),
+    activeMatch: { root: Routes.FINANCE_DASHBOARD_TAB },
+  },
+  {
+    key: 'approvals',
+    label: 'Approvals',
+    icon: 'inbox-check',
+    group: 'overview',
+    badgeSource: 'approvals',
+    navigate: openComingSoon('Approvals'),
+    activeMatch: { root: Routes.COMING_SOON },
+  },
+  {
+    key: 'dailyLedger',
+    label: 'Daily Ledger',
+    icon: 'book-open',
+    group: 'books',
+    badgeSource: null,
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_LEDGER_TAB),
+    activeMatch: { root: Routes.FINANCE_LEDGER_TAB },
+  },
+  {
+    key: 'cashTransfers',
+    label: 'Cash Transfers',
+    icon: 'banknote',
+    group: 'books',
+    badgeSource: 'cashTransfers',
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_CASH_TRANSFERS_TAB),
+    activeMatch: { root: Routes.FINANCE_CASH_TRANSFERS_TAB },
+  },
+  {
+    key: 'incomeExpense',
+    label: 'Income & Expense',
+    icon: 'wallet',
+    group: 'books',
+    badgeSource: null,
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_INCOME_EXPENSE_TAB),
+    activeMatch: { root: Routes.FINANCE_INCOME_EXPENSE_TAB },
+  },
+  {
+    key: 'dailyClosing',
+    label: 'Daily Closing',
+    icon: 'calendar-check',
+    group: 'books',
+    badgeSource: 'dailyClosing',
+    badgeDot: true,
+    navigate: goToStack(Routes.FINANCE_CLOSING_STACK),
+    activeMatch: { root: Routes.FINANCE_CLOSING_STACK },
+  },
+  {
+    key: 'payroll',
+    label: 'Payroll',
+    icon: 'user-coin',
+    group: 'people',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_PAYROLL_STACK, Routes.FINANCE_PAYROLL_LIST),
+    activeMatch: { root: Routes.FINANCE_PAYROLL_STACK, exceptLeaves: [Routes.FINANCE_SALARY_LEDGER] },
+  },
+  {
+    key: 'salaryLedger',
+    label: 'Salary Ledger',
+    icon: 'table',
+    group: 'people',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_PAYROLL_STACK, Routes.FINANCE_SALARY_LEDGER),
+    activeMatch: { root: Routes.FINANCE_PAYROLL_STACK, leaf: Routes.FINANCE_SALARY_LEDGER },
+  },
+  {
+    key: 'partnerTransactions',
+    label: 'Partner Transactions',
+    icon: 'handshake',
+    group: 'partners',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_PARTNERS_STACK),
+    activeMatch: { root: Routes.FINANCE_PARTNERS_STACK },
+  },
+  {
+    key: 'companyTransactions',
+    label: 'Company Transactions',
+    icon: 'bank',
+    group: 'partners',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK),
+    activeMatch: { root: Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK },
+  },
+  {
+    key: 'ledgerHeads',
+    label: 'Ledger Heads',
+    icon: 'list-indent',
+    group: 'setup',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_LEDGER_HEADS_STACK),
+    activeMatch: { root: Routes.FINANCE_LEDGER_HEADS_STACK },
+  },
+  {
+    key: 'reports',
+    label: 'Reports',
+    icon: 'bar-chart',
+    group: 'setup',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_REPORTS_STACK),
+    activeMatch: { root: Routes.FINANCE_REPORTS_STACK },
+  },
+  {
+    key: 'auditTrail',
+    label: 'Audit Trail',
+    icon: 'shield-check',
+    group: 'setup',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_AUDIT_TRAIL_STACK),
+    activeMatch: { root: Routes.FINANCE_AUDIT_TRAIL_STACK },
+  },
+  {
+    key: 'helpDesk',
+    label: 'Help Desk',
+    icon: 'headset',
+    group: 'setup',
+    badgeSource: 'helpDesk',
+    navigate: goToStack(Routes.FINANCE_HELP_DESK_STACK),
+    activeMatch: { root: Routes.FINANCE_HELP_DESK_STACK },
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: 'settings',
+    group: 'setup',
+    badgeSource: 'financeSettings',
+    badgeDot: true,
+    navigate: goToStack(Routes.FINANCE_SETTINGS_STACK),
+    activeMatch: { root: Routes.FINANCE_SETTINGS_STACK },
+  },
+];
+
 /** True when the focused-route chain (see `DrawerContent.getFocusedChain`) means this item is the active one. */
 export function isNavItemActive(item: NavItem, chain: string[]): boolean {
   if (!chain.includes(item.activeMatch.root)) return false;
@@ -281,6 +451,10 @@ export const GROUP_LABEL: Record<NavItem['group'], string> = {
   planning: 'Planning',
   insights: 'Insights',
   support: 'Support',
+  books: 'Books',
+  people: 'People',
+  partners: 'Partners',
+  setup: 'Setup & review',
 };
 
 /** The "3D slide-back" drawer redesign groups items under section labels (MAIN/MONEY/END OF DAY/PLANNING/SUPPORT) — flip back to `false` to return to a flat list. */

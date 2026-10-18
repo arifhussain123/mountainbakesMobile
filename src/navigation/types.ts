@@ -174,6 +174,7 @@ export type FinanceDrawerParamList = {
   [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
   [Routes.FINANCE_HELP_DESK_STACK]: NavigatorScreenParams<FinanceHelpDeskStackParamList> | undefined;
   [Routes.FINANCE_SETTINGS_STACK]: undefined;
+  [Routes.PROFILE]: undefined;
 };
 
 export type RootStackParamList = {
