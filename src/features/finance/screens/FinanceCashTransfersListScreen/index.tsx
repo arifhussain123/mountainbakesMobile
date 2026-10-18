@@ -3,7 +3,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinanceCashTransfers, type CashTransferStatus } from '@/api';
-import { Routes, type FinanceCashTransfersStackParamList } from '@/navigation';
+import { Routes, useTabBarHeight, type FinanceCashTransfersStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -26,6 +26,7 @@ const STATUS_VARIANT: Record<CashTransferStatus, StatusVariant> = {
 /** mountainbakesFinance.html screen 03 — Cash Transfers: Finance's review side of the Branch app's Cash Deposit. */
 export function FinanceCashTransfersListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<FinanceCashTransfersStackParamList>>();
   const [tab, setTab] = useState<(typeof TABS)[number]>('pending');
 
@@ -38,7 +39,7 @@ export function FinanceCashTransfersListScreen() {
       <FlatList
         data={transfers}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             <View style={[styles.tabsRow, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>

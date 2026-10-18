@@ -2,7 +2,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { FINANCE_ROLE_LABELS, type FinanceRole, useFinanceDashboard } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
-import { openDrawer } from '@/navigation';
+import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, LoadingSkeleton, Screen, StatCard } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -14,6 +14,7 @@ import { styles } from './styles';
 /** mountainbakesFinance.html screen 01 — today's composite + trend, not the monthly multi-chart view (see docs/mobile-finance-plan.md). */
 export function FinanceDashboardScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
   const user = useAuthStore((state) => state.user);
@@ -28,7 +29,7 @@ export function FinanceDashboardScreen() {
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, paddingBottom: theme.spacing.lg + tabBarHeight }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={theme.colors.primary} />}>
         {isLoading ? (
           <View style={{ gap: theme.spacing.md }}>

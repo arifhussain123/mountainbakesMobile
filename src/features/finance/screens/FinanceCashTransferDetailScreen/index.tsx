@@ -10,6 +10,7 @@ import {
   type CashTransferStatus,
 } from '@/api';
 import type { FinanceCashTransfersStackParamList } from '@/navigation';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 import { useAppTheme } from '@/shared/theme';
 import {
   AppHeader,
@@ -46,6 +47,7 @@ function Row({ label, value }: { label: string; value: string | number | null })
 /** mountainbakesFinance.html screen 03's own detail — approve posts an RV- receipt (+ a second under INC-FUEL if fuel charges were entered), or reject with a reason. */
 export function FinanceCashTransferDetailScreen() {
   const theme = useAppTheme();
+  useHideTabBarOnFocus();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<FinanceCashTransfersStackParamList, 'FinanceCashTransferDetail'>>();
   const { transferId } = route.params;

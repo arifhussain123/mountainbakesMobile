@@ -10,6 +10,7 @@ import {
   type FinanceDocStatus,
   type FinanceTransaction,
 } from '@/api';
+import { useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -49,6 +50,7 @@ const STATUS_LABEL: Record<FinanceDocStatus, string> = {
 /** mountainbakesFinance.html screen 04 — Income & Expense: manual documents only. Branch Income's own 3-step approval queue is a separate thing, not shown in this mockup frame, and is deferred (see docs/mobile-finance-plan.md). */
 export function FinanceIncomeExpenseListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const role = useAuthStore((state) => state.user?.role);
   const canCreate = financeCan(role, 'create');
   const canApprove = financeCan(role, 'approve');
@@ -96,7 +98,7 @@ export function FinanceIncomeExpenseListScreen() {
       <FlatList
         data={entries}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             {canCreate ? (

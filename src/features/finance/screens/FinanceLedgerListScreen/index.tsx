@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useLedgerPage } from '@/api';
+import { useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, Screen, StatCard } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -21,6 +22,7 @@ import type { LedgerEntry } from '@/api';
  */
 export function FinanceLedgerListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const [preset, setPreset] = useState<FinanceDateRangePreset>('today');
   const [selected, setSelected] = useState<LedgerEntry | null>(null);
   const sheetRef = useRef<BottomSheetModal>(null);
@@ -39,7 +41,7 @@ export function FinanceLedgerListScreen() {
       <FlatList
         data={data?.entries ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             <FinanceDateRangeFilter value={preset} onChange={setPreset} />
