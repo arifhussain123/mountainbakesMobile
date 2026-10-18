@@ -4,7 +4,11 @@
 import type { MonthlyReturnsSummary, ReturnsSummaryTotals } from '@/api';
 import { queryKeys } from '@/api/queryKeys';
 import {
+  branchReturnAmount,
+  buildBranchReturnBoxes,
   buildReturnsSummaryTiles,
+  formatBoxAmount,
+  scopedReturnsTotals,
   describeBucket,
   describeProductLine,
   describeReturnValue,
@@ -152,5 +156,55 @@ describe('summary cache keys', () => {
   it('change with the business date and the branch, so a new month is never served last month’s figures', () => {
     expect(queryKeys.branchReturnsSummary('2026-11-01')).not.toEqual(queryKeys.branchReturnsSummary('2026-10-31'));
     expect(queryKeys.productionReturnsSummary('b1', '2026-10-18')).not.toEqual(queryKeys.productionReturnsSummary(null, '2026-10-18'));
+  });
+});
+
+describe('Monthly Return Amount by Branch', () => {
+  const zero = { qty: 0, amount: 0, count: 0 };
+  const dha = totals({
+    accepted: { qty: 4, amount: 12000, count: 2 },
+    pending: { qty: 2, amount: 400.1, count: 1 },
+    returned: { qty: 1, amount: 99.9, count: 1 },
+    rejected: { qty: 3, amount: 777, count: 1 },
+  });
+  const onlyRejected = totals({ accepted: zero, pending: zero, returned: zero, rejected: { qty: 1, amount: 150, count: 1 } });
+  const s = summary(totals(), {
+    branches: [
+      { branchId: 'a', branchName: 'DHA Branch', ...dha, products: [] },
+      { branchId: 'b', branchName: 'Gulshan Branch', ...onlyRejected, products: [] },
+      { branchId: 'x', branchName: 'Closed Branch', ...dha, products: [] },
+    ],
+  });
+  const branches = [
+    { id: 'b', name: 'Gulshan Branch', isActive: true },
+    { id: 'a', name: 'Mountain Bakes DHA Branch', isActive: true },
+    { id: 'c', name: 'Bahria Branch' },
+    { id: 'x', name: 'Closed Branch', isActive: false },
+  ];
+
+  it('counts approved, awaiting review and sent back — never rejected — in whole paisa', () => {
+    expect(branchReturnAmount(dha)).toBe(12500);
+    expect(branchReturnAmount(onlyRejected)).toBe(0);
+  });
+
+  it('one box per active branch, alphabetical on the full name, matched by id', () => {
+    expect(buildBranchReturnBoxes(s, branches).map((b) => [b.branchId, b.name, b.total])).toEqual([
+      ['c', 'Bahria Branch', 'Rs. 0.00'],
+      ['b', 'Gulshan Branch', 'Rs. 0.00'],
+      ['a', 'DHA Branch', 'Rs. 12,500.00'],
+    ]);
+  });
+
+  it('formats box amounts with the paisa', () => {
+    expect(formatBoxAmount(0)).toBe('Rs. 0.00');
+    expect(formatBoxAmount(1234567.5)).toBe('Rs. 1,234,567.50');
+  });
+
+  it('a picked branch narrows the tiles to its own figures; an unknown one is all zeros', () => {
+    expect(scopedReturnsTotals(s, null)).toBe(s.totals);
+    expect(scopedReturnsTotals(s, 'a').accepted.amount).toBe(12000);
+    expect(scopedReturnsTotals(s, 'nope').submitted).toEqual(zero);
+    const tiles = buildReturnsSummaryTiles(s, LABELS, { showBranches: true, branchId: 'a' });
+    expect(tiles.find((t) => t.key === 'accepted')!.value).toBe('Rs. 12,000');
   });
 });

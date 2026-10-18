@@ -1,17 +1,15 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { BranchReturnsSummary, MonthlyReturnsSummary, ProductReturnsLine, ReturnsSummaryTotals } from '@/api';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import type { MonthlyReturnsSummary, ProductReturnsLine } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, Icon, LoadingSkeleton } from '@/shared/ui';
-import { formatCurrency } from '@/shared/utils';
+import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import {
-  RETURNS_SUMMARY_STATUS_ORDER,
-  RETURNS_SUMMARY_STATUS_TONE,
+  buildBranchReturnBoxes,
   buildReturnsSummaryTiles,
   describeProductLine,
   formatReturnsWindow,
-  reportingBranches,
+  scopedReturnsTotals,
   unpricedNote,
   type ReturnsSummaryStatus,
   type ReturnsSummaryTone,
@@ -24,8 +22,14 @@ export interface MonthlyReturnsSummaryCardProps {
   onRetry: () => void;
   /** Each screen names the statuses its own way ("Awaiting Review" vs "Pending"). */
   statusLabels: Record<ReturnsSummaryStatus, string>;
-  /** Production: Branches Reporting, one row per branch, plus an All Branches total. */
+  /** Production: Branches Reporting, and one return-amount box per active branch. */
   showBranches?: boolean;
+  /** Branch records — the boxes are the active ones, matched by id. */
+  branches?: { id: string; name: string; isActive?: boolean }[];
+  /** The branch the screen is narrowed to: its box is marked and the tiles show its figures. */
+  selectedBranchId?: string | null;
+  /** A box was tapped: its id, or null when the selected box is tapped again. */
+  onSelectBranch?: (branchId: string | null) => void;
 }
 
 /** Item-wise lines shown before "Show all" — a busy month can run to dozens of products. */
@@ -34,13 +38,23 @@ const PRODUCT_PREVIEW = 5;
 /**
  * The month-to-date Product Returns summary — the same server figures the web's
  * Return Stock and Production → Product Returns pages show, laid out for a
- * phone: a horizontally scrolling tile strip, an item-wise list, then
- * (Production only) a per-branch list whose rows open onto that branch's
- * products, instead of the web's wide table.
+ * phone: a horizontally scrolling tile strip, then the branch's item-wise list
+ * or (Production) one box per active branch with its monthly return amount —
+ * approved, awaiting review and sent back; rejected excluded.
  */
-export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, statusLabels, showBranches = false }: MonthlyReturnsSummaryCardProps) {
+export function MonthlyReturnsSummaryCard({
+  summary,
+  isLoading,
+  error,
+  onRetry,
+  statusLabels,
+  showBranches = false,
+  branches,
+  selectedBranchId = null,
+  onSelectBranch,
+}: MonthlyReturnsSummaryCardProps) {
   const theme = useAppTheme();
-  const [openBranch, setOpenBranch] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
   const toneColor: Record<ReturnsSummaryTone, string> = {
     neutral: theme.colors.text,
     success: theme.colors.success,
@@ -53,9 +67,11 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
     return <ErrorState message={mapErrorToMessage(error)} onRetry={onRetry} />;
   }
 
-  const totals = summary?.totals;
+  const totals = summary ? scopedReturnsTotals(summary, selectedBranchId) : undefined;
   const note = totals ? unpricedNote(totals) : null;
-  const branches = summary ? reportingBranches(summary) : [];
+  const boxes = showBranches && summary && branches ? buildBranchReturnBoxes(summary, branches) : null;
+  // Two boxes a row on a phone, more on a tablet.
+  const columns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
 
   return (
     <Card>
@@ -70,7 +86,7 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: theme.spacing.sm }} contentContainerStyle={styles.row}>
-          {buildReturnsSummaryTiles(summary, statusLabels, { showBranches }).map((tile) => (
+          {buildReturnsSummaryTiles(summary, statusLabels, { showBranches, branchId: selectedBranchId }).map((tile) => (
             <View
               key={tile.key}
               accessible
@@ -94,27 +110,57 @@ export function MonthlyReturnsSummaryCard({ summary, isLoading, error, onRetry, 
 
       {summary && !showBranches ? <ProductList title="Item-wise" lines={summary.products} /> : null}
 
-      {showBranches && summary && totals ? (
+      {showBranches && summary ? (
         <View style={{ marginTop: theme.spacing.md }}>
-          {branches.length === 0 ? (
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No branch has returns this month.</Text>
-          ) : null}
-          {branches.map((b) => (
-            <BranchRow
-              key={b.branchId}
-              name={b.branchName}
-              totals={b}
-              products={b.products}
-              open={openBranch === b.branchId}
-              onToggle={() => setOpenBranch(openBranch === b.branchId ? null : b.branchId)}
-              statusLabels={statusLabels}
-              toneColor={toneColor}
-            />
-          ))}
-          {branches.length > 1 ? (
-            <BranchRow name="All Branches" totals={totals} statusLabels={statusLabels} toneColor={toneColor} emphasis />
-          ) : null}
-          <ProductList title="Item-wise, all branches" lines={summary.products} />
+          <Text style={[theme.typography.bodySmall, styles.bold, { color: theme.colors.text }]}>Monthly Return Amount by Branch</Text>
+          <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textFaint }]}>
+            Active branches · {statusLabels.accepted.toLowerCase()}, {statusLabels.pending.toLowerCase()} and {statusLabels.returned.toLowerCase()} · {statusLabels.rejected.toLowerCase()} excluded
+          </Text>
+          {!boxes ? (
+            <View style={{ marginTop: theme.spacing.sm }}>
+              <LoadingSkeleton height={88} />
+            </View>
+          ) : boxes.length === 0 ? (
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>No active branches.</Text>
+          ) : (
+            <View style={[styles.grid, { marginTop: theme.spacing.sm }]}>
+              {boxes.map((b) => {
+                const selected = b.branchId === selectedBranchId;
+                return (
+                  <View key={b.branchId} style={[styles.cell, { width: `${100 / columns}%` }]}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`${b.name}: monthly return amount ${b.total}`}
+                      disabled={!onSelectBranch}
+                      onPress={() => onSelectBranch?.(selected ? null : b.branchId)}
+                      style={[
+                        styles.box,
+                        {
+                          borderRadius: theme.radii.md,
+                          borderColor: selected ? theme.colors.primary : theme.colors.cardBorder,
+                          backgroundColor: selected ? theme.colors.surface : theme.colors.cardFill,
+                          borderWidth: selected ? 2 : 1,
+                        },
+                      ]}>
+                      <Text style={[theme.typography.bodySmall, styles.bold, { color: theme.colors.text }]} numberOfLines={2}>
+                        {b.name}
+                      </Text>
+                      <View style={[styles.boxAmount, { borderTopColor: theme.colors.cardBorder }]}>
+                        <Text
+                          style={[theme.typography.cardTitle, styles.bold, { color: b.amount === 0 ? theme.colors.textFaint : theme.colors.text }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}>
+                          {b.total}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       ) : null}
     </Card>
@@ -160,57 +206,6 @@ function ProductList({ title, lines, nested = false }: { title?: string; lines: 
   );
 }
 
-function BranchRow({
-  name,
-  totals,
-  products,
-  open = false,
-  onToggle,
-  statusLabels,
-  toneColor,
-  emphasis = false,
-}: {
-  name: string;
-  totals: ReturnsSummaryTotals | BranchReturnsSummary;
-  products?: ProductReturnsLine[];
-  open?: boolean;
-  onToggle?: () => void;
-  statusLabels: Record<ReturnsSummaryStatus, string>;
-  toneColor: Record<ReturnsSummaryTone, string>;
-  emphasis?: boolean;
-}) {
-  const theme = useAppTheme();
-  const canOpen = !!onToggle && (products?.length ?? 0) > 0;
-  return (
-    <View style={[styles.branchRow, { borderTopColor: theme.colors.cardBorder, borderTopWidth: emphasis ? 2 : 1 }]}>
-      <Pressable
-        accessibilityRole={canOpen ? 'button' : undefined}
-        accessibilityState={canOpen ? { expanded: open } : undefined}
-        disabled={!canOpen}
-        onPress={onToggle}>
-        <View style={styles.branchHead}>
-          {canOpen ? <Icon name={open ? 'chevron-down' : 'chevron-right'} size={14} color={theme.colors.textSecondary} /> : null}
-          <Text style={[theme.typography.body, styles.bold, styles.flex1, { color: theme.colors.text }]} numberOfLines={1}>
-            {name.replace('Mountain Bakes ', '')}
-          </Text>
-          <Text style={[theme.typography.body, styles.bold, { color: theme.colors.text }]}>{formatCurrency(totals.submitted.amount)}</Text>
-        </View>
-        <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textSecondary }]}>
-          {totals.submitted.qty.toLocaleString('en-US')} items · {totals.submitted.count} {totals.submitted.count === 1 ? 'transaction' : 'transactions'}
-        </Text>
-        <View style={styles.statusWrap}>
-          {RETURNS_SUMMARY_STATUS_ORDER.map((s) => (
-            <Text key={s} style={[theme.typography.label, { color: toneColor[RETURNS_SUMMARY_STATUS_TONE[s]] }]}>
-              {statusLabels[s]} {totals[s].qty.toLocaleString('en-US')} · {formatCurrency(totals[s].amount)}
-            </Text>
-          ))}
-        </View>
-      </Pressable>
-      {open && products ? <ProductList lines={products} nested /> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   tile: { minWidth: 140, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
@@ -219,9 +214,10 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   mt2: { marginTop: 2 },
   mt4: { marginTop: 4 },
-  branchRow: { paddingVertical: 10 },
-  branchHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statusWrap: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2, marginTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
+  cell: { padding: 6 },
+  box: { flex: 1, minHeight: 88, justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
+  boxAmount: { marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
   productRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   nested: { marginTop: 8, paddingLeft: 10, borderLeftWidth: 2 },
 });

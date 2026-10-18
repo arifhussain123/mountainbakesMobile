@@ -32,10 +32,11 @@ export function ProductionReturnsListScreen() {
 
   const { data, isLoading, error, refetch, isRefetching } = useProductionReturns();
   const branches = useBranches();
-  // The branch chip narrows both the month-to-date summary (server-side) and
-  // the queue below. The queue is filtered here rather than re-requested so
-  // the Detail screen's lookup in this same cached list keeps finding its row.
-  const summary = useProductionReturnsSummary(branchId);
+  // The month-to-date summary always covers every branch, so its boxes show each
+  // active branch's month; the branch chip (or a box) narrows its tiles and the
+  // queue below. The queue is filtered here rather than re-requested so the
+  // Detail screen's lookup in this same cached list keeps finding its row.
+  const summary = useProductionReturnsSummary(null);
   const returns = useMemo(
     () => (data?.returns ?? []).filter((r) => branchId === null || r.branchId === branchId),
     [data, branchId],
@@ -93,6 +94,9 @@ export function ProductionReturnsListScreen() {
               onRetry={() => void summary.refetch()}
               statusLabels={SUMMARY_STATUS_LABEL}
               showBranches
+              branches={branches.data?.branches}
+              selectedBranchId={branchId}
+              onSelectBranch={setBranchId}
             />
             <View style={{ height: theme.spacing.md }} />
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search reason, product or branch…" />

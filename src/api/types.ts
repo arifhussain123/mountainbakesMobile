@@ -1508,6 +1508,8 @@ export interface ReviewProductionOrderInput {
 export interface BranchSummary {
   id: string;
   name: string;
+  /** Sent by `GET /api/branches` (which lists active branches unless asked otherwise). */
+  isActive?: boolean;
 }
 
 export interface BranchListResponse {

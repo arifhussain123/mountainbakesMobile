@@ -53,9 +53,9 @@ export function describeBucket(bucket: ReturnsBucket): string {
 export function buildReturnsSummaryTiles(
   summary: MonthlyReturnsSummary,
   statusLabels: Record<ReturnsSummaryStatus, string>,
-  { showBranches = false }: { showBranches?: boolean } = {},
+  { showBranches = false, branchId = null }: { showBranches?: boolean; branchId?: string | null } = {},
 ): ReturnsSummaryTile[] {
-  const totals = summary.totals;
+  const totals = scopedReturnsTotals(summary, branchId);
   const branchCount = summary.branches.length;
   return [
     { key: 'qty', label: 'Total Returned Items', value: totals.submitted.qty.toLocaleString('en-US'), sub: 'every status, this month', tone: 'neutral' },
@@ -109,4 +109,67 @@ export function unpricedNote(totals: ReturnsSummaryTotals): string | null {
   const n = totals.unpricedCount;
   if (n <= 0) return null;
   return `${n} ${n === 1 ? 'return has' : 'returns have'} no price on record — amounts leave ${n === 1 ? 'it' : 'them'} out, quantities still count ${n === 1 ? 'it' : 'them'}.`;
+}
+
+const zeroBucket = (): ReturnsBucket => ({ qty: 0, amount: 0, count: 0 });
+
+/**
+ * The totals the tiles show: every branch, or the one picked. The summary always
+ * covers every branch, so picking one needs no second request; a branch with no
+ * entry (none this month, or inactive) is all zeros.
+ */
+export function scopedReturnsTotals(summary: MonthlyReturnsSummary, branchId: string | null): ReturnsSummaryTotals {
+  if (!branchId) return summary.totals;
+  return (
+    summary.branches.find((b) => b.branchId === branchId) ?? {
+      submitted: zeroBucket(), pending: zeroBucket(), accepted: zeroBucket(), rejected: zeroBucket(), returned: zeroBucket(), unpricedCount: 0,
+    }
+  );
+}
+
+// ─── Monthly Return Amount by Branch (Production) ───────────────────────────
+// Mirrors backend shared/utils/returns-summary.ts (`branchReturnAmount`,
+// `buildBranchReturnBoxes`) so the phone and the web state the same figures.
+
+/**
+ * The statuses a branch's monthly return amount counts: approved, awaiting
+ * review, and sent back to correct. Rejected is left out — refused, its units
+ * went back on the branch's own balance.
+ */
+export const BRANCH_RETURN_AMOUNT_STATUSES: readonly ReturnsSummaryStatus[] = ['accepted', 'pending', 'returned'];
+
+/** That rule over the server's status buckets, added in whole paisa. */
+export function branchReturnAmount(totals: ReturnsSummaryTotals): number {
+  return BRANCH_RETURN_AMOUNT_STATUSES.reduce((sum, s) => (Math.round(sum * 100) + Math.round(totals[s].amount * 100)) / 100, 0);
+}
+
+/** "Rs. 12,500.00" / "Rs. 0.00" — box amounts always carry the paisa. */
+export function formatBoxAmount(amount: number): string {
+  return `Rs. ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export interface BranchReturnBox {
+  branchId: string;
+  name: string;
+  amount: number;
+  /** `formatBoxAmount(amount)` */
+  total: string;
+}
+
+/**
+ * One box per ACTIVE branch, alphabetical, matched to the summary by id (never
+ * by name); Rs. 0.00 where the branch has no returns. Inactive branches get no
+ * box, though their returns stay in the overall totals.
+ */
+export function buildBranchReturnBoxes(summary: MonthlyReturnsSummary, branches: { id: string; name: string; isActive?: boolean }[]): BranchReturnBox[] {
+  const byId = new Map(summary.branches.map((b) => [b.branchId, b]));
+  // Sorted on the full name, as the web is, before the shared prefix is dropped for display.
+  return branches
+    .filter((b) => b.isActive !== false)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((b) => {
+      const entry = byId.get(b.id);
+      const amount = entry ? branchReturnAmount(entry) : 0;
+      return { branchId: b.id, name: b.name.replace('Mountain Bakes ', ''), amount, total: formatBoxAmount(amount) };
+    });
 }
