@@ -22,6 +22,8 @@ export interface DrawerMenuRow {
   section: string | null;
   active: boolean;
   badgeCount?: number;
+  /** Show `badgeCount` as an amber dot instead of a number — see `DrawerItem`. */
+  badgeDot?: boolean;
   onPress: () => void;
 }
 
@@ -36,10 +38,10 @@ export interface DrawerMenuProps {
 }
 
 /**
- * The drawer layout every role shares — Branch and Production through
- * `DrawerContent`, Finance through `FinanceDrawerContent` — so the three
- * can't drift apart: charcoal `colors.background`, header + context strip,
- * rows with inset dividers and chevrons, and a compact footer. Row height is
+ * The drawer layout every role shares (Branch, Production and Finance, all
+ * through `DrawerContent`), so they can't drift apart: charcoal
+ * `colors.background`, header + context strip, rows with inset dividers and
+ * chevrons, and a compact footer. Row height is
  * computed so the whole menu fits between the two safe-area insets (see
  * `drawerLayout.ts`); only when rows would drop below 40dp does
  * the row list scroll, with the header and footer staying put.
@@ -89,6 +91,7 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
                   icon={row.icon}
                   active={row.active}
                   badgeCount={row.badgeCount}
+                  badgeDot={row.badgeDot}
                   onPress={row.onPress}
                   rowHeight={metrics.rowHeight}
                   iconSize={metrics.iconSize}

@@ -10,6 +10,8 @@ import type {
   FinanceAuditLog,
   FinanceAuditQuery,
   FinanceCashTransferQuery,
+  FinanceCashTransferSummary,
+  FinanceDailySaleList,
   FinanceDashboard,
   FinanceDayClosing,
   FinancePendingApproval,
@@ -143,7 +145,17 @@ export async function getFinanceCashTransfer(id: string): Promise<CashTransfer> 
   return apiClient.get<CashTransfer>(`/finance/cash-transfers/${id}`);
 }
 
-/** `approve` permission — posts an RV- receipt under INC-BRANCH-CASH (+ a second under INC-FUEL if fuel charges were entered). */
+/** The list's own filters (no sort/paging), summed server-side — the summary strip above the list. */
+export async function getFinanceCashTransferSummary(query: Omit<FinanceCashTransferQuery, 'sortBy' | 'sortDir' | 'limit' | 'offset'>): Promise<FinanceCashTransferSummary> {
+  return apiClient.get<FinanceCashTransferSummary>('/finance/cash-transfers/summary', query as unknown as Record<string, unknown>);
+}
+
+/** Daily Closing's branch days with their deposit reconciliation — what a transfer's match badge reads. */
+export async function listFinanceDailySales(params: { from: string; to: string; branchId?: string }): Promise<FinanceDailySaleList> {
+  return apiClient.get<FinanceDailySaleList>('/finance/daily-sales', params);
+}
+
+/** `approve` permission — posts an RV- receipt for the Total under INC-COMPANY-SHARE (+ a second under INC-FUEL if fuel charges were entered). */
 export async function approveFinanceCashTransfer(
   id: string,
   input: ApproveCashTransferInput,

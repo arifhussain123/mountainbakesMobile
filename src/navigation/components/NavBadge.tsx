@@ -3,17 +3,18 @@ import { useAppTheme } from '@/shared/theme';
 
 export interface NavBadgeProps {
   count: number;
-  /** A small red dot (failed sync entries) instead of a number. */
+  /** A small dot instead of a number — red for failed sync entries, amber for a state to look at. */
   dot?: boolean;
+  dotTone?: 'danger' | 'warning';
 }
 
 /** Small pill count on a drawer/tab item — orange for action needed, hidden at 0. */
-export function NavBadge({ count, dot }: NavBadgeProps) {
+export function NavBadge({ count, dot, dotTone = 'danger' }: NavBadgeProps) {
   const theme = useAppTheme();
   if (!dot && count <= 0) return null;
 
   if (dot) {
-    return <View style={[styles.dot, { backgroundColor: theme.colors.danger }]} accessibilityElementsHidden />;
+    return <View style={[styles.dot, { backgroundColor: theme.colors[dotTone] }]} accessibilityElementsHidden />;
   }
 
   return (

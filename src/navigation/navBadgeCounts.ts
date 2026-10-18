@@ -1,7 +1,14 @@
 import { getBusinessDate, queryClient, queryKeys } from '@/api';
 import type {
   BranchDiscountListResponse,
+  CashTransferListResponse,
   DailySaleRecordList,
+  FinanceCashTransferQuery,
+  FinanceDashboard,
+  FinanceDayClosing,
+  FinancePendingApproval,
+  FinanceSettings,
+  FinanceTicketStats,
   ProductionOrderListResponse,
   ProductionOrderStatus,
   ProductionStockListResponse,
@@ -105,6 +112,37 @@ export function computeProductionBadges(): NavBadges {
     queryClient.getQueryData<ProductionStockListResponse>(queryKeys.productionStock())?.rows.filter((r) => r.status === 'shortage').length,
   );
   setIfPositive(badges, 'helpDesk', helpDeskReplied());
+  return badges;
+}
+
+/** The count-only query behind Finance's Cash Transfers badge — `useFinanceNavCounts` fetches it, `computeFinanceBadges` reads its `total`. */
+export const FINANCE_PENDING_TRANSFERS_QUERY: FinanceCashTransferQuery = { status: 'pending', limit: 1 };
+
+/**
+ * Same cache-only rule again, kept warm by `useFinanceNavCounts`. Daily
+ * Closing and Settings are states, not counts (`badgeDot` items): 1 means
+ * "show the dot" — today's ledger day is still open, or Super Admin is
+ * currently allowed to modify finance records.
+ */
+export function computeFinanceBadges(): NavBadges {
+  const badges: NavBadges = {};
+
+  setIfPositive(badges, 'approvals', queryClient.getQueryData<FinancePendingApproval[]>(queryKeys.pendingApprovals())?.length);
+  setIfPositive(
+    badges,
+    'cashTransfers',
+    queryClient.getQueryData<CashTransferListResponse>(queryKeys.financeCashTransfers(FINANCE_PENDING_TRANSFERS_QUERY))?.total,
+  );
+
+  // The server's business date, as the Daily Closing screen itself keys it.
+  const businessDate = queryClient.getQueryData<FinanceDashboard>(queryKeys.financeDashboard())?.businessDate;
+  if (businessDate && queryClient.getQueryData<FinanceDayClosing>(queryKeys.dayClosing(businessDate))?.status === 'open') {
+    badges.dailyClosing = 1;
+  }
+
+  // `waiting` is the server's "Waiting for Finance" bucket.
+  setIfPositive(badges, 'helpDesk', queryClient.getQueryData<Partial<FinanceTicketStats>>(queryKeys.financeTicketStats())?.waiting);
+  if (queryClient.getQueryData<FinanceSettings>(queryKeys.financeSettings())?.allowSuperAdminWrite) badges.financeSettings = 1;
   return badges;
 }
 

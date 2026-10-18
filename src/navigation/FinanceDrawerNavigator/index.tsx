@@ -8,30 +8,32 @@ import {
   FinanceReportsScreen,
   FinanceSettingsScreen,
 } from '@/features/finance';
+import { ProfileScreen } from '@/features/profile';
+import { DrawerContent } from '../DrawerNavigator/DrawerContent';
 import { FinanceBottomTabNavigator } from '../FinanceBottomTabNavigator';
 import { FinanceHelpDeskStackNavigator } from '../FinanceHelpDeskStackNavigator';
 import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
 import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
-import { FinanceDrawerContent } from './FinanceDrawerContent';
+import { useFinanceNavCounts } from './useFinanceNavCounts';
 
 const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
 
 /**
  * mountainbakesFinance.html — the four finance roles' app shell
- * (finance_admin/finance_manager/accountant/finance_auditor). All 23 screens
- * scoped in `docs/mobile-finance-plan.md` are now built. Finance Help Desk
- * (21–22) is view/report/discuss/request-reopen only, per the owner's
- * decision — every super_admin-only admin action (edit a query, amend/
- * correct/delete the underlying record, restore, recreate, assign, change
- * status, truly reopen) stays web-only.
+ * (finance_admin/finance_manager/accountant/finance_auditor). Same drawer as
+ * the Branch and Production shells (`DrawerContent` → `DrawerMenu`); its menu
+ * is `FINANCE_NAV_ITEMS` through the role's shell. Finance Help Desk (21–22) is
+ * view/report/discuss/request-reopen only, per the owner's decision — every
+ * super_admin-only admin action stays web-only.
  */
 export function FinanceDrawerNavigator() {
   const screenOptions = useDrawerScreenOptions();
+  useFinanceNavCounts();
 
   return (
-    <Drawer.Navigator screenOptions={screenOptions} drawerContent={(props) => <FinanceDrawerContent {...props} />}>
+    <Drawer.Navigator screenOptions={screenOptions} drawerContent={(props) => <DrawerContent {...props} />}>
       <Drawer.Screen name={Routes.FINANCE_TABS} component={FinanceBottomTabNavigator} />
       <Drawer.Screen name={Routes.FINANCE_PAYROLL_STACK} component={FinancePayrollStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={FinancePartnersScreen} />
@@ -42,6 +44,7 @@ export function FinanceDrawerNavigator() {
       <Drawer.Screen name={Routes.FINANCE_AUDIT_TRAIL_STACK} component={FinanceAuditTrailScreen} />
       <Drawer.Screen name={Routes.FINANCE_HELP_DESK_STACK} component={FinanceHelpDeskStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_SETTINGS_STACK} component={FinanceSettingsScreen} />
+      <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
     </Drawer.Navigator>
   );
 }

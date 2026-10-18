@@ -1,5 +1,5 @@
-import { forwardRef, type ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { forwardRef, useRef, type ReactNode } from 'react';
+import { Pressable, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, type BottomSheetModalProps } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
@@ -13,7 +13,16 @@ export interface FormBottomSheetProps {
   /** Also wired to the header's close button, since that press should behave exactly like swipe-to-dismiss. */
   onRequestClose: () => void;
   snapPoints?: BottomSheetModalProps['snapPoints'];
+  /**
+   * Called once the reader has seen the end of the content — on scrolling to
+   * it, or straight away when the content fits without scrolling. Used by the
+   * approval sheets to unlock Approve only after the detail was read.
+   */
+  onScrollEnd?: () => void;
 }
+
+/** How close to the bottom counts as "reached the end". */
+const END_SLOP = 24;
 
 /**
  * Shared chrome for every form the design spec presents as a bottom sheet
@@ -23,8 +32,17 @@ export interface FormBottomSheetProps {
  * prop instead of route params, since they are no longer pushed stack screens.
  */
 export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps>(
-  ({ title, subtitle, children, onDismiss, onRequestClose, snapPoints = ['92%'] }, ref) => {
+  ({ title, subtitle, children, onDismiss, onRequestClose, snapPoints = ['92%'], onScrollEnd }, ref) => {
     const theme = useAppTheme();
+    const viewport = useRef(0);
+    const content = useRef(0);
+    const checkFits = () => {
+      if (onScrollEnd && viewport.current > 0 && content.current > 0 && content.current <= viewport.current + END_SLOP) onScrollEnd();
+    };
+    const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      if (onScrollEnd && layoutMeasurement.height + contentOffset.y >= contentSize.height - END_SLOP) onScrollEnd();
+    };
 
     return (
       <BottomSheetModal
@@ -67,7 +85,18 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
             <Icon name="close" size={16} color={theme.colors.text} />
           </Pressable>
         </View>
-        <BottomSheetScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }} keyboardShouldPersistTaps="handled">
+        <BottomSheetScrollView
+          contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}
+          keyboardShouldPersistTaps="handled"
+          onScroll={onScrollEnd ? onScroll : undefined}
+          onLayout={(e) => {
+            viewport.current = e.nativeEvent.layout.height;
+            checkFits();
+          }}
+          onContentSizeChange={(_, h) => {
+            content.current = h;
+            checkFits();
+          }}>
           {children}
         </BottomSheetScrollView>
       </BottomSheetModal>

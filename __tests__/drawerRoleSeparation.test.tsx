@@ -71,4 +71,28 @@ describe('the drawer, per server role', () => {
     const texts = renderDrawerFor(user('production_user', null));
     expect(texts).toContain('7');
   });
+
+  it('a Finance Admin sees the 15 Finance items across all branches — no Branch or Production screens', () => {
+    const texts = renderDrawerFor(user('finance_admin', null));
+    expect(texts).toEqual(expect.arrayContaining(['Finance Admin', 'Finance · All branches', 'OVERVIEW', 'BOOKS', 'PEOPLE', 'PARTNERS', 'SETUP & REVIEW']));
+    const menu = [
+      'Dashboard',
+      'Approvals',
+      'Daily Ledger',
+      'Cash Transfers',
+      'Income & Expense',
+      'Daily Closing',
+      'Payroll',
+      'Salary Ledger',
+      'Partner Transactions',
+      'Company Transactions',
+      'Ledger Heads',
+      'Reports',
+      'Audit Trail',
+      'Help Desk',
+      'Settings',
+    ];
+    expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
+    for (const label of ['New Orders', 'Cash Deposits', 'Production Stock', 'Returns', 'Branch Closing']) expect(texts).not.toContain(label);
+  });
 });

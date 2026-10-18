@@ -21,8 +21,8 @@ export function getFocusedChain(state: AnyNavState | undefined): string[] {
 }
 
 /**
- * Branch and Production drawer menu: the signed-in role's shell
- * (`roleShells.ts`) supplies the items, badges and context line, so this
+ * Every role's drawer menu (Branch, Production, Finance): the signed-in role's
+ * shell (`roleShells.ts`) supplies the items, badges and context line, so this
  * component never checks a role itself. Layout lives in `DrawerMenu`.
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
@@ -39,6 +39,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     section: DRAWER_GROUPED ? GROUP_LABEL[item.group] : null,
     active: index === activeIndex,
     badgeCount: item.badgeSource ? badges[item.badgeSource] : undefined,
+    badgeDot: item.badgeDot,
     onPress: () => item.navigate(navigation),
   }));
 

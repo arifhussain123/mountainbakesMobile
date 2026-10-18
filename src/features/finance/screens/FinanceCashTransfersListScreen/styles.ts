@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-  tabsRow: { flexDirection: 'row', gap: 4, padding: 4 },
-  tab: { flex: 1, height: 36, alignItems: 'center', justifyContent: 'center' },
-  card: { borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  offlinePill: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  picker: { minHeight: 36, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6 },
+  activeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  activeChip: { minHeight: 32, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4 },
 });

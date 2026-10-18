@@ -55,7 +55,17 @@ export type IconName =
   | 'sun'
   | 'palette'
   | 'sort'
-  | 'factory';
+  | 'factory'
+  | 'inbox-check'
+  | 'book-open'
+  | 'banknote'
+  | 'user-coin'
+  | 'table'
+  | 'handshake'
+  | 'bank'
+  | 'list-indent'
+  | 'shield-check'
+  | 'settings';
 
 export interface IconProps {
   name: IconName;
@@ -513,6 +523,93 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
           <Line x1={4} y1={12} x2={10} y2={12} {...common} />
           <Line x1={4} y1={17} x2={7} y2={17} {...common} />
           <Path d="M18 4v16M15 7l3-3 3 3M15 17l3 3 3-3" {...common} />
+        </Svg>
+      );
+    // ─── Finance drawer items (mountainbakesFinance.html sidebar) ──────────
+    case 'inbox-check':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 13l2.5-8h13l2.5 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" {...common} />
+          <Path d="M3 13h5l1.5 2.5h5L16 13h5" {...common} />
+          <Path d="M9.5 8.5l1.8 1.8 3.2-3.2" {...common} />
+        </Svg>
+      );
+    case 'book-open':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2zM22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z" {...common} />
+        </Svg>
+      );
+    case 'banknote':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={2} y={6} width={20} height={12} rx={2} {...common} />
+          <Circle cx={12} cy={12} r={2.5} {...common} />
+          <Path d="M6 12h.01M18 12h.01" {...common} />
+        </Svg>
+      );
+    case 'user-coin':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={9} cy={8} r={4} {...common} />
+          <Path d="M2 21a7 7 0 0 1 11-5.7" {...common} />
+          <Circle cx={18} cy={17} r={4} {...common} />
+          <Path d="M18 15.5v3" {...common} />
+        </Svg>
+      );
+    case 'table':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={3} y={4} width={18} height={16} rx={2} {...common} />
+          <Line x1={3} y1={10} x2={21} y2={10} {...common} />
+          <Line x1={3} y1={15} x2={21} y2={15} {...common} />
+          <Line x1={9} y1={10} x2={9} y2={20} {...common} />
+        </Svg>
+      );
+    case 'handshake':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M11 17l2 2a1 1 0 1 0 3-3" {...common} />
+          <Path d="M14 14l2.5 2.5a1 1 0 1 0 3-3l-3.9-3.9a3 3 0 0 0-4.2 0l-.9.9a1 1 0 1 1-3-3l2.8-2.8a5.8 5.8 0 0 1 7.1-.9l.5.3a2 2 0 0 0 1.4.3L21 4" {...common} />
+          <Path d="M21 3l1 11h-2M3 3L2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8" {...common} />
+        </Svg>
+      );
+    case 'bank':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 10l9-6 9 6z" {...common} />
+          <Line x1={3} y1={20} x2={21} y2={20} {...common} />
+          <Line x1={6} y1={10} x2={6} y2={17} {...common} />
+          <Line x1={10} y1={10} x2={10} y2={17} {...common} />
+          <Line x1={14} y1={10} x2={14} y2={17} {...common} />
+          <Line x1={18} y1={10} x2={18} y2={17} {...common} />
+        </Svg>
+      );
+    case 'list-indent':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Line x1={3} y1={5} x2={21} y2={5} {...common} />
+          <Line x1={11} y1={10} x2={21} y2={10} {...common} />
+          <Line x1={11} y1={14} x2={21} y2={14} {...common} />
+          <Line x1={3} y1={19} x2={21} y2={19} {...common} />
+          <Path d="M3 9l3 3-3 3" {...common} />
+        </Svg>
+      );
+    case 'shield-check':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M12 3l8 3v6c0 5-3.5 8-8 9.5C7.5 20 4 17 4 12V6z" {...common} />
+          <Path d="M9 12l2 2 4-4" {...common} />
+        </Svg>
+      );
+    case 'settings':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={3} {...common} />
+          <Path
+            d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+            {...common}
+          />
         </Svg>
       );
     default:

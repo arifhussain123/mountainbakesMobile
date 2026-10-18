@@ -44,3 +44,17 @@ export const PRODUCTION_TAB_ITEMS: TabItem[] = [
   { key: 'returns', label: 'Returns', icon: 'rotate-ccw', route: Routes.PRODUCTION_RETURNS_TAB, badgeSource: 'returns' },
   { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
 ];
+
+/**
+ * Finance's daily screens — Dashboard, Daily Ledger, Cash Transfers, Income &
+ * Expense ("Reports" on the bar, matching the reference), More — on the same
+ * notch bar as Branch and Production. Transfers carries the pending-transfers
+ * count that the drawer's Cash Transfers row shows.
+ */
+export const FINANCE_TAB_ITEMS: TabItem[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'home', route: Routes.FINANCE_DASHBOARD_TAB, badgeSource: null },
+  { key: 'ledger', label: 'Ledger', icon: 'ledger', route: Routes.FINANCE_LEDGER_TAB, badgeSource: null },
+  { key: 'transfers', label: 'Transfers', icon: 'transfer', route: Routes.FINANCE_CASH_TRANSFERS_TAB, badgeSource: 'cashTransfers' },
+  { key: 'reports', label: 'Reports', icon: 'bar-chart', route: Routes.FINANCE_INCOME_EXPENSE_TAB, badgeSource: null },
+  { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
+];

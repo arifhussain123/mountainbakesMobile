@@ -1,19 +1,19 @@
 import type { SessionUser, UserRole } from '@/api/types';
 import { branchScopeLabel } from '@/shared/utils';
 import { useAuthStore } from '@/state';
-import { computeBranchBadges, computeNoBadges, computeProductionBadges, type NavBadges } from './navBadgeCounts';
-import { BRANCH_NAV_ITEMS, PRODUCTION_NAV_ITEMS, type NavItem } from './navItems';
+import { computeBranchBadges, computeFinanceBadges, computeNoBadges, computeProductionBadges, type NavBadges } from './navBadgeCounts';
+import { BRANCH_NAV_ITEMS, FINANCE_NAV_ITEMS, PRODUCTION_NAV_ITEMS, type NavItem } from './navItems';
 import { Routes } from './routes';
-import { BRANCH_TAB_ITEMS, PRODUCTION_TAB_ITEMS, type TabItem } from './tabItems';
+import { BRANCH_TAB_ITEMS, FINANCE_TAB_ITEMS, PRODUCTION_TAB_ITEMS, type TabItem } from './tabItems';
 
 /** The root-stack screen holding a role's whole app (its drawer, tabs and stacks). */
 export type ShellRoute = typeof Routes.DRAWER | typeof Routes.PRODUCTION_DRAWER | typeof Routes.FINANCE_DRAWER | typeof Routes.UNSUPPORTED_ROLE;
 
 export interface RoleShell {
   route: ShellRoute;
-  /** Drawer menu. Empty for a shell that draws its own (Finance). */
+  /** Drawer menu. */
   navItems: NavItem[];
-  /** Notch tab bar slots. Empty for a shell that uses its own tab bar (Finance). */
+  /** Notch tab bar slots. */
   tabItems: TabItem[];
   /** Reads this shell's badge counts from the query cache — see `navBadgeCounts.ts`. */
   computeBadges: () => NavBadges;
@@ -22,7 +22,15 @@ export interface RoleShell {
 }
 
 const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '' };
-const FINANCE_SHELL: RoleShell = { route: Routes.FINANCE_DRAWER, ...NO_MENU };
+// The four finance roles share one menu across every branch (only
+// `branch_manager` is branch-scoped on the server).
+const FINANCE_SHELL: RoleShell = {
+  route: Routes.FINANCE_DRAWER,
+  navItems: FINANCE_NAV_ITEMS,
+  tabItems: FINANCE_TAB_ITEMS,
+  computeBadges: computeFinanceBadges,
+  contextLine: (user) => `Finance · ${branchScopeLabel(user)}`,
+};
 const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, ...NO_MENU };
 
 /**
