@@ -34,8 +34,8 @@ export {
   useWithdrawBranchReturn,
 } from './useStockReturnsApi';
 export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
-export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer } from './useCashTransfersApi';
-export { useCreateExpense, useExpenses } from './useExpensesApi';
+export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer, useMonthlyCashTransferSummary } from './useCashTransfersApi';
+export { useCreateExpense, useExpenses, useExpensesData, useExpensesTotal } from './useExpensesApi';
 export {
   useConsolidatedDemand,
   useEventDemands,

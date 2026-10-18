@@ -24,14 +24,27 @@ export const queryKeys = {
   // with it a new month) is a new key, never yesterday's figures served as today's.
   branchReturnsSummary: (businessDate: string) => ['branchReturns', 'summary', businessDate] as const,
   branchDiscounts: (params?: { days?: number; status?: string }) => ['branchDiscounts', params ?? {}] as const,
-  // Month-to-date discount summary. Under ['branchDiscounts'] so every claim write
-  // refreshes it; keyed by business date so a new month is a new key.
-  branchDiscountSummary: (businessDate: string) => ['branchDiscounts', 'summary', businessDate] as const,
+  // Month-to-date discount summary — its own root, NOT under ['branchDiscounts']:
+  // useNavBadges reads the first ['branchDiscounts'] entry as a claim list, and
+  // a summary there crashed it. Every claim write invalidates this root too
+  // (useDiscountsApi, useDiscountActions). Keyed by business date so a new
+  // month is a new key.
+  branchDiscountSummary: (businessDate: string) => ['branchDiscountSummary', businessDate] as const,
   branchDiscountsList: (params: { from: string; to: string; status?: string; search?: string; sortBy?: string; sortDir?: string }) =>
     ['branchDiscountsList', params] as const,
   cashTransfers: (params?: unknown) => ['cashTransfers', params ?? {}] as const,
+  // Month-to-date summary — its own root, NOT under ['cashTransfers'], which the
+  // Help Desk's recent-records list reads as a transfer list. A new deposit
+  // invalidates it (useCreateCashTransfer). Keyed by business date so a new
+  // month is a new key, never last month's figures.
+  cashTransferMonthlySummary: (businessDate: string) => ['cashTransferMonthlySummary', businessDate] as const,
   cashTransfer: (id: string) => ['cashTransfer', id] as const,
   expenses: () => ['expenses'] as const,
+  // Shop Expenses' month-to-date list and its server total (Data Engine). Own
+  // roots, not ['expenses'], whose entries the Help Desk reads as an
+  // ExpenseListResponse; useCreateExpense invalidates all three.
+  expensesData: (params: { from: string; search?: string }) => ['expensesData', params] as const,
+  expensesTotal: (params: { from: string; search?: string }) => ['expensesTotal', params] as const,
   specialEvents: (year?: number) => ['specialEvents', year ?? 'current'] as const,
   myEventDemand: (eventId: string) => ['myEventDemand', eventId] as const,
   eventsSummary: () => ['eventsSummary'] as const,

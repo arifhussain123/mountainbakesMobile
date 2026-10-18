@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getBusinessDate } from '../businessDate';
 import { queryKeys } from '../queryKeys';
 import { cashTransferService } from '../services';
 import type { ListCashTransfersParams } from '../services/cashTransferService';
@@ -8,6 +9,15 @@ export function useCashTransfers(params?: ListCashTransfersParams) {
   return useQuery({
     queryKey: queryKeys.cashTransfers(params),
     queryFn: () => cashTransferService.listCashTransfers(params),
+  });
+}
+
+/** This branch's transfers this business month, summed on the server — never follows the list's filters. */
+export function useMonthlyCashTransferSummary() {
+  return useQuery({
+    queryKey: queryKeys.cashTransferMonthlySummary(getBusinessDate()),
+    queryFn: () => cashTransferService.getMonthlyCashTransferSummary(),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -26,6 +36,7 @@ export function useCreateCashTransfer() {
       cashTransferService.createCashTransfer(input, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cashTransfers'] });
+      void queryClient.invalidateQueries({ queryKey: ['cashTransferMonthlySummary'] });
     },
   });
 }

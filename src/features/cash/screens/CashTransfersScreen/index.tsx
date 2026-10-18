@@ -3,9 +3,10 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getBusinessDate, useCashTransfers } from '@/api';
+import { getBusinessDate, useCashTransfers, useMonthlyCashTransferSummary } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
+import { useSummaryFocusRefresh } from '@/features/discounts/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, type CashStackParamList } from '@/navigation';
@@ -31,8 +32,8 @@ import { resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import type { CashTransfer, CashTransferStatus } from '@/api';
 import { CASH_TRANSFERS_MAX_PAGE_SIZE, type ListCashTransfersParams } from '@/api/services/cashTransferService';
 import type { CashTransferChannel } from '../../calculations';
-import { computeCashTransferTotals, matchesChannel } from '../../calculations';
-import { TransferCard, TransferSummaryStrip } from '../../components';
+import { matchesChannel } from '../../calculations';
+import { MonthlyCashTransferSummaryCard, TransferCard } from '../../components';
 import { CashDepositSheetContent } from '../CashDepositScreen';
 import { styles } from './styles';
 
@@ -86,6 +87,10 @@ export function CashTransfersScreen() {
   );
 
   const { data, isLoading, error, refetch, isRefetching } = useCashTransfers(queryParams);
+  // The month to date, summed on the server — the web's monthly block. It never
+  // follows the filters below, which only change the list.
+  const summaryQ = useMonthlyCashTransferSummary();
+  useSummaryFocusRefresh(summaryQ);
   const rawTransfers = useMemo(() => data?.transfers ?? [], [data]);
   const totalMatching = data?.total ?? 0;
 
@@ -133,8 +138,6 @@ export function CashTransfersScreen() {
     [sourceTransfers, channelFilter],
   );
 
-  const totals = useMemo(() => computeCashTransferTotals(filtered), [filtered]);
-  const mayBeIncomplete = totalMatching > CASH_TRANSFERS_MAX_PAGE_SIZE;
 
   const openPhoto = (transfer: CashTransfer) => {
     const photo = transfer.attachments[0];
@@ -190,7 +193,12 @@ export function CashTransfersScreen() {
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg }}
         ListHeaderComponent={
           <View style={{ marginBottom: theme.spacing.md }}>
-            <TransferSummaryStrip totals={totals} mayBeIncomplete={mayBeIncomplete} />
+            <MonthlyCashTransferSummaryCard
+              summary={summaryQ.data}
+              isLoading={summaryQ.isLoading}
+              error={summaryQ.error}
+              onRetry={() => void summaryQ.refetch()}
+            />
 
             <View style={{ marginTop: 12 }}>
               <SearchBar value={search} onChangeText={setSearch} placeholder="Search transfer ID, voucher or note…" />
@@ -210,6 +218,11 @@ export function CashTransfersScreen() {
               <FilterChipRow options={CHANNEL_OPTIONS} value={channelFilter} onChange={setChannelFilter} />
             </View>
 
+            {totalMatching > CASH_TRANSFERS_MAX_PAGE_SIZE ? (
+              <Text style={[theme.typography.label, { color: theme.colors.warning, marginTop: 10 }]}>
+                Showing the latest {CASH_TRANSFERS_MAX_PAGE_SIZE} of {totalMatching.toLocaleString('en-US')} transfers — narrow the dates to see the rest.
+              </Text>
+            ) : null}
             {isLoading ? <View style={{ marginTop: 12 }}><LoadingSkeleton height={100} /></View> : null}
             {error && !showingCache ? (
               <View style={{ marginTop: 12 }}>
@@ -229,7 +242,10 @@ export function CashTransfersScreen() {
           />
         )}
         refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        onRefresh={() => {
+          void refetch();
+          void summaryQ.refetch();
+        }}
       />
 
       <FormBottomSheet

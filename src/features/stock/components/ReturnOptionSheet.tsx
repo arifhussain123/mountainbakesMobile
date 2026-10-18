@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
 import { FormBottomSheet, Icon, SearchBar } from '@/shared/ui';
+import { includesTerm } from '@/shared/utils';
 
 export interface ReturnOption {
   value: string;
@@ -34,7 +35,7 @@ export const ReturnOptionSheet = forwardRef<BottomSheetModal, ReturnOptionSheetP
     const shown = useMemo(() => {
       const term = search.trim().toLowerCase();
       if (!term) return options;
-      return options.filter((o) => o.label.toLowerCase().includes(term) || o.hint?.toLowerCase().includes(term));
+      return options.filter((o) => includesTerm(o.label, term) || includesTerm(o.hint, term));
     }, [options, search]);
 
     return (

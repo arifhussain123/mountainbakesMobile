@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getBusinessDate, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
+import { getBusinessDate, getBusinessMonthStart, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
@@ -36,6 +36,7 @@ import {
   formatDifferenceAmount,
   type DailySaleSortField,
 } from '../../components';
+import { dailySaleAllBeforeStartEmpty, dailySaleBeforeStartNotice, resolveDailySaleWindow } from '../../dailySaleWindow';
 import { ManualFeedSheetContent } from '../ManualFeedScreen';
 import { styles } from './styles';
 import type { DailySaleRecord, DailySaleRecordStatus } from '@/api';
@@ -70,12 +71,6 @@ const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
 
 const TILE_DOTS = ['#FF6B35', '#34C38A', '#5A8DEE', '#F5B800', '#FF5A5F', '#8A7A6D'];
 
-function shiftDate(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /** "01–12 OCT" when the range sits in one month, else "01 OCT – 12 NOV". */
 function formatRangeLabel(from: string, to: string): string {
   const fromDate = new Date(`${from}T00:00:00`);
@@ -109,10 +104,16 @@ export function DailySaleRecordListScreen() {
   const [sortField, setSortField] = useState<DailySaleSortField>('date');
 
   const today = getBusinessDate();
-  // Defaults mirror the backend's own "last 30 business days ending today" window (dailySaleService.ts).
-  const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: shiftDate(today, -29), to: today }));
+  // Opens on the current month so far (1st → today), as the web's Daily Sale
+  // Record does. The record starts on 1 Sep 2026: earlier days are never
+  // requested, and a window lying wholly before it requests nothing.
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: getBusinessMonthStart(), to: today }));
+  const dsrWindow = resolveDailySaleWindow(dateRange);
 
-  const { data, isLoading, error, refetch, isRefetching } = useDailySaleRecords({ from: dateRange.from, to: dateRange.to });
+  const { data, isLoading, error, refetch, isRefetching } = useDailySaleRecords(
+    { from: dsrWindow.queryFrom, to: dsrWindow.to },
+    { enabled: !dsrWindow.allBeforeStart },
+  );
   const generate = useGenerateDailySaleRecord();
   const verify = useVerifyDailySaleRecord();
 
@@ -334,6 +335,17 @@ export function DailySaleRecordListScreen() {
               </>
             ) : null}
 
+            {dsrWindow.beforeStart ? (
+              <View
+                accessibilityRole="text"
+                style={[styles.banner, { marginTop: theme.spacing.md, borderColor: theme.colors.cardBorder, borderStyle: 'dashed', borderRadius: theme.radii.md, padding: 11 }]}>
+                <Icon name="info" size={15} color={theme.colors.primary} />
+                <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, flex: 1 }]}>
+                  <Text style={{ fontWeight: '700', color: theme.colors.text }}>{dailySaleBeforeStartNotice().title}</Text> {dailySaleBeforeStartNotice().body}
+                </Text>
+              </View>
+            ) : null}
+
             <View style={{ marginTop: theme.spacing.md }}>
               <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date or status…" />
             </View>
@@ -367,7 +379,11 @@ export function DailySaleRecordListScreen() {
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <EmptyState title="No Records" message="Count today's business day to get started." /> : undefined
+          dsrWindow.allBeforeStart ? (
+            <EmptyState {...dailySaleAllBeforeStartEmpty()} />
+          ) : !isLoading && !error ? (
+            <EmptyState title="No Records" message="Count today's business day to get started." />
+          ) : undefined
         }
         renderItem={({ item }) => (
           <DailySaleRecordCard

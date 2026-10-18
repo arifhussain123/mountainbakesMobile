@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
+import { AppHeader, PrimaryButton, Screen } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
 import { PaymentMethodPicker, ProductPickerModal, ProductPickerRow } from '../../components';
@@ -55,6 +55,10 @@ export function NewSaleScreen() {
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.lg }}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>ITEMS</Text>
+            {/* In the header, as on the web: a new line appears directly under it, never off-screen below a long list. */}
+            <Pressable accessibilityRole="button" accessibilityLabel="Add item" onPress={form.addLine} hitSlop={8} style={{ paddingVertical: 6, paddingHorizontal: 4 }}>
+              <Text style={[theme.typography.bodySmall, { color: theme.colors.primary, fontWeight: '700' }]}>+ Add Item</Text>
+            </Pressable>
           </View>
           <View style={{ marginTop: 8 }}>
             {form.lines.map((line) => (
@@ -72,7 +76,6 @@ export function NewSaleScreen() {
                 onRemove={() => form.removeLine(line.key)}
               />
             ))}
-            <SecondaryButton label="+ Add Item" onPress={form.addLine} />
           </View>
 
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>PAYMENT METHOD</Text>

@@ -65,3 +65,29 @@ export function buildDiscountSummaryBoxes(
   if (showBranches && summary.branches.length > 1) boxes.push(box('all', 'All Branches', summary.totals, true));
   return boxes;
 }
+
+export interface OwnBranchDiscountTotal {
+  /** "Total discount (since 2026-10-01)" — the web's label, with the server's window start. */
+  label: string;
+  /** The approved amount. */
+  total: string;
+  /** "2 claims approved", or "No approved claims yet". */
+  approvedLine: string;
+  /** "Rs. 300 awaiting review · 1 claim", or null when nothing is pending. */
+  pendingLine: string | null;
+}
+
+/**
+ * Branch → Discounts: the branch's own month, one total — as the web's
+ * `OwnBranchSummary` states it. The server scopes a branch role to its own
+ * branch, so `totals` IS that branch; pending is a separate line, never added in.
+ */
+export function buildOwnBranchDiscountTotal(summary: MonthlyDiscountSummary): OwnBranchDiscountTotal {
+  const t = summary.totals;
+  return {
+    label: `Total discount (since ${summary.from})`,
+    total: formatCurrency(t.approved.amount),
+    approvedLine: t.approved.count === 0 ? 'No approved claims yet' : `${claims(t.approved.count)} approved`,
+    pendingLine: t.pending.count > 0 ? `${formatCurrency(t.pending.amount)} awaiting review · ${claims(t.pending.count)}` : null,
+  };
+}

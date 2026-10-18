@@ -83,8 +83,11 @@ describe('buildDiscountSummaryBoxes', () => {
 });
 
 describe('discount summary cache keys', () => {
-  it('sit under the prefixes every discount write already invalidates', () => {
-    expect(queryKeys.branchDiscountSummary('2026-10-18')[0]).toBe('branchDiscounts');
+  it('keep the branch summary off the claim-list root that useNavBadges reads as a list', () => {
+    // A summary under ['branchDiscounts'] was read as a BranchDiscountListResponse
+    // (`.discounts.filter`) and crashed the badges; it has its own root, which
+    // every claim write invalidates explicitly.
+    expect(queryKeys.branchDiscountSummary('2026-10-18')[0]).toBe('branchDiscountSummary');
     expect(queryKeys.productionDiscountSummary(null, '2026-10-18')[0]).toBe('productionDiscounts');
   });
 

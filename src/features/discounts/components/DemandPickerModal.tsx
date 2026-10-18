@@ -3,7 +3,7 @@ import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, SearchBar } from '@/shared/ui';
-import { formatDisplayDate } from '@/shared/utils';
+import { formatDisplayDate, includesTerm } from '@/shared/utils';
 import type { ProductionOrder } from '@/api';
 
 export interface DemandPickerModalProps {
@@ -21,7 +21,8 @@ export function DemandPickerModal({ visible, demands, onSelect, onClose }: Deman
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return demands;
-    return demands.filter((d) => d.demandNumber.toLowerCase().includes(term));
+    // Demand # or date, as the web's demand search matches.
+    return demands.filter((d) => includesTerm(d.demandNumber, term) || includesTerm(d.date, term));
   }, [demands, search]);
 
   return (

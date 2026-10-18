@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, SearchBar } from '@/shared/ui';
 import type { Product } from '@/api';
+import { includesTerm } from '@/shared/utils';
 
 export interface ProductPickerModalProps {
   visible: boolean;
@@ -22,7 +23,7 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
     const withStock = products.filter((p) => (stockByProductId.get(p.id) ?? 0) > 0);
     const term = search.trim().toLowerCase();
     if (!term) return withStock;
-    return withStock.filter((p) => p.name.toLowerCase().includes(term));
+    return withStock.filter((p) => includesTerm(p.name, term));
   }, [products, stockByProductId, search]);
 
   return (

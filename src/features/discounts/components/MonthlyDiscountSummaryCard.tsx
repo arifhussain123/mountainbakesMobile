@@ -3,7 +3,14 @@ import type { MonthlyDiscountSummary } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { buildDiscountSummaryBoxes, formatDiscountWindow, formatStaleNotice, type DiscountSummaryBox } from '../discountSummary';
+import { formatMonthToDateLine } from '@/shared/utils';
+import {
+  buildDiscountSummaryBoxes,
+  buildOwnBranchDiscountTotal,
+  formatDiscountWindow,
+  formatStaleNotice,
+  type DiscountSummaryBox,
+} from '../discountSummary';
 
 export interface MonthlyDiscountSummaryCardProps {
   summary: MonthlyDiscountSummary | undefined;
@@ -85,6 +92,11 @@ export function MonthlyDiscountSummaryCard({
       <Text style={[theme.typography.body, styles.bold, styles.mt2, { color: theme.colors.text }]}>
         {summary ? `Period: ${formatDiscountWindow(summary.from, summary.to)}` : 'This month'}
       </Text>
+      {summary ? (
+        <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textSecondary }]}>
+          {formatMonthToDateLine(summary.from)} · approved claims
+        </Text>
+      ) : null}
 
       {stale ? (
         <View accessibilityRole="alert" style={[styles.stale, { borderColor: theme.colors.warning, borderRadius: theme.radii.md, marginTop: theme.spacing.sm }]}>
@@ -101,6 +113,8 @@ export function MonthlyDiscountSummaryCard({
         <View style={{ marginTop: theme.spacing.sm }}>
           <LoadingSkeleton height={96} />
         </View>
+      ) : !showBranches ? (
+        <OwnBranchTotal summary={summary} dim={stale} />
       ) : boxes.length === 0 ? (
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>No active branches.</Text>
       ) : wrap ? (
@@ -118,6 +132,31 @@ export function MonthlyDiscountSummaryCard({
   );
 }
 
+/**
+ * Branch → Discounts: the branch's own month as one full-width total, laid out
+ * like Shop Expenses' total card — the web's `OwnBranchSummary`. Only branch
+ * roles reach this screen, so the branch never needs naming.
+ */
+function OwnBranchTotal({ summary, dim }: { summary: MonthlyDiscountSummary; dim: boolean }) {
+  const theme = useAppTheme();
+  const t = buildOwnBranchDiscountTotal(summary);
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${t.label}: ${t.total}. ${t.approvedLine}${t.pendingLine ? `. ${t.pendingLine}` : ''}`}
+      style={[styles.ownTotal, dim && styles.dim, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg, marginTop: theme.spacing.sm }]}>
+      <Text style={[theme.typography.label, { color: theme.colors.primaryText }]}>{t.label.toUpperCase()}</Text>
+      <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, marginTop: 4 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {t.total}
+      </Text>
+      <Text style={[theme.typography.label, { color: theme.colors.primaryText, marginTop: 4 }]}>{t.approvedLine}</Text>
+      {t.pendingLine ? (
+        <Text style={[theme.typography.label, styles.bold, { color: theme.colors.primaryText, marginTop: 2 }]}>{t.pendingLine}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   eyebrow: { letterSpacing: 1.2 },
   bold: { fontWeight: '700' },
@@ -131,4 +170,5 @@ const styles = StyleSheet.create({
   boxWrap: { width: undefined, flexBasis: 170, flexGrow: 1 },
   boxHead: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1 },
   boxBody: { paddingHorizontal: 12, paddingVertical: 10 },
+  ownTotal: { padding: 16 },
 });

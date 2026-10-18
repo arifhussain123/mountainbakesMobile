@@ -64,7 +64,8 @@ export function useNewSaleForm() {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   };
 
-  const addLine = () => setLines((prev) => [...prev, newLine()]);
+  // New lines go on top, under the Add Item button — as the web's sale form has it.
+  const addLine = () => setLines((prev) => [newLine(), ...prev]);
   const removeLine = (key: string) => setLines((prev) => (prev.length > 1 ? prev.filter((line) => line.key !== key) : prev));
 
   const submit = async (): Promise<boolean> => {

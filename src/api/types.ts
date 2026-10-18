@@ -2864,3 +2864,50 @@ export interface MonthlyDiscountSummary {
   branches: BranchDiscountTotals[];
   totals: DiscountSummaryTotals;
 }
+
+// ─── Monthly Cash Transfer summary ───────────────────────────────────────────
+// GET /api/cash-transfers/monthly-summary — mirrors backend
+// shared/utils/cash-transfer-summary.ts. The server sums; these are only its
+// shape. The branch is the token's; the table's filters never apply to it.
+
+export interface CashTransferBucket {
+  /** Rs. */
+  amount: number;
+  /** Transfers with a non-zero amount for this figure. */
+  count: number;
+}
+
+export interface CashTransferSummaryTotals {
+  /** Total Amount, every status. */
+  transferred: CashTransferBucket;
+  cash: CashTransferBucket;
+  easypaisa: CashTransferBucket;
+  bank: CashTransferBucket;
+  /** Total Amount Finance approved. */
+  approved: CashTransferBucket;
+  /** Total Amount still awaiting Finance. */
+  pending: CashTransferBucket;
+  /** Total Amount Finance rejected. */
+  rejected: CashTransferBucket;
+  /** Fuel Charges, every status — never part of Total Amount. */
+  fuel: CashTransferBucket;
+}
+
+export interface MonthlyCashTransferSummary {
+  /** 'YYYY-MM-01' — first day of the current business month. */
+  from: string;
+  /** 'YYYY-MM-DD' — today's business date, inclusive. */
+  to: string;
+  branchId: string;
+  /** Every live transfer in the window, fuel-only ones included. */
+  transfers: number;
+  totals: CashTransferSummaryTotals;
+}
+
+// ─── Data Engine aggregate (`GET /api/data/:resource/aggregate`) ─────────────
+// backend shared/types/data-engine.types.ts. Values are keyed `count` or
+// `metric:field`, e.g. `sum:amount`.
+
+export interface DataEngineAggregateResponse {
+  rows: { group?: Record<string, string | number | boolean | null>; values: Record<string, number | null> }[];
+}

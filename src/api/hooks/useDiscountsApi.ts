@@ -39,6 +39,7 @@ export function useBranchDiscountsList(params: Omit<ListBranchDiscountsPageParam
 function invalidateDiscounts(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: ['branchDiscounts'] });
   void queryClient.invalidateQueries({ queryKey: ['branchDiscountsList'] });
+  void queryClient.invalidateQueries({ queryKey: ['branchDiscountSummary'] });
 }
 
 export function useCreateBranchDiscount() {

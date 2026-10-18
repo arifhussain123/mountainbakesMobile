@@ -43,7 +43,7 @@ export function useDiscountActions() {
 
     if (isOffline) {
       try {
-        await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'put', payload: input, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList']] });
+        await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'put', payload: input, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList'], ['branchDiscountSummary']] });
         return { ok: true, queued: true };
       } catch (error) {
         return { ok: false, error: mapErrorToMessage(error) };
@@ -60,7 +60,7 @@ export function useDiscountActions() {
       }
       if (isApiError(error) && error.status === null) {
         try {
-          await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'put', payload: input, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList']] });
+          await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'put', payload: input, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList'], ['branchDiscountSummary']] });
           return { ok: true, queued: true };
         } catch (queueError) {
           return { ok: false, error: mapErrorToMessage(queueError) };
@@ -76,7 +76,7 @@ export function useDiscountActions() {
 
     if (isOffline) {
       try {
-        await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'delete', payload: undefined, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList']] });
+        await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'delete', payload: undefined, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList'], ['branchDiscountSummary']] });
         return { ok: true, queued: true };
       } catch (error) {
         return { ok: false, error: mapErrorToMessage(error) };
@@ -93,7 +93,7 @@ export function useDiscountActions() {
       }
       if (isApiError(error) && error.status === null) {
         try {
-          await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'delete', payload: undefined, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList']] });
+          await enqueueOfflineWrite({ endpoint: `/branch-discounts/${id}`, method: 'delete', payload: undefined, idempotencyKey, invalidateKeys: [['branchDiscounts'], ['branchDiscountsList'], ['branchDiscountSummary']] });
           return { ok: true, queued: true };
         } catch (queueError) {
           return { ok: false, error: mapErrorToMessage(queueError) };

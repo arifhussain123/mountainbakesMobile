@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import type { MonthlyReturnsSummary, ProductReturnsLine } from '@/api';
+import type { MonthlyReturnsSummary } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { formatMonthToDateLine } from '@/shared/utils';
 import {
   buildBranchReturnBoxes,
   buildReturnsSummaryTiles,
-  describeProductLine,
   formatReturnsWindow,
   scopedReturnsTotals,
   unpricedNote,
@@ -32,15 +31,13 @@ export interface MonthlyReturnsSummaryCardProps {
   onSelectBranch?: (branchId: string | null) => void;
 }
 
-/** Item-wise lines shown before "Show all" — a busy month can run to dozens of products. */
-const PRODUCT_PREVIEW = 5;
-
 /**
  * The month-to-date Product Returns summary — the same server figures the web's
  * Return Stock and Production → Product Returns pages show, laid out for a
- * phone: a horizontally scrolling tile strip, then the branch's item-wise list
- * or (Production) one box per active branch with its monthly return amount —
- * approved, awaiting review and sent back; rejected excluded.
+ * phone: a horizontally scrolling tile strip, then (Production) one box per
+ * active branch with its monthly return amount — approved, awaiting review and
+ * sent back; rejected excluded. The branch view is the tiles alone: the web
+ * dropped its item-wise list there, and this follows it.
  */
 export function MonthlyReturnsSummaryCard({
   summary,
@@ -79,6 +76,9 @@ export function MonthlyReturnsSummaryCard({
       <Text style={[theme.typography.body, styles.bold, styles.mt2, { color: theme.colors.text }]}>
         {summary ? formatReturnsWindow(summary.from, summary.to) : 'This month'}
       </Text>
+      {summary ? (
+        <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textSecondary }]}>{formatMonthToDateLine(summary.from)}</Text>
+      ) : null}
 
       {isLoading || !summary ? (
         <View style={{ marginTop: theme.spacing.sm }}>
@@ -108,7 +108,6 @@ export function MonthlyReturnsSummaryCard({
 
       {note ? <Text style={[theme.typography.label, { color: theme.colors.warning, marginTop: theme.spacing.sm }]}>{note}</Text> : null}
 
-      {summary && !showBranches ? <ProductList title="Item-wise" lines={summary.products} /> : null}
 
       {showBranches && summary ? (
         <View style={{ marginTop: theme.spacing.md }}>
@@ -167,57 +166,14 @@ export function MonthlyReturnsSummaryCard({
   );
 }
 
-function ProductList({ title, lines, nested = false }: { title?: string; lines: ProductReturnsLine[]; nested?: boolean }) {
-  const theme = useAppTheme();
-  const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? lines : lines.slice(0, PRODUCT_PREVIEW);
-
-  return (
-    <View style={[nested ? styles.nested : { marginTop: theme.spacing.md }, nested && { borderLeftColor: theme.colors.cardBorder }]}>
-      {title ? (
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.textFaint }]}>{title.toUpperCase()}</Text>
-      ) : null}
-      {lines.length === 0 ? (
-        <Text style={[theme.typography.label, styles.mt4, { color: theme.colors.textSecondary }]}>No returns this month.</Text>
-      ) : (
-        shown.map((line) => (
-          <View key={line.productId} style={styles.productRow}>
-            <View style={styles.flex1}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]} numberOfLines={1}>
-                {line.productName}
-              </Text>
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
-                {line.productCode ? `${line.productCode} · ` : ''}
-                {line.count} {line.count === 1 ? 'return' : 'returns'}
-              </Text>
-            </View>
-            <Text style={[theme.typography.bodySmall, styles.bold, { color: theme.colors.text }]}>{describeProductLine(line)}</Text>
-          </View>
-        ))
-      )}
-      {lines.length > PRODUCT_PREVIEW ? (
-        <Pressable accessibilityRole="button" onPress={() => setExpanded(!expanded)} hitSlop={8}>
-          <Text style={[theme.typography.label, styles.bold, styles.mt4, { color: theme.colors.primary }]}>
-            {expanded ? 'Show fewer' : `Show all ${lines.length} products`}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   tile: { minWidth: 140, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   eyebrow: { letterSpacing: 1.2 },
   bold: { fontWeight: '700' },
-  flex1: { flex: 1 },
   mt2: { marginTop: 2 },
-  mt4: { marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
   cell: { padding: 6 },
   box: { flex: 1, minHeight: 88, justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
   boxAmount: { marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
-  productRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  nested: { marginTop: 8, paddingLeft: 10, borderLeftWidth: 2 },
 });
