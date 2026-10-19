@@ -1,7 +1,9 @@
+import * as adminNavService from './adminNavService';
 import * as attachmentService from './attachmentService';
 import * as authService from './authService';
 import * as branchClosingService from './branchClosingService';
 import * as branchService from './branchService';
+import * as closingRecipientService from './closingRecipientService';
 import * as cashTransferService from './cashTransferService';
 import * as dailySaleService from './dailySaleService';
 import * as dashboardService from './dashboardService';
@@ -13,6 +15,7 @@ import * as financeService from './financeService';
 import * as financeTicketsService from './financeTicketsService';
 import * as notificationService from './notificationService';
 import * as packingMaterialService from './packingMaterialService';
+import * as priceHistoryService from './priceHistoryService';
 import * as productService from './productService';
 import * as productionDiscountService from './productionDiscountService';
 import * as productionOrderService from './productionOrderService';
@@ -31,10 +34,12 @@ import * as stockReturnService from './stockReturnService';
 import * as supportService from './supportService';
 
 export {
+  adminNavService,
   attachmentService,
   authService,
   branchClosingService,
   branchService,
+  closingRecipientService,
   cashTransferService,
   dailySaleService,
   dashboardService,
@@ -46,6 +51,7 @@ export {
   financeTicketsService,
   notificationService,
   packingMaterialService,
+  priceHistoryService,
   productService,
   productionDiscountService,
   productionOrderService,

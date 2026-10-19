@@ -32,6 +32,8 @@ import {
   PhotoViewer,
   SearchBar,
   Screen,
+  Dropdown,
+  type DropdownOption,
   type FilterChipOption,
 } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
@@ -73,7 +75,7 @@ const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-const CHANNEL_OPTIONS: FilterChipOption<ChannelFilter>[] = [
+const CHANNEL_OPTIONS: DropdownOption<ChannelFilter>[] = [
   { value: 'all', label: 'All channels' },
   { value: 'cash', label: 'Cash' },
   { value: 'easypaisa', label: 'Easypaisa' },
@@ -296,7 +298,9 @@ export function FinanceCashTransfersListScreen() {
                 </Text>
               </Pressable>
             </View>
-            <FilterChipRow options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} />
+            <View style={{ marginTop: 8 }}>
+              <Dropdown options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} />
+            </View>
 
             {hasActiveFilters ? (
               <View style={styles.activeRow}>

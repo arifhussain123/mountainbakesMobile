@@ -3,13 +3,14 @@ import type { QueuedWrite } from '@/shared/offline';
 /**
  * Endpoints whose queued payload carries its own `businessDate` field — sales,
  * expenses and cash deposits all stamp it before enqueueing (see each
- * service's `create*` function). `/stock/return` does not (the server
- * defaults it), so a queued return only counts toward TODAY's business date —
- * an offline return is always "right now" from the device's point of view.
+ * service's `create*` function). A today-only endpoint counts toward TODAY's
+ * business date unless its queued payload carries a `businessDate` — a queued
+ * return (`/stock/return`, Return Items' offline path) does, and counts there.
  *
- * NOTE: as of this module's own Step 0 audit, sales/expenses/returns/cash-
- * deposits are not yet wired through the offline write queue at all — only
- * production-order creation is (`useCreateOrderForm`). This still counts
+ * NOTE: as of this module's own Step 0 audit, sales/expenses/cash-deposits
+ * are not yet wired through the offline write queue at all — production-order
+ * creation (`useCreateOrderForm`) and branch returns (`useReturnItemsForm`)
+ * are. This still counts
  * correctly for whichever of these eventually are, without needing to change
  * when they are.
  */
@@ -25,6 +26,10 @@ export function countUnsyncedForDate(writes: QueuedWrite[], date: string, todayB
       return typeof payload?.businessDate === 'string' && payload.businessDate === date;
     }
     if (TODAY_ONLY_ENDPOINTS.has(write.endpoint)) {
+      // A queued Return Items save stamps the day it was made (it can wait
+      // overnight for a signal) — count it there; an unstamped one is "now".
+      const payload = write.payload as { businessDate?: unknown } | null;
+      if (typeof payload?.businessDate === 'string') return payload.businessDate === date;
       return date === todayBusinessDate;
     }
     return false;

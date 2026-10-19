@@ -33,7 +33,7 @@ describe('getRoleShell', () => {
     expect(getRoleShell('branch_manager').route).toBe(Routes.DRAWER);
     expect(getRoleShell('production_user').route).toBe(Routes.PRODUCTION_DRAWER);
     expect(getRoleShell('accountant').route).toBe(Routes.FINANCE_DRAWER);
-    expect(getRoleShell('super_admin').route).toBe(Routes.UNSUPPORTED_ROLE);
+    expect(getRoleShell('super_admin').route).toBe(Routes.SUPER_ADMIN_DRAWER);
     expect(getRoleShell('someone_new').route).toBe(Routes.UNSUPPORTED_ROLE);
     expect(getRoleShell(undefined).route).toBe(Routes.UNSUPPORTED_ROLE);
   });

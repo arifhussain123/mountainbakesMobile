@@ -5,6 +5,7 @@ export const Routes = {
   DRAWER: 'Drawer',
   PRODUCTION_DRAWER: 'ProductionDrawer',
   FINANCE_DRAWER: 'FinanceDrawer',
+  SUPER_ADMIN_DRAWER: 'SuperAdminDrawer',
   UNSUPPORTED_ROLE: 'UnsupportedRole',
   COMING_SOON: 'ComingSoon',
 
@@ -156,4 +157,24 @@ export const Routes = {
   FINANCE_AUDIT_TRAIL_STACK: 'FinanceAuditTrailStack',
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',
   FINANCE_SETTINGS_STACK: 'FinanceSettingsStack',
+
+  // Super Admin catalog — Price History (read-only). Not mounted in any shell
+  // yet: super_admin has no ROLE_SHELLS entry; its shell mounts this stack.
+  PRICE_HISTORY_STACK: 'PriceHistoryStack',
+  PRICE_HISTORY_LIST: 'PriceHistoryList',
+  PRICE_HISTORY_PRODUCT: 'PriceHistoryProduct',
+
+  // Super Admin — closing-summary recipients. Not mounted in any shell yet (see PRICE_HISTORY_STACK).
+  RECIPIENTS_STACK: 'RecipientsStack',
+  RECIPIENTS_LIST: 'RecipientsList',
+  RECIPIENTS_DELIVERY_LOG: 'RecipientsDeliveryLog',
+
+  // Super Admin shell. The four tab roots are placeholders until each screen's
+  // own brief is built; Price History and Recipients are its first real stacks.
+  SUPER_ADMIN_TABS: 'SuperAdminTabs',
+  SUPER_ADMIN_DASHBOARD_TAB: 'SuperAdminDashboardTab',
+  SUPER_ADMIN_ORDERS_TAB: 'SuperAdminOrdersTab',
+  SUPER_ADMIN_BRANCH_STOCK_TAB: 'SuperAdminBranchStockTab',
+  SUPER_ADMIN_REPORTS_TAB: 'SuperAdminReportsTab',
+  SUPER_ADMIN_MORE_TAB: 'SuperAdminMoreTab',
 } as const;

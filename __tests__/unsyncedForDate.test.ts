@@ -36,6 +36,12 @@ describe('countUnsyncedForDate', () => {
     expect(countUnsyncedForDate(writes, '2026-10-15', '2026-10-16')).toBe(0);
   });
 
+  it('counts a queued return that carries its own businessDate on that date, not just today', () => {
+    const writes = [write({ endpoint: '/stock/return', payload: { kind: 'branch_return', items: [], businessDate: '2026-10-15' } })];
+    expect(countUnsyncedForDate(writes, '2026-10-15', '2026-10-16')).toBe(1);
+    expect(countUnsyncedForDate(writes, '2026-10-16', '2026-10-16')).toBe(0);
+  });
+
   it('never counts a synced write', () => {
     const writes = [write({ status: 'synced' as never, payload: { businessDate: '2026-10-16' } })];
     expect(countUnsyncedForDate(writes, '2026-10-16', '2026-10-16')).toBe(0);

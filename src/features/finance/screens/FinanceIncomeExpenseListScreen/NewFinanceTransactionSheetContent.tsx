@@ -1,20 +1,15 @@
 import { useMemo } from 'react';
 import { Image, Pressable, Text, TextInput, View } from 'react-native';
 import {
-  FINANCE_PAYMENT_METHODS,
-  FINANCE_PAYMENT_METHOD_LABELS,
   useLedgerHeads,
   type FinanceAccount,
-  type FinancePaymentMethod,
 } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
+import { Dropdown, Icon, PrimaryButton, SecondaryButton, type DropdownOption } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
-import { FinanceDropdown, type FinanceDropdownOption } from '../../components';
+import { FINANCE_PAYMENT_METHOD_OPTIONS } from '../../utils/paymentMethodOptions';
 import { useNewFinanceTransactionForm } from '../../hooks/useNewFinanceTransactionForm';
 import { styles } from './styles';
-
-const PAYMENT_METHOD_OPTIONS: FinanceDropdownOption[] = FINANCE_PAYMENT_METHODS.map((m) => ({ value: m, label: FINANCE_PAYMENT_METHOD_LABELS[m] }));
 
 export interface NewFinanceTransactionSheetContentProps {
   onClose: () => void;
@@ -25,7 +20,7 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
   const theme = useAppTheme();
   const form = useNewFinanceTransactionForm();
   const heads = useLedgerHeads({ type: form.type });
-  const headOptions = useMemo<FinanceDropdownOption[]>(
+  const headOptions = useMemo<DropdownOption[]>(
     () => (heads.data ?? []).map((h) => ({ value: h.id, label: h.name, hint: h.code, sublabel: h.groupName ? `${h.code} · ${h.groupName}` : h.code })),
     [heads.data],
   );
@@ -63,7 +58,7 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>LEDGER HEAD</Text>
       <View style={{ marginTop: 6 }}>
-        <FinanceDropdown
+        <Dropdown
           key={form.type}
           options={headOptions}
           value={form.ledgerHeadId}
@@ -122,12 +117,7 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>PAYMENT METHOD</Text>
       <View style={{ marginTop: 6 }}>
-        <FinanceDropdown
-          options={PAYMENT_METHOD_OPTIONS}
-          value={form.paymentMethod}
-          onChange={(method) => form.setPaymentMethod(method as FinancePaymentMethod)}
-          placeholder="Select a payment method"
-        />
+        <Dropdown options={FINANCE_PAYMENT_METHOD_OPTIONS} value={form.paymentMethod} onChange={form.setPaymentMethod} placeholder="Select a payment method" />
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>NOTES (OPTIONAL)</Text>

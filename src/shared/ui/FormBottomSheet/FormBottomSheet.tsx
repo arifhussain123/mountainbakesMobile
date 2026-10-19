@@ -1,6 +1,6 @@
-import { forwardRef, useRef, type ReactNode } from 'react';
+import { createContext, forwardRef, useContext, useMemo, useRef, type ReactNode } from 'react';
 import { Pressable, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { BottomSheetModal, BottomSheetScrollView, type BottomSheetModalProps } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetScrollView, type BottomSheetModalProps, type BottomSheetScrollViewMethods } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
@@ -21,6 +21,18 @@ export interface FormBottomSheetProps {
   onScrollEnd?: () => void;
 }
 
+export interface FormBottomSheetScroll {
+  /** Scrolls the sheet's content to `y` (content coordinates — the top of the sheet's children is 0). */
+  scrollTo: (y: number) => void;
+}
+
+const FormBottomSheetScrollContext = createContext<FormBottomSheetScroll | null>(null);
+
+/** For sheet content that must bring a part of itself into view (Return Items' "first line missing a photo"). Null outside a `FormBottomSheet`. */
+export function useFormBottomSheetScroll(): FormBottomSheetScroll | null {
+  return useContext(FormBottomSheetScrollContext);
+}
+
 /** How close to the bottom counts as "reached the end". */
 const END_SLOP = 24;
 
@@ -36,6 +48,11 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
     const theme = useAppTheme();
     const viewport = useRef(0);
     const content = useRef(0);
+    const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
+    const scroll = useMemo<FormBottomSheetScroll>(
+      () => ({ scrollTo: (y) => scrollRef.current?.scrollTo({ x: 0, y: Math.max(0, y), animated: true }) }),
+      [],
+    );
     const checkFits = () => {
       if (onScrollEnd && viewport.current > 0 && content.current > 0 && content.current <= viewport.current + END_SLOP) onScrollEnd();
     };
@@ -86,6 +103,7 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
           </Pressable>
         </View>
         <BottomSheetScrollView
+          ref={scrollRef}
           contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}
           keyboardShouldPersistTaps="handled"
           onScroll={onScrollEnd ? onScroll : undefined}
@@ -97,7 +115,7 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
             content.current = h;
             checkFits();
           }}>
-          {children}
+          <FormBottomSheetScrollContext.Provider value={scroll}>{children}</FormBottomSheetScrollContext.Provider>
         </BottomSheetScrollView>
       </BottomSheetModal>
     );

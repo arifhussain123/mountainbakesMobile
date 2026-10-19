@@ -33,8 +33,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Mountain Bakes uses the camera to photograph items you return to Production and other records that need a photo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Mountain Bakes needs your location to confirm a sale is being made from this branch.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Mountain Bakes lets you choose a photo from your library to attach to a return or another record.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>BootSplash</string>
 	<key>UIRequiredDeviceCapabilities</key>

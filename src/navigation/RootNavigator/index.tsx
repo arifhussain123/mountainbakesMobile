@@ -10,6 +10,7 @@ import { AuthNavigator } from '../AuthNavigator';
 import { DrawerNavigator } from '../DrawerNavigator';
 import { FinanceDrawerNavigator } from '../FinanceDrawerNavigator';
 import { ProductionDrawerNavigator } from '../ProductionDrawerNavigator';
+import { SuperAdminDrawerNavigator } from '../SuperAdminDrawerNavigator';
 import { navigationRef } from '../helpers';
 import { getRoleShell, type ShellRoute } from '../roleShells';
 import { Routes } from '../routes';
@@ -23,6 +24,7 @@ const SHELL_COMPONENT: Record<ShellRoute, ComponentType> = {
   [Routes.DRAWER]: DrawerNavigator,
   [Routes.PRODUCTION_DRAWER]: ProductionDrawerNavigator,
   [Routes.FINANCE_DRAWER]: FinanceDrawerNavigator,
+  [Routes.SUPER_ADMIN_DRAWER]: SuperAdminDrawerNavigator,
   [Routes.UNSUPPORTED_ROLE]: UnsupportedRoleView,
 };
 
@@ -61,8 +63,8 @@ function useNavigationTheme(): NavigationTheme {
  * user's role. Which shell a role gets is `ROLE_SHELLS` (`roleShells.ts`), not
  * decided here: `branch_manager` gets the branchApp.md shell, `production_user`
  * mountainbakesProduction.html's, a finance role mountainbakesFinance.html's,
- * and anything else (super_admin) an explicit "not built for this role" screen
- * rather than one it was never designed for.
+ * super_admin its own, and anything else an explicit "not built for this role"
+ * screen rather than one it was never designed for.
  */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);

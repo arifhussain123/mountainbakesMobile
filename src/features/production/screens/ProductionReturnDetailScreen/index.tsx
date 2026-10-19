@@ -8,6 +8,7 @@ import { AppHeader, PhotoViewer, PrimaryButton, Screen, SecondaryButton, StatusB
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionReturn, ProductionReturnDisposition } from '@/api';
+import { LEGACY_SINGLE_PHOTO_NOTE } from '@/features/stock';
 import { styles } from './styles';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 
@@ -112,12 +113,17 @@ export function ProductionReturnDetailScreen() {
           <View style={{ marginTop: theme.spacing.lg }}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PHOTO</Text>
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open return photo"
+              accessibilityRole="imagebutton"
+              accessibilityLabel={
+                item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}. Open full screen` : `Photo of returned ${item.productName}. Open full screen`
+              }
               onPress={() => setPhotoVisible(true)}
               style={{ marginTop: 6, aspectRatio: 1, maxWidth: 220, borderRadius: theme.radii.md, overflow: 'hidden' }}>
               <Image source={{ uri: item.photo.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" onError={() => void refetch()} />
             </Pressable>
+            {item.legacySinglePhoto ? (
+              <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 6 }]}>{LEGACY_SINGLE_PHOTO_NOTE}</Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -176,7 +182,7 @@ export function ProductionReturnDetailScreen() {
       <PhotoViewer
         visible={photoVisible}
         uri={item.photo?.url ?? null}
-        accessibilityLabel={`Return photo of ${item.productName}`}
+        accessibilityLabel={item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}` : `Photo of returned ${item.productName}`}
         onClose={() => setPhotoVisible(false)}
         onImageError={() => void refetch()}
       />

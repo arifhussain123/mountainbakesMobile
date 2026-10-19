@@ -4,6 +4,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
+import { LEGACY_SINGLE_PHOTO_NOTE } from '../returnPhotos';
 import { describeReturnValue } from '../returnsSummary';
 import { shortReturnRef } from '../returnStockList';
 
@@ -28,8 +29,8 @@ export const RETURN_STATUS_VARIANT: Record<BranchReturn['status'], StatusVariant
 };
 
 /**
- * mountainbakesBranch.html screen 13 — one product row of a return: photo
- * thumbnail, product × qty, date · time, what it is worth, then the status,
+ * mountainbakesBranch.html screen 13 — one product row of a return: this
+ * product's photo thumbnail (or an older return's shared one, noted), product × qty, date · time, what it is worth, then the status,
  * "Reviewed … · ID" and View. The whole card opens the record; Change and
  * Withdraw live there, next to the full detail they act on.
  */
@@ -48,7 +49,13 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView 
         <View style={styles.row}>
           <View style={[styles.thumb, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.surface }]}>
             {hasPhoto ? (
-              <Image source={{ uri: item.photo!.url }} style={styles.thumbImage} resizeMode="cover" onError={() => setPhotoFailed(true)} />
+              <Image
+                source={{ uri: item.photo!.url }}
+                style={styles.thumbImage}
+                resizeMode="cover"
+                accessibilityLabel={item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}` : `Photo of returned ${item.productName}`}
+                onError={() => setPhotoFailed(true)}
+              />
             ) : (
               <Icon name="image" size={18} color={theme.colors.textFaint} />
             )}
@@ -66,6 +73,11 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView 
             <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.text }]} numberOfLines={1}>
               {describeReturnValue(item)}
             </Text>
+            {hasPhoto && item.legacySinglePhoto ? (
+              <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textFaint }]} numberOfLines={1}>
+                {LEGACY_SINGLE_PHOTO_NOTE}
+              </Text>
+            ) : null}
             <View style={styles.footer}>
               <StatusBadge label={RETURN_STATUS_LABEL[item.status] ?? item.status} variant={RETURN_STATUS_VARIANT[item.status] ?? 'neutral'} />
               <Text style={[theme.typography.label, styles.meta, { color: theme.colors.textFaint }]} numberOfLines={1}>

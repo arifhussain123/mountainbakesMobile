@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBusinessDate, getBusinessDayBounds, useProductionSales } from '@/api';
 import { Routes, type ProductionSalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar, StatCard } from '@/shared/ui';
+import { AppHeader, Card, Dropdown, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar, StatCard, type DropdownOption } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ProductionSaleCard } from '../../components';
-import { styles } from './styles';
 
 const PAYMENT_FILTERS = ['All', 'cash', 'easypaisa', 'foodpanda', 'bank_account', 'staff'] as const;
 const PAYMENT_LABEL: Record<string, string> = {
@@ -20,6 +19,10 @@ const PAYMENT_LABEL: Record<string, string> = {
   bank_account: 'Bank',
   staff: 'Staff',
 };
+const PAYMENT_FILTER_OPTIONS: DropdownOption<(typeof PAYMENT_FILTERS)[number]>[] = PAYMENT_FILTERS.map((value) => ({
+  value,
+  label: value === 'All' ? 'All payment methods' : PAYMENT_LABEL[value],
+}));
 
 /** mountainbakesProduction.html screen 05 — Sales: the counter's own sale history. */
 export function ProductionSalesListScreen() {
@@ -64,23 +67,8 @@ export function ProductionSalesListScreen() {
         ListHeaderComponent={
           <View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search customer, phone, order #…" />
-            <View style={styles.filterChipsRow}>
-              {PAYMENT_FILTERS.map((option) => {
-                const active = option === paymentFilter;
-                return (
-                  <Pressable
-                    key={option}
-                    onPress={() => setPaymentFilter(option)}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: active ? theme.colors.primary : theme.colors.surface, borderColor: active ? theme.colors.primary : theme.colors.border },
-                    ]}>
-                    <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]}>
-                      {PAYMENT_LABEL[option]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <View style={{ marginTop: 12 }}>
+              <Dropdown options={PAYMENT_FILTER_OPTIONS} value={paymentFilter} onChange={setPaymentFilter} />
             </View>
             {!isLoading && !error ? (
               <Card style={{ marginTop: theme.spacing.md }}>

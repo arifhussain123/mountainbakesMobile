@@ -1,5 +1,7 @@
 import { getBusinessDate, queryClient, queryKeys } from '@/api';
 import type {
+  BackupHealth,
+  BackupHealthStatus,
   BranchDiscountListResponse,
   CashTransferListResponse,
   DailySaleRecordList,
@@ -9,6 +11,8 @@ import type {
   FinancePendingApproval,
   FinanceSettings,
   FinanceTicketStats,
+  MessagingProviderStatus,
+  ProductionBranchStockResponse,
   ProductionOrderListResponse,
   ProductionOrderStatus,
   ProductionStockListResponse,
@@ -143,6 +147,66 @@ export function computeFinanceBadges(): NavBadges {
   // `waiting` is the server's "Waiting for Finance" bucket.
   setIfPositive(badges, 'helpDesk', queryClient.getQueryData<Partial<FinanceTicketStats>>(queryKeys.financeTicketStats())?.waiting);
   if (queryClient.getQueryData<FinanceSettings>(queryKeys.financeSettings())?.allowSuperAdminWrite) badges.financeSettings = 1;
+  return badges;
+}
+
+const BACKUP_ALERT_STATUSES: readonly BackupHealthStatus[] = ['overdue', 'failed', 'never'];
+
+/**
+ * Super Admin's badges, by the same cache-only rule. Orders, Finance Ledger,
+ * Recipients, Users, Database Backup and Branch Stock are kept warm by
+ * `useSuperAdminNavCounts`; Daily Sale Records, Special Events and Support
+ * Center show once their screens have loaded data. Settings' restriction
+ * signal has no server source yet, so it never shows.
+ *
+ * Dot items set 1 for "show the dot", like Finance's.
+ */
+export function computeSuperAdminBadges(): NavBadges {
+  const badges: NavBadges = {};
+
+  // Demands waiting for Production, the same two statuses Production's own badge counts.
+  setIfPositive(
+    badges,
+    'orders',
+    firstCached<ProductionOrderListResponse>('productionOrders')?.orders.filter((o) => PRODUCTION_ORDER_NEEDS_APPROVAL.includes(o.status)).length,
+  );
+
+  const today = getBusinessDate();
+  setIfPositive(
+    badges,
+    'dailySale',
+    firstCached<DailySaleRecordList>('dailySaleRecords')?.records.filter(
+      (r) => r.businessDate !== today && r.manualCash === null && r.manualEasypaisa === null && r.manualBank === null,
+    ).length,
+  );
+
+  // A branch with any product below zero. The matrix is products × branches.
+  const branchStock = queryClient.getQueryData<ProductionBranchStockResponse>(queryKeys.productionBranchStock());
+  if (branchStock?.branches.some((b) => branchStock.rows.some((r) => (r.byBranch[b.branchId] ?? 0) < 0))) {
+    badges.branchStockNegative = 1;
+  }
+
+  // Demand window closed on an event that is still ahead. The list carries no
+  // per-branch submission state, so "branches pending" can't be checked here.
+  setIfPositive(
+    badges,
+    'events',
+    firstCached<SpecialEventListResponse>('specialEvents')?.events.filter(
+      (e) => (e.status === 'upcoming' || e.status === 'active') && e.demandDueDate !== null && e.demandDueDate < today,
+    ).length,
+  );
+
+  setIfPositive(badges, 'approvals', queryClient.getQueryData<FinancePendingApproval[]>(queryKeys.pendingApprovals())?.length);
+  setIfPositive(badges, 'supportCenter', firstCached<SupportTicketListResponse>('supportTickets')?.tickets.filter((t) => t.status === 'open').length);
+
+  if (queryClient.getQueryData<MessagingProviderStatus>(queryKeys.messagingProvider())?.live === false) badges.recipientsTestMode = 1;
+  // "New" = flagged today. The server keeps no seen/unseen state for an admin.
+  if (queryClient.getQueryData<number>(queryKeys.suspiciousSignInCount(today))) badges.suspiciousSignIns = 1;
+
+  const backup = queryClient.getQueryData<BackupHealth>(queryKeys.backupHealth());
+  if (backup && [backup.daily, backup.weekly, backup.monthly].some((t) => BACKUP_ALERT_STATUSES.includes(t.status))) {
+    badges.backupAlert = 1;
+  }
   return badges;
 }
 

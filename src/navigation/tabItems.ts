@@ -58,3 +58,16 @@ export const FINANCE_TAB_ITEMS: TabItem[] = [
   { key: 'payroll', label: 'Payroll', icon: 'user-coin', route: Routes.FINANCE_PAYROLL_TAB, badgeSource: null },
   { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
 ];
+
+/**
+ * Super Admin's daily checks — Dashboard, Orders, Branch Stock, Reports, More
+ * (the drawer holds the other sixteen). Orders carries the same badge as its
+ * drawer row.
+ */
+export const SUPER_ADMIN_TAB_ITEMS: TabItem[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'home', route: Routes.SUPER_ADMIN_DASHBOARD_TAB, badgeSource: null },
+  { key: 'orders', label: 'Orders', icon: 'orders', route: Routes.SUPER_ADMIN_ORDERS_TAB, badgeSource: 'orders' },
+  { key: 'branchStock', label: 'Branch Stock', icon: 'boxes', route: Routes.SUPER_ADMIN_BRANCH_STOCK_TAB, badgeSource: null },
+  { key: 'reports', label: 'Reports', icon: 'bar-chart', route: Routes.SUPER_ADMIN_REPORTS_TAB, badgeSource: null },
+  { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
+];

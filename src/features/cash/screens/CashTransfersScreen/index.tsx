@@ -23,6 +23,8 @@ import {
   PillButton,
   SearchBar,
   Screen,
+  Dropdown,
+  type DropdownOption,
   type FilterChipOption,
 } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
@@ -48,8 +50,8 @@ const STATUS_OPTIONS: FilterChipOption<CashTransferStatus | 'all'>[] = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-const CHANNEL_OPTIONS: FilterChipOption<CashTransferChannel | 'all'>[] = [
-  { value: 'all', label: 'All' },
+const CHANNEL_OPTIONS: DropdownOption<CashTransferChannel | 'all'>[] = [
+  { value: 'all', label: 'All channels' },
   { value: 'cash', label: 'Cash' },
   { value: 'easypaisa', label: 'Easypaisa' },
   { value: 'bank_account', label: 'Bank' },
@@ -215,7 +217,7 @@ export function CashTransfersScreen() {
               <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
             </View>
             <View style={{ marginTop: 8 }}>
-              <FilterChipRow options={CHANNEL_OPTIONS} value={channelFilter} onChange={setChannelFilter} />
+              <Dropdown options={CHANNEL_OPTIONS} value={channelFilter} onChange={setChannelFilter} />
             </View>
 
             {totalMatching > CASH_TRANSFERS_MAX_PAGE_SIZE ? (

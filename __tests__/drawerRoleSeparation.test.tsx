@@ -95,4 +95,17 @@ describe('the drawer, per server role', () => {
     expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
     for (const label of ['New Orders', 'Cash Deposits', 'Production Stock', 'Returns', 'Branch Closing']) expect(texts).not.toContain(label);
   });
+
+  it('a Super Admin sees Overview open and the other seven sections folded to their headers, with counts', () => {
+    const texts = renderDrawerFor(user('super_admin', null));
+    expect(texts).toEqual(expect.arrayContaining(['Super Admin', 'All branches', 'OVERVIEW', 'Dashboard']));
+    // A folded header carries its item count.
+    expect(texts).toEqual(
+      expect.arrayContaining(['SALES & ORDERS · 3', 'CATALOG · 4', 'BRANCHES · 3', 'PLANNING & INSIGHTS · 2', 'FINANCE · 1', 'SUPPORT · 2', 'ADMIN · 4']),
+    );
+    // Folded items aren't rendered, and nothing from another role's menu is.
+    for (const label of ['Users', 'Price History', 'Orders', 'New Orders', 'Production Stock', 'Daily Ledger', 'Help Desk']) {
+      expect(texts).not.toContain(label);
+    }
+  });
 });

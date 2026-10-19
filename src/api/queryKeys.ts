@@ -116,4 +116,13 @@ export const queryKeys = {
   productionBranchStock: () => ['productionBranchStock'] as const,
   productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
   notifications: () => ['notifications'] as const,
+  // Under one ['priceHistory'] root so a refresh reaches the list and every product timeline.
+  priceHistoryPages: (query: unknown) => ['priceHistory', 'pages', query] as const,
+  productPriceHistory: (productId: string) => ['priceHistory', 'product', productId] as const,
+  catalogProducts: () => ['catalogProducts'] as const,
+  closingRecipients: () => ['closingRecipients'] as const,
+  messagingProvider: () => ['messagingProvider'] as const,
+  closingNotificationLogs: (query: unknown) => ['closingNotificationLogs', query] as const,
+  backupHealth: () => ['backupHealth'] as const,
+  suspiciousSignInCount: (from: string) => ['suspiciousSignInCount', from] as const,
 };

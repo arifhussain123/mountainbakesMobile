@@ -13,6 +13,9 @@ export type { DateFilterProps, DatePeriod } from './DateFilter';
 export { DateRangeSheet } from './DateRangeSheet';
 export type { DateRangeSheetProps } from './DateRangeSheet';
 
+export { Dropdown } from './Dropdown';
+export type { DropdownOption, DropdownProps } from './Dropdown';
+
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 
@@ -24,6 +27,7 @@ export type { FilterChipOption, FilterChipRowProps } from './FilterChipRow';
 
 export { FormBottomSheet } from './FormBottomSheet';
 export type { FormBottomSheetProps } from './FormBottomSheet';
+export { useFormBottomSheetScroll } from './FormBottomSheet';
 
 export { GlowLayer, WARM_GLOW_RGB } from './GlowLayer';
 export type { GlowLayerProps } from './GlowLayer';

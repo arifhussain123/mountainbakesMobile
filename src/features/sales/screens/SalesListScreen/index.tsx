@@ -8,7 +8,7 @@ import { exportSalesCsv, getBusinessDate, getBusinessDayBounds, useOrders, useSa
 import { Routes, openDrawer, useTabBarHeight, type SalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue } from '@/shared/hooks';
-import { ErrorState, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { Dropdown, ErrorState, Icon, LoadingSkeleton, Screen, SearchBar, type DropdownOption } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { summarizeItemsSold, summarizeOrders } from '../../calculations';
@@ -17,6 +17,10 @@ import { styles } from './styles';
 
 const PAYMENT_FILTERS = ['All', 'cash', 'easypaisa', 'foodpanda', 'bank_account'] as const;
 const PAYMENT_LABEL: Record<string, string> = { All: 'All', cash: 'Cash', easypaisa: 'Easypaisa', foodpanda: 'Foodpanda', bank_account: 'Bank' };
+const PAYMENT_FILTER_OPTIONS: DropdownOption<(typeof PAYMENT_FILTERS)[number]>[] = PAYMENT_FILTERS.map((value) => ({
+  value,
+  label: value === 'All' ? 'All payment methods' : PAYMENT_LABEL[value],
+}));
 
 /** Time/Amount read best most-recent/largest-first; ID/Customer/Comment read best alphabetically. */
 const SORT_DIRECTION: Record<SortField, 'asc' | 'desc'> = {
@@ -154,23 +158,10 @@ export function SalesListScreen() {
             <View style={{ marginTop: 18 }}>
               <SearchBar value={search} onChangeText={setSearch} placeholder="Search customer, phone, order #…" />
             </View>
+            <View style={{ marginTop: 10 }}>
+              <Dropdown options={PAYMENT_FILTER_OPTIONS} value={paymentFilter} onChange={setPaymentFilter} />
+            </View>
             <View style={styles.filterChipsRow}>
-              {PAYMENT_FILTERS.map((option) => {
-                const active = option === paymentFilter;
-                return (
-                  <Pressable
-                    key={option}
-                    onPress={() => setPaymentFilter(option)}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: active ? theme.colors.primary : theme.colors.cardFill, borderColor: active ? theme.colors.primary : theme.colors.cardBorder },
-                    ]}>
-                    <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]}>
-                      {PAYMENT_LABEL[option]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Sort sales"

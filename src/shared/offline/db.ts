@@ -43,6 +43,19 @@ export function getOfflineDb(): DB {
       PRIMARY KEY (branch_id, business_date)
     );
   `);
+  // Photos a queued write still has to upload (Return Items taken offline),
+  // kept here rather than as files: the picker's own copy lives in a cache
+  // directory the OS may empty, and the app has no file-system library.
+  // Base64 because that is what the picker hands back and what React
+  // Native's multipart encoder reads back (as a data: URI).
+  db.executeSync(`
+    CREATE TABLE IF NOT EXISTS local_photos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mime_type TEXT NOT NULL,
+      base64 TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `);
   return db;
 }
 

@@ -83,6 +83,10 @@ export interface MutationOptions {
   idempotencyKey?: string;
   /** Attached as `X-Geo-Position` for geofenced mutations (sale/order/return create). */
   geoPosition?: GeoPosition | null;
+  /** Cancels the request (a photo upload the user retook or removed mid-flight). Honoured by `post` only. */
+  signal?: AbortSignal;
+  /** Upload progress as a 0–1 fraction, when the platform reports one. Honoured by `post` only. */
+  onUploadProgress?: (fraction: number) => void;
 }
 
 function mutationHeaders(options?: MutationOptions): Record<string, string> {
@@ -109,7 +113,16 @@ export const apiClient = {
   },
   async post<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
     try {
-      const response = await axiosInstance.post<T>(url, body, { headers: mutationHeaders(options) });
+      const onUploadProgress = options?.onUploadProgress;
+      const response = await axiosInstance.post<T>(url, body, {
+        headers: mutationHeaders(options),
+        signal: options?.signal,
+        onUploadProgress: onUploadProgress
+          ? (event) => {
+              if (event.total) onUploadProgress(Math.min(1, event.loaded / event.total));
+            }
+          : undefined,
+      });
       return response.data;
     } catch (error) {
       throw toApiError(error);

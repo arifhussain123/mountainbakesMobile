@@ -18,6 +18,8 @@ export interface DrawerItemProps {
   failedSync?: boolean;
   /** Show `badgeCount` as an amber dot (a state, e.g. "day still open") instead of a number. */
   badgeDot?: boolean;
+  /** `muted` greys a count; `danger` turns a dot red. */
+  badgeTone?: 'muted' | 'danger';
   onPress: () => void;
   /** From `computeDrawerRowMetrics` — every row in the list shares the same computed size. */
   rowHeight: number;
@@ -40,6 +42,7 @@ export function DrawerItem({
   badgeCount,
   failedSync,
   badgeDot,
+  badgeTone,
   onPress,
   rowHeight,
   iconSize,
@@ -77,9 +80,9 @@ export function DrawerItem({
               <NavBadge count={0} dot />
             ) : badgeCount ? (
               badgeDot ? (
-                <NavBadge count={0} dot dotTone="warning" />
+                <NavBadge count={0} dot dotTone={badgeTone === 'danger' ? 'danger' : 'warning'} />
               ) : (
-                <NavBadge count={badgeCount} />
+                <NavBadge count={badgeCount} tone={badgeTone === 'muted' ? 'muted' : 'accent'} />
               )
             ) : null}
             <Icon name="chevron-right" size={ROW_CHEVRON_SIZE} color={accentOrMuted} />
