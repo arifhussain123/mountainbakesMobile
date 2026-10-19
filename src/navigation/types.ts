@@ -113,6 +113,12 @@ export type RecipientsStackParamList = {
   [Routes.RECIPIENTS_DELIVERY_LOG]: undefined;
 };
 
+/** Super Admin Settings → Restriction Rules (web /settings and /settings/restriction-rules). */
+export type SuperAdminSettingsStackParamList = {
+  [Routes.SUPER_ADMIN_SETTINGS_HOME]: undefined;
+  [Routes.SUPER_ADMIN_RESTRICTION_RULES]: undefined;
+};
+
 export type PriceHistoryStackParamList = {
   [Routes.PRICE_HISTORY_LIST]: undefined;
   [Routes.PRICE_HISTORY_PRODUCT]: { productId: string; productName: string };
@@ -194,23 +200,52 @@ export type FinanceDrawerParamList = {
   [Routes.PROFILE]: undefined;
 };
 
+export type SuperAdminOrdersStackParamList = {
+  [Routes.SUPER_ADMIN_ORDERS_LIST]: undefined;
+  [Routes.SUPER_ADMIN_ORDER_DETAIL]: { orderId: string };
+};
+
 export type SuperAdminBottomTabParamList = {
   [Routes.SUPER_ADMIN_DASHBOARD_TAB]: undefined;
-  [Routes.SUPER_ADMIN_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_ORDERS_TAB]: NavigatorScreenParams<SuperAdminOrdersStackParamList> | undefined;
   [Routes.SUPER_ADMIN_BRANCH_STOCK_TAB]: undefined;
-  [Routes.SUPER_ADMIN_REPORTS_TAB]: NavigatorScreenParams<ReportsStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_REPORTS_TAB]: undefined;
   [Routes.SUPER_ADMIN_MORE_TAB]: undefined;
 };
 
+/** Super Admin — Special Events (web /special-events + /special-events/[id]). */
+export type SuperAdminEventsStackParamList = {
+  [Routes.SUPER_ADMIN_EVENTS_LIST]: undefined;
+  [Routes.SUPER_ADMIN_EVENT_DETAIL]: { eventId: string };
+};
+
+/** Super Admin — Support Center (web /support): ops tickets + Finance queries. */
+export type SuperAdminSupportStackParamList = {
+  [Routes.SUPER_ADMIN_SUPPORT_LIST]: undefined;
+  [Routes.SUPER_ADMIN_SUPPORT_TICKET]: { ticketId: string };
+  [Routes.SUPER_ADMIN_FINANCE_TICKET]: { ticketId: string };
+};
+
+/** Super Admin — Daily Ledger (web /finance-ledger). */
+export type SuperAdminLedgerStackParamList = {
+  [Routes.SUPER_ADMIN_LEDGER_LIST]: undefined;
+};
+
+/** Super Admin — Daily Sale Records (web /daily-sale-records): the board, then one record's View. */
+export type SuperAdminDailySaleStackParamList = {
+  [Routes.SUPER_ADMIN_DAILY_SALE_LIST]: undefined;
+  [Routes.SUPER_ADMIN_DAILY_SALE_DETAIL]: { recordId: string };
+};
+
 export type SuperAdminDrawerParamList = {
+  [Routes.SUPER_ADMIN_EVENTS_STACK]: NavigatorScreenParams<SuperAdminEventsStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_SUPPORT_STACK]: NavigatorScreenParams<SuperAdminSupportStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_LEDGER_STACK]: NavigatorScreenParams<SuperAdminLedgerStackParamList> | undefined;
   [Routes.SUPER_ADMIN_TABS]: NavigatorScreenParams<SuperAdminBottomTabParamList> | undefined;
   [Routes.PRICE_HISTORY_STACK]: NavigatorScreenParams<PriceHistoryStackParamList> | undefined;
   [Routes.RECIPIENTS_STACK]: NavigatorScreenParams<RecipientsStackParamList> | undefined;
-  [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
-  [Routes.FINANCE_LEDGER_STACK]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
-  [Routes.HELP_DESK_STACK]: NavigatorScreenParams<HelpDeskStackParamList> | undefined;
   [Routes.SUPER_ADMIN_CUSTOMERS]: undefined;
-  [Routes.SUPER_ADMIN_DAILY_SALE]: undefined;
+  [Routes.SUPER_ADMIN_DAILY_SALE]: NavigatorScreenParams<SuperAdminDailySaleStackParamList> | undefined;
   [Routes.SUPER_ADMIN_PRODUCTS]: undefined;
   [Routes.SUPER_ADMIN_CATEGORIES]: undefined;
   [Routes.SUPER_ADMIN_PRICE_LIST]: undefined;
@@ -219,7 +254,7 @@ export type SuperAdminDrawerParamList = {
   [Routes.SUPER_ADMIN_USERS]: undefined;
   [Routes.SUPER_ADMIN_SECURITY]: undefined;
   [Routes.SUPER_ADMIN_BACKUP]: undefined;
-  [Routes.SUPER_ADMIN_SETTINGS]: undefined;
+  [Routes.SUPER_ADMIN_SETTINGS]: NavigatorScreenParams<SuperAdminSettingsStackParamList> | undefined;
   [Routes.PROFILE]: undefined;
 };
 

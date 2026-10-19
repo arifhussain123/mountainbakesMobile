@@ -484,11 +484,9 @@ const superAdminItem = (
  * rows can't fit a phone at 40dp, so this shell's drawer collapses sections
  * (`collapsibleSections` in `roleShells.ts`).
  *
- * Every row opens real data. Orders, Branch Stock, Special Events, Reports,
- * Finance Ledger and Support Center reuse the Production, branch and Finance
- * screens (the server serves super_admin every branch on each); the rest are
- * Super Admin's read-only screens in `features/admin`. Editing stays on the
- * web until each screen's write decisions are made.
+ * Every row opens Super Admin's own screen (`features/admin`), built to show
+ * what the matching web Super Admin page shows. Editing stays on the web
+ * until each screen's actions are added.
  */
 export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   superAdminItem('dashboard', 'Dashboard', 'grid', 'overview', { tab: Routes.SUPER_ADMIN_DASHBOARD_TAB }),
@@ -506,10 +504,10 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
     badgeDot: true,
     badgeTone: 'danger',
   }),
-  superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', { stack: Routes.PRODUCTION_EVENTS_STACK }, { badgeSource: 'events' }),
+  superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', { stack: Routes.SUPER_ADMIN_EVENTS_STACK }, { badgeSource: 'events' }),
   superAdminItem('reports', 'Reports', 'bar-chart', 'planningInsights', { tab: Routes.SUPER_ADMIN_REPORTS_TAB }),
-  superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', { stack: Routes.FINANCE_LEDGER_STACK }, { badgeSource: 'approvals', badgeTone: 'muted' }),
-  superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', { stack: Routes.HELP_DESK_STACK }, { badgeSource: 'supportCenter' }),
+  superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', { stack: Routes.SUPER_ADMIN_LEDGER_STACK }, { badgeSource: 'approvals', badgeTone: 'muted' }),
+  superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', { stack: Routes.SUPER_ADMIN_SUPPORT_STACK }, { badgeSource: 'supportCenter' }),
   superAdminItem('recipients', 'Recipients', 'send', 'support', { stack: Routes.RECIPIENTS_STACK }, { badgeSource: 'recipientsTestMode', badgeDot: true }),
   superAdminItem('users', 'Users', 'user-group', 'admin', { stack: Routes.SUPER_ADMIN_USERS }, { badgeSource: 'suspiciousSignIns', badgeDot: true, badgeTone: 'danger' }),
   superAdminItem('security', 'Security', 'shield-check', 'admin', { stack: Routes.SUPER_ADMIN_SECURITY }),

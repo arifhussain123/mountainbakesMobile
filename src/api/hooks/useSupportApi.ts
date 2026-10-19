@@ -1,7 +1,65 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryKeys';
-import { supportService } from '../services';
-import type { SupportReference, SupportTicket, SupportTicketListResponse } from '../types';
+import { financeTicketsService, supportService } from '../services';
+import type { AdminSupportTicketQuery, FinanceTicketQuery, SupportReference, SupportTicket, SupportTicketListResponse } from '../types';
+
+/** Super Admin Support Center — the ops queue, server-paged (one page per fetch, appended on scroll). */
+export function useAdminSupportTickets(query: Omit<AdminSupportTicketQuery, 'page'>, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.adminSupportTickets(query),
+    queryFn: ({ pageParam }) => supportService.listAdminSupportTickets({ ...query, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page * last.pageSize < last.total ? last.page + 1 : undefined),
+    enabled,
+  });
+}
+
+/** The cached row a Support Center card was tapped from — there is no `GET /api/support/:id`. */
+export function useCachedAdminSupportTicket(ticketId: string): SupportTicket | null {
+  const queryClient = useQueryClient();
+  const entries = queryClient.getQueriesData<{ pages: SupportTicketListResponse[] }>({ queryKey: ['adminSupportTickets'] });
+  for (const [, data] of entries) {
+    for (const page of data?.pages ?? []) {
+      const hit = page.tickets.find((t) => t.id === ticketId);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+/** `GET /api/support/stats` — super_admin only. */
+export function useSupportStats() {
+  return useQuery({
+    queryKey: queryKeys.supportStats(),
+    queryFn: () => supportService.getSupportStats(),
+  });
+}
+
+/**
+ * The reference as it reads now (web `useLiveReference`): `pool=1` for a
+ * production-pool stock ticket, else the raiser's branch. Disabled (snapshot
+ * only) when `enabled` is false.
+ */
+export function useSupportLiveReference(ref: string, scope: { branchId?: string | null; pool?: boolean }, enabled: boolean) {
+  const scopeKey = scope.pool ? 'pool' : (scope.branchId ?? '');
+  return useQuery({
+    queryKey: queryKeys.supportLiveReference(ref, scopeKey),
+    queryFn: () => supportService.lookupSupportReferenceScoped(ref, scope),
+    enabled: enabled && !!ref,
+    retry: false,
+  });
+}
+
+/** Finance Help Desk queue, server-paged — the Support Center's "Finance Queries" section. */
+export function useFinanceTicketsPaged(query: Omit<FinanceTicketQuery, 'page'>, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.financeTicketsPaged(query),
+    queryFn: ({ pageParam }) => financeTicketsService.listFinanceTickets({ ...query, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page * last.pageSize < last.total ? last.page + 1 : undefined),
+    enabled,
+  });
+}
 
 export function useSupportTickets() {
   return useQuery({

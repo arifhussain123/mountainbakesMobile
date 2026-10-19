@@ -1,51 +1,27 @@
-import { useMemo } from 'react';
-import { useCatalogProducts, useProductCategories, type ProductCategory } from '@/api';
-import { formatCount } from '@/shared/utils';
+import { useProductCategories, type ProductCategory } from '@/api';
 import { AdminListScreen, AdminRow } from '../components';
 
-/** Active product categories in their sort order, each with how many products use it. */
+/**
+ * Web `/categories`: each category's name with an Active/Inactive badge, in
+ * sort order. Read-only in this phase (no add / rename / remove).
+ */
 export function CategoriesScreen() {
   const q = useProductCategories();
-  const productsQ = useCatalogProducts();
-
-  const countByCategory = useMemo(() => {
-    const map = new Map<string, { active: number; total: number }>();
-    for (const p of productsQ.data?.products ?? []) {
-      if (p.isSpecial || !p.categoryId) continue;
-      const c = map.get(p.categoryId) ?? { active: 0, total: 0 };
-      c.total += 1;
-      if (p.isActive) c.active += 1;
-      map.set(p.categoryId, c);
-    }
-    return map;
-  }, [productsQ.data]);
-
-  const categories = q.data?.categories ?? [];
 
   return (
     <AdminListScreen<ProductCategory>
       title="Categories"
-      subtitle={`${formatCount(categories.length)} active categories. Read-only.`}
-      data={categories}
+      subtitle="Manage product categories"
+      data={q.data?.categories ?? []}
       keyExtractor={(c) => c.id}
-      renderItem={({ item }) => {
-        const c = countByCategory.get(item.id);
-        return (
-          <AdminRow
-            title={item.name}
-            lines={[`/${item.slug}`, productsQ.data ? `${formatCount(c?.active ?? 0)} active · ${formatCount(c?.total ?? 0)} total products` : null]}
-          />
-        );
-      }}
+      renderItem={({ item }) => (
+        <AdminRow title={item.name} badge={{ label: item.isActive ? 'Active' : 'Inactive', variant: item.isActive ? 'success' : 'neutral' }} />
+      )}
       isLoading={q.isLoading}
       error={q.error}
       refreshing={q.isRefetching}
-      onRefresh={() => {
-        void q.refetch();
-        void productsQ.refetch();
-      }}
-      emptyTitle="No Categories"
-      emptyMessage="Categories created on the web will appear here."
+      onRefresh={() => void q.refetch()}
+      emptyTitle="No categories"
     />
   );
 }

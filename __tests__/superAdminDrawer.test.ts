@@ -106,9 +106,12 @@ describe('Super Admin shell', () => {
     expect(shell.tabItems.find((t) => t.key === 'orders')!.badgeSource).toBe('orders');
   });
 
-  // The stacks Super Admin shares with another role's shell — each drawer mounts its own copy.
-  const SHARED_STACKS = [Routes.PRODUCTION_EVENTS_STACK, Routes.FINANCE_LEDGER_STACK, Routes.HELP_DESK_STACK] as string[];
+  // Super Admin shares no stack with another role's shell any more.
+  const SHARED_STACKS = [] as string[];
   const SUPER_ADMIN_SCREENS = [
+    Routes.SUPER_ADMIN_EVENTS_STACK,
+    Routes.SUPER_ADMIN_LEDGER_STACK,
+    Routes.SUPER_ADMIN_SUPPORT_STACK,
     Routes.SUPER_ADMIN_CUSTOMERS,
     Routes.SUPER_ADMIN_DAILY_SALE,
     Routes.SUPER_ADMIN_PRODUCTS,
@@ -153,7 +156,7 @@ describe('Super Admin shell', () => {
   it('opens real screens for Customers, Support Center and Security', () => {
     const expected: Record<string, string> = {
       customers: Routes.SUPER_ADMIN_CUSTOMERS,
-      supportCenter: Routes.HELP_DESK_STACK,
+      supportCenter: Routes.SUPER_ADMIN_SUPPORT_STACK,
       security: Routes.SUPER_ADMIN_SECURITY,
     };
     for (const [key, route] of Object.entries(expected)) {

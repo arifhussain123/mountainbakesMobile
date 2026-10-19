@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
+import { format, parseISO, subDays } from 'date-fns';
 import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
-import { useClosingRecipients, useMessagingProvider, useNotificationLogPages, type NotificationLog } from '@/api';
+import { getBusinessDate, useClosingRecipients, useMessagingProvider, useNotificationLogPages, type NotificationLog } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, Screen, StatusBadge, type FilterChipOption } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -8,13 +9,22 @@ import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { ProviderBanner } from '../../components/ProviderBanner';
 import { CHANNEL_LABEL, deliveryLabel, receivesLine } from '../../utils/recipientRules';
 
-type StatusFilter = 'all' | 'sent' | 'failed';
+type StatusFilter = 'all' | 'pending' | 'sent' | 'failed';
 const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
   { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
   { value: 'sent', label: 'Sent' },
   { value: 'failed', label: 'Failed' },
 ];
+type ChannelFilter = 'all' | 'whatsapp' | 'sms';
+const CHANNEL_OPTIONS: FilterChipOption<ChannelFilter>[] = [
+  { value: 'all', label: 'All channels' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sms', label: 'SMS' },
+];
 const ANYONE = 'all';
+/** How many business dates back the "Business date" filter offers. */
+const DATE_CHOICES = 45;
 
 /**
  * Every send of the closing summary, newest first, grouped by business date.
@@ -26,11 +36,26 @@ export function DeliveryLogScreen() {
   const theme = useAppTheme();
   const [status, setStatus] = useState<StatusFilter>('all');
   const [recipientId, setRecipientId] = useState<string>(ANYONE);
+  const [channel, setChannel] = useState<ChannelFilter>('all');
+  const [businessDate, setBusinessDate] = useState<string>(ANYONE);
+  const today = getBusinessDate();
+  const dateOptions = useMemo(
+    () => [
+      { value: ANYONE, label: 'Any business date' },
+      ...Array.from({ length: DATE_CHOICES }, (_, i) => {
+        const d = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
+        return { value: d, label: formatDisplayDate(d) };
+      }),
+    ],
+    [today],
+  );
 
   const providerQ = useMessagingProvider();
   const recipientsQ = useClosingRecipients();
   const pagesQ = useNotificationLogPages({
     status: status === 'all' ? undefined : status,
+    channel: channel === 'all' ? undefined : channel,
+    businessDate: businessDate === ANYONE ? undefined : businessDate,
     recipientId: recipientId === ANYONE ? undefined : recipientId,
   });
   const maxAttempts = providerQ.data?.retry.maxAttempts;
@@ -76,7 +101,7 @@ export function DeliveryLogScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Delivery Log" subtitle="Every closing-summary send, newest first." />
+      <AppHeader title="Delivery Log" subtitle="Every closing-summary send attempt, newest first." />
       <SectionList
         sections={sections}
         keyExtractor={(l) => l.id}
@@ -89,7 +114,9 @@ export function DeliveryLogScreen() {
         ListHeaderComponent={
           <View style={{ gap: 10, marginBottom: theme.spacing.md }}>
             <ProviderBanner provider={providerQ.data} />
+            <Dropdown options={dateOptions} value={businessDate} onChange={setBusinessDate} />
             <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+            <FilterChipRow options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} />
             <Dropdown options={recipientOptions} value={recipientId} onChange={setRecipientId} />
             {pagesQ.isLoading ? <LoadingSkeleton height={120} /> : null}
             {pagesQ.error ? <ErrorState message={mapErrorToMessage(pagesQ.error)} onRetry={() => void pagesQ.refetch()} /> : null}
@@ -103,7 +130,7 @@ export function DeliveryLogScreen() {
         renderItem={({ item }) => {
           const r = item.recipientId ? recipientById.get(item.recipientId) : undefined;
           const label = deliveryLabel(item);
-          const variant = item.status === 'failed' ? 'danger' : item.provider === 'log' ? 'warning' : 'success';
+          const variant = item.status === 'failed' ? 'danger' : item.status === 'pending' ? 'neutral' : item.provider === 'log' ? 'warning' : 'success';
           return (
             <Pressable onPress={() => showDetail(item)} accessibilityRole="button" accessibilityLabel={`${item.recipientName ?? 'Removed recipient'}, ${CHANNEL_LABEL[item.channel]}, ${label}, ${item.retryCount + 1} attempts`}>
               <Card style={styles.card}>
@@ -124,7 +151,7 @@ export function DeliveryLogScreen() {
           );
         }}
         ListEmptyComponent={
-          !pagesQ.isLoading && !pagesQ.error ? <EmptyState title="Nothing Sent Yet" message="Closing-summary sends will appear here." /> : undefined
+          !pagesQ.isLoading && !pagesQ.error ? <EmptyState title="Nothing Sent Yet" message="No delivery attempts for this selection." /> : undefined
         }
         ListFooterComponent={pagesQ.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: theme.spacing.md }} color={theme.colors.primary} /> : undefined}
         refreshing={pagesQ.isRefetching && !pagesQ.isFetchingNextPage}

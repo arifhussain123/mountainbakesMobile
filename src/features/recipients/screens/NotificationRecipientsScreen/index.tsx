@@ -105,7 +105,7 @@ export function NotificationRecipientsScreen() {
     <Screen>
       <AppHeader
         title="Notification Recipients"
-        subtitle="Who gets the 2:00 AM closing summary."
+        subtitle="Who receives the 2:00 AM closing summary. Each branch number gets only that branch's figures."
         actions={[
           { icon: 'list-indent', onPress: () => navigation.navigate(Routes.RECIPIENTS_DELIVERY_LOG), accessibilityLabel: 'Delivery log' },
           ...(showingCache ? [] : [{ icon: 'transfer' as const, onPress: () => sendRef.current?.present(), accessibilityLabel: live ? 'Send summaries now' : 'Log a test send' }]),
@@ -124,7 +124,7 @@ export function NotificationRecipientsScreen() {
               </Text>
             ) : null}
             {branches.length > 0 ? <CoverageStrip coverage={coverage} /> : null}
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Name, number or branch…" />
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search recipients…" />
             {showingCache ? null : <PrimaryButton label="+ Add Recipient" onPress={() => openForm()} />}
             {recipientsQ.isLoading ? <LoadingSkeleton height={120} /> : null}
             {recipientsQ.error && !showingCache ? <ErrorState message={mapErrorToMessage(recipientsQ.error)} onRetry={refresh} /> : null}

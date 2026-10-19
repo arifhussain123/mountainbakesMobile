@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryKeys';
 import { productionOrderService } from '../services';
+import type { ProductionOrdersDataQuery } from '../services/productionOrderService';
 import type { CancelProductionOrderInput, CreateProductionOrderInput, ReviewProductionOrderInput, VerifyProductionOrderInput } from '../types';
 
 export function useProductionOrders() {
@@ -81,5 +82,16 @@ export function usePreviousOrderBalance(orderId: string | undefined) {
     queryKey: queryKeys.productionOrderPreviousBalance(orderId ?? ''),
     queryFn: () => productionOrderService.getPreviousOrderBalance(orderId!),
     enabled: !!orderId,
+  });
+}
+
+/** Every demand, server-paged (`/data/productionOrders`) — the web Production Orders table, for infinite scroll. */
+export function useProductionOrderPages(query: ProductionOrdersDataQuery) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.productionOrdersData({ ...query }),
+    queryFn: ({ pageParam }) => productionOrderService.listProductionOrdersData({ ...query, page: pageParam, pageSize: 20 }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.page + 1 : undefined),
+    placeholderData: keepPreviousData,
   });
 }

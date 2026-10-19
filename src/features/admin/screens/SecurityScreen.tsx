@@ -1,67 +1,50 @@
-import { useMemo, useState } from 'react';
-import { getBusinessDate, useLoginSessionPages, useSuspiciousSignInCount, type LoginSessionRow } from '@/api';
-import { FilterChipRow, type FilterChipOption } from '@/shared/ui';
-import { formatCount, formatDisplayDate, formatDisplayTime, roleLabel } from '@/shared/utils';
-import { AdminListScreen, AdminRow, SummaryTiles } from '../components';
+import { useRef, useState } from 'react';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { openDrawer } from '@/navigation';
+import { AppHeader, FilterChipRow, FormBottomSheet, Screen, type FilterChipOption } from '@/shared/ui';
+import { ActiveSessionsTab } from './security/ActiveSessionsTab';
+import { FailedLoginsTab } from './security/FailedLoginsTab';
+import { LoginHistoryTab } from './security/LoginHistoryTab';
+import { SessionDetail } from './security/SessionDetail';
 
-type Filter = 'all' | 'suspicious';
-const FILTER_OPTIONS: FilterChipOption<Filter>[] = [
-  { value: 'all', label: 'All sign-ins' },
-  { value: 'suspicious', label: 'Suspicious' },
+type Tab = 'active' | 'history' | 'failed';
+const TABS: FilterChipOption<Tab>[] = [
+  { value: 'active', label: 'Active Sessions' },
+  { value: 'history', label: 'Login History' },
+  { value: 'failed', label: 'Failed Logins' },
 ];
 
 /**
- * Sign-in history, newest first, with the server's suspicious flag. Only web
- * sign-ins open a session row, so phone sign-ins are not in this list.
+ * Security — the web `/security` page, read side: Active Sessions (the live
+ * roster, grouped by account), Login History (every sign-in that worked) and
+ * Failed Logins (every one that did not). Super Admin only, so the Failed
+ * Logins tab is always shown. One "Session detail" sheet serves both session
+ * tabs. Signing a session out is a web action and is not offered here yet.
  */
 export function SecurityScreen() {
-  const [filter, setFilter] = useState<Filter>('all');
-  const q = useLoginSessionPages(filter === 'suspicious');
-  const todayQ = useSuspiciousSignInCount(getBusinessDate());
-  const sessions = useMemo(() => q.data?.pages.flatMap((p) => p.sessions) ?? [], [q.data]);
-  const total = q.data?.pages[0]?.total;
+  const [tab, setTab] = useState<Tab>('active');
+  const [viewId, setViewId] = useState<string | null>(null);
+  const sheet = useRef<BottomSheetModal>(null);
+
+  const onView = (id: string) => {
+    setViewId(id);
+    sheet.current?.present();
+  };
+  const tabs = <FilterChipRow options={TABS} value={tab} onChange={setTab} />;
 
   return (
-    <AdminListScreen<LoginSessionRow>
-      title="Security"
-      subtitle="Sign-in history (web sign-ins). Read-only."
-      data={sessions}
-      keyExtractor={(s) => s.id}
-      renderItem={({ item }) => (
-        <AdminRow
-          title={item.userName || item.userEmail || 'Unknown user'}
-          lines={[
-            `${item.userRole ? roleLabel(item.userRole) : '—'}${item.branchName ? ` · ${item.branchName}` : ''}`,
-            `${formatDisplayDate(item.loginAt.slice(0, 10))} · ${formatDisplayTime(item.loginAt)}`,
-            [item.browser, item.os, item.deviceType].filter(Boolean).join(' · ') || null,
-            [item.city, item.country].filter(Boolean).join(', ') || item.ipAddress,
-          ]}
-          badge={item.isSuspicious ? { label: 'Suspicious', variant: 'danger' } : undefined}
-        />
-      )}
-      isLoading={q.isLoading}
-      error={q.error}
-      refreshing={q.isRefetching && !q.isFetchingNextPage}
-      onRefresh={() => {
-        void q.refetch();
-        void todayQ.refetch();
-      }}
-      onEndReached={() => {
-        if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage();
-      }}
-      loadingMore={q.isFetchingNextPage}
-      emptyTitle={filter === 'suspicious' ? 'No Suspicious Sign-ins' : 'No Sign-ins'}
-      header={
-        <>
-          <SummaryTiles
-            tiles={[
-              { label: filter === 'suspicious' ? 'Suspicious, all time' : 'Sign-ins recorded', value: total === undefined ? '—' : formatCount(total) },
-              { label: 'Suspicious today', value: todayQ.data === undefined ? '—' : formatCount(todayQ.data), tone: todayQ.data ? 'danger' : undefined },
-            ]}
-          />
-          <FilterChipRow options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
-        </>
-      }
-    />
+    <Screen>
+      <AppHeader
+        title="Security"
+        subtitle="Who is signed in, from where, and on what. Locations are resolved from the sign-in IP address and are approximate."
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
+      {tab === 'active' ? <ActiveSessionsTab header={tabs} onView={onView} /> : null}
+      {tab === 'history' ? <LoginHistoryTab header={tabs} onView={onView} /> : null}
+      {tab === 'failed' ? <FailedLoginsTab header={tabs} /> : null}
+      <FormBottomSheet ref={sheet} title="Session detail" onRequestClose={() => sheet.current?.dismiss()} onDismiss={() => setViewId(null)}>
+        {viewId ? <SessionDetail sessionId={viewId} /> : null}
+      </FormBottomSheet>
+    </Screen>
   );
 }

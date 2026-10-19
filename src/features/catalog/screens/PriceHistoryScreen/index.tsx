@@ -9,11 +9,12 @@ import {
   useCatalogProducts,
   usePriceHistoryPages,
   type PriceChange,
+  type PriceHistorySortKey,
 } from '@/api';
 import { Routes, type PriceHistoryStackParamList } from '@/navigation';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, DateRangeSheet, EmptyState, ErrorState, LoadingSkeleton, Screen, type DropdownOption } from '@/shared/ui';
+import { AppHeader, DateRangeSheet, Dropdown, EmptyState, ErrorState, LoadingSkeleton, Screen, type DropdownOption } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
@@ -21,6 +22,21 @@ import { PriceChangeCard } from '../../components/PriceChangeCard';
 import { ALL, PriceHistoryFilters, type DirectionFilter, type SourceFilter } from '../../components/PriceHistoryFilters';
 import { groupByMonth, inForceIds, matchesPriceFilters, priceHints } from '../../utils/priceHistoryHints';
 import { styles } from './styles';
+
+/** The web table's sortable columns, as one picker; `default` keeps the server's newest change first, grouped by month. */
+const SORT_OPTIONS: DropdownOption[] = [
+  { value: 'default', label: 'Newest change first' },
+  { value: 'changedOn:asc', label: 'Oldest change first' },
+  { value: 'effectiveDate:desc', label: 'Effective date, newest' },
+  { value: 'effectiveDate:asc', label: 'Effective date, oldest' },
+  { value: 'newPrice:desc', label: 'New price, high to low' },
+  { value: 'newPrice:asc', label: 'New price, low to high' },
+  { value: 'oldPrice:desc', label: 'Old price, high to low' },
+  { value: 'productName:asc', label: 'Product, A–Z' },
+  { value: 'priceNumber:desc', label: 'ID, newest' },
+  { value: 'changedByName:asc', label: 'Changed by, A–Z' },
+  { value: 'status:asc', label: 'Status' },
+];
 
 interface CachePayload {
   history: PriceChange[];
@@ -53,11 +69,12 @@ export function PriceHistoryScreen() {
   const [source, setSource] = useState<SourceFilter>('all');
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [sort, setSort] = useState('default');
 
-  const serverQuery = useMemo(
-    () => ({ productId: productId === ALL ? undefined : productId, search: debouncedSearch || undefined }),
-    [productId, debouncedSearch],
-  );
+  const serverQuery = useMemo(() => {
+    const [sortBy, sortDir] = sort === 'default' ? [undefined, undefined] : (sort.split(':') as [PriceHistorySortKey, 'asc' | 'desc']);
+    return { productId: productId === ALL ? undefined : productId, search: debouncedSearch || undefined, sortBy, sortDir };
+  }, [productId, debouncedSearch, sort]);
   const pagesQ = usePriceHistoryPages(serverQuery);
   const catalogQ = useCatalogProducts();
   const liveRows = useMemo(() => pagesQ.data?.pages.flatMap((p) => p.history) ?? [], [pagesQ.data]);
@@ -101,7 +118,12 @@ export function PriceHistoryScreen() {
 
   const costById = useMemo(() => new Map((catalogQ.data?.products ?? []).map((p) => [p.id, p.costPrice])), [catalogQ.data]);
   const inForce = useMemo(() => inForceIds(rows), [rows]);
-  const sections = useMemo(() => groupByMonth(rows.filter((r) => matchesPriceFilters(r, clientFilters))), [rows, clientFilters]);
+  const sections = useMemo(() => {
+    const matching = rows.filter((r) => matchesPriceFilters(r, clientFilters));
+    // Month headings only make sense in date order; any other sort is one flat list in the server's order.
+    if (sort === 'default' || matching.length === 0) return groupByMonth(matching);
+    return [{ key: sort, title: SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Sorted', data: matching }];
+  }, [rows, clientFilters, sort]);
 
   // Products: the ordinary catalogue plus any (hidden Special Order) product a loaded change is on.
   const productOptions = useMemo<DropdownOption[]>(() => {
@@ -152,7 +174,7 @@ export function PriceHistoryScreen() {
     <Screen>
       <AppHeader
         title="Price History"
-        subtitle="Every price change, permanently recorded. Read-only."
+        subtitle="Every price change, permanently recorded. Read-only — cannot be edited or deleted."
         actions={[
           { icon: 'file-spreadsheet', onPress: () => void handleExport(), accessibilityLabel: productId === ALL ? 'Export all price history as CSV' : "Export this product's price history as CSV" },
           { icon: 'refresh', onPress: refresh, accessibilityLabel: 'Refresh' },
@@ -195,6 +217,7 @@ export function PriceHistoryScreen() {
               hasActiveFilters={hasActiveFilters}
               onClearAll={clearAll}
             />
+            <Dropdown options={SORT_OPTIONS} value={sort} onChange={setSort} />
             {total !== undefined && !showingCache ? (
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
                 {total} {total === 1 ? 'change' : 'changes'} on record{exporting ? ' · preparing export…' : ''}

@@ -12,6 +12,15 @@ export function useDailySaleRecords(params?: ListDailySaleRecordsParams, { enabl
   });
 }
 
+/** One stored record with its audit history and branch — the web's View dialog. */
+export function useDailySaleRecord(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.dailySaleRecord(id ?? ''),
+    queryFn: () => dailySaleService.getDailySaleRecord(id!),
+    enabled: !!id,
+  });
+}
+
 function invalidateRecords(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: ['dailySaleRecords'] });
 }

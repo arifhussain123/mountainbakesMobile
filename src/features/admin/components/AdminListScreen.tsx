@@ -21,6 +21,8 @@ export interface AdminListScreenProps<T> {
   header?: ReactNode;
   onEndReached?: () => void;
   loadingMore?: boolean;
+  /** The web page's own failure sentence, in place of the mapped API error. */
+  errorMessage?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function AdminListScreen<T>({
   header,
   onEndReached,
   loadingMore,
+  errorMessage,
 }: AdminListScreenProps<T>): ReactElement {
   const theme = useAppTheme();
   return (
@@ -57,7 +60,7 @@ export function AdminListScreen<T>({
           <View style={{ gap: 10, marginBottom: theme.spacing.sm }}>
             {header}
             {isLoading ? <LoadingSkeleton height={160} /> : null}
-            {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={onRefresh} /> : null}
+            {error ? <ErrorState message={errorMessage ?? mapErrorToMessage(error)} onRetry={onRefresh} /> : null}
           </View>
         }
         ListEmptyComponent={!isLoading && !error ? <EmptyState title={emptyTitle} message={emptyMessage} /> : undefined}

@@ -177,6 +177,9 @@ export const Routes = {
   SUPER_ADMIN_BRANCH_STOCK_TAB: 'SuperAdminBranchStockTab',
   SUPER_ADMIN_REPORTS_TAB: 'SuperAdminReportsTab',
   SUPER_ADMIN_MORE_TAB: 'SuperAdminMoreTab',
+  // Super Admin Orders tab stack (web /orders — Production Orders, read-only).
+  SUPER_ADMIN_ORDERS_LIST: 'SuperAdminOrdersList',
+  SUPER_ADMIN_ORDER_DETAIL: 'SuperAdminOrderDetail',
   SUPER_ADMIN_CUSTOMERS: 'SuperAdminCustomers',
   SUPER_ADMIN_DAILY_SALE: 'SuperAdminDailySale',
   SUPER_ADMIN_PRODUCTS: 'SuperAdminProducts',
@@ -188,4 +191,24 @@ export const Routes = {
   SUPER_ADMIN_SECURITY: 'SuperAdminSecurity',
   SUPER_ADMIN_BACKUP: 'SuperAdminBackup',
   SUPER_ADMIN_SETTINGS: 'SuperAdminSettings',
+  // Inside SuperAdminSettingsStackNavigator (mounted at SUPER_ADMIN_SETTINGS): Settings → Restriction Rules.
+  SUPER_ADMIN_SETTINGS_HOME: 'SuperAdminSettingsHome',
+  SUPER_ADMIN_RESTRICTION_RULES: 'SuperAdminRestrictionRules',
+
+  // Super Admin — Special Events (web /special-events), read-only this phase.
+  SUPER_ADMIN_EVENTS_STACK: 'SuperAdminEventsStack',
+  SUPER_ADMIN_EVENTS_LIST: 'SuperAdminEventsList',
+  SUPER_ADMIN_EVENT_DETAIL: 'SuperAdminEventDetail',
+  // Super Admin — Support Center (web /support), read-only this phase.
+  SUPER_ADMIN_SUPPORT_STACK: 'SuperAdminSupportStack',
+  SUPER_ADMIN_SUPPORT_LIST: 'SuperAdminSupportList',
+  SUPER_ADMIN_SUPPORT_TICKET: 'SuperAdminSupportTicket',
+  SUPER_ADMIN_FINANCE_TICKET: 'SuperAdminFinanceTicket',
+  // Super Admin — Daily Ledger (web /finance-ledger), read-only this phase.
+  SUPER_ADMIN_LEDGER_STACK: 'SuperAdminLedgerStack',
+  SUPER_ADMIN_LEDGER_LIST: 'SuperAdminLedgerList',
+  // Super Admin — Daily Sale Records (web /daily-sale-records): the board and
+  // one record's read-only View. The stack mounts under SUPER_ADMIN_DAILY_SALE.
+  SUPER_ADMIN_DAILY_SALE_LIST: 'SuperAdminDailySaleList',
+  SUPER_ADMIN_DAILY_SALE_DETAIL: 'SuperAdminDailySaleDetail',
 } as const;

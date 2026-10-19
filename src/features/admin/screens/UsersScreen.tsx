@@ -1,79 +1,319 @@
-import { useMemo, useState } from 'react';
-import { useAdminUsers, type AdminUser, type AdminUserStatus } from '@/api';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import {
+  exportUsersCsv,
+  getBusinessDate,
+  useBranches,
+  useUserActivity,
+  useUsersDataPages,
+  type AdminUser,
+  type AdminUserStatus,
+  type UserAuditLog,
+  type UserRole,
+} from '@/api';
 import { useDebouncedValue } from '@/shared/hooks';
-import { FilterChipRow, SearchBar, type FilterChipOption, type StatusVariant } from '@/shared/ui';
-import { formatCount, formatDisplayDate, formatRelativeTime, includesTerm, roleLabel } from '@/shared/utils';
-import { AdminListScreen, AdminRow, SummaryTiles } from '../components';
+import { mapErrorToMessage } from '@/shared/helpers';
+import { useAppTheme } from '@/shared/theme';
+import { Card, DateRangeSheet, FilterChipRow, FormBottomSheet, SearchBar, type FilterChipOption } from '@/shared/ui';
+import { resolveDateRangePreset, type DateRange } from '@/shared/utils';
+import { format, isValid, parseISO } from 'date-fns';
+import { AdminListScreen } from '../components';
+import {
+  ALL,
+  DateRangeField,
+  DetailRows,
+  FilterSelect,
+  MONO,
+  MoreFilters,
+  Pill,
+  formatDateTime,
+  titleCase,
+  type PillTone,
+} from '../components/AdminDetail';
 
-type StatusFilter = AdminUserStatus | 'all';
+type Tab = 'all' | 'activity';
+const TABS: FilterChipOption<Tab>[] = [
+  { value: 'all', label: 'All Users' },
+  { value: 'activity', label: 'User Activity' },
+];
+
+const ROLES: UserRole[] = ['super_admin', 'branch_manager', 'production_user', 'finance_admin', 'finance_manager', 'accountant', 'finance_auditor'];
+/** The web's options: every role with `_` read as a space, lower-case. */
+const ROLE_OPTIONS = ROLES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }));
+
+type StatusFilter = AdminUserStatus | typeof ALL;
 const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
-  { value: 'all', label: 'All' },
+  { value: ALL, label: 'All' },
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
   { value: 'suspended', label: 'Suspended' },
 ];
-const STATUS_VARIANT: Record<AdminUserStatus, StatusVariant> = { active: 'success', inactive: 'neutral', suspended: 'danger' };
 
-/** Every account, newest first. Last sign-in is updated by web sign-ins only. */
+/** The web's role colours: Super Admin primary, Branch Manager secondary, Production blue, every finance role one green. */
+const ROLE_TONE: Record<UserRole, PillTone> = {
+  super_admin: 'primary',
+  branch_manager: 'secondary',
+  production_user: 'info',
+  finance_admin: 'success',
+  finance_manager: 'success',
+  accountant: 'success',
+  finance_auditor: 'success',
+};
+
+/** Web: `role.replace('_', ' ')`, capitalised. */
+const roleText = (role: string) => titleCase(role.replace('_', ' '));
+const statusText = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : '—');
+
+const ACTION_LABELS: Record<string, string> = {
+  password_reset: 'Reset Password',
+  password_changed: 'Changed Password',
+  user_created: 'Created User',
+  user_updated: 'Updated User',
+  user_activated: 'Activated User',
+  user_deactivated: 'Deactivated User',
+  user_deleted: 'Deleted User',
+  branch_location_updated: 'Updated Branch Location',
+  branch_location_removed: 'Removed Branch Location',
+  return_created: 'Raised Return',
+  return_revised: 'Corrected Return',
+};
+
+/** `Oct 20, 2026, 02:11 AM` — the activity feed's own stamp. */
+function activityWhen(iso: string): string {
+  const d = parseISO(iso);
+  return isValid(d) ? format(d, 'MMM dd, yyyy, hh:mm a') : iso;
+}
+
+/**
+ * Users — the web `/users` page, read side. "All Users" is the web table
+ * (`/api/data/users`: searched, filtered and paged by the server) as cards;
+ * tapping one opens the web's "User details". "User Activity" is the audit
+ * feed. Add / Edit / Reset Password / Change Email / Deactivate / Delete are
+ * the web's write actions and are not on mobile in this phase.
+ */
 export function UsersScreen() {
-  const q = useAdminUsers();
-  const [search, setSearch] = useState('');
-  const term = useDebouncedValue(search.trim().toLowerCase());
-  const [status, setStatus] = useState<StatusFilter>('all');
-  const users = useMemo(() => q.data?.users ?? [], [q.data]);
+  const [tab, setTab] = useState<Tab>('all');
+  const tabs = <FilterChipRow options={TABS} value={tab} onChange={setTab} />;
+  return tab === 'all' ? <AllUsers tabs={tabs} /> : <UserActivity tabs={tabs} />;
+}
 
-  const rows = useMemo(
-    () =>
-      users.filter(
-        (u) =>
-          (status === 'all' || u.status === status) &&
-          (!term ||
-            includesTerm(u.displayName, term) ||
-            includesTerm(u.email, term) ||
-            includesTerm(u.username, term) ||
-            includesTerm(u.userCode, term) ||
-            includesTerm(u.branchName, term)),
-      ),
-    [users, status, term],
+function AllUsers({ tabs }: { tabs: ReactNode }) {
+  const theme = useAppTheme();
+  const [search, setSearch] = useState('');
+  const term = useDebouncedValue(search.trim());
+  const [role, setRole] = useState<UserRole | typeof ALL>(ALL);
+  const [status, setStatus] = useState<StatusFilter>(ALL);
+  const [branchId, setBranchId] = useState<string>(ALL);
+  const [lastLogin, setLastLogin] = useState<DateRange | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [selected, setSelected] = useState<AdminUser | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const dateSheet = useRef<BottomSheetModal>(null);
+  const detailSheet = useRef<BottomSheetModal>(null);
+  const today = getBusinessDate();
+
+  const query = useMemo(
+    () => ({
+      search: term || undefined,
+      role: role === ALL ? undefined : role,
+      status: status === ALL ? undefined : status,
+      branchId: branchId === ALL ? undefined : branchId,
+      lastLoginFrom: lastLogin?.from,
+      lastLoginTo: lastLogin?.to,
+    }),
+    [term, role, status, branchId, lastLogin],
   );
+  const q = useUsersDataPages(query);
+  const branchesQ = useBranches();
+  const users = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
+  const total = q.data?.pages[0]?.total;
+  const branchOptions = useMemo(() => (branchesQ.data?.branches ?? []).map((b) => ({ value: b.id, label: b.name })), [branchesQ.data]);
+  const filtered = !!(term || role !== ALL || status !== ALL || branchId !== ALL || lastLogin);
+
+  const open = (u: AdminUser) => {
+    setSelected(u);
+    detailSheet.current?.present();
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const csv = await exportUsersCsv(query);
+      await Share.share({ title: 'mountain-bakes-users', message: csv });
+    } catch (e) {
+      Alert.alert('Could Not Export', mapErrorToMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
-    <AdminListScreen<AdminUser>
+    <>
+      <AdminListScreen<AdminUser>
+        title="Users"
+        subtitle={total === undefined ? 'Loading…' : `${total.toLocaleString()} total users`}
+        data={users}
+        keyExtractor={(u) => u.id}
+        renderItem={({ item }) => <UserCard user={item} onPress={() => open(item)} />}
+        isLoading={q.isLoading}
+        error={q.error}
+        refreshing={q.isRefetching && !q.isFetchingNextPage}
+        onRefresh={() => void q.refetch()}
+        onEndReached={() => {
+          if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage();
+        }}
+        loadingMore={q.isFetchingNextPage}
+        emptyTitle="No users found"
+        emptyMessage={filtered ? 'Nothing matches these filters.' : undefined}
+        header={
+          <>
+            {tabs}
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, email, username, code…" />
+            <FilterSelect<UserRole> label="Role" allLabel="All Roles" options={ROLE_OPTIONS} value={role} onChange={(v) => setRole(v as UserRole | typeof ALL)} />
+            <View style={{ gap: 4 }}>
+              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Status</Text>
+              <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+            </View>
+            <MoreFilters open={moreOpen} onToggle={() => setMoreOpen((o) => !o)} activeCount={(branchId !== ALL ? 1 : 0) + (lastLogin ? 1 : 0)}>
+              <FilterSelect label="Branch" allLabel="All Branches" options={branchOptions} value={branchId} onChange={setBranchId} />
+              <DateRangeField label="Last login" range={lastLogin} placeholder="Any time" onPress={() => dateSheet.current?.present()} onClear={() => setLastLogin(null)} />
+            </MoreFilters>
+            <Pressable accessibilityRole="button" onPress={() => void handleExport()} disabled={exporting || users.length === 0} style={{ alignSelf: 'flex-start' }}>
+              <Text style={[theme.typography.label, { color: exporting || users.length === 0 ? theme.colors.textFaint : theme.colors.primary, fontWeight: '700' }]}>
+                {exporting ? 'Preparing export…' : 'Export CSV (all rows)'}
+              </Text>
+            </Pressable>
+          </>
+        }
+      />
+      <DateRangeSheet
+        ref={dateSheet}
+        today={today}
+        value={lastLogin ?? resolveDateRangePreset('last7', today)}
+        onApply={setLastLogin}
+        onRequestClose={() => dateSheet.current?.dismiss()}
+      />
+      <FormBottomSheet ref={detailSheet} title="User details" onRequestClose={() => detailSheet.current?.dismiss()} snapPoints={['75%']}>
+        {selected ? <UserDetails user={selected} /> : null}
+      </FormBottomSheet>
+    </>
+  );
+}
+
+function UserCard({ user, onPress }: { user: AdminUser; onPress: () => void }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${user.displayName ?? user.email}, ${roleText(user.role)}, ${statusText(user.status)}`}>
+      <Card style={styles.card}>
+        <View style={styles.cardRow}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
+              {user.displayName || '—'}
+            </Text>
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {user.email}
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Pill label={roleText(user.role)} tone={ROLE_TONE[user.role] ?? 'neutral'} />
+            <Pill label={statusText(user.status)} tone={user.status === 'active' ? 'primary' : 'neutral'} />
+          </View>
+        </View>
+        <View style={styles.meta}>
+          <Meta label="Username" value={user.username || '—'} mono />
+          <Meta label="Branch" value={user.branchName || '—'} />
+          <Meta label="Phone" value={user.phone || '—'} />
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
+function Meta({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const theme = useAppTheme();
+  return (
+    <View style={{ flexBasis: '30%', flexGrow: 1, minWidth: 90 }}>
+      <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{label}</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.text }, mono ? MONO : null]} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/** The web's "User details" dialog. */
+function UserDetails({ user }: { user: AdminUser }) {
+  const theme = useAppTheme();
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={styles.cardRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{user.displayName || '—'}</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{user.email}</Text>
+        </View>
+        <Pill label={statusText(user.status)} tone={user.status === 'active' ? 'primary' : 'neutral'} />
+      </View>
+      <DetailRows
+        rows={[
+          { label: 'Email', value: user.email },
+          { label: 'Username', value: user.username || '—' },
+          { label: 'Phone', value: user.phone || '—' },
+          { label: 'Role', value: roleText(user.role) },
+          { label: 'Branch', value: user.branchName || '—' },
+          { label: 'Created', value: formatDateTime(user.createdAt) },
+          { label: 'Last login', value: formatDateTime(user.lastLoginAt) },
+          { label: 'Last password reset', value: formatDateTime(user.lastPasswordReset) },
+          { label: 'Reset by', value: user.passwordResetByName || '—' },
+        ]}
+      />
+    </View>
+  );
+}
+
+function UserActivity({ tabs }: { tabs: ReactNode }) {
+  const q = useUserActivity();
+  return (
+    <AdminListScreen<UserAuditLog>
       title="Users"
-      subtitle="Every account and its role. Read-only."
-      data={rows}
-      keyExtractor={(u) => u.id}
-      renderItem={({ item }) => (
-        <AdminRow
-          title={item.displayName || item.username || item.email}
-          lines={[
-            `${item.userCode ? `${item.userCode} · ` : ''}${item.email}`,
-            `${roleLabel(item.role)}${item.branchName ? ` · ${item.branchName}` : ''}`,
-            item.lastLoginAt ? `Last sign-in ${formatRelativeTime(item.lastLoginAt)}` : `Added ${formatDisplayDate(item.createdAt.slice(0, 10))}`,
-          ]}
-          badge={{ label: item.status[0].toUpperCase() + item.status.slice(1), variant: STATUS_VARIANT[item.status] ?? 'neutral' }}
-        />
-      )}
+      subtitle="User Activity"
+      data={q.data?.logs ?? []}
+      keyExtractor={(l) => l.id}
+      renderItem={({ item }) => <ActivityCard log={item} />}
       isLoading={q.isLoading}
       error={q.error}
       refreshing={q.isRefetching}
       onRefresh={() => void q.refetch()}
-      emptyTitle="No Users"
-      emptyMessage={term || status !== 'all' ? 'Nothing matches this filter.' : undefined}
-      header={
-        <>
-          {q.data ? (
-            <SummaryTiles
-              tiles={[
-                { label: 'Accounts', value: formatCount(users.length) },
-                { label: 'Active', value: formatCount(users.filter((u) => u.status === 'active').length) },
-              ]}
-            />
-          ) : null}
-          <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, email, ID or branch" />
-          <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        </>
-      }
+      emptyTitle="No activity recorded yet."
+      header={tabs}
     />
   );
 }
+
+function ActivityCard({ log }: { log: UserAuditLog }) {
+  const theme = useAppTheme();
+  const line = (label: string, value: string, bold?: boolean) => (
+    <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]}>
+      <Text style={{ color: theme.colors.textSecondary }}>{label}: </Text>
+      <Text style={bold ? { fontWeight: '700' } : null}>{value}</Text>
+    </Text>
+  );
+  return (
+    <Card style={styles.card}>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{activityWhen(log.createdAt)}</Text>
+      <View style={{ marginTop: 4, gap: 2 }}>
+        {line('Admin', log.adminName)}
+        {line('Action', ACTION_LABELS[log.action] ?? log.action, true)}
+        {log.targetUserName ? line('User', `${log.targetUserName}${log.targetUserRole ? ` (${roleText(log.targetUserRole)})` : ''}`) : null}
+        {log.details ? <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{log.details}</Text> : null}
+      </View>
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { padding: 14 },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+});

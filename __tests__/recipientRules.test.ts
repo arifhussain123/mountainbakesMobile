@@ -163,6 +163,10 @@ describe('delivery labels', () => {
     expect(deliveryLabel({ ...base, provider: 'twilio', status: 'failed', errorMessage: null })).toBe('Failed: no reason given');
   });
 
+  it('shows a row still waiting on the provider as Pending', () => {
+    expect(deliveryLabel({ ...base, provider: 'twilio', status: 'pending', sentAt: null })).toBe('Pending');
+  });
+
   it('says "Sent", not "Delivered", for a live send', () => {
     expect(deliveryLabel({ ...base, provider: 'twilio', status: 'sent' })).toMatch(/^Sent /);
   });

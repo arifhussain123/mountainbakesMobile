@@ -3,9 +3,11 @@ import { getBusinessDate } from '../businessDate';
 import type {
   CancelProductionOrderInput,
   CreateProductionOrderInput,
+  DataEnginePage,
   PreviousOrderBalance,
   ProductionOrder,
   ProductionOrderListResponse,
+  ProductionOrderStatus,
   ReviewProductionOrderInput,
   VerifyProductionOrderInput,
 } from '../types';
@@ -13,6 +15,43 @@ import type {
 /** `/api/production-orders` — last 7 business days, branch-scoped server-side. */
 export async function listProductionOrders(): Promise<ProductionOrderListResponse> {
   return apiClient.get<ProductionOrderListResponse>('/production-orders');
+}
+
+/** Filters for the Data Engine's `productionOrders` resource — the web Production Orders table's filter bar. */
+export interface ProductionOrdersDataQuery {
+  /** Demand #, branch name, raised by. */
+  search?: string;
+  status?: ProductionOrderStatus;
+  branchId?: string;
+  /** Business-date window, 'YYYY-MM-DD'. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Required-date window, 'YYYY-MM-DD'. */
+  requiredFrom?: string;
+  requiredTo?: string;
+}
+
+/**
+ * `GET /data/productionOrders` — every demand ever raised, server-paged and
+ * filtered (the web Orders table), newest business date first. Unlike
+ * `/production-orders` (last 7 business days) it reaches back indefinitely.
+ * Rows carry their lines and packing lines but not their photos.
+ */
+export async function listProductionOrdersData(
+  query: ProductionOrdersDataQuery & { page?: number; pageSize?: number },
+): Promise<DataEnginePage<ProductionOrder>> {
+  const { page = 1, pageSize = 20, search, status, branchId, dateFrom, dateTo, requiredFrom, requiredTo } = query;
+  return apiClient.get<DataEnginePage<ProductionOrder>>('/data/productionOrders', {
+    page,
+    pageSize,
+    ...(search ? { search } : {}),
+    ...(status ? { status } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(dateFrom ? { 'businessDate.gte': dateFrom } : {}),
+    ...(dateTo ? { 'businessDate.lte': dateTo } : {}),
+    ...(requiredFrom ? { 'requiredDate.gte': requiredFrom } : {}),
+    ...(requiredTo ? { 'requiredDate.lte': requiredTo } : {}),
+  });
 }
 
 /** `GET /production-orders/:id` — one demand's complete record, for the detail screen. */

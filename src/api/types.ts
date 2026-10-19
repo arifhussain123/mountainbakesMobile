@@ -74,6 +74,45 @@ export interface ReportSummary {
   totalProfit: number;
   dailyData: ReportDailyPoint[];
   budget?: { daily: number; weekly: number; monthly: number };
+  /**
+   * The four below are only sent WITHOUT `fields=basic` (Super Admin Reports,
+   * `getReportSummary(..., { full: true })`). Absent means "not computed",
+   * never zero — the server's own rule (`report.types.ts`).
+   */
+  branchData?: ReportBranchData[];
+  topProducts?: ReportTopProduct[];
+  categoryBreakdown?: ReportCategoryBreakdown[];
+  paymentMethodBreakdown?: ReportPaymentMethodBreakdown[];
+}
+
+/** `ReportSummary.branchData` — one row per branch in the period (server `BranchSalesData`). */
+export interface ReportBranchData {
+  branchId: string;
+  branchName: string;
+  totalOrders: number;
+  totalRevenue: number;
+  averageOrderValue: number;
+}
+
+/** `ReportSummary.topProducts` — top 10 by revenue (server `TopProduct`). */
+export interface ReportTopProduct {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  totalQty: number;
+  totalRevenue: number;
+}
+
+export interface ReportCategoryBreakdown {
+  categoryName: string;
+  totalQty: number;
+  totalRevenue: number;
+}
+
+export interface ReportPaymentMethodBreakdown {
+  method: string;
+  total: number;
+  count: number;
 }
 
 // ─── Dashboard: GET /api/sales-analytics ──────────────────────────────────
@@ -135,6 +174,8 @@ export interface SalesAnalytics {
   paymentMethods: SalesAnalyticsPaymentMethod[];
   comparison: SalesAnalyticsComparison | null;
   staffCount: number;
+  /** Staff (unpaid) sales total — outside `totalSales`. Sent by the server; read by the Admin Dashboard. */
+  staffTotal?: number;
 }
 
 // ─── Stock ─────────────────────────────────────────────────────────────────
@@ -195,6 +236,39 @@ export interface StockHistorySeriesResponse {
   capped: boolean;
 }
 
+/**
+ * `GET /stock/history/branches?days=N` (super_admin) — one row per branch over
+ * the window. Previous is the balance the window opened with, Remaining is
+ * today's live balance; amounts are stock valued at current prices.
+ */
+export interface BranchStockSummaryRow {
+  branchId: string;
+  branchName: string;
+  openingQty: number;
+  openingAmount: number;
+  newQty: number;
+  newAmount: number;
+  soldQty: number;
+  soldAmount: number;
+  returnedQty: number;
+  returnedAmount: number;
+  adjustmentQty: number;
+  adjustmentAmount: number;
+  balanceQty: number;
+  balanceAmount: number;
+  /** First business date this branch's figures cover — later than the window start when its ledger hit the read cap. */
+  from: string;
+  capped: boolean;
+}
+
+export interface BranchStockSummaryResponse {
+  from: string;
+  to: string;
+  rows: BranchStockSummaryRow[];
+  /** True when ANY branch's ledger was capped. */
+  capped: boolean;
+}
+
 // ─── Products ──────────────────────────────────────────────────────────────
 
 export interface Product {
@@ -232,6 +306,20 @@ export interface CatalogProduct {
   isSpecial: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Super Admin → Products' Data Engine query (`GET /api/data/products`) — the
+ * filters the web's GenericDataTable offers. `sort` is the engine's own
+ * `field:direction` form over the registry's sortable fields.
+ */
+export interface AdminProductsQuery {
+  search?: string;
+  categoryId?: string;
+  isActive?: boolean;
+  priceMin?: number;
+  priceMax?: number;
+  sort?: string;
 }
 
 // ─── Price History (`/api/products/price/history`, super_admin only) ───────
@@ -282,9 +370,14 @@ export interface PriceHistoryResponse {
   total: number;
 }
 
+export type PriceHistorySortKey = 'priceNumber' | 'productName' | 'oldPrice' | 'newPrice' | 'effectiveDate' | 'changedByName' | 'changedOn' | 'status';
+
 export interface PriceHistoryQuery {
   productId?: string;
   search?: string;
+  /** Server sort (web's sortable columns); omitted = `changedOn` desc. */
+  sortBy?: PriceHistorySortKey;
+  sortDir?: 'asc' | 'desc';
 }
 
 // ─── Orders / POS sales ────────────────────────────────────────────────────
@@ -404,6 +497,12 @@ export interface AppSettings {
   geofencingEnabled?: boolean;
   geofenceDefaultRadiusKm?: number;
   geofenceVerifyIntervalMin?: number;
+  logoUrl?: string;
+  currencySymbol?: string;
+  geofenceRequireHighAccuracy?: boolean;
+  geofenceGpsTimeoutSec?: number;
+  geofenceMaxPositionAgeSec?: number;
+  updatedAt?: string;
 }
 
 /**
@@ -438,6 +537,10 @@ export interface ProductionOrderItem {
   approvedQty?: number;
   isSpecial?: boolean;
   addedByProduction?: boolean;
+  /** A special item's instruction — the server mirrors `remarks` here on `/production-orders`. */
+  description?: string | null;
+  /** A special item's reference photos. */
+  photos?: Attachment[];
 }
 
 export interface ProductionOrderPackingItem {
@@ -879,6 +982,10 @@ export interface PackingMaterial {
   materialCode: string;
   materialName: string;
   isActive: boolean;
+  /** Free-text grouping — the admin catalogue shows "—" when unset. */
+  category?: string | null;
+  description?: string | null;
+  createdAt?: string;
 }
 
 export interface PackingMaterialListResponse {
@@ -1271,6 +1378,63 @@ export interface SpecialEvent {
   priority: EventPriority;
   color: string | null;
   notes: string | null;
+  // Fields the server returns on every event view that the branch list never
+  // read — optional so existing call sites are unaffected (Super Admin's
+  // Special Events screens use them).
+  /** Server-computed Hijri label for eventDate, e.g. "1 Shawwal 1447 AH". */
+  hijriLabel?: string | null;
+  durationDays?: number;
+  preparationStartDate?: string | null;
+  appliesToAllBranches?: boolean;
+  /** Branch ids when appliesToAllBranches is false (detail response only). */
+  branchIds?: string[];
+  /** Mean of the four stage percentages, 0–100 (list + detail, not calendar). */
+  readinessPercentage?: number;
+  demandSummary?: EventDemandSummary;
+}
+
+/** Branch participation roll-up for one event. */
+export interface EventDemandSummary {
+  totalBranches: number;
+  submittedBranches: number;
+  pendingBranches: number;
+  draftBranches: number;
+  totalItems: number;
+  totalQty: number;
+}
+
+export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
+  islamic: 'Islamic',
+  ahlul_bayt: 'Ahlul Bayt (A.S.)',
+  national: 'National',
+  international: 'International',
+  company: 'Company',
+};
+
+/** Expected demand level. `critical` is the web's "Very High". */
+export const EVENT_PRIORITY_LABELS: Record<EventPriority, string> = {
+  low: 'Low',
+  normal: 'Medium',
+  high: 'High',
+  critical: 'Very High',
+};
+
+export type EventNotificationStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped' | 'cancelled';
+
+/** One scheduled reminder — `GET /special-events/notifications?eventId=` (super_admin). */
+export interface EventNotificationRow {
+  id: string;
+  eventId: string;
+  audience: 'branch' | 'production' | 'admin';
+  branchId: string | null;
+  reminderKind: 'event_countdown' | 'demand_due' | 'preparation_start';
+  offsetDays: number;
+  scheduledFor: string;
+  title: string;
+  message: string;
+  status: EventNotificationStatus;
+  sentAt: string | null;
+  errorMessage: string | null;
 }
 
 export interface SpecialEventListResponse {
@@ -1299,6 +1463,7 @@ export interface EventBranchDemand {
   expectedCustomers: number | null;
   notes: string | null;
   submittedAt: string | null;
+  submittedByName?: string | null;
   reviewedAt?: string | null;
   reviewedBy?: string | null;
   reviewedByName?: string | null;
@@ -1470,6 +1635,10 @@ export interface DailySaleRecord {
   verifiedBy: string | null;
   verifiedByName: string | null;
   verifiedAt: string | null;
+  /** Sent by the server on every record; optional here because older screens never read them. */
+  lockedByName?: string | null;
+  lockedAt?: string | null;
+  amendedAt?: string | null;
 }
 
 export interface PaymentMethodLock {
@@ -1502,6 +1671,39 @@ export interface DailySaleRecordList {
 export interface DailySaleRecordDetail {
   record: DailySaleRecord;
   locks: PaymentMethodLock[];
+  /** `GET /daily-sale-records/:id` sends these; the write endpoints' echo may not — hence optional. */
+  audits?: DailySaleAudit[];
+  branch?: { id: string; name: string; address: string | null; phone: string | null; city: string | null };
+}
+
+export type DailySaleAuditAction =
+  | 'generated'
+  | 'refreshed'
+  | 'manual_feed'
+  | 'manual_feed_override'
+  | 'verified'
+  | 'locked'
+  | 'unlocked'
+  | 'amended'
+  | 'method_locked'
+  | 'method_unlocked';
+
+/** One entry in a record's history. Append-only (server `DailySaleAudit`). */
+export interface DailySaleAudit {
+  id: string;
+  recordId: string | null;
+  branchId: string;
+  businessDate: string;
+  action: DailySaleAuditAction;
+  /** Which figure moved, or 'status'. Null for whole-record actions. */
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  reason: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  createdAt: string;
 }
 
 export interface FeedDailySaleRecordInput {
@@ -1533,6 +1735,35 @@ export interface PackingUsageResponse {
   to: string;
   total: number;
   capped: boolean;
+  /** The page the server sliced; `totals` cover the whole filtered range regardless. */
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number; hasNext: boolean };
+}
+
+export type PackingUsageSortKey = 'date' | 'branchName' | 'materialName' | 'requestedQty' | 'approvedQty' | 'deliveredQty';
+
+/** `GET /reports/packing-usage` with the web report's filters and server paging. */
+export interface PackingUsageQuery {
+  from: string;
+  to: string;
+  branchId?: string | null;
+  packingMaterialId?: string | null;
+  pageSize?: number;
+  sortBy?: PackingUsageSortKey;
+  sortDir?: 'asc' | 'desc';
+}
+
+/** `GET /data/customers` filters — the web Customers page's filter bar. */
+export interface AdminCustomersQuery {
+  search?: string;
+  branchId?: string | null;
+  ordersMin?: string;
+  ordersMax?: string;
+  spentMin?: string;
+  spentMax?: string;
+  /** `YYYY-MM-DD` business dates — the engine widens them to whole days. */
+  sinceFrom?: string;
+  sinceTo?: string;
+  sort?: string;
 }
 
 // ─── Help Desk / New Query ──────────────────────────────────────────────────
@@ -1554,6 +1785,37 @@ export interface SupportReference {
   entityId?: string;
   title: string;
   fields: SupportDetailField[];
+  /** Informational-only reference (counter sale, rejected deposit/demand) — nothing can be written back. */
+  readOnly?: boolean;
+  /** A STOCK reference describing the central production pool rather than a branch ledger. */
+  isProductionPool?: boolean;
+  /** Sale references only: the sale's current lines. */
+  saleItems?: SupportSaleItem[];
+}
+
+/** One line of a sale reference, as the Support Center's View prints it. */
+export interface SupportSaleItem {
+  productId: string | null;
+  productName: string;
+  unitPrice: number;
+  qty: number;
+  discount: number;
+}
+
+/** `GET /api/support` query — the Super Admin Support Center's server-paged ops queue. */
+export interface AdminSupportTicketQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  source?: 'branch' | 'production';
+  sortBy?: 'ticketNumber' | 'referenceId' | 'branchName' | 'message' | 'status' | 'createdAt';
+  sortDir?: 'asc' | 'desc';
+}
+
+/** `GET /api/support/stats` (super_admin) — open-ticket counts by source. */
+export interface SupportStats {
+  branchOpen: number;
+  productionOpen: number;
 }
 
 export interface SupportTicket {
@@ -1570,6 +1832,9 @@ export interface SupportTicket {
   resolvedByName: string | null;
   resolvedAt: string | null;
   createdAt: string;
+  /** Present on every server row (`rowToApi`); optional only so client-built optimistic rows still type-check. */
+  branchId?: string | null;
+  raisedByRole?: string | null;
 }
 
 export interface SupportTicketListResponse {
@@ -3032,6 +3297,19 @@ export interface FinanceTicket {
   version: number;
   messages?: FinanceTicketMessage[];
   attachments?: Attachment[];
+  /** Server columns the Super Admin Support Center reads (web FinanceHelpDeskPage). */
+  raisedByRole?: string | null;
+  referenceSnapshot?: Record<string, unknown> | null;
+  voucherRef?: string | null;
+  transactionRef?: string | null;
+  expenseRef?: string | null;
+  incomeRef?: string | null;
+  amendCount?: number;
+  reopenCount?: number;
+  recreatedFromQueryNo?: string | null;
+  recreatedAsQueryNo?: string | null;
+  deletedAt?: string | null;
+  deleteReason?: string | null;
 }
 
 export interface FinanceTicketStats {
@@ -3060,6 +3338,8 @@ export interface FinanceTicketQuery {
   mine?: boolean;
   page?: number;
   pageSize?: number;
+  /** Admin-only Deleted view. Omit rather than send `false` — the server coerces any string to true. */
+  deletedOnly?: true;
 }
 
 export interface CreateFinanceTicketInput {
@@ -3134,7 +3414,7 @@ export interface NotificationLog {
   recipientId: string | null;
   businessDate: string;
   channel: 'whatsapp' | 'sms';
-  status: 'sent' | 'failed';
+  status: 'pending' | 'sent' | 'failed';
   provider: string;
   providerMessageId: string | null;
   errorMessage: string | null;
@@ -3148,7 +3428,8 @@ export interface NotificationLog {
 
 export interface NotificationLogQuery {
   businessDate?: string;
-  status?: 'sent' | 'failed';
+  status?: 'pending' | 'sent' | 'failed';
+  channel?: 'whatsapp' | 'sms';
   recipientId?: string;
 }
 
@@ -3430,6 +3711,11 @@ export interface AdminBranch {
   /** `null` = inherits the global company share. */
   companySharePct: number | null;
   createdAt?: string;
+  /** The web's Manager column — "Unassigned" when null. */
+  managerName?: string | null;
+  dailyBudget?: number;
+  weeklyBudget?: number;
+  monthlyBudget?: number;
 }
 
 export interface BranchGeofence {
@@ -3437,6 +3723,10 @@ export interface BranchGeofence {
   longitude: number;
   radiusKm: number;
   updatedAt?: string;
+  /** Enforced (`true`) or disabled with the coordinates kept (`false`). */
+  isActive: boolean;
+  address?: string;
+  googlePlaceId?: string | null;
 }
 
 export interface BranchLocationRow {
@@ -3476,6 +3766,10 @@ export interface AdminUser {
   status: AdminUserStatus;
   lastLoginAt: string | null;
   createdAt: string;
+  // Sent by `GET /api/data/users` (the row is `select *`); read by the User details sheet.
+  lastPasswordReset?: string | null;
+  passwordResetByName?: string | null;
+  mustChangePassword?: boolean;
 }
 
 /** One `GET /api/login-history` row — the fields the Security list shows. */
@@ -3494,6 +3788,36 @@ export interface LoginSessionRow {
   city: string | null;
   loginAt: string;
   isSuspicious: boolean;
+  // Sent by the same route; read by the Admin Dashboard's Login History card.
+  /** The Google account the session was signed in with; null for a password login. */
+  browserEmail?: string | null;
+  browserVersion?: string | null;
+  osVersion?: string | null;
+  deviceName?: string | null;
+  /** Neighbourhood, only when the device sent its position. */
+  area?: string | null;
+  state?: 'active' | 'idle' | 'ended' | 'expired' | 'revoked';
+  loginStatus?: 'SUCCESS';
+  durationMs?: number;
+}
+
+/** `GET /api/login-history` filters the Admin Dashboard's Login History card sends. */
+export interface LoginHistoryQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  role?: string;
+  /** Business dates, inclusive. */
+  from?: string;
+  to?: string;
+}
+
+/** `GET /api/data/orders/aggregate` grouped by branch — paid sales per branch for a period. */
+export interface BranchSalesGroup {
+  branchId: string;
+  branchName: string;
+  sales: number;
+  orders: number;
 }
 
 export interface LoginSessionPage {
@@ -3518,6 +3842,24 @@ export interface BackupJob {
   fileSize: number | null;
   errorMessage: string | null;
   triggeredByName: string | null;
+  // The rest of the row (`backup.types.ts`), read by Database Backup's cards and detail sheet.
+  environment?: string;
+  appVersion?: string | null;
+  databaseVersion?: string | null;
+  pgDumpVersion?: string | null;
+  dumpMs?: number | null;
+  uploadMs?: number | null;
+  s3Bucket?: string;
+  s3Key?: string | null;
+  authS3Key?: string | null;
+  manifestS3Key?: string | null;
+  authFileSize?: number | null;
+  checksumSha256?: string | null;
+  authChecksumSha256?: string | null;
+  retentionUntil?: string | null;
+  attempts?: number;
+  errorCategory?: string | null;
+  lastVerifiedAt?: string | null;
 }
 
 export interface BackupHistoryPage {
@@ -3525,4 +3867,289 @@ export interface BackupHistoryPage {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// ─── Super Admin: Users, Security, Database Backup, Restriction Rules ───────
+// Verbatim from the server's `@mb/shared` types (audit, login-session, backup,
+// restriction). Read-only on mobile this phase.
+
+/** `GET /api/data/users` filters (Data Engine wire format is built by the service). */
+export interface UsersDataQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  role?: string;
+  status?: AdminUserStatus;
+  branchId?: string;
+  /** Last-login window, business dates inclusive. */
+  lastLoginFrom?: string;
+  lastLoginTo?: string;
+}
+
+/** `GET /api/users/activity` — one audit row. */
+export interface UserAuditLog {
+  id: string;
+  action: string;
+  adminId: string;
+  adminName: string;
+  targetUserId: string | null;
+  targetUserName: string | null;
+  targetUserRole: string | null;
+  details: string | null;
+  createdAt: string;
+}
+
+export type SessionState = 'active' | 'idle' | 'ended' | 'expired' | 'revoked';
+export type SessionDeviceType = 'desktop' | 'mobile' | 'tablet' | 'bot' | 'unknown';
+export type SessionLocationSource = 'IP' | 'DEVICE_GPS' | 'UNKNOWN';
+
+/** One `login_sessions` row as `/api/login-history*` sends it (`LoginSession` in `@mb/shared`). */
+export interface SecuritySession {
+  id: string;
+  userId: string | null;
+  userCode: string | null;
+  userEmail: string;
+  browserEmail: string | null;
+  emailMasked: boolean;
+  userName: string;
+  userRole: UserRole | null;
+  branchId: string | null;
+  branchName: string | null;
+  authSessionId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  browser: string | null;
+  browserVersion: string | null;
+  os: string | null;
+  osVersion: string | null;
+  deviceType: SessionDeviceType | null;
+  deviceName: string | null;
+  screenSize: string | null;
+  country: string | null;
+  countryCode: string | null;
+  city: string | null;
+  region: string | null;
+  area: string | null;
+  timezone: string | null;
+  locationSource: SessionLocationSource;
+  latitude: number | null;
+  longitude: number | null;
+  loginAt: string;
+  lastSeenAt: string;
+  endedAt: string | null;
+  revokedAt: string | null;
+  revokedByName: string | null;
+  revokeReason: string | null;
+  isSuspicious: boolean;
+  suspiciousReason: string | null;
+  /** Business date of the login. */
+  date: string;
+  state: SessionState;
+  loginStatus: 'SUCCESS';
+  durationMs: number;
+  canRevoke: boolean;
+}
+
+export type SecuritySessionSortKey = 'loginAt' | 'userName' | 'browserEmail' | 'city' | 'country' | 'browser' | 'browserVersion' | 'os' | 'deviceType' | 'ipAddress';
+
+/** Every filter `GET /api/login-history` takes (the Security screen's Login History tab). */
+export interface SecuritySessionQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  state?: SessionState;
+  country?: string;
+  /** Business dates, inclusive. */
+  from?: string;
+  to?: string;
+  suspiciousOnly?: boolean;
+  branchId?: string;
+  role?: string;
+  city?: string;
+  browser?: string;
+  deviceType?: SessionDeviceType;
+  sortBy?: SecuritySessionSortKey;
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface SecuritySessionPage {
+  sessions: SecuritySession[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ActiveSessionGroup {
+  userId: string | null;
+  userCode: string | null;
+  userName: string;
+  userEmail: string;
+  emailMasked: boolean;
+  userRole: UserRole | null;
+  branchName: string | null;
+  sessions: SecuritySession[];
+  sessionCount: number;
+  countries: string[];
+  multiCountry: boolean;
+  hasSuspicious: boolean;
+  lastSeenAt: string;
+}
+
+/** `GET /api/login-history/active`. */
+export interface ActiveSessionsResponse {
+  groups: ActiveSessionGroup[];
+  totalSessions: number;
+  totalUsers: number;
+  multiCountryUsers: number;
+}
+
+/** `GET /api/login-history/filters` — the values the country, city and browser filters offer. */
+export interface LoginFilterOptions {
+  countries: string[];
+  cities: string[];
+  browsers: string[];
+}
+
+export type LoginAttemptReason =
+  | 'invalid_credentials'
+  | 'account_disabled'
+  | 'email_not_confirmed'
+  | 'rate_limited'
+  | 'no_role'
+  | 'invalid_session'
+  | 'expired_token'
+  | 'unknown';
+
+/** One refused sign-in (`GET /api/login-attempts`). The address is as typed — not an account. */
+export interface LoginAttempt {
+  id: string;
+  email: string;
+  reason: LoginAttemptReason;
+  ipAddress: string | null;
+  browser: string | null;
+  browserVersion: string | null;
+  os: string | null;
+  osVersion: string | null;
+  deviceType: SessionDeviceType | null;
+  country: string | null;
+  city: string | null;
+  attemptedAt: string;
+  date: string;
+}
+
+export interface LoginAttemptQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  reason?: LoginAttemptReason;
+  country?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface LoginAttemptsPage {
+  attempts: LoginAttempt[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** `GET /api/admin/backups/status` (503 when the backup system has no environment). */
+export interface BackupStatusResponse {
+  health: {
+    daily: BackupTypeHealth;
+    weekly: BackupTypeHealth;
+    monthly: BackupTypeHealth;
+    recentFailures: number;
+  };
+  latest: Record<BackupJobType, BackupJob | null>;
+  running: BackupJob[];
+  storage: { bucket: string; prefix: string; region: string | null };
+  retention: { dailyDays: number; weeklyDays: number; monthlyDays: number; manualDays: number };
+  schedule: { timezone: string; daily: string; weekly: string; monthly: string };
+}
+
+/** `GET /api/admin/backups/restore-tests/latest`. */
+export interface LatestRestoreTestResponse {
+  restoreTest: { startedAt: string; status: 'running' | 'success' | 'failed' } | null;
+}
+
+export type RestrictionGroup = 'demand' | 'sales' | 'production' | 'cash' | 'ledger' | 'company';
+
+export interface RestrictionRules {
+  demand: {
+    pendingLimit: { enabled: boolean; warnAt: number; blockAt: number };
+    backdated: { enabled: boolean; requireApproval: boolean };
+    lowSales: { enabled: boolean; minSoldPercent: number };
+  };
+  sales: { hourly: { enabled: boolean; threshold: number } };
+  production: { stockShortage: { enabled: boolean; allowAdminOverride: boolean } };
+  cash: { dailyLimit: { enabled: boolean; limit: number; allowExceptions: boolean } };
+  ledger: { backdate: { enabled: boolean; allowedDays: number } };
+  company: { shareIncome: { enabled: boolean; allowApproval: boolean } };
+}
+
+/** `GET /api/restrictions/rules` — merged over the defaults by the service. */
+export interface RestrictionRulesState {
+  rules: RestrictionRules;
+  saved: Record<RestrictionGroup, { updatedAt: string | null; updatedByName: string | null }>;
+  businessDate: string;
+  timezone: string;
+  /** 'HH:MM', 24-hour. */
+  closingTime: string;
+  pendingRequests: number;
+}
+
+export type RestrictionRequestType = 'BACKDATED_DEMAND' | 'LEDGER_BACKDATE' | 'COMPANY_SHARE_INCOME' | 'CASH_DEPOSIT_LIMIT';
+export type RestrictionRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface RestrictionRequest {
+  id: string;
+  requestNo: string;
+  type: RestrictionRequestType;
+  branchId: string | null;
+  branchName: string | null;
+  requestedDate: string;
+  currentBusinessDate: string;
+  amount: number | null;
+  description: string | null;
+  entryLabel: string | null;
+  reason: string;
+  requestedByName: string;
+  requestedAt: string;
+  status: RestrictionRequestStatus;
+  approvalNo: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  adminReason: string | null;
+  consumedAt: string | null;
+  consumedRef: string | null;
+}
+
+export type RestrictionEventResult = 'Blocked' | 'Warned' | 'Approval requested' | 'Approved' | 'Rejected' | 'Allowed' | 'Updated';
+
+export interface RestrictionEvent {
+  id: string;
+  eventNo: string;
+  ruleCode: string;
+  branchName: string | null;
+  userName: string | null;
+  ref: string | null;
+  currentValue: string | null;
+  threshold: string | null;
+  action: string;
+  result: RestrictionEventResult;
+  approvalNo: string | null;
+  createdAt: string;
+}
+
+export interface RestrictionMonitorRow {
+  branchId: string;
+  branchName: string;
+  pendingCount: number;
+  pendingDemandNumbers: string[];
+  oldestPending: { demandNumber: string; submittedAt: string } | null;
+  salesThisHour: number;
+  depositsToday: number;
+  demandStatus: 'Normal' | 'Warning' | 'Blocked';
 }

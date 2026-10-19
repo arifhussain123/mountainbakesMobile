@@ -1,111 +1,301 @@
-import { useMemo, useState } from 'react';
-import { getBusinessDate, getBusinessMonthStart, useBranches, useDailySaleRecords, type DailySaleRecord, type DailySaleRecordStatus } from '@/api';
-import { FilterChipRow, type FilterChipOption, type StatusVariant } from '@/shared/ui';
-import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
-import { AdminListScreen, AdminRow, SummaryTiles } from '../components';
+import { useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getBusinessDate, getBusinessMonthStart, useBranches, useDailySaleRecords, type DailySaleRecord } from '@/api';
+import { openDrawer, Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
+import { dailySaleAllBeforeStartEmpty, dailySaleBeforeStartNotice, resolveDailySaleWindow } from '@/features/closing/dailySaleWindow';
+import { KpiGrid, type KpiItem } from '@/features/reports/components';
+import { useAppTheme } from '@/shared/theme';
+import { mapErrorToMessage } from '@/shared/helpers';
+import {
+  AppHeader,
+  Card,
+  DateRangeSheet,
+  Dropdown,
+  EmptyState,
+  ErrorState,
+  Icon,
+  LoadingSkeleton,
+  Screen,
+  SearchBar,
+  type DropdownOption,
+} from '@/shared/ui';
+import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { FieldGrid, type FieldGridItem } from '../components';
+import {
+  DAILY_SALE_MAX_WINDOW_DAYS,
+  DSR_STATUS_LABEL,
+  DifferenceBadge,
+  DsrStatusBadge,
+  Notice,
+  daysBetween,
+  displayDate,
+  money,
+  paisaMoney,
+  rowDifference,
+} from './DailySale/dailySaleBits';
 
-type Month = 'this' | 'last';
-const MONTH_OPTIONS: FilterChipOption<Month>[] = [
-  { value: 'this', label: 'This month' },
-  { value: 'last', label: 'Last month' },
-];
 const ALL = 'all';
 
-const STATUS_LABEL: Record<DailySaleRecordStatus, string> = {
-  open: 'Open',
-  pending_verification: 'Pending',
-  verified: 'Verified',
-  locked: 'Locked',
-  amended: 'Amended',
-};
-const STATUS_VARIANT: Record<DailySaleRecordStatus, StatusVariant> = {
-  open: 'warning',
-  pending_verification: 'info',
-  verified: 'success',
-  locked: 'neutral',
-  amended: 'violet',
-};
+type Nav = NativeStackNavigationProp<SuperAdminDailySaleStackParamList>;
 
-function monthWindow(month: Month): { from: string; to: string } {
-  const today = getBusinessDate();
-  const thisStart = getBusinessMonthStart();
-  if (month === 'this') return { from: thisStart, to: today };
-  const [y, m] = thisStart.split('-').map(Number);
-  const prevY = m === 1 ? y - 1 : y;
-  const prevM = m === 1 ? 12 : m - 1;
-  const lastDay = new Date(Date.UTC(prevY, prevM, 0)).getUTCDate();
-  const mm = String(prevM).padStart(2, '0');
-  return { from: `${prevY}-${mm}-01`, to: `${prevY}-${mm}-${String(lastDay).padStart(2, '0')}` };
+/** The figure columns, in the web table's order (columns.tsx) — the row card and the totals card share them. */
+function figureItems(r: Pick<DailySaleRecord, 'autoTotalSale' | 'companyShare' | 'autoCash' | 'autoEasypaisa' | 'autoFoodpanda' | 'autoBank' | 'cashExpense' | 'expectedCashInHand' | 'discount' | 'branchShare'>, colors: { danger: string; success: string }): FieldGridItem[] {
+  return [
+    { label: 'Total Sale', value: money(r.autoTotalSale), valueStyle: { fontWeight: '700' } },
+    { label: 'Company Share', value: paisaMoney(r.companyShare), valueStyle: { color: colors.danger, fontWeight: '700' } },
+    { label: 'Cash', value: money(r.autoCash) },
+    { label: 'Easypaisa', value: money(r.autoEasypaisa) },
+    { label: 'Foodpanda', value: money(r.autoFoodpanda) },
+    { label: 'Bank', value: money(r.autoBank) },
+    { label: 'Cash Expense', value: money(r.cashExpense) },
+    { label: 'Cash on Table', value: money(r.expectedCashInHand), valueStyle: { fontWeight: '700' } },
+    { label: 'Discount', value: money(r.discount) },
+    { label: 'Branch Share', value: paisaMoney(r.branchShare), valueStyle: { color: colors.success, fontWeight: '700' } },
+  ];
 }
 
 /**
- * Daily Sale Records for every branch (or one), one card per branch per day,
- * newest first. Super admin reads them consolidated — the server returns
- * every branch when no branch is named. Read-only here: counting and
- * verifying stay with the branch screen and the web.
+ * Super Admin → Daily Sale Records (web /daily-sale-records, `DailySaleRecordPage admin`).
+ * The day's takings per payment method against what was counted, for every
+ * branch or one. Every figure — rows, tiles, notices — is the server's
+ * (`GET /daily-sale-records`); the only sums here are the filtered rows'
+ * totals, which the web table also adds in its footer. Read-only this phase:
+ * Generate / Manual Feed / Verify / Lock / Amend are not offered.
  */
 export function AdminDailySaleScreen() {
-  const [month, setMonth] = useState<Month>('this');
-  const [branchId, setBranchId] = useState<string>(ALL);
-  const branchesQ = useBranches();
-  const range = monthWindow(month);
-  const q = useDailySaleRecords({ ...range, ...(branchId === ALL ? {} : { branchId }) });
+  const theme = useAppTheme();
+  const navigation = useNavigation<Nav>();
+  const rangeSheetRef = useRef<BottomSheetModal>(null);
 
-  const branchOptions = useMemo<FilterChipOption<string>[]>(
+  const today = getBusinessDate();
+  const [range, setRange] = useState(() => ({ from: getBusinessMonthStart(), to: today }));
+  const [branchId, setBranchId] = useState<string>(ALL);
+  const [search, setSearch] = useState('');
+
+  const branchesQ = useBranches();
+  const branchOptions = useMemo<DropdownOption[]>(
     () => [{ value: ALL, label: 'All branches' }, ...(branchesQ.data?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))],
     [branchesQ.data],
   );
-  const records = useMemo(
-    () =>
-      [...(q.data?.records ?? [])].sort((a, b) => b.businessDate.localeCompare(a.businessDate) || a.branchName.localeCompare(b.branchName)),
-    [q.data],
+
+  const win = resolveDailySaleWindow(range);
+  const windowTooWide = !win.allBeforeStart && daysBetween(win.queryFrom, win.to) > DAILY_SALE_MAX_WINDOW_DAYS;
+  const showBranch = branchId === ALL;
+
+  const q = useDailySaleRecords(
+    { from: win.queryFrom, to: win.to, ...(branchId === ALL ? {} : { branchId }) },
+    { enabled: !windowTooWide && !win.allBeforeStart },
   );
-  const s = q.data?.summary;
-  const companyShare = records.reduce((n, r) => n + (Number(r.companyShare) || 0), 0);
+  const fetching = !windowTooWide && !win.allBeforeStart;
+  const summary = fetching ? q.data?.summary : undefined;
+  const isLoading = fetching && q.isLoading;
+
+  // Client search over the rows on show, as the web table's search box does.
+  const records = useMemo(() => {
+    const all = fetching ? (q.data?.records ?? []) : [];
+    const term = search.trim().toLowerCase();
+    if (!term) return all;
+    return all.filter((r) =>
+      [displayDate(r.businessDate), r.businessDate, r.branchName, DSR_STATUS_LABEL[r.status], r.status]
+        .join(' ')
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [fetching, q.data, search]);
+
+  const totals = useMemo(() => {
+    const sum = (pick: (r: DailySaleRecord) => number) =>
+      Math.round(records.reduce((s, r) => s + (Number.isFinite(pick(r)) ? pick(r) : 0), 0) * 100) / 100;
+    return {
+      autoTotalSale: sum((r) => r.autoTotalSale),
+      companyShare: sum((r) => r.companyShare),
+      autoCash: sum((r) => r.autoCash),
+      autoEasypaisa: sum((r) => r.autoEasypaisa),
+      autoFoodpanda: sum((r) => r.autoFoodpanda),
+      autoBank: sum((r) => r.autoBank),
+      cashExpense: sum((r) => r.cashExpense),
+      expectedCashInHand: sum((r) => r.expectedCashInHand),
+      discount: sum((r) => r.discount),
+      branchShare: sum((r) => r.branchShare),
+    };
+  }, [records]);
+
+  const tiles: KpiItem[] = [
+    { id: 'total', label: 'Total Sale', value: money(summary?.totalSale ?? 0), icon: 'cart' },
+    { id: 'cash', label: 'Cash', value: money(summary?.cash ?? 0), icon: 'banknote' },
+    { id: 'easypaisa', label: 'Easypaisa', value: money(summary?.easypaisa ?? 0), icon: 'wallet' },
+    { id: 'foodpanda', label: 'Foodpanda', value: money(summary?.foodpanda ?? 0), icon: 'orders' },
+    { id: 'bank', label: 'Bank', value: money(summary?.bank ?? 0), icon: 'bank' },
+    { id: 'cashExpense', label: 'Cash Expense', value: money(summary?.cashExpense ?? 0), icon: 'receipt' },
+    { id: 'discount', label: 'Discount', value: money(summary?.discount ?? 0), icon: 'percent' },
+    {
+      id: 'difference',
+      label: 'Difference',
+      value: money(summary?.difference ?? 0),
+      icon: summary && summary.difference === 0 ? 'check' : 'scales',
+      valueColor: summary && summary.difference === 0 ? theme.colors.success : theme.colors.danger,
+    },
+  ];
+
+  const before = dailySaleBeforeStartNotice();
+  const allBefore = dailySaleAllBeforeStartEmpty();
+  const colors = { danger: theme.colors.danger, success: theme.colors.success };
+
+  const header = (
+    <View style={{ gap: 10, marginBottom: theme.spacing.sm }}>
+      <Card style={{ gap: 10, padding: theme.spacing.md }}>
+        <View style={styles.dateRow}>
+          {(['from', 'to'] as const).map((side) => (
+            <Pressable
+              key={side}
+              accessibilityRole="button"
+              accessibilityLabel={`${side === 'from' ? 'From' : 'To'} date, ${formatDisplayDate(range[side])}`}
+              onPress={() => rangeSheetRef.current?.present()}
+              style={[styles.dateField, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
+              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{side === 'from' ? 'From' : 'To'}</Text>
+              <View style={styles.dateValue}>
+                <Icon name="calendar" size={13} color={theme.colors.primary} />
+                <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{formatDisplayDate(range[side])}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+        <View>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginBottom: 4 }]}>Branch</Text>
+          <Dropdown options={branchOptions} value={branchId} onChange={setBranchId} placeholder="All branches" loading={branchesQ.isLoading} />
+        </View>
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date, branch or status…" />
+      </Card>
+
+      {fetching ? <KpiGrid items={tiles} /> : null}
+
+      {!isLoading && summary && summary.uncounted > 0 ? (
+        <Notice tone="muted">
+          {`${summary.uncounted} ${summary.uncounted === 1 ? 'day has' : 'days have'} nothing counted yet, so the Difference card covers only the days that do.`}
+        </Notice>
+      ) : null}
+      {!isLoading && summary && summary.difference !== 0 ? (
+        <Notice tone="warning">
+          This window is out by <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>{money(summary.difference)}</Text> (
+          {summary.difference < 0 ? 'short' : 'over'}). Open each day with a difference and check the figure against the counted amount.
+        </Notice>
+      ) : null}
+      {windowTooWide ? <Notice tone="muted">{`That range is longer than ${DAILY_SALE_MAX_WINDOW_DAYS} days. Narrow it to load the records.`}</Notice> : null}
+      {win.beforeStart ? (
+        <Notice tone="muted" title={before.title}>
+          {before.body}
+        </Notice>
+      ) : null}
+
+      {isLoading ? <LoadingSkeleton height={180} /> : null}
+      {fetching && q.error ? <ErrorState message={mapErrorToMessage(q.error)} onRetry={() => void q.refetch()} /> : null}
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: DailySaleRecord }) => {
+    const hasRecord = item.id !== null;
+    return (
+      <Pressable
+        accessibilityRole={hasRecord ? 'button' : undefined}
+        disabled={!hasRecord}
+        onPress={() => item.id && navigation.navigate(Routes.SUPER_ADMIN_DAILY_SALE_DETAIL, { recordId: item.id })}>
+        <Card style={{ padding: 14 }}>
+          <View style={styles.cardTop}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{displayDate(item.businessDate)}</Text>
+              {showBranch ? (
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
+                  {item.branchName}
+                </Text>
+              ) : null}
+              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>
+                Generated {item.generatedAt ? formatDisplayTime(item.generatedAt) || '—' : '—'}
+              </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 6 }}>
+              <DsrStatusBadge status={item.status} />
+              <DifferenceBadge difference={rowDifference(item)} />
+            </View>
+          </View>
+          <FieldGrid items={figureItems(item, colors)} />
+          <View style={[styles.cardFoot, { borderTopColor: theme.colors.border }]}>
+            {hasRecord ? (
+              <>
+                <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>View record</Text>
+                <Icon name="chevron-right" size={14} color={theme.colors.primary} />
+              </>
+            ) : (
+              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No record — this day has sales but no stored record yet.</Text>
+            )}
+          </View>
+        </Card>
+      </Pressable>
+    );
+  };
+
+  const emptyComponent = (() => {
+    if (win.allBeforeStart) return <EmptyState title={allBefore.title} message={allBefore.message} />;
+    if (!fetching || isLoading || q.error) return undefined;
+    return search.trim() ? (
+      <EmptyState title="No matching records" message="Try a different date, branch or status." />
+    ) : (
+      <EmptyState title="No records" message="Days with sales in this window appear here." />
+    );
+  })();
 
   return (
-    <AdminListScreen<DailySaleRecord>
-      title="Daily Sale Records"
-      subtitle={`${formatDisplayDate(range.from)} – ${formatDisplayDate(range.to)} · read-only`}
-      data={records}
-      keyExtractor={(r) => `${r.branchId}:${r.businessDate}`}
-      renderItem={({ item }) => {
-        const counted = item.manualCash !== null || item.manualEasypaisa !== null || item.manualBank !== null;
-        return (
-          <AdminRow
-            title={`${item.branchName} · ${formatDisplayDate(item.businessDate)}`}
-            lines={[
-              `${formatCount(item.orderCount)} orders · company share ${formatCurrency(item.companyShare)}`,
-              `Cash ${formatCurrency(item.autoCash)} · Easypaisa ${formatCurrency(item.autoEasypaisa)} · Bank ${formatCurrency(item.autoBank)}`,
-              counted ? `Difference ${formatCurrency(item.overallDifference)}` : 'Not counted yet',
-            ]}
-            value={formatCurrency(item.autoTotalSale)}
-            badge={item.id === null ? { label: 'No record', variant: 'neutral' } : { label: STATUS_LABEL[item.status], variant: STATUS_VARIANT[item.status] }}
-          />
-        );
-      }}
-      isLoading={q.isLoading}
-      error={q.error}
-      refreshing={q.isRefetching}
-      onRefresh={() => void q.refetch()}
-      emptyTitle="No Sale Records"
-      emptyMessage="Days with sales appear here."
-      header={
-        <>
-          <FilterChipRow options={MONTH_OPTIONS} value={month} onChange={setMonth} />
-          <FilterChipRow options={branchOptions} value={branchId} onChange={setBranchId} />
-          {s ? (
-            <SummaryTiles
-              tiles={[
-                { label: 'Total sale', value: formatCurrency(s.totalSale) },
-                { label: 'Company share', value: formatCurrency(companyShare) },
-                { label: 'Difference', value: formatCurrency(s.difference), tone: s.difference < 0 ? 'danger' : undefined },
-                { label: 'Days not counted', value: formatCount(s.uncounted), tone: s.uncounted > 0 ? 'warning' : undefined },
-              ]}
-            />
-          ) : null}
-        </>
-      }
-    />
+    <Screen>
+      <AppHeader
+        title="Daily Sale Records"
+        subtitle="The day's takings against what was physically counted. Sales and expenses are never changed by this screen."
+        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
+      <FlatList
+        data={isLoading || (fetching && q.error) ? [] : records}
+        keyExtractor={(r) => `${r.branchId}:${r.businessDate}`}
+        renderItem={renderItem}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 3, gap: 8 }}
+        ListHeaderComponent={header}
+        ListEmptyComponent={emptyComponent}
+        ListFooterComponent={
+          records.length > 0 ? (
+            <Card style={{ padding: 14, marginTop: 4 }}>
+              <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>
+                Totals · {records.length} {records.length === 1 ? 'row' : 'rows'}
+              </Text>
+              <FieldGrid items={figureItems(totals, colors)} />
+            </Card>
+          ) : undefined
+        }
+        refreshing={fetching && q.isRefetching}
+        onRefresh={() => {
+          if (fetching) void q.refetch();
+        }}
+        initialNumToRender={8}
+        windowSize={7}
+      />
+      <DateRangeSheet
+        ref={rangeSheetRef}
+        today={today}
+        value={range}
+        onApply={(next) => {
+          // To never runs past today; From never past To (the web's date inputs' min/max).
+          const to = next.to > today ? today : next.to;
+          setRange({ from: next.from > to ? to : next.from, to });
+        }}
+        onRequestClose={() => rangeSheetRef.current?.dismiss()}
+      />
+    </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  dateRow: { flexDirection: 'row', gap: 10 },
+  dateField: { flex: 1, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
+  dateValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardTop: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  cardFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+});

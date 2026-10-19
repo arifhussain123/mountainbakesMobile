@@ -1,224 +1,264 @@
-import { useMemo } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   getBusinessDate,
-  getBusinessMonthStart,
-  useDailySaleRecords,
-  useFinanceDashboard,
-  usePendingApprovals,
-  useProductionBranchStock,
-  useProductionOrders,
-  useSalesAnalytics,
+  queryKeys,
+  useAdminSalesAnalytics,
+  useAdminTodaySummary,
+  useFinanceMonthlyDashboard,
+  useProductionCurrentStock,
+  useProductionOverview,
 } from '@/api';
+import type { FinanceDashboardMetric, FinanceMonthlyDashboardQuery } from '@/api/types';
 import { useAppearanceHeaderActions } from '@/features/appearance';
-import { PaymentMethodsCard, SalesChart, SectionHeading, TopProductsBars } from '@/features/dashboard';
+import {
+  branchNamer,
+  daysInMonth,
+  karachiTime,
+  monthAbbr,
+  monthLong,
+  type FinanceDrillTarget,
+  type FinanceGranularity,
+} from '@/features/finance';
 import { useNotificationBellAction } from '@/features/notifications';
-import { openDrawer, Routes, useTabBarHeight } from '@/navigation';
+import { Routes, openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
-import { mapErrorToMessage } from '@/shared/helpers';
-import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
-import { useAuthStore } from '@/state';
-import { SummaryTiles } from '../components';
+import { AppHeader, LoadingSkeleton, Screen } from '@/shared/ui';
+import {
+  Banner,
+  DashSection,
+  FilterCard,
+  FinanceSummarySection,
+  HeadlineKpis,
+  LiveProductionSection,
+  LiveSalesSection,
+  LoginHistoryCard,
+  ProductionSummarySection,
+  RecordsSheet,
+  SalesOverview,
+  StatePanel,
+  TodaySection,
+  type DashboardFilterChange,
+  type TopLimit,
+} from '../components/dashboard';
+import { pad2 } from '../utils/dashboardModel';
 
 type Navigate = (name: string, params?: unknown) => void;
 
 /**
- * Super Admin's overview, all branches. Every figure is a server aggregate the
- * other roles already read — `/sales-analytics` (month to date, by business
- * date), today's Daily Sale Records (one per branch), the finance today strip,
- * the demand list and the branch stock matrix. Nothing new is computed here
- * beyond counting and adding those rows.
+ * Super Admin → Dashboard: the web's Admin Dashboard
+ * (`frontend/src/components/dashboard/AdminDashboard.tsx`), top to bottom —
+ * Today, Live Sales — All Branches, the selected month's tiles, Sales
+ * Overview, Live Production, Production Summary, Finance Summary and Login
+ * History. Read-only.
+ *
+ * Two requests drive the month-scoped figures, and the month / branch / day
+ * range feed both, so no section shows a different period from its
+ * neighbours: `/finance/dashboard/monthly` (Production demand and Finance
+ * Ledger — the same response the Finance Dashboard renders) and
+ * `/sales-analytics` (point of sale). Today's tiles and Live Sales have
+ * requests of their own and do not wait for the month. Every figure is summed
+ * on the server; nothing is added up here.
  */
 export function AdminDashboardScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
-  const user = useAuthStore((s) => s.user);
   const navigation = useNavigation();
   const go = navigation.navigate as unknown as Navigate;
-  const goDrawer = (stack: string) => (navigation.getParent()?.navigate as unknown as Navigate | undefined)?.(stack);
+  const qc = useQueryClient();
 
+  // Business date, not the phone's calendar — the day rolls at 02:00 Karachi.
   const today = getBusinessDate();
-  const monthStart = getBusinessMonthStart();
-  const analyticsQ = useSalesAnalytics(monthStart, today, false, 5);
-  const todayRecordsQ = useDailySaleRecords({ from: today, to: today });
-  const financeQ = useFinanceDashboard({ from: today, to: today });
-  const ordersQ = useProductionOrders();
-  const stockQ = useProductionBranchStock();
-  const approvalsQ = usePendingApprovals();
+  const currentMonth = today.slice(0, 7);
 
-  const byBranch = useMemo(
-    () => [...(todayRecordsQ.data?.records ?? [])].sort((a, b) => b.autoTotalSale - a.autoTotalSale),
-    [todayRecordsQ.data],
-  );
-  const todayTotal = byBranch.reduce((n, r) => n + (Number(r.autoTotalSale) || 0), 0);
-  const todayOrders = byBranch.reduce((n, r) => n + (Number(r.orderCount) || 0), 0);
-  const maxBranch = Math.max(1, ...byBranch.map((r) => r.autoTotalSale));
+  const [month, setMonth] = useState(currentMonth);
+  const [dayFrom, setDayFrom] = useState(1);
+  const [dayTo, setDayTo] = useState(31);
+  const [branchId, setBranchId] = useState('');
+  const [incGran, setIncGran] = useState<FinanceGranularity>('monthly');
+  const [expGran, setExpGran] = useState<FinanceGranularity>('monthly');
+  const [topLimit, setTopLimit] = useState<TopLimit>(5);
+  const [drill, setDrill] = useState<FinanceDrillTarget | null>(null);
 
-  const demands = ordersQ.data?.orders ?? [];
-  const waitingProduction = demands.filter((o) => o.status === 'pending' || o.status === 'verified').length;
-  const awaitingBranch = demands.filter((o) => o.status === 'awaiting_verification').length;
-  const negativeStock = useMemo(() => {
-    const s = stockQ.data;
-    if (!s) return 0;
-    let n = 0;
-    for (const row of s.rows) for (const b of s.branches) if ((row.byBranch[b.branchId] ?? 0) < 0) n += 1;
-    return n;
-  }, [stockQ.data]);
+  const nd = daysInMonth(month);
+  const f = Math.min(dayFrom, nd);
+  const t = Math.max(f, Math.min(dayTo, nd));
+  const fullMonth = f === 1 && t === nd;
+  const from = `${month}-${pad2(f)}`;
+  const to = `${month}-${pad2(t)}`;
 
-  const refreshing = analyticsQ.isRefetching || todayRecordsQ.isRefetching || financeQ.isRefetching;
-  const refreshAll = () => {
-    void analyticsQ.refetch();
-    void todayRecordsQ.refetch();
-    void financeQ.refetch();
-    void ordersQ.refetch();
-    void stockQ.refetch();
-    void approvalsQ.refetch();
+  const finQuery: FinanceMonthlyDashboardQuery = { month };
+  if (!fullMonth) {
+    finQuery.from = from;
+    finQuery.to = to;
+  }
+  if (branchId) finQuery.branchId = branchId;
+  const fin = useFinanceMonthlyDashboard(finQuery);
+  const salesQ = useAdminSalesAnalytics({ from, to, topLimit, branchId: branchId || null });
+  // Today's business day whatever month is selected; only the branch filter applies.
+  const todayQ = useAdminTodaySummary(branchId || null);
+  const prodToday = useProductionOverview('today', branchId || null);
+  const stockQ = useProductionCurrentStock(branchId || null);
+
+  const data = fin.data;
+  const sales = salesQ.data ?? null;
+
+  const setFilter = (next: DashboardFilterChange) => {
+    if (next.month !== undefined) {
+      setMonth(next.month);
+      setDayFrom(1);
+      setDayTo(31);
+    }
+    if (next.branchId !== undefined) setBranchId(next.branchId);
+    if (next.from !== undefined) setDayFrom(next.from);
+    if (next.to !== undefined) setDayTo(next.to);
   };
-  const a = analyticsQ.data;
-  const f = financeQ.data;
+  const reset = () => {
+    setFilter({ month: currentMonth, branchId: '' });
+    setIncGran('monthly');
+    setExpGran('monthly');
+  };
+
+  const name = data ? branchNamer(data) : null;
+  const scopeLabel = !branchId ? 'All Branches' : name ? name(branchId) : 'Selected branch';
+  const context = `${monthLong(month)} · ${scopeLabel}${fullMonth ? '' : ` · ${pad2(f)}–${pad2(t)} ${monthAbbr(month)}`}`;
+  const drillTo = (metric: FinanceDashboardMetric, extra: Partial<FinanceDrillTarget> = {}) => {
+    if (data) setDrill({ metric, from: data.from, to: data.to, context, ...extra });
+  };
+
+  const s = data?.summary;
+  const financeRecords = !!s && s.orders + s.receipts + s.ledgerEntries + s.returnCount + s.discountCount > 0;
+  const salesRecords = !!sales && sales.totalTransactions + sales.staffCount > 0;
+  // Empty only once BOTH answers are in: a month with sales but no demand is not empty.
+  const salesSettled = !!sales || !!salesQ.error;
+  const isEmpty = !!data && !financeRecords && salesSettled && !salesRecords;
+  // Dim only while a new month/branch/range stands on the previous figures.
+  const updating = (fin.isPlaceholderData || salesQ.isPlaceholderData) && !!data;
+
+  const refreshing = (fin.isRefetching && !fin.isPlaceholderData) || (salesQ.isRefetching && !salesQ.isPlaceholderData) || todayQ.isRefetching;
+  const refresh = () => {
+    void fin.refetch();
+    void salesQ.refetch();
+    void todayQ.refetch();
+    void prodToday.refetch();
+    void stockQ.refetch();
+    void qc.invalidateQueries({ queryKey: ['branchSales'] });
+    void qc.invalidateQueries({ queryKey: ['productionOverview'] });
+    void qc.invalidateQueries({ queryKey: queryKeys.financeDashboard({ from: today, to: today }) });
+  };
 
   return (
     <Screen>
       <AppHeader
         title="Admin Dashboard"
-        subtitle={`${user?.displayName ?? user?.email ?? 'Super Admin'} · all branches`}
+        subtitle={`Sales, branch, production & finance summary · ${context}`}
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg, gap: 14, paddingBottom: theme.spacing.lg + tabBarHeight }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={theme.colors.primary} />}>
-        {/* Hero: today's sales across every branch */}
-        <View style={[styles.hero, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg }]}>
-          <Text style={[theme.typography.label, { color: '#FFFFFF', letterSpacing: 1 }]}>TODAY'S SALES · ALL BRANCHES · {formatDisplayDate(today).toUpperCase()}</Text>
-          {todayRecordsQ.isLoading ? (
-            <Text style={[theme.typography.screenTitle, { color: '#FFFFFF', marginTop: 6 }]}>…</Text>
-          ) : (
-            <>
-              <Text style={[theme.typography.screenTitle, { color: '#FFFFFF', fontSize: 32, lineHeight: 40, marginTop: 6 }]}>{formatCurrency(todayTotal)}</Text>
-              <Text style={[theme.typography.bodySmall, { color: '#FFFFFF', opacity: 0.9 }]}>
-                {formatCount(todayOrders)} orders · {formatCount(byBranch.filter((r) => r.autoTotalSale > 0).length)} of {formatCount(byBranch.length)} branches selling
-              </Text>
-            </>
-          )}
-        </View>
-        {todayRecordsQ.error ? <ErrorState message={mapErrorToMessage(todayRecordsQ.error)} onRetry={() => void todayRecordsQ.refetch()} /> : null}
-
-        {/* Work waiting on someone */}
-        <View style={styles.tileGrid}>
-          <LinkTile label="Demands waiting for Production" value={ordersQ.data ? formatCount(waitingProduction) : '—'} tone={waitingProduction > 0 ? 'warning' : undefined} onPress={() => go(Routes.SUPER_ADMIN_ORDERS_TAB)} />
-          <LinkTile label="Sent, awaiting branch verify" value={ordersQ.data ? formatCount(awaitingBranch) : '—'} onPress={() => go(Routes.SUPER_ADMIN_ORDERS_TAB)} />
-          <LinkTile label="Finance approvals pending" value={approvalsQ.data ? formatCount(approvalsQ.data.length) : '—'} tone={(approvalsQ.data?.length ?? 0) > 0 ? 'warning' : undefined} />
-          <LinkTile label="Negative branch stock lines" value={stockQ.data ? formatCount(negativeStock) : '—'} tone={negativeStock > 0 ? 'danger' : undefined} onPress={() => go(Routes.SUPER_ADMIN_BRANCH_STOCK_TAB)} />
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.xl, paddingBottom: theme.spacing.lg + tabBarHeight }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}>
+        <View style={{ gap: 6 }}>
+          <FilterCard
+            month={month}
+            currentMonth={currentMonth}
+            branchId={branchId}
+            branches={data?.branches ?? null}
+            dayFrom={f}
+            dayTo={t}
+            daysInMonth={nd}
+            onChange={setFilter}
+          />
+          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} accessibilityLiveRegion="polite">
+            {updating ? 'Updating…' : data ? `Updated ${karachiTime(data.generatedAt)}` : ' '}
+          </Text>
         </View>
 
-        {/* Today by branch */}
-        <SectionHeading text="Today by" accent="Branch" />
-        <Card>
-          {todayRecordsQ.isLoading ? <LoadingSkeleton height={120} /> : null}
-          {!todayRecordsQ.isLoading && byBranch.length === 0 ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>No sales recorded yet today.</Text>
-          ) : null}
-          {byBranch.map((r) => (
-            <Pressable key={r.branchId} onPress={() => goDrawer(Routes.SUPER_ADMIN_DAILY_SALE)} accessibilityRole="button" style={{ paddingVertical: 6 }}>
-              <View style={styles.branchRow}>
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
-                  {r.branchName}
-                </Text>
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(r.autoTotalSale)}</Text>
-              </View>
-              <View style={[styles.barTrack, { backgroundColor: theme.colors.border }]}>
-                <View style={[styles.barFill, { width: `${Math.max(2, (r.autoTotalSale / maxBranch) * 100)}%`, backgroundColor: theme.colors.primary }]} />
-              </View>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-                {formatCount(r.orderCount)} orders · company share {formatCurrency(r.companyShare)}
-              </Text>
-            </Pressable>
-          ))}
-        </Card>
+        {/* Today & live sales: not month-scoped */}
+        <TodaySection
+          businessDate={today}
+          scope={scopeLabel}
+          today={{ data: todayQ.data, failed: !!todayQ.error }}
+          production={{ data: prodToday.data, failed: !!prodToday.error }}
+          stock={{ data: stockQ.data, failed: !!stockQ.error }}
+          onRetry={() => {
+            if (todayQ.error) void todayQ.refetch();
+            if (prodToday.error) void prodToday.refetch();
+            if (stockQ.error) void stockQ.refetch();
+          }}
+        />
+        <LiveSalesSection today={today} />
 
-        {/* Finance today */}
-        <SectionHeading text="Finance" accent="Today" />
-        {financeQ.error ? (
-          <ErrorState message={mapErrorToMessage(financeQ.error)} onRetry={() => void financeQ.refetch()} />
-        ) : f ? (
-          <SummaryTiles
-            tiles={[
-              { label: 'Income', value: formatCurrency(f.todayIncome), tone: 'success' },
-              { label: 'Expenses', value: formatCurrency(f.todayExpenses), tone: 'danger' },
-              { label: 'Cash in hand', value: formatCurrency(f.cashInHand) },
-              { label: 'Bank balance', value: formatCurrency(f.bankBalance) },
-            ]}
+        {/* The selected month */}
+        {!data && fin.error ? (
+          <StatePanel
+            title="Dashboard data could not be loaded."
+            body={`The figures for ${context} did not load. Nothing is shown so stale figures aren’t mistaken for current ones.`}
+            actionLabel="Retry"
+            onAction={refresh}
+          />
+        ) : !data || (!financeRecords && !salesSettled) ? (
+          <View style={{ gap: theme.spacing.md }} accessibilityLabel="Loading dashboard">
+            <LoadingSkeleton height={220} borderRadius={16} />
+            <LoadingSkeleton height={260} borderRadius={16} />
+          </View>
+        ) : isEmpty ? (
+          <StatePanel
+            title="No records found for the selected month and branch."
+            body={`${context} has no sales, no approved Production demand, returns or discounts, and no Finance Ledger entries. Figures are hidden rather than shown as Rs. 0.`}
+            actionLabel="Reset filters"
+            onAction={reset}
           />
         ) : (
-          <LoadingSkeleton height={120} />
+          <View style={{ gap: theme.spacing.xl, opacity: updating ? 0.6 : 1 }}>
+            {fin.error ? <Banner text={`Could not refresh. Showing figures loaded at ${karachiTime(data.generatedAt)}.`} onRetry={refresh} /> : null}
+            <DashSection title={monthLong(month)} sub={`Sales, Company Share and Finance Ledger · ${context}`}>
+              <HeadlineKpis data={data} sales={sales} salesFailed={!!salesQ.error && !sales} drillTo={drillTo} />
+            </DashSection>
+            <SalesOverview
+              sales={sales}
+              loading={salesQ.isPending}
+              failed={!!salesQ.error}
+              onRetry={() => void salesQ.refetch()}
+              topLimit={topLimit}
+              onTopLimit={setTopLimit}
+              subtitle={context}
+            />
+          </View>
         )}
 
-        {/* Month to date */}
-        <SectionHeading text="This" accent="Month" />
-        {analyticsQ.error ? (
-          <ErrorState message={mapErrorToMessage(analyticsQ.error)} onRetry={() => void analyticsQ.refetch()} />
-        ) : a ? (
-          <>
-            <SummaryTiles
-              tiles={[
-                { label: 'Sales, month to date', value: formatCurrency(a.totalSales) },
-                { label: 'Paid orders', value: formatCount(a.totalTransactions) },
-                { label: 'Average a day', value: formatCurrency(a.averageDailySales) },
-                { label: 'Best day', value: a.highestDay ? formatCurrency(a.highestDay.sales) : '—' },
-              ]}
+        {/* Production: the live board has its own period and branch picker and does not wait for the month. */}
+        <LiveProductionSection />
+        {data && !isEmpty ? (
+          <View style={{ opacity: updating ? 0.6 : 1 }}>
+            <ProductionSummarySection data={data} context={context} drillTo={drillTo} />
+          </View>
+        ) : null}
+
+        {data && !isEmpty ? (
+          <View style={{ opacity: updating ? 0.6 : 1 }}>
+            <FinanceSummarySection
+              data={data}
+              scoped={!!branchId}
+              context={context}
+              incGran={incGran}
+              setIncGran={setIncGran}
+              expGran={expGran}
+              setExpGran={setExpGran}
+              drillTo={drillTo}
+              onApprovals={() => go(Routes.SUPER_ADMIN_LEDGER_STACK)}
             />
-            {a.daily.length > 0 ? (
-              <Card>
-                <SalesChart data={a.daily} average={a.averageDailySales} />
-              </Card>
-            ) : null}
-            {a.topProducts.length > 0 ? (
-              <>
-                <SectionHeading text="Top" accent="Products" />
-                <Card>
-                  <TopProductsBars products={a.topProducts} />
-                </Card>
-              </>
-            ) : null}
-            {a.paymentMethods.length > 0 ? (
-              <>
-                <SectionHeading text="Payment" accent="Methods" />
-                <PaymentMethodsCard methods={a.paymentMethods} />
-              </>
-            ) : null}
-          </>
-        ) : (
-          <LoadingSkeleton height={220} />
-        )}
+          </View>
+        ) : null}
+
+        {/* Not month-scoped: the login record a super admin audits. */}
+        <LoginHistoryCard onOpenSecurity={() => go(Routes.SUPER_ADMIN_SECURITY)} />
       </ScrollView>
+
+      <RecordsSheet target={drill} dashboardBranchId={branchId || null} onClose={() => setDrill(null)} />
     </Screen>
   );
 }
-
-function LinkTile({ label, value, tone, onPress }: { label: string; value: string; tone?: 'warning' | 'danger'; onPress?: () => void }) {
-  const theme = useAppTheme();
-  const color = tone === 'danger' ? theme.colors.danger : tone === 'warning' ? theme.colors.warning : theme.colors.text;
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={`${label}: ${value}`} style={styles.tile}>
-      <Card style={{ padding: 12, flex: 1 }}>
-        <Text style={[theme.typography.kpi, { color }]}>{value}</Text>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={2}>
-          {label}
-        </Text>
-      </Card>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  hero: { padding: 18 },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tile: { flexGrow: 1, flexBasis: '45%' },
-  branchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  barTrack: { height: 6, borderRadius: 3, marginTop: 4, overflow: 'hidden' },
-  barFill: { height: 6, borderRadius: 3 },
-});

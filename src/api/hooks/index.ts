@@ -1,4 +1,6 @@
 export { useLogin } from './useAuthApi';
+export { useAdminSalesAnalytics, useAdminTodaySummary, useBranchSales, useLoginHistoryPage } from './useAdminDashboardApi';
+export { useActiveAdminBranches, useAdminProductPages, useAllPackingMaterials } from './useAdminCatalogApi';
 export { useBranchClosing } from './useBranchClosingApi';
 export { useBranches } from './useBranchesApi';
 export {
@@ -11,7 +13,7 @@ export {
   useRecentNotificationLogs,
   useUpdateRecipient,
 } from './useClosingRecipientsApi';
-export { useReportSummary, useSalesAnalytics, useStockHistoryDay, useStockHistorySeries } from './useDashboardApi';
+export { useBranchStockHistorySeries, useReportSummary, useSalesAnalytics, useStockHistoryDay, useStockHistorySeries } from './useDashboardApi';
 export { usePackingMaterials } from './usePackingMaterialsApi';
 export { useCatalogProducts, usePriceHistoryPages, useProductPriceHistory } from './usePriceHistoryApi';
 export { useProducts } from './useProductsApi';
@@ -21,6 +23,7 @@ export {
   useFinalApproveProductionOrder,
   usePreviousOrderBalance,
   useProductionOrder,
+  useProductionOrderPages,
   useProductionOrders,
   useReviewProductionOrder,
   useVerifyProductionOrder,
@@ -42,7 +45,7 @@ export {
 export { useCreateProductionSale, useProductionSales } from './useProductionSalesApi';
 export { useCreatePosSale, useOrder, useOrders, useSalesData } from './useSalesApi';
 export { useAppSettings } from './useSettingsApi';
-export { useStock } from './useStockApi';
+export { useAllBranchesStockSummary, useBranchStock, useStock } from './useStockApi';
 export {
   useBranchReturns,
   useBranchReturnsSummary,
@@ -54,6 +57,10 @@ export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, u
 export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer, useMonthlyCashTransferSummary } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses, useExpensesData, useExpensesTotal } from './useExpensesApi';
 export {
+  useAdminSpecialEvents,
+  useEventCalendar,
+  useEventNotifications,
+  useSpecialEvent,
   useConsolidatedDemand,
   useEventDemands,
   useEventProductionStatus,
@@ -88,6 +95,7 @@ export {
   useLedgerEntry,
   useLedgerHeads,
   useLedgerPage,
+  useLedgerPages,
   useLedgerSummary,
   usePendingApprovals,
   useRejectFinanceCashTransfer,
@@ -142,7 +150,7 @@ export {
   useRequestReopenFinanceTicket,
   useSubmitFinanceTicket,
 } from './useFinanceTicketsApi';
-export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
+export { useDailySaleRecord, useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
 export { usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {
   useProductionBranchStock,
@@ -151,17 +159,40 @@ export {
   useProductionOverview,
   useProductionReportSummary,
 } from './useProductionOverviewApi';
-export { usePackingUsage } from './useReportsApi';
-export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';
+export { useAdminReportSummary, usePackingUsage, usePackingUsagePages } from './useReportsApi';
+export {
+  useAdminSupportTickets,
+  useCachedAdminSupportTicket,
+  useCreateSupportTicket,
+  useFinanceTicketsPaged,
+  useSupportLiveReference,
+  useSupportStats,
+  useSupportTickets,
+} from './useSupportApi';
 export { useNotifications, useNotificationsWithReadState, useMarkNotificationsRead, mergeReadState } from './useNotificationsApi';
 export type { NotificationWithReadState } from './useNotificationsApi';
 export { useBackupHealth, useSuspiciousSignInCount } from './useAdminNavApi';
 export {
   useAdminBranches,
   useAdminCustomers,
+  useAdminCustomersData,
   useAdminUsers,
   useBackupJobPages,
   useBranchLocations,
   useLoginSessionPages,
   useProductCategories,
+  useActiveSessions,
+  useBackupHistory,
+  useBackupStatus,
+  useLatestRestoreTest,
+  useLoginAttemptPages,
+  useLoginFilterOptions,
+  useRestrictionEvents,
+  useRestrictionMonitor,
+  useRestrictionRequests,
+  useRestrictionRules,
+  useSecuritySession,
+  useSecuritySessionPages,
+  useUserActivity,
+  useUsersDataPages,
 } from './useAdminDataApi';

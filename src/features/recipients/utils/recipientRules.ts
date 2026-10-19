@@ -119,6 +119,7 @@ export function latestLogByRecipient(logs: readonly NotificationLog[]): Map<stri
  */
 export function deliveryLabel(log: Pick<NotificationLog, 'provider' | 'status' | 'errorMessage' | 'sentAt' | 'createdAt'>): string {
   if (log.status === 'failed') return `Failed: ${shortReason(log.errorMessage)}`;
+  if (log.status === 'pending') return 'Pending';
   if (log.provider === 'log') return 'Logged only · test mode';
   return `Sent ${formatDisplayTime(log.sentAt ?? log.createdAt)}`;
 }

@@ -12,6 +12,11 @@ export async function listDailySaleRecords(params?: ListDailySaleRecordsParams):
   return apiClient.get<DailySaleRecordList>('/daily-sale-records', params);
 }
 
+/** `GET /api/daily-sale-records/:id` — the record, its audit history, its locks and its branch. */
+export async function getDailySaleRecord(id: string): Promise<DailySaleRecordDetail> {
+  return apiClient.get<DailySaleRecordDetail>(`/daily-sale-records/${id}`);
+}
+
 /** Idempotent — `ensure_daily_sale_record` upserts on (branchId, businessDate). */
 export async function generateDailySaleRecord(businessDate: string): Promise<DailySaleRecordDetail> {
   return apiClient.post<DailySaleRecordDetail>('/daily-sale-records/generate', { businessDate });
