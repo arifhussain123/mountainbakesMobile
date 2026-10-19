@@ -28,6 +28,7 @@ export type {
   ProductionEventsStackParamList,
   FinanceDrawerParamList,
   FinanceBottomTabParamList,
+  FinanceHomeStackParamList,
   FinanceLedgerStackParamList,
   FinanceCashTransfersStackParamList,
   FinancePayrollStackParamList,

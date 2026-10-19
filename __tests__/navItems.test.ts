@@ -139,7 +139,7 @@ describe('FINANCE_NAV_ITEMS', () => {
   it('keeps Payroll and Salary Ledger (same stack) from both reading active', () => {
     const payroll = FINANCE_NAV_ITEMS.find((i) => i.key === 'payroll')!;
     const salaryLedger = FINANCE_NAV_ITEMS.find((i) => i.key === 'salaryLedger')!;
-    const stack = [Routes.FINANCE_PAYROLL_STACK];
+    const stack = [Routes.FINANCE_TABS, Routes.FINANCE_PAYROLL_TAB];
     expect(isNavItemActive(payroll, [...stack, Routes.FINANCE_PAYROLL_LIST])).toBe(true);
     expect(isNavItemActive(payroll, [...stack, Routes.FINANCE_EMPLOYEE_DETAIL])).toBe(true);
     expect(isNavItemActive(payroll, [...stack, Routes.FINANCE_SALARY_LEDGER])).toBe(false);
