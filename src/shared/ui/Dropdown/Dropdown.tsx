@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { Icon } from '../Icon';
 
 const styles = StyleSheet.create({
   field: { height: 46, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -12,8 +12,8 @@ const styles = StyleSheet.create({
 /** Options above this count get a search box. */
 const SEARCH_THRESHOLD = 8;
 
-export interface FinanceDropdownOption {
-  value: string;
+export interface DropdownOption<T extends string = string> {
+  value: T;
   label: string;
   /** Short tag shown on the right of the closed field, e.g. a head code. */
   hint?: string;
@@ -21,17 +21,17 @@ export interface FinanceDropdownOption {
   sublabel?: string;
 }
 
-export interface FinanceDropdownProps {
-  options: FinanceDropdownOption[];
-  value: string | null;
-  onChange: (value: string) => void;
-  placeholder: string;
+export interface DropdownProps<T extends string = string> {
+  options: readonly DropdownOption<T>[];
+  value: T | null;
+  onChange: (value: T) => void;
+  placeholder?: string;
   loading?: boolean;
   emptyLabel?: string;
 }
 
-/** An inline dropdown (not a nested sheet — @gorhom/bottom-sheet nesting is awkward) for picking one option inside a finance form sheet. */
-export function FinanceDropdown({ options, value, onChange, placeholder, loading, emptyLabel }: FinanceDropdownProps) {
+/** An inline dropdown that opens below its field (not a nested sheet — @gorhom/bottom-sheet nesting is awkward), so it also works inside form sheets. */
+export function Dropdown<T extends string = string>({ options, value, onChange, placeholder = 'Select…', loading, emptyLabel }: DropdownProps<T>) {
   const theme = useAppTheme();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);

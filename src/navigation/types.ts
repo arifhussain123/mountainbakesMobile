@@ -108,6 +108,16 @@ export type ProductionReturnsStackParamList = {
   [Routes.PRODUCTION_NEW_RETURN]: undefined;
 };
 
+export type RecipientsStackParamList = {
+  [Routes.RECIPIENTS_LIST]: undefined;
+  [Routes.RECIPIENTS_DELIVERY_LOG]: undefined;
+};
+
+export type PriceHistoryStackParamList = {
+  [Routes.PRICE_HISTORY_LIST]: undefined;
+  [Routes.PRICE_HISTORY_PRODUCT]: { productId: string; productName: string };
+};
+
 export type ProductionDiscountsStackParamList = {
   [Routes.PRODUCTION_DISCOUNTS_LIST]: undefined;
   [Routes.PRODUCTION_DISCOUNT_DETAIL]: { discountId: string };
@@ -184,11 +194,27 @@ export type FinanceDrawerParamList = {
   [Routes.PROFILE]: undefined;
 };
 
+export type SuperAdminBottomTabParamList = {
+  [Routes.SUPER_ADMIN_DASHBOARD_TAB]: undefined;
+  [Routes.SUPER_ADMIN_ORDERS_TAB]: undefined;
+  [Routes.SUPER_ADMIN_BRANCH_STOCK_TAB]: undefined;
+  [Routes.SUPER_ADMIN_REPORTS_TAB]: undefined;
+  [Routes.SUPER_ADMIN_MORE_TAB]: undefined;
+};
+
+export type SuperAdminDrawerParamList = {
+  [Routes.SUPER_ADMIN_TABS]: NavigatorScreenParams<SuperAdminBottomTabParamList> | undefined;
+  [Routes.PRICE_HISTORY_STACK]: NavigatorScreenParams<PriceHistoryStackParamList> | undefined;
+  [Routes.RECIPIENTS_STACK]: NavigatorScreenParams<RecipientsStackParamList> | undefined;
+  [Routes.PROFILE]: undefined;
+};
+
 export type RootStackParamList = {
   [Routes.AUTH]: undefined;
   [Routes.DRAWER]: NavigatorScreenParams<DrawerParamList> | undefined;
   [Routes.PRODUCTION_DRAWER]: NavigatorScreenParams<ProductionDrawerParamList> | undefined;
   [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;
+  [Routes.SUPER_ADMIN_DRAWER]: NavigatorScreenParams<SuperAdminDrawerParamList> | undefined;
   [Routes.UNSUPPORTED_ROLE]: undefined;
   [Routes.COMING_SOON]: { title: string };
   // Modal, reachable from any screen (Help Desk's own list push there too) —

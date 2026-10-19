@@ -21,13 +21,13 @@ export function getFocusedChain(state: AnyNavState | undefined): string[] {
 }
 
 /**
- * Every role's drawer menu (Branch, Production, Finance): the signed-in role's
+ * Every role's drawer menu (Branch, Production, Finance, Super Admin): the signed-in role's
  * shell (`roleShells.ts`) supplies the items, badges and context line, so this
  * component never checks a role itself. Layout lives in `DrawerMenu`.
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const user = useAuthStore((s) => s.user);
-  const { navItems, contextLine } = useRoleShell();
+  const { navItems, contextLine, collapsibleSections } = useRoleShell();
   const badges = useNavBadges();
 
   const focusedChain = getFocusedChain(state);
@@ -40,6 +40,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     active: index === activeIndex,
     badgeCount: item.badgeSource ? badges[item.badgeSource] : undefined,
     badgeDot: item.badgeDot,
+    badgeTone: item.badgeTone,
     onPress: () => item.navigate(navigation),
   }));
 
@@ -48,6 +49,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
       roleLabel={user ? roleLabel(user.role) : ''}
       contextLine={user ? contextLine(user) : ''}
       rows={rows}
+      collapsibleSections={collapsibleSections}
       closeDrawer={navigation.closeDrawer}
       onPressProfile={() => {
         navigation.closeDrawer();

@@ -11,6 +11,7 @@ export { lookupSupportReference } from './services/supportService';
 export { getSalesAnalyticsExportCsv } from './services/dashboardService';
 export { exportSalesCsv } from './services/salesService';
 export { exportBranchClosingCsv } from './services/branchClosingService';
+export { exportPriceHistoryCsv } from './services/priceHistoryService';
 export { getReportExportCsv } from './services/reportService';
 export * from './hooks';
 export * from './types';

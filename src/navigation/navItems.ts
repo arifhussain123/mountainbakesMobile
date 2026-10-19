@@ -13,6 +13,12 @@ export type NavBadgeSource =
   | 'cashTransfers'
   | 'dailyClosing'
   | 'financeSettings'
+  | 'supportCenter'
+  | 'branchStockNegative'
+  | 'recipientsTestMode'
+  | 'suspiciousSignIns'
+  | 'backupAlert'
+  | 'restrictionAlert'
   | null;
 
 type DrawerNavigation = { navigate: (...args: never[]) => void; closeDrawer: () => void };
@@ -21,10 +27,33 @@ export interface NavItem {
   key: string;
   label: string;
   icon: IconName;
-  group: 'overview' | 'main' | 'work' | 'money' | 'endOfDay' | 'planning' | 'insights' | 'support' | 'books' | 'people' | 'partners' | 'setup';
+  group:
+    | 'overview'
+    | 'main'
+    | 'work'
+    | 'money'
+    | 'endOfDay'
+    | 'planning'
+    | 'insights'
+    | 'support'
+    | 'books'
+    | 'people'
+    | 'partners'
+    | 'setup'
+    | 'salesOrders'
+    | 'catalog'
+    | 'branches'
+    | 'planningInsights'
+    | 'finance'
+    | 'admin';
   badgeSource: NavBadgeSource;
   /** Show the badge as an amber dot (a state, not a count) rather than a number. */
   badgeDot?: boolean;
+  /**
+   * `muted`: a count that is information, not a call to act (grey pill instead of orange).
+   * `danger`: with `badgeDot`, the dot is red instead of amber.
+   */
+  badgeTone?: 'muted' | 'danger';
   /** Navigates via the drawer navigation prop. Kept here (not inlined in DrawerContent) so item order/config stays data, not UI code. */
   navigate: (navigation: DrawerNavigation) => void;
   /**
@@ -433,6 +462,62 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const superAdminItem = (
+  key: string,
+  label: string,
+  icon: IconName,
+  group: NavItem['group'],
+  target: { tab: string } | { stack: string } | 'comingSoon',
+  badge: Pick<NavItem, 'badgeSource' | 'badgeDot' | 'badgeTone'> = { badgeSource: null },
+): NavItem => {
+  if (target === 'comingSoon') {
+    return { key, label, icon, group, ...badge, navigate: openComingSoon(label), activeMatch: { root: Routes.COMING_SOON } };
+  }
+  if ('tab' in target) {
+    return { key, label, icon, group, ...badge, navigate: goToTab(Routes.SUPER_ADMIN_TABS, target.tab), activeMatch: { root: target.tab } };
+  }
+  return { key, label, icon, group, ...badge, navigate: goToStack(target.stack), activeMatch: { root: target.stack } };
+};
+
+/**
+ * The web's super-admin sidebar, in its order, under eight sections. Twenty
+ * rows can't fit a phone at 40dp, so this shell's drawer collapses sections
+ * (`collapsibleSections` in `roleShells.ts`).
+ *
+ * Most screens open Coming Soon until their own brief is built: each is either
+ * waiting on a Step 0 decision (Orders, Products, Branches, Users, Database
+ * Backup, …) or exists only as a branch/production/finance screen that has no
+ * all-branches or read-only mode yet (Daily Sale Records, Reports, Branch
+ * Stock, Special Events, Finance Ledger). Price History and Recipients are the
+ * first real Super Admin stacks.
+ */
+export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
+  superAdminItem('dashboard', 'Dashboard', 'grid', 'overview', { tab: Routes.SUPER_ADMIN_DASHBOARD_TAB }),
+  superAdminItem('orders', 'Orders', 'cart', 'salesOrders', { tab: Routes.SUPER_ADMIN_ORDERS_TAB }, { badgeSource: 'orders' }),
+  superAdminItem('customers', 'Customers', 'users', 'salesOrders', 'comingSoon'),
+  superAdminItem('dailySaleRecords', 'Daily Sale Records', 'scales', 'salesOrders', 'comingSoon', { badgeSource: 'dailySale', badgeTone: 'muted' }),
+  superAdminItem('products', 'Products', 'box', 'catalog', 'comingSoon'),
+  superAdminItem('categories', 'Categories', 'tag', 'catalog', 'comingSoon'),
+  superAdminItem('priceList', 'Price List', 'file-list', 'catalog', 'comingSoon'),
+  superAdminItem('priceHistory', 'Price History', 'history-clock', 'catalog', { stack: Routes.PRICE_HISTORY_STACK }),
+  superAdminItem('branches', 'Branches', 'store', 'branches', 'comingSoon'),
+  superAdminItem('branchLocations', 'Branch Locations', 'map-pin', 'branches', 'comingSoon'),
+  superAdminItem('branchStock', 'Branch Stock', 'boxes', 'branches', { tab: Routes.SUPER_ADMIN_BRANCH_STOCK_TAB }, {
+    badgeSource: 'branchStockNegative',
+    badgeDot: true,
+    badgeTone: 'danger',
+  }),
+  superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', 'comingSoon', { badgeSource: 'events' }),
+  superAdminItem('reports', 'Reports', 'bar-chart', 'planningInsights', { tab: Routes.SUPER_ADMIN_REPORTS_TAB }),
+  superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', 'comingSoon', { badgeSource: 'approvals', badgeTone: 'muted' }),
+  superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', 'comingSoon', { badgeSource: 'supportCenter' }),
+  superAdminItem('recipients', 'Recipients', 'send', 'support', { stack: Routes.RECIPIENTS_STACK }, { badgeSource: 'recipientsTestMode', badgeDot: true }),
+  superAdminItem('users', 'Users', 'user-group', 'admin', 'comingSoon', { badgeSource: 'suspiciousSignIns', badgeDot: true, badgeTone: 'danger' }),
+  superAdminItem('security', 'Security', 'shield-check', 'admin', 'comingSoon'),
+  superAdminItem('databaseBackup', 'Database Backup', 'database', 'admin', 'comingSoon', { badgeSource: 'backupAlert', badgeDot: true, badgeTone: 'danger' }),
+  superAdminItem('settings', 'Settings', 'settings', 'admin', 'comingSoon', { badgeSource: 'restrictionAlert', badgeDot: true }),
+];
+
 /** True when the focused-route chain (see `DrawerContent.getFocusedChain`) means this item is the active one. */
 export function isNavItemActive(item: NavItem, chain: string[]): boolean {
   if (!chain.includes(item.activeMatch.root)) return false;
@@ -455,6 +540,12 @@ export const GROUP_LABEL: Record<NavItem['group'], string> = {
   people: 'People',
   partners: 'Partners',
   setup: 'Setup & review',
+  salesOrders: 'Sales & orders',
+  catalog: 'Catalog',
+  branches: 'Branches',
+  planningInsights: 'Planning & insights',
+  finance: 'Finance',
+  admin: 'Admin',
 };
 
 /** The "3D slide-back" drawer redesign groups items under section labels (MAIN/MONEY/END OF DAY/PLANNING/SUPPORT) — flip back to `false` to return to a flat list. */

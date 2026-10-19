@@ -112,3 +112,43 @@ export function computeDrawerRowMetrics(available: number, itemCount: number, se
 export function countSections(groups: readonly string[]): number {
   return groups.filter((group, i) => i === 0 || group !== groups[i - 1]).length;
 }
+
+// ─── Collapsible sections (Super Admin) ─────────────────────────────────
+export const COLLAPSIBLE_ROW_MAX_HEIGHT = 50;
+/** A section header costs this fraction of a row in the height budget. */
+export const SECTION_HEADER_ROW_FRACTION = 0.6;
+export const SECTION_HEADER_MIN_HEIGHT = 28;
+/** The "Go to…" field: a 44dp search bar plus 4dp below. */
+export const SEARCH_FIELD_HEIGHT = 48;
+/** Menus longer than this get the "Go to…" field. */
+export const SEARCH_MIN_ITEMS = 15;
+
+export interface CollapsibleRowMetrics extends Omit<DrawerRowMetrics, 'showSectionLabels'> {
+  headerHeight: number;
+}
+
+/**
+ * `rowHeight = clamp(40, available / (rows + 0.6 × headers), 50)` for the
+ * rows currently visible. Headers get 0.6 of a row, never under 28dp. Past the
+ * 40dp floor the list scrolls.
+ */
+export function computeCollapsibleRowMetrics(available: number, visibleRows: number, headerCount: number): CollapsibleRowMetrics {
+  const units = Math.max(visibleRows + headerCount * SECTION_HEADER_ROW_FRACTION, 1);
+  const rowHeight = clamp(ROW_MIN_HEIGHT, available / units, COLLAPSIBLE_ROW_MAX_HEIGHT);
+  const headerHeight = Math.max(SECTION_HEADER_MIN_HEIGHT, Math.round(rowHeight * SECTION_HEADER_ROW_FRACTION));
+  const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);
+  const fontSize = clamp(ROW_FONT_MIN, rowHeight * 0.34, ROW_FONT_MAX);
+  return {
+    rowHeight,
+    headerHeight,
+    iconSize,
+    fontSize,
+    lineHeight: fontSize * 1.2,
+    needsScroll: visibleRows * rowHeight + headerCount * headerHeight > available + 0.5,
+  };
+}
+
+/** Whether `visibleRows` under `headerCount` headers fit `available` at the 40dp floor — the test `expandSection` folds against. */
+export function fitsAtMinimum(available: number, visibleRows: number, headerCount: number): boolean {
+  return visibleRows * ROW_MIN_HEIGHT + headerCount * SECTION_HEADER_MIN_HEIGHT <= available;
+}

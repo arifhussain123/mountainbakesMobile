@@ -1,10 +1,11 @@
 import { Image, Pressable, Text, TextInput, View } from 'react-native';
-import { FINANCE_PAYMENT_METHODS, FINANCE_PAYMENT_METHOD_LABELS, type FinanceAccount, type FinancePaymentMethod } from '@/api';
+import type { FinanceAccount } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
+import { Dropdown, Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { EmployeePicker } from '../../components';
 import { useNewSalaryPaymentForm } from '../../hooks/useNewSalaryPaymentForm';
+import { FINANCE_PAYMENT_METHOD_OPTIONS } from '../../utils/paymentMethodOptions';
 import { styles } from './styles';
 
 export interface NewSalaryPaymentSheetContentProps {
@@ -134,27 +135,8 @@ export function NewSalaryPaymentSheetContent({ onClose, onCreated }: NewSalaryPa
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>PAYMENT METHOD</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-        {FINANCE_PAYMENT_METHODS.map((method) => {
-          const active = method === form.paymentMethod;
-          return (
-            <Pressable
-              key={method}
-              onPress={() => form.setPaymentMethod(method as FinancePaymentMethod)}
-              style={{
-                height: 32,
-                paddingHorizontal: 12,
-                borderRadius: 16,
-                borderWidth: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: active ? theme.colors.primary : theme.colors.surface,
-                borderColor: theme.colors.border,
-              }}>
-              <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]}>{FINANCE_PAYMENT_METHOD_LABELS[method]}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginTop: 6 }}>
+        <Dropdown options={FINANCE_PAYMENT_METHOD_OPTIONS} value={form.paymentMethod} onChange={form.setPaymentMethod} placeholder="Select a payment method" />
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>NOTES (OPTIONAL)</Text>

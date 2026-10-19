@@ -7,6 +7,7 @@ import type { IconName } from '@/shared/ui';
 import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
 import { BranchStrip } from './BranchStrip';
+import { CollapsibleDrawerList } from './CollapsibleDrawerList';
 import { DrawerFooter } from './DrawerFooter';
 import { DrawerHeader } from './DrawerHeader';
 import { DrawerItem } from './DrawerItem';
@@ -24,6 +25,8 @@ export interface DrawerMenuRow {
   badgeCount?: number;
   /** Show `badgeCount` as an amber dot instead of a number — see `DrawerItem`. */
   badgeDot?: boolean;
+  /** `muted` greys a count; `danger` turns a dot red — see `NavItem.badgeTone`. */
+  badgeTone?: 'muted' | 'danger';
   onPress: () => void;
 }
 
@@ -35,6 +38,8 @@ export interface DrawerMenuProps {
   closeDrawer: () => void;
   /** Footer name/email tap target; omitted for a shell without a Profile screen. */
   onPressProfile?: () => void;
+  /** Fold sections to their headers (`CollapsibleDrawerList`) — the role shell's `collapsibleSections`. */
+  collapsibleSections?: boolean;
 }
 
 /**
@@ -44,9 +49,11 @@ export interface DrawerMenuProps {
  * chevrons, and a compact footer. Row height is
  * computed so the whole menu fits between the two safe-area insets (see
  * `drawerLayout.ts`); only when rows would drop below 40dp does
- * the row list scroll, with the header and footer staying put.
+ * the row list scroll, with the header and footer staying put. A shell with
+ * `collapsibleSections` (Super Admin) gets `CollapsibleDrawerList` instead of
+ * the flat list.
  */
-export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressProfile }: DrawerMenuProps) {
+export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressProfile, collapsibleSections }: DrawerMenuProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -78,33 +85,38 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
       {contextLine ? <BranchStrip branchName={contextLine} /> : null}
 
       <View style={styles.list} onLayout={(e) => setMeasuredListHeight(e.nativeEvent.layout.height)}>
-        <ScrollView style={styles.list} scrollEnabled={metrics.needsScroll} showsVerticalScrollIndicator={metrics.needsScroll}>
-          {rows.map((row, index) => {
-            const next = rows[index + 1];
-            const startsSection = metrics.showSectionLabels && row.section !== null && row.section !== rows[index - 1]?.section;
-            const nextStartsSection = metrics.showSectionLabels && next !== undefined && next.section !== row.section;
-            return (
-              <View key={row.key}>
-                {startsSection ? <DrawerSectionLabel label={row.section!} /> : null}
-                <DrawerItem
-                  label={row.label}
-                  icon={row.icon}
-                  active={row.active}
-                  badgeCount={row.badgeCount}
-                  badgeDot={row.badgeDot}
-                  onPress={row.onPress}
-                  rowHeight={metrics.rowHeight}
-                  iconSize={metrics.iconSize}
-                  fontSize={metrics.fontSize}
-                  lineHeight={metrics.lineHeight}
-                  showDividerBelow={next !== undefined && !nextStartsSection}
-                />
-              </View>
-            );
-          })}
-        </ScrollView>
+        {collapsibleSections ? (
+          <CollapsibleDrawerList rows={rows} available={available} userId={user?.id ?? ''} />
+        ) : (
+          <ScrollView style={styles.list} scrollEnabled={metrics.needsScroll} showsVerticalScrollIndicator={metrics.needsScroll}>
+            {rows.map((row, index) => {
+              const next = rows[index + 1];
+              const startsSection = metrics.showSectionLabels && row.section !== null && row.section !== rows[index - 1]?.section;
+              const nextStartsSection = metrics.showSectionLabels && next !== undefined && next.section !== row.section;
+              return (
+                <View key={row.key}>
+                  {startsSection ? <DrawerSectionLabel label={row.section!} /> : null}
+                  <DrawerItem
+                    label={row.label}
+                    icon={row.icon}
+                    active={row.active}
+                    badgeCount={row.badgeCount}
+                    badgeDot={row.badgeDot}
+                    badgeTone={row.badgeTone}
+                    onPress={row.onPress}
+                    rowHeight={metrics.rowHeight}
+                    iconSize={metrics.iconSize}
+                    fontSize={metrics.fontSize}
+                    lineHeight={metrics.lineHeight}
+                    showDividerBelow={next !== undefined && !nextStartsSection}
+                  />
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
         {/* Only the small-screen / large-font fallback scrolls; the fade hints there's more below. */}
-        {metrics.needsScroll ? (
+        {!collapsibleSections && metrics.needsScroll ? (
           <LinearGradient colors={[`${theme.colors.background}00`, theme.colors.background]} pointerEvents="none" style={styles.scrollFade} />
         ) : null}
       </View>

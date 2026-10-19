@@ -6,10 +6,12 @@ export interface NavBadgeProps {
   /** A small dot instead of a number — red for failed sync entries, amber for a state to look at. */
   dot?: boolean;
   dotTone?: 'danger' | 'warning';
+  /** `muted`: a grey pill for a count that informs rather than asks for action. */
+  tone?: 'accent' | 'muted';
 }
 
 /** Small pill count on a drawer/tab item — orange for action needed, hidden at 0. */
-export function NavBadge({ count, dot, dotTone = 'danger' }: NavBadgeProps) {
+export function NavBadge({ count, dot, dotTone = 'danger', tone = 'accent' }: NavBadgeProps) {
   const theme = useAppTheme();
   if (!dot && count <= 0) return null;
 
@@ -18,8 +20,9 @@ export function NavBadge({ count, dot, dotTone = 'danger' }: NavBadgeProps) {
   }
 
   return (
-    <View style={[styles.pill, { backgroundColor: theme.colors.primary }]}>
-      <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700', fontSize: 11 }]}>
+    <View style={[styles.pill, { backgroundColor: tone === 'muted' ? theme.colors.border : theme.colors.primary }]}>
+      <Text
+        style={[theme.typography.label, { color: tone === 'muted' ? theme.colors.textMuted : theme.colors.primaryText, fontWeight: '700', fontSize: 11 }]}>
         {count > 99 ? '99+' : count}
       </Text>
     </View>

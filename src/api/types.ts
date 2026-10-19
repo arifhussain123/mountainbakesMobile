@@ -212,6 +212,81 @@ export interface ProductListResponse {
   total: number;
 }
 
+/**
+ * The full product row (`GET /api/products/:id`, or the list with
+ * `includeSpecial=true`) — Super Admin's view, cost included. `sku` and
+ * `costPrice` are nullable columns: older rows and the hidden Special Order
+ * products carry neither.
+ */
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  sku: string | null;
+  stockCode: string;
+  price: number;
+  costPrice: number | null;
+  description: string | null;
+  isActive: boolean;
+  isSpecial: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Price History (`/api/products/price/history`, super_admin only) ───────
+
+/**
+ * - `active`: applied — it became the product's price (`activatedOn`). NOT
+ *   "currently in force": an applied row stays `active` after a later change
+ *   replaces it.
+ * - `scheduled`: future-dated, waiting for its effective date.
+ * - `superseded`: a scheduled change replaced by a newer one before it applied.
+ */
+export type PriceChangeStatus = 'active' | 'scheduled' | 'superseded';
+
+/** `manual` = the product's Change Price action; `import` = a Price List spreadsheet import. */
+export type PriceChangeSource = 'manual' | 'import';
+
+export interface PriceChange {
+  id: string;
+  /** PRC-###### */
+  priceNumber: string;
+  productId: string;
+  /** The product's SKU as it was at the change — null when it had none. */
+  productCode: string | null;
+  productName: string;
+  categoryName: string | null;
+  oldPrice: number | null;
+  newPrice: number;
+  /** 'YYYY-MM-DD', business-date semantics. */
+  effectiveDate: string;
+  reason: string | null;
+  source: PriceChangeSource;
+  status: PriceChangeStatus;
+  /** Per product, 1, 2, 3… */
+  versionNumber: number;
+  /** The account's user id. */
+  changedBy: string | null;
+  /** The display name at the time ("Super Admin"), not the login. */
+  changedByName: string | null;
+  /** ISO UTC — when it was recorded. */
+  changedOn: string;
+  /** ISO UTC — when it went live; null while scheduled. */
+  activatedOn: string | null;
+  batchId: string | null;
+}
+
+export interface PriceHistoryResponse {
+  history: PriceChange[];
+  total: number;
+}
+
+export interface PriceHistoryQuery {
+  productId?: string;
+  search?: string;
+}
+
 // ─── Orders / POS sales ────────────────────────────────────────────────────
 
 export type PaymentMethod = 'cash' | 'easypaisa' | 'foodpanda' | 'bank_account';
@@ -2993,6 +3068,88 @@ export interface RequestReopenFinanceTicketInput {
   reason: string;
 }
 
+// ─── Closing summary recipients (`/api/closing-notifications`, super_admin) ──
+
+/** `both` = one SMS and one WhatsApp per report. */
+export type RecipientChannel = 'whatsapp' | 'sms' | 'both';
+
+/**
+ * A central recipient: `admin` gets EVERY report (each branch's, production's
+ * and the company's); `production` gets the production report only.
+ */
+export type RecipientDepartment = 'production' | 'admin';
+
+/** Exactly one of `branchId` / `department` is set — the server's check constraint. */
+export interface NotificationRecipient {
+  id: string;
+  branchId: string | null;
+  branchName: string | null;
+  department: RecipientDepartment | null;
+  recipientName: string;
+  /** E.164, e.g. +923001234567. */
+  mobileNumber: string;
+  channel: RecipientChannel;
+  active: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateRecipientInput {
+  branchId: string | null;
+  department: RecipientDepartment | null;
+  recipientName: string;
+  mobileNumber: string;
+  channel: RecipientChannel;
+  active: boolean;
+}
+
+/** Scope (branch/department) cannot be changed after creation — the server's PATCH ignores it. */
+export type UpdateRecipientInput = Partial<Pick<CreateRecipientInput, 'recipientName' | 'mobileNumber' | 'channel' | 'active'>>;
+
+/**
+ * One send of one report to one recipient over one channel. `sent` means the
+ * provider ACCEPTED it — there are no delivery receipts. With the `log`
+ * provider (test mode) it was only written to the server log.
+ */
+export interface NotificationLog {
+  id: string;
+  reportId: string | null;
+  recipientId: string | null;
+  businessDate: string;
+  channel: 'whatsapp' | 'sms';
+  status: 'sent' | 'failed';
+  provider: string;
+  providerMessageId: string | null;
+  errorMessage: string | null;
+  /** Retries after the first attempt (0 = first try). */
+  retryCount: number;
+  sentAt: string | null;
+  createdAt: string;
+  recipientName: string | null;
+  mobileNumber: string | null;
+}
+
+export interface NotificationLogQuery {
+  businessDate?: string;
+  status?: 'sent' | 'failed';
+  recipientId?: string;
+}
+
+/** `live` is false when the server falls back to the log provider (no Twilio credentials). */
+export interface MessagingProviderStatus {
+  provider: string;
+  live: boolean;
+  retry: { maxAttempts: number; baseDelayMs: number };
+}
+
+export interface ClosingDispatchResult {
+  businessDate: string;
+  reportsGenerated: number;
+  messagesSent: number;
+  messagesFailed: number;
+  skipped?: string;
+}
+
 // ─── Notifications: GET /api/notifications, POST /api/notifications/read ──
 // Step 0: no unread-count or mark-all-read endpoint exists server-side — both
 // are derived/driven client-side from this one feed (capped at 50, newest
@@ -3190,4 +3347,26 @@ export interface ProductionCurrentStockSection {
   series: ProductionCurrentStockRow[];
   breakdown: { threshold: number; products: number };
   branchId: string | null;
+}
+
+// ─── Super Admin nav signals ──────────────────────────────────────────────
+// `GET /api/admin/backups/health` (super_admin only). The server judges each
+// type by the age of its last verified run; see the Backup monitor's Step 0
+// for why that misses a skipped monthly slot.
+export type BackupHealthStatus = 'healthy' | 'overdue' | 'failed' | 'never';
+
+export interface BackupTypeHealth {
+  status: BackupHealthStatus;
+  lastSuccessfulAt: string | null;
+  lastAttemptAt: string | null;
+  ageHours: number | null;
+  expectedWithinHours: number;
+}
+
+export interface BackupHealth {
+  daily: BackupTypeHealth;
+  weekly: BackupTypeHealth;
+  monthly: BackupTypeHealth;
+  recentFailures: number;
+  checkedAt: string;
 }

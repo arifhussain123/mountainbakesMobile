@@ -65,7 +65,19 @@ export type IconName =
   | 'bank'
   | 'list-indent'
   | 'shield-check'
-  | 'settings';
+  | 'settings'
+  | 'cart'
+  | 'users'
+  | 'tag'
+  | 'file-list'
+  | 'history-clock'
+  | 'store'
+  | 'map-pin'
+  | 'boxes'
+  | 'life-buoy'
+  | 'send'
+  | 'user-group'
+  | 'database';
 
 export interface IconProps {
   name: IconName;
@@ -610,6 +622,104 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
             d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
             {...common}
           />
+        </Svg>
+      );
+    case 'cart':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M2 3h3l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 7H6" {...common} />
+          <Circle cx={9.5} cy={20} r={1.5} {...common} />
+          <Circle cx={17.5} cy={20} r={1.5} {...common} />
+        </Svg>
+      );
+    case 'users':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={9} cy={8} r={4} {...common} />
+          <Path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1" {...common} />
+          <Path d="M16 3.1a4 4 0 0 1 0 7.8M22 21v-1a6 6 0 0 0-4-5.7" {...common} />
+        </Svg>
+      );
+    case 'tag':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" {...common} />
+          <Circle cx={7.5} cy={7.5} r={1.5} {...common} />
+        </Svg>
+      );
+    case 'file-list':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" {...common} />
+          <Path d="M14 3v6h6" {...common} />
+          <Line x1={8} y1={13} x2={16} y2={13} {...common} />
+          <Line x1={8} y1={17} x2={14} y2={17} {...common} />
+        </Svg>
+      );
+    case 'history-clock':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" {...common} />
+          <Path d="M3 3v5h5" {...common} />
+          <Path d="M12 7v5l3 2" {...common} />
+        </Svg>
+      );
+    case 'store':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 3h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z" {...common} />
+          <Path d="M5 11v10h14V11" {...common} />
+          <Path d="M10 21v-5h4v5" {...common} />
+        </Svg>
+      );
+    case 'map-pin':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M12 21s-7-6-7-11.5a7 7 0 0 1 14 0C19 15 12 21 12 21z" {...common} />
+          <Circle cx={12} cy={9.5} r={2.5} {...common} />
+        </Svg>
+      );
+    case 'boxes':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={3} y={13} width={8} height={8} rx={1} {...common} />
+          <Rect x={13} y={13} width={8} height={8} rx={1} {...common} />
+          <Rect x={8} y={3} width={8} height={8} rx={1} {...common} />
+        </Svg>
+      );
+    case 'life-buoy':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={9} {...common} />
+          <Circle cx={12} cy={12} r={4} {...common} />
+          <Line x1={5.6} y1={5.6} x2={9.2} y2={9.2} {...common} />
+          <Line x1={14.8} y1={14.8} x2={18.4} y2={18.4} {...common} />
+          <Line x1={14.8} y1={9.2} x2={18.4} y2={5.6} {...common} />
+          <Line x1={5.6} y1={18.4} x2={9.2} y2={14.8} {...common} />
+        </Svg>
+      );
+    case 'send':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M22 2L11 13" {...common} />
+          <Path d="M22 2l-7 20-4-9-9-4z" {...common} />
+        </Svg>
+      );
+    case 'user-group':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx={12} cy={8} r={3.5} {...common} />
+          <Path d="M5.5 20v-.5a6.5 6.5 0 0 1 13 0v.5" {...common} />
+          <Circle cx={4.5} cy={10} r={2} {...common} />
+          <Circle cx={19.5} cy={10} r={2} {...common} />
+        </Svg>
+      );
+    case 'database':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M4 5c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z" {...common} />
+          <Path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" {...common} />
+          <Path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" {...common} />
         </Svg>
       );
     default:

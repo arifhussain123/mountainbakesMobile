@@ -13,6 +13,9 @@ export type { DateFilterProps, DatePeriod } from './DateFilter';
 export { DateRangeSheet } from './DateRangeSheet';
 export type { DateRangeSheetProps } from './DateRangeSheet';
 
+export { Dropdown } from './Dropdown';
+export type { DropdownOption, DropdownProps } from './Dropdown';
+
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 

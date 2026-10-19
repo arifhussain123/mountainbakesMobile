@@ -1,6 +1,6 @@
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { PrimaryButton } from '@/shared/ui';
+import { Dropdown, PrimaryButton, type DropdownOption } from '@/shared/ui';
 import type { ExpensePaymentMethod } from '@/api';
 import { useNewExpenseForm } from '../../hooks';
 import { styles } from './styles';
@@ -9,7 +9,7 @@ export interface NewShopExpenseSheetContentProps {
   onClose: () => void;
 }
 
-const PAYMENT_OPTIONS: { value: ExpensePaymentMethod; label: string }[] = [
+const PAYMENT_OPTIONS: DropdownOption<ExpensePaymentMethod>[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'easypaisa', label: 'Easypaisa' },
 ];
@@ -68,25 +68,8 @@ export function NewShopExpenseSheetContent({ onClose }: NewShopExpenseSheetConte
       />
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>PAYMENT METHOD</Text>
-      <View style={[styles.paymentRow, { marginTop: 6 }]}>
-        {PAYMENT_OPTIONS.map((option) => {
-          const active = option.value === form.paymentMethod;
-          return (
-            <Pressable
-              key={option.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => form.setPaymentMethod(option.value)}
-              style={[
-                styles.paymentChip,
-                { backgroundColor: active ? theme.colors.primary : theme.colors.surface, borderColor: active ? theme.colors.primary : theme.colors.border },
-              ]}>
-              <Text style={[theme.typography.bodySmall, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginTop: 6 }}>
+        <Dropdown options={PAYMENT_OPTIONS} value={form.paymentMethod} onChange={form.setPaymentMethod} placeholder="Select a payment method" />
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>REMARKS (OPTIONAL)</Text>
