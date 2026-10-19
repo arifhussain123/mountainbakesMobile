@@ -54,8 +54,8 @@ export function FinanceLedgerListScreen() {
                   <StatCard label="Closing" value={formatCurrency(data.closingBalance)} />
                 </View>
                 <View style={[styles.statsRow, { marginTop: theme.spacing.sm }]}>
-                  <StatCard label="Total Debit" value={formatCurrency(data.totalDebit)} valueColor={theme.colors.danger} />
-                  <StatCard label="Total Credit" value={formatCurrency(data.totalCredit)} valueColor={theme.colors.success} />
+                  <StatCard label="Total Debit" value={`+${formatCurrency(data.totalDebit)}`} valueColor={theme.colors.success} />
+                  <StatCard label="Total Credit" value={`−${formatCurrency(data.totalCredit)}`} valueColor={theme.colors.danger} />
                 </View>
               </Card>
             ) : null}

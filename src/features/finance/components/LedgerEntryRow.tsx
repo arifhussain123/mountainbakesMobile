@@ -7,11 +7,11 @@ export interface LedgerEntryRowProps {
   entry: LedgerEntry;
 }
 
-/** One row of the Daily Ledger / recent-entries list — credit in green, debit in red, same convention as a bank statement. */
+/** One row of the Daily Ledger / recent-entries list — debit (receipt, adds to the cash book) in green with `+`, credit (payment, subtracts) in red with `−`. */
 export function LedgerEntryRow({ entry }: LedgerEntryRowProps) {
   const theme = useAppTheme();
-  const isCredit = entry.credit > 0;
-  const amount = isCredit ? entry.credit : entry.debit;
+  const isDebit = entry.debit > 0;
+  const amount = isDebit ? entry.debit : entry.credit;
 
   return (
     <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
@@ -24,8 +24,8 @@ export function LedgerEntryRow({ entry }: LedgerEntryRowProps) {
           {entry.branchName ? ` · ${entry.branchName}` : ''}
         </Text>
       </View>
-      <Text style={[theme.typography.body, { color: isCredit ? theme.colors.success : theme.colors.danger, fontWeight: '700' }]}>
-        {isCredit ? '+' : '-'}
+      <Text style={[theme.typography.body, { color: isDebit ? theme.colors.success : theme.colors.danger, fontWeight: '700' }]}>
+        {isDebit ? '+' : '−'}
         {formatCurrency(amount)}
       </Text>
     </View>
