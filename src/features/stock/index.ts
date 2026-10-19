@@ -4,3 +4,4 @@ export { StockCheckScreen } from './screens/StockCheckScreen';
 export { StockScreen } from './screens/StockScreen';
 export { MonthlyReturnsSummaryCard } from './components/MonthlyReturnsSummaryCard';
 export { describeReturnValue } from './returnsSummary';
+export { LEGACY_SINGLE_PHOTO_NOTE } from './returnPhotos';

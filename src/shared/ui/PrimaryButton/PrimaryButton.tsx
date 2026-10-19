@@ -6,18 +6,23 @@ export interface PrimaryButtonProps {
   onPress: (event: GestureResponderEvent) => void;
   loading?: boolean;
   disabled?: boolean;
+  /**
+   * Looks and announces disabled, but still takes the press — for a Save that
+   * answers a tap by pointing at what is missing instead of doing nothing.
+   */
+  inactive?: boolean;
   testID?: string;
 }
 
 /** The one filled, high-emphasis action per screen (design skill: "no more than 1 primary CTA"). */
-export function PrimaryButton({ label, onPress, loading, disabled, testID }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, loading, disabled, inactive, testID }: PrimaryButtonProps) {
   const theme = useAppTheme();
   const isDisabled = disabled || loading;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityState={{ disabled: isDisabled || inactive, busy: loading }}
       testID={testID}
       onPress={isDisabled ? undefined : onPress}
       style={({ pressed }) => [
@@ -25,7 +30,7 @@ export function PrimaryButton({ label, onPress, loading, disabled, testID }: Pri
         {
           backgroundColor: theme.colors.primary,
           borderRadius: theme.radii.md,
-          opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
+          opacity: isDisabled || inactive ? 0.5 : pressed ? 0.85 : 1,
         },
       ]}>
       {loading ? (

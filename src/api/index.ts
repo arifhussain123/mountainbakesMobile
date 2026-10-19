@@ -1,9 +1,12 @@
 export { apiClient, isApiError, setTokenAccessor, setRefreshHandler, setSessionExpiredHandler, generateIdempotencyKey } from './client';
 export { clearOfflineQueue, enqueueOfflineWrite, flushOfflineQueue, startOfflineQueueRetryWorker } from './offlineQueue';
+export { QUEUED_RETURN_ENDPOINT, isQueuedBranchReturn, queuedReturnPhotoProgress, unavailableAttachmentIds } from './queuedBranchReturn';
+export type { QueuedReturnLine, QueuedReturnPayload } from './queuedBranchReturn';
 export { queryClient, LIVE_STALE_TIME_MS, SUMMARY_STALE_TIME_MS, startQueryFocusManager } from './queryClient';
 export { queryKeys } from './queryKeys';
 export { getBusinessDate, getBusinessDayBounds, getBusinessMonthStart } from './businessDate';
 export { uploadAttachment, discardAttachment } from './services/attachmentService';
+export type { CapturedPhoto, UploadAttachmentOptions } from './services/attachmentService';
 export { lookupSupportReference } from './services/supportService';
 export { getSalesAnalyticsExportCsv } from './services/dashboardService';
 export { exportSalesCsv } from './services/salesService';

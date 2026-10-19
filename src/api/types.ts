@@ -844,7 +844,10 @@ export interface BranchReturn {
   reviewedBy: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
+  /** The photo of THIS returned product (one per line since migration 20261020000001), or null. `url` is a 1-hour signed URL. */
   photo?: Attachment | null;
+  /** An older return whose ONE photo covers every product of its submission — shown with "One photo for all items (older return)". */
+  legacySinglePhoto?: boolean;
   /** The product's SKU, or null where none is set. */
   productCode?: string | null;
   /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */
@@ -861,11 +864,18 @@ export interface BranchReturnListResponse {
 export interface CreateBranchReturnItemInput {
   productId: string;
   qty: number;
+  /** This line's own photo (`POST /api/attachments`, entity `branch_return`). Required for every qty > 0 line; never shared between lines. */
+  attachmentId?: string;
 }
 
 export interface CreateBranchReturnInput {
   items: CreateBranchReturnItemInput[];
   reason?: string;
+  /**
+   * @deprecated One photo for the whole return — the shape before photos went
+   * per line. The server still accepts it for a single-product return only;
+   * send each line's `attachmentId` instead.
+   */
   attachmentIds?: string[];
   businessDate?: string;
 }
@@ -1632,7 +1642,10 @@ export interface ProductionReturn {
   reviewedBy: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
+  /** The photo of THIS returned product, or null. `url` is a 1-hour signed URL — key any cache on `photo.id`. */
   photo?: Attachment | null;
+  /** An older return whose ONE photo covers every product of its submission — shown with "One photo for all items (older return)". */
+  legacySinglePhoto?: boolean;
   /** The product's SKU, or null where none is set. */
   productCode?: string | null;
   /** Rs. per unit — the product's price in force on `date` (a return stores none of its own). Null when no price exists. */

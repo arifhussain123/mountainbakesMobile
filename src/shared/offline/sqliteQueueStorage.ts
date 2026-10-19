@@ -75,6 +75,15 @@ export function createSqliteQueueStorage(): QueueStorage {
         sets.push('next_attempt_at = ?');
         params.push(patch.nextAttemptAt);
       }
+      // Written mid-execution by multi-step writes (`WriteExecutionContext.persist`).
+      if (patch.payload !== undefined) {
+        sets.push('payload = ?');
+        params.push(JSON.stringify(patch.payload));
+      }
+      if (patch.idempotencyKey !== undefined) {
+        sets.push('idempotency_key = ?');
+        params.push(patch.idempotencyKey);
+      }
       if (sets.length === 0) return;
       params.push(id);
       await db.execute(`UPDATE write_queue SET ${sets.join(', ')} WHERE id = ?`, params as never[]);

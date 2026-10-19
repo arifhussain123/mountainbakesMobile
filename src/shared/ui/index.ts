@@ -24,6 +24,7 @@ export type { FilterChipOption, FilterChipRowProps } from './FilterChipRow';
 
 export { FormBottomSheet } from './FormBottomSheet';
 export type { FormBottomSheetProps } from './FormBottomSheet';
+export { useFormBottomSheetScroll } from './FormBottomSheet';
 
 export { GlowLayer, WARM_GLOW_RGB } from './GlowLayer';
 export type { GlowLayerProps } from './GlowLayer';

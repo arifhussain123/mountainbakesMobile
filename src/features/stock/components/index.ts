@@ -12,6 +12,8 @@ export type { MovementRowProps } from './MovementRow';
 
 export { ProductPickerModal } from './ProductPickerModal';
 export { ReturnLineRow } from './ReturnLineRow';
+export { ReturnPhotoConfirmModal } from './ReturnPhotoConfirmModal';
+export { QueuedReturnCard } from './QueuedReturnCard';
 export { ReturnDetailSheet } from './ReturnDetailSheet';
 export { ReturnOptionSheet } from './ReturnOptionSheet';
 export type { ReturnOption } from './ReturnOptionSheet';

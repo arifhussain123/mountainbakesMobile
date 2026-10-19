@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   getBusinessDate,
+  isQueuedBranchReturn,
   useBranchReturns,
   useBranchReturnsSummary,
   useProducts,
@@ -17,7 +18,8 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
-import { MonthlyReturnsSummaryCard, ReturnDetailSheet, ReturnOptionSheet, ReturnStockCard, ReviseReturnModal } from '../../components';
+import { useOfflineQueueStore } from '@/state';
+import { MonthlyReturnsSummaryCard, QueuedReturnCard, ReturnDetailSheet, ReturnOptionSheet, ReturnStockCard, ReviseReturnModal } from '../../components';
 import {
   DEFAULT_RETURN_SORT,
   DEFAULT_RETURN_WINDOW,
@@ -74,6 +76,10 @@ export function ReturnStockListScreen() {
     () => buildReturnStockParams({ window: windowKey, today, productId, status, search: debouncedSearch, sort, page }),
     [windowKey, today, productId, status, debouncedSearch, sort, page],
   );
+
+  // Returns saved offline and not yet on the server — shown above the list, with how many photos have gone up.
+  const queuedWrites = useOfflineQueueStore((state) => state.writes);
+  const queuedReturns = useMemo(() => queuedWrites.filter(isQueuedBranchReturn), [queuedWrites]);
 
   const list = useBranchReturns(params);
   const summary = useBranchReturnsSummary();
@@ -187,6 +193,10 @@ export function ReturnStockListScreen() {
               onRetry={() => void summary.refetch()}
               statusLabels={SUMMARY_STATUS_LABEL}
             />
+
+            {queuedReturns.map((write) => (
+              <QueuedReturnCard key={write.id} payload={write.payload} status={write.status} lastError={write.lastError} />
+            ))}
 
             <View style={styles.searchRow}>
               <View style={styles.flex1}>

@@ -1,4 +1,4 @@
-import type { EnqueueWriteInput, QueuedWrite, QueueStorage } from './types';
+import type { EnqueueWriteInput, QueuedWrite, QueueStorage, WriteExecutionContext } from './types';
 
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 2_000;
@@ -29,8 +29,12 @@ function errorMessage(error: unknown): string {
 
 export interface WriteQueueDeps {
   storage: QueueStorage;
-  /** Performs the real HTTP call for one queued write — throws on failure, same shape `apiClient` already throws. */
-  executor: (write: QueuedWrite) => Promise<void>;
+  /**
+   * Performs the real HTTP call for one queued write — throws on failure, same
+   * shape `apiClient` already throws. `context` lets a multi-step write save
+   * its progress mid-way (most executors ignore it).
+   */
+  executor: (write: QueuedWrite, context: WriteExecutionContext) => Promise<void>;
   /** Called with the full queue after every mutation, for a reactive status store (`useOfflineQueueStore`). */
   onQueueChanged?: (writes: QueuedWrite[]) => void;
   /** Invalidates TanStack Query keys once a write syncs — injected so this module never imports `@/api`. */
@@ -44,6 +48,13 @@ export interface WriteQueue {
   /** Processes every due `pending` write in FIFO order. Safe to call repeatedly/concurrently-ish (each row is marked `syncing` before its network call). */
   flush(): Promise<void>;
   all(): Promise<QueuedWrite[]>;
+  /**
+   * Puts rows left `syncing` back to `pending`. Call once at app start, before
+   * the first flush: no flush can be running then, so a `syncing` row is one
+   * the app was killed in the middle of — without this it would never be
+   * picked up again.
+   */
+  resetInterrupted(): Promise<void>;
 }
 
 /**
@@ -54,6 +65,11 @@ export interface WriteQueue {
  */
 export function createWriteQueue(deps: WriteQueueDeps): WriteQueue {
   const now = deps.now ?? Date.now;
+  // Rows an executor is working on right now. Two flushes can overlap (a
+  // reconnect and an app-foreground arrive together); both read the row as
+  // `pending` before either marks it `syncing`, so this is what stops the
+  // second from running the same write again.
+  const inFlight = new Set<string>();
 
   async function notifyChanged() {
     if (deps.onQueueChanged) deps.onQueueChanged(await deps.storage.all());
@@ -82,12 +98,20 @@ export function createWriteQueue(deps: WriteQueueDeps): WriteQueue {
     async flush() {
       const writes = await deps.storage.all();
       const currentTime = now();
-      const due = writes.filter((write) => write.status === 'pending' && write.nextAttemptAt <= currentTime);
+      const due = writes.filter((write) => write.status === 'pending' && write.nextAttemptAt <= currentTime && !inFlight.has(write.id));
+      for (const write of due) inFlight.add(write.id);
 
       for (const write of due) {
         await deps.storage.update(write.id, { status: 'syncing' });
+        const context: WriteExecutionContext = {
+          async persist(patch) {
+            await deps.storage.update(write.id, patch);
+            Object.assign(write, patch);
+            await notifyChanged();
+          },
+        };
         try {
-          await deps.executor(write);
+          await deps.executor(write, context);
           await deps.storage.remove(write.id);
           deps.invalidate?.(write.invalidateKeys);
         } catch (error) {
@@ -103,6 +127,8 @@ export function createWriteQueue(deps: WriteQueueDeps): WriteQueue {
               nextAttemptAt: currentTime + delay,
             });
           }
+        } finally {
+          inFlight.delete(write.id);
         }
       }
       if (due.length > 0) await notifyChanged();
@@ -110,6 +136,13 @@ export function createWriteQueue(deps: WriteQueueDeps): WriteQueue {
 
     async all() {
       return deps.storage.all();
+    },
+
+    async resetInterrupted() {
+      const writes = await deps.storage.all();
+      const stuck = writes.filter((write) => write.status === 'syncing' && !inFlight.has(write.id));
+      for (const write of stuck) await deps.storage.update(write.id, { status: 'pending' });
+      if (stuck.length > 0) await notifyChanged();
     },
   };
 }

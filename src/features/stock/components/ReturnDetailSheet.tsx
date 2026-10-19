@@ -4,6 +4,7 @@ import { useAppTheme } from '@/shared/theme';
 import { PhotoViewer, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
+import { LEGACY_SINGLE_PHOTO_NOTE } from '../returnPhotos';
 import { shortReturnRef } from '../returnStockList';
 import { RETURN_STATUS_LABEL, RETURN_STATUS_VARIANT } from './ReturnStockCard';
 
@@ -46,9 +47,17 @@ export function ReturnDetailSheet({ item, onChange, onWithdraw }: ReturnDetailSh
       </View>
 
       {item.photo && !photoFailed ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Open return photo" onPress={() => setPhotoVisible(true)}>
-          <Image source={{ uri: item.photo.url }} style={[styles.photo, { borderColor: theme.colors.cardBorder }]} resizeMode="cover" onError={() => setPhotoFailed(true)} />
-        </Pressable>
+        <View>
+          <Pressable
+            accessibilityRole="imagebutton"
+            accessibilityLabel={item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}. Open full screen` : `Photo of returned ${item.productName}. Open full screen`}
+            onPress={() => setPhotoVisible(true)}>
+            <Image source={{ uri: item.photo.url }} style={[styles.photo, { borderColor: theme.colors.cardBorder }]} resizeMode="cover" onError={() => setPhotoFailed(true)} />
+          </Pressable>
+          {item.legacySinglePhoto ? (
+            <Text style={[theme.typography.label, styles.photoNote, { color: theme.colors.textSecondary }]}>{LEGACY_SINGLE_PHOTO_NOTE}</Text>
+          ) : null}
+        </View>
       ) : null}
 
       <Row label="Return Date" value={`${formatDisplayDate(item.date)} · ${formatDisplayTime(item.createdAt)}`} />
@@ -88,7 +97,7 @@ export function ReturnDetailSheet({ item, onChange, onWithdraw }: ReturnDetailSh
       <PhotoViewer
         visible={photoVisible}
         uri={item.photo?.url ?? null}
-        accessibilityLabel={`Photo for ${item.productName} return`}
+        accessibilityLabel={item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}` : `Photo of returned ${item.productName}`}
         onClose={() => setPhotoVisible(false)}
         onImageError={() => setPhotoFailed(true)}
       />
@@ -99,6 +108,7 @@ export function ReturnDetailSheet({ item, onChange, onWithdraw }: ReturnDetailSh
 const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   photo: { width: '100%', height: 180, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
+  photoNote: { marginTop: -4, marginBottom: 8 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   value: { flexShrink: 1, textAlign: 'right' },
   note: { marginTop: 10 },
