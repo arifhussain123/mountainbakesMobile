@@ -9,7 +9,7 @@ import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionReturn, ProductionReturnDisposition } from '@/api';
 import { styles } from './styles';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 
 const STATUS_LABEL: Record<ProductionReturn['status'], string> = {
   pending: 'Awaiting Review',

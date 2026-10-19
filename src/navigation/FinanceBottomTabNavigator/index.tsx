@@ -6,7 +6,7 @@ import { FinanceHomeStackNavigator } from '../FinanceHomeStackNavigator';
 import { FinanceLedgerStackNavigator } from '../FinanceLedgerStackNavigator';
 import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { Routes } from '../routes';
-import { NotchTabBar } from '../tabBar/NotchTabBar';
+import { NotchTabBar } from '../tabBar';
 import type { FinanceBottomTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<FinanceBottomTabParamList>();

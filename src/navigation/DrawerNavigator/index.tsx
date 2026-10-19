@@ -10,7 +10,7 @@ import { ReportsStackNavigator } from '../ReportsStackNavigator';
 import { BottomTabNavigator } from '../BottomTabNavigator';
 import { Routes } from '../routes';
 import type { DrawerParamList } from '../types';
-import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
+import { useDrawerScreenOptions } from '../components';
 import { DrawerContent } from './DrawerContent';
 
 const Drawer = createDrawerNavigator<DrawerParamList>();

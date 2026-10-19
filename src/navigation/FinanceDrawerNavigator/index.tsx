@@ -15,7 +15,7 @@ import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStack
 import { FinanceHelpDeskStackNavigator } from '../FinanceHelpDeskStackNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
-import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
+import { useDrawerScreenOptions } from '../components';
 import { useFinanceNavCounts } from './useFinanceNavCounts';
 
 const Drawer = createDrawerNavigator<FinanceDrawerParamList>();

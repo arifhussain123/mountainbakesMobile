@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { FinanceDashboardMonthTrend } from '@/api/types';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import { useAppTheme } from '@/shared/theme';
 import { formatMoney2, moneyWords } from '../../utils/financeFormat';
 import { balanceMeaning, compact, dayLabel, monthLong, monthShort, niceCeil, type BranchTotals, type DailyPoint } from '../../utils/dashboardModel';

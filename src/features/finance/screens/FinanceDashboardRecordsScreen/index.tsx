@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useFinanceDashboardRecords } from '@/api';
 import type { FinanceDashboardRecord } from '@/api/types';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import type { FinanceHomeStackParamList } from '@/navigation';
 import { useTabBarHeight } from '@/navigation';
 import { mapErrorToMessage } from '@/shared/helpers';

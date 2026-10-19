@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { FinanceMonthlyDashboard } from '@/api/types';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import { SearchBar } from '@/shared/ui';

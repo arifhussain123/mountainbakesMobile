@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatMoney2, moneyWords } from '../../utils/financeFormat';
@@ -8,7 +8,7 @@ import { balanceMeaning } from '../../utils/dashboardModel';
 
 /**
  * The dashboard's series colours — design UIandUX/mountainbakesFinance.html
- * screen 01, already the Finance palette (`@/finance/theme`). One colour per
+ * screen 01, already the Finance palette (`features/finance/theme`). One colour per
  * figure everywhere on the screen, so a bar, a line and a tile of the same
  * figure always match. `*Legend` is the lighter tint the mock uses for text.
  */

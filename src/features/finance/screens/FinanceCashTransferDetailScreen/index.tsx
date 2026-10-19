@@ -11,7 +11,7 @@ import {
 } from '@/api';
 import { ChannelBreakdown } from '@/features/cash/components';
 import { Routes, navigateToRecord, openNewQuery, type FinanceCashTransfersStackParamList } from '@/navigation';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, Icon, LoadingSkeleton, PhotoViewer, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';

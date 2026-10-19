@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import { useAppTheme } from '@/shared/theme';
 import { FormBottomSheet, Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
 import {

@@ -8,7 +8,7 @@ import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchSummary, Product } from '@/api';
 import { BranchPickerModal, ReturnProductPickerModal } from '../../components';
 import { styles } from './styles';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 
 /**
  * mountainbakesProduction.html screen 10's own "+ Record Return" — Production

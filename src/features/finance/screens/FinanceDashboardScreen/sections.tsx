@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import type { FinanceDashboard, FinanceDashboardMetric, FinanceMonthlyDashboard } from '@/api/types';
-import { colors as fin } from '@/finance/theme';
+import { colors as fin } from '../../theme';
 import { useAppTheme } from '@/shared/theme';
 import { LoadingSkeleton } from '@/shared/ui';
 import { formatMoney2, moneyWords } from '../../utils/financeFormat';

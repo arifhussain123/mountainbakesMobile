@@ -5,7 +5,7 @@ import { SalesStackNavigator } from '../SalesStackNavigator';
 import { OrdersStackNavigator } from '../OrdersStackNavigator';
 import { StockStackNavigator } from '../StockStackNavigator';
 import { Routes } from '../routes';
-import { NotchTabBar } from '../tabBar/NotchTabBar';
+import { NotchTabBar } from '../tabBar';
 import type { BottomTabParamList } from '../types';
 import { NoopScreen } from './NoopScreen';
 

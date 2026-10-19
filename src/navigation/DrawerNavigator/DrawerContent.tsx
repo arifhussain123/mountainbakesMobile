@@ -3,7 +3,7 @@ import type { NavigationState, PartialState } from '@react-navigation/native';
 import { useAuthStore } from '@/state';
 import { roleLabel } from '@/shared/utils';
 import { Routes } from '../routes';
-import { DrawerMenu, type DrawerMenuRow } from '../components/DrawerMenu';
+import { DrawerMenu, type DrawerMenuRow } from '../components';
 import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive } from '../navItems';
 import { useRoleShell } from '../roleShells';
 import { useNavBadges } from '../useNavBadges';
