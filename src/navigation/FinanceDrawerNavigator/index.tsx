@@ -11,8 +11,8 @@ import {
 import { ProfileScreen } from '@/features/profile';
 import { DrawerContent } from '../DrawerNavigator/DrawerContent';
 import { FinanceBottomTabNavigator } from '../FinanceBottomTabNavigator';
+import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStackNavigator';
 import { FinanceHelpDeskStackNavigator } from '../FinanceHelpDeskStackNavigator';
-import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
 import { withDrawerScreenCard } from '../components/withDrawerScreenCard';
@@ -22,7 +22,7 @@ const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
 
 // Module scope, same reason as `DrawerNavigator` — see `withDrawerScreenCard`.
 const TabsWithCard = withDrawerScreenCard(FinanceBottomTabNavigator);
-const PayrollStackWithCard = withDrawerScreenCard(FinancePayrollStackNavigator);
+const CashTransfersStackWithCard = withDrawerScreenCard(FinanceCashTransfersStackNavigator);
 const PartnersWithCard = withDrawerScreenCard(FinancePartnersScreen);
 const CompanyTransactionsWithCard = withDrawerScreenCard(FinanceCompanyTransactionDetailsScreen);
 const LedgerHeadsWithCard = withDrawerScreenCard(FinanceLedgerHeadsScreen);
@@ -50,7 +50,7 @@ export function FinanceDrawerNavigator() {
       screenOptions={{ headerShown: false, drawerType: 'back', drawerStyle: { width: '100%', backgroundColor: 'transparent' }, overlayColor: 'transparent' }}
       drawerContent={(props) => <DrawerContent {...props} />}>
       <Drawer.Screen name={Routes.FINANCE_TABS} component={TabsWithCard} />
-      <Drawer.Screen name={Routes.FINANCE_PAYROLL_STACK} component={PayrollStackWithCard} />
+      <Drawer.Screen name={Routes.FINANCE_CASH_TRANSFERS_STACK} component={CashTransfersStackWithCard} />
       <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={PartnersWithCard} />
       <Drawer.Screen name={Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK} component={CompanyTransactionsWithCard} />
       <Drawer.Screen name={Routes.FINANCE_LEDGER_HEADS_STACK} component={LedgerHeadsWithCard} />

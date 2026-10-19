@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { Routes } from './routes';
+import type { DrillTarget } from '@/features/finance/utils/dashboardModel';
 
 export type HomeStackParamList = {
   [Routes.DASHBOARD]: undefined;
@@ -135,6 +136,12 @@ export type ProductionDrawerParamList = {
   [Routes.PROFILE]: undefined;
 };
 
+export type FinanceHomeStackParamList = {
+  [Routes.FINANCE_DASHBOARD]: undefined;
+  /** The source records behind one dashboard figure. `dashboardBranchId` is the dashboard's branch filter, used when the target leaves the branch open. */
+  [Routes.FINANCE_DASHBOARD_RECORDS]: { target: DrillTarget; dashboardBranchId: string | null };
+};
+
 export type FinanceLedgerStackParamList = {
   [Routes.FINANCE_LEDGER_LIST]: undefined;
 };
@@ -158,14 +165,14 @@ export type FinancePayrollStackParamList = {
 export type FinanceBottomTabParamList = {
   [Routes.FINANCE_DASHBOARD_TAB]: undefined;
   [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
-  [Routes.FINANCE_CASH_TRANSFERS_TAB]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
   [Routes.FINANCE_INCOME_EXPENSE_TAB]: undefined;
+  [Routes.FINANCE_PAYROLL_TAB]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
   [Routes.FINANCE_MORE_TAB]: undefined;
 };
 
 export type FinanceDrawerParamList = {
   [Routes.FINANCE_TABS]: NavigatorScreenParams<FinanceBottomTabParamList> | undefined;
-  [Routes.FINANCE_PAYROLL_STACK]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
+  [Routes.FINANCE_CASH_TRANSFERS_STACK]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
   [Routes.FINANCE_PARTNERS_STACK]: undefined;
   [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
   [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;

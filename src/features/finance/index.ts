@@ -7,6 +7,7 @@ export { FinancePartnersScreen } from './screens/FinancePartnersScreen';
 export { FinanceIncomeExpenseListScreen } from './screens/FinanceIncomeExpenseListScreen';
 export { FinanceLedgerHeadsScreen } from './screens/FinanceLedgerHeadsScreen';
 export { FinanceDashboardScreen } from './screens/FinanceDashboardScreen';
+export { FinanceDashboardRecordsScreen } from './screens/FinanceDashboardRecordsScreen';
 export { FinanceHelpDeskListScreen } from './screens/FinanceHelpDeskListScreen';
 export { FinanceTicketDetailScreen } from './screens/FinanceTicketDetailScreen';
 export { FinanceEmployeeDetailScreen } from './screens/FinanceEmployeeDetailScreen';

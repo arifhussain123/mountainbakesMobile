@@ -27,9 +27,9 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     items: [
       { label: 'Dashboard', onPress: goToTab(Routes.FINANCE_DASHBOARD_TAB) },
       { label: 'Daily Ledger', onPress: goToTab(Routes.FINANCE_LEDGER_TAB) },
-      { label: 'Cash Transfers', onPress: goToTab(Routes.FINANCE_CASH_TRANSFERS_TAB) },
+      { label: 'Cash Transfers', onPress: goToDrawerStack(Routes.FINANCE_CASH_TRANSFERS_STACK) },
       { label: 'Income & Expense', onPress: goToTab(Routes.FINANCE_INCOME_EXPENSE_TAB) },
-      { label: 'Payroll', onPress: goToDrawerStack(Routes.FINANCE_PAYROLL_STACK) },
+      { label: 'Payroll', onPress: goToTab(Routes.FINANCE_PAYROLL_TAB) },
       { label: 'Partner Transactions', onPress: goToDrawerStack(Routes.FINANCE_PARTNERS_STACK) },
       { label: 'Company Transaction Details', onPress: goToDrawerStack(Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK) },
       { label: 'Ledger Heads', onPress: goToDrawerStack(Routes.FINANCE_LEDGER_HEADS_STACK) },

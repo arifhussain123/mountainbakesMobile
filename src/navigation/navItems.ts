@@ -327,8 +327,8 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
     icon: 'banknote',
     group: 'books',
     badgeSource: 'cashTransfers',
-    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_CASH_TRANSFERS_TAB),
-    activeMatch: { root: Routes.FINANCE_CASH_TRANSFERS_TAB },
+    navigate: goToStack(Routes.FINANCE_CASH_TRANSFERS_STACK, Routes.FINANCE_CASH_TRANSFERS_LIST),
+    activeMatch: { root: Routes.FINANCE_CASH_TRANSFERS_STACK },
   },
   {
     key: 'incomeExpense',
@@ -355,8 +355,8 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
     icon: 'user-coin',
     group: 'people',
     badgeSource: null,
-    navigate: goToStack(Routes.FINANCE_PAYROLL_STACK, Routes.FINANCE_PAYROLL_LIST),
-    activeMatch: { root: Routes.FINANCE_PAYROLL_STACK, exceptLeaves: [Routes.FINANCE_SALARY_LEDGER] },
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_PAYROLL_TAB, Routes.FINANCE_PAYROLL_LIST),
+    activeMatch: { root: Routes.FINANCE_PAYROLL_TAB, exceptLeaves: [Routes.FINANCE_SALARY_LEDGER] },
   },
   {
     key: 'salaryLedger',
@@ -364,8 +364,8 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
     icon: 'table',
     group: 'people',
     badgeSource: null,
-    navigate: goToStack(Routes.FINANCE_PAYROLL_STACK, Routes.FINANCE_SALARY_LEDGER),
-    activeMatch: { root: Routes.FINANCE_PAYROLL_STACK, leaf: Routes.FINANCE_SALARY_LEDGER },
+    navigate: goToTab(Routes.FINANCE_TABS, Routes.FINANCE_PAYROLL_TAB, Routes.FINANCE_SALARY_LEDGER),
+    activeMatch: { root: Routes.FINANCE_PAYROLL_TAB, leaf: Routes.FINANCE_SALARY_LEDGER },
   },
   {
     key: 'partnerTransactions',

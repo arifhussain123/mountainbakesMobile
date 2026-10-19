@@ -1841,6 +1841,146 @@ export interface FinanceDashboard {
   trend: { businessDate: string; income: number; expenses: number; net: number }[];
 }
 
+// ─── Monthly Finance Dashboard ───────────────────────────────────────────────
+// Verbatim from the web's `@mb/shared` finance.types.ts (FinanceMonthlyDashboard
+// and friends) — `GET /finance/dashboard/monthly` and `/finance/dashboard/records`.
+
+export interface FinanceDashboardDay {
+  date: string;
+  branchId: string | null;
+  /** Σ approved_qty × product price over Production-reviewed orders. */
+  demand: number;
+  /** Demand × the branch's company share %, rounded per order. */
+  companyShare: number;
+  /** Live ledger income on Company Share / Fuel heads + Cash Deposit postings. */
+  received: number;
+  /** Accepted production returns, qty × product price. */
+  returns: number;
+  /** Approved production (branch) discounts. */
+  discount: number;
+  orders: number;
+  /** Delivered lines whose product has no price — valued at 0. */
+  unpricedLines: number;
+  receipts: number;
+  returnCount: number;
+  discountCount: number;
+}
+
+export interface FinanceDashboardLedgerRow {
+  date: string;
+  branchId: string | null;
+  ledgerHeadId: string;
+  /** The head's current Admin-defined name. */
+  ledgerHeadName: string;
+  /** credit − debit, so a reversal nets out. */
+  amount: number;
+  entries: number;
+}
+
+export interface FinanceDashboardMonthTrend {
+  month: string;
+  demand: number;
+  companyShare: number;
+  received: number;
+  balance: number;
+  returns: number;
+  discount: number;
+}
+
+/** A branch's balance for the previous business month; null = no records that month. */
+export interface FinanceDashboardPreviousBalance {
+  branchId: string | null;
+  balance: number | null;
+}
+
+export interface FinanceMonthlyDashboardSummary {
+  demand: number;
+  companyShare: number;
+  received: number;
+  /** companyShare − received. */
+  balance: number;
+  /** The previous month's balance for the same scope; null when it had no records. */
+  lastMonthBalance: number | null;
+  ledgerExpense: number;
+  returns: number;
+  discount: number;
+  orders: number;
+  receipts: number;
+  ledgerEntries: number;
+  returnCount: number;
+  discountCount: number;
+  unpricedLines: number;
+  /** finance_ledger_totals over the same window — the ledger's own totals. */
+  ledgerIncome: number;
+  ledgerExpenseTotal: number;
+  ledgerNet: number;
+}
+
+export interface FinanceMonthlyDashboard {
+  month: string;
+  previousMonth: string;
+  from: string;
+  to: string;
+  branchId: string | null;
+  businessDate: string;
+  generatedAt: string;
+  /** Every branch (Admin names), including inactive ones that still carry history. */
+  branches: { id: string; name: string; isActive: boolean }[];
+  summary: FinanceMonthlyDashboardSummary;
+  days: FinanceDashboardDay[];
+  ledger: FinanceDashboardLedgerRow[];
+  previous: FinanceDashboardPreviousBalance[];
+  /** The six business months ending at `month`, whole months, oldest first. */
+  trend: FinanceDashboardMonthTrend[];
+}
+
+/** `month` is `YYYY-MM`; `from`/`to` (inside that month) only when not the full month. */
+export type FinanceMonthlyDashboardQuery = {
+  month: string;
+  from?: string;
+  to?: string;
+  branchId?: string;
+};
+
+export type FinanceDashboardMetric = 'demand' | 'share' | 'received' | 'ledger' | 'return' | 'discount';
+
+export interface FinanceDashboardRecord {
+  id: string;
+  /** Demand number, voucher number — whatever the source calls itself. */
+  reference: string | null;
+  date: string;
+  branchId: string | null;
+  branchName: string | null;
+  source: string;
+  detail: string | null;
+  status: string;
+  amount: number;
+  createdBy: string | null;
+  approvedBy: string | null;
+}
+
+export interface FinanceDashboardRecordsPage {
+  total: number;
+  /** Sum over every matching record, not just this page. */
+  amount: number;
+  page: number;
+  pageSize: number;
+  rows: FinanceDashboardRecord[];
+}
+
+export type FinanceDashboardRecordsQuery = {
+  metric: FinanceDashboardMetric;
+  from: string;
+  to: string;
+  branchId?: string;
+  /** Unassigned (no branch) rows only — overrides `branchId` on the server. */
+  noBranch?: boolean;
+  ledgerHeadId?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
 export type FinancePendingApprovalKind = 'transaction' | 'partner_expense' | 'salary' | 'advance';
 
 /** The documents behind the dashboard's "pending approval" figure, as rows — `GET /finance/pending-approvals`. */

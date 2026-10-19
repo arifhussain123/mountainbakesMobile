@@ -128,19 +128,20 @@ export const Routes = {
   FINANCE_TABS: 'FinanceTabs',
   FINANCE_DASHBOARD_TAB: 'FinanceDashboardTab',
   FINANCE_LEDGER_TAB: 'FinanceLedgerTab',
-  FINANCE_CASH_TRANSFERS_TAB: 'FinanceCashTransfersTab',
   FINANCE_INCOME_EXPENSE_TAB: 'FinanceIncomeExpenseTab',
+  FINANCE_PAYROLL_TAB: 'FinancePayrollTab',
   FINANCE_MORE_TAB: 'FinanceMoreTab',
 
   FINANCE_DASHBOARD: 'FinanceDashboard',
+  FINANCE_DASHBOARD_RECORDS: 'FinanceDashboardRecords',
 
   FINANCE_LEDGER_STACK: 'FinanceLedgerStack',
   FINANCE_LEDGER_LIST: 'FinanceLedgerList',
 
+  FINANCE_CASH_TRANSFERS_STACK: 'FinanceCashTransfersStack',
   FINANCE_CASH_TRANSFERS_LIST: 'FinanceCashTransfersList',
   FINANCE_CASH_TRANSFER_DETAIL: 'FinanceCashTransferDetail',
 
-  FINANCE_PAYROLL_STACK: 'FinancePayrollStack',
   FINANCE_PAYROLL_LIST: 'FinancePayrollList',
   FINANCE_EMPLOYEE_DETAIL: 'FinanceEmployeeDetail',
   FINANCE_SALARY_LEDGER: 'FinanceSalaryLedger',

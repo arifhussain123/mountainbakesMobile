@@ -82,10 +82,11 @@ describe('role separation', () => {
 
   it('Finance rides the same notch tab bar, with only Finance tabs and More last', () => {
     const finance = ROLE_SHELLS.finance_admin!;
-    expect(finance.tabItems.map((t) => t.label)).toEqual(['Dashboard', 'Ledger', 'Transfers', 'Reports', 'More']);
+    expect(finance.tabItems.map((t) => t.label)).toEqual(['Dashboard', 'Ledger', 'Income', 'Payroll', 'More']);
     for (const tab of finance.tabItems) if (tab.route) expect(FINANCE_ROUTES.has(tab.route)).toBe(true);
     expect(finance.tabItems.at(-1)!.route).toBeNull();
-    expect(finance.tabItems.find((t) => t.key === 'transfers')!.badgeSource).toBe('cashTransfers');
+    // Cash Transfers moved behind More; its drawer row keeps the pending count.
+    expect(finance.navItems.find((i) => i.key === 'cashTransfers')!.badgeSource).toBe('cashTransfers');
   });
 
   it('the two shells share no route at all', () => {

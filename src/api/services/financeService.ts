@@ -13,6 +13,10 @@ import type {
   FinanceCashTransferSummary,
   FinanceDailySaleList,
   FinanceDashboard,
+  FinanceDashboardRecordsPage,
+  FinanceDashboardRecordsQuery,
+  FinanceMonthlyDashboard,
+  FinanceMonthlyDashboardQuery,
   FinanceDayClosing,
   FinancePendingApproval,
   FinanceReport,
@@ -34,6 +38,16 @@ import type {
 /** `/api/finance/dashboard` — today's composite + a trailing trend. `requireFinance('view')`. */
 export async function getFinanceDashboard(params?: { from?: string; to?: string; branchId?: string | null }): Promise<FinanceDashboard> {
   return apiClient.get<FinanceDashboard>('/finance/dashboard', params);
+}
+
+/** `/api/finance/dashboard/monthly` — the monthly Finance Dashboard: every figure, chart and table row in one response. */
+export async function getFinanceMonthlyDashboard(query: FinanceMonthlyDashboardQuery): Promise<FinanceMonthlyDashboard> {
+  return apiClient.get<FinanceMonthlyDashboard>('/finance/dashboard/monthly', query);
+}
+
+/** `/api/finance/dashboard/records` — the source records behind one dashboard figure, 25 a page. */
+export async function getFinanceDashboardRecords(query: FinanceDashboardRecordsQuery): Promise<FinanceDashboardRecordsPage> {
+  return apiClient.get<FinanceDashboardRecordsPage>('/finance/dashboard/records', query);
 }
 
 /** `/api/finance/pending-approvals` — the documents behind the dashboard's "pending approval" figure. */

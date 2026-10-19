@@ -7,6 +7,8 @@ import type {
   CreateFinanceTransactionInput,
   CreateLedgerHeadInput,
   FinanceAuditQuery,
+  FinanceDashboardRecordsQuery,
+  FinanceMonthlyDashboardQuery,
   FinanceCashTransferQuery,
   FinanceReportQuery,
   FinanceTransactionQuery,
@@ -21,6 +23,23 @@ export function useFinanceDashboard(params?: { from?: string; to?: string; branc
   return useQuery({
     queryKey: queryKeys.financeDashboard(params),
     queryFn: () => financeService.getFinanceDashboard(params),
+  });
+}
+
+/** The monthly dashboard. Keeps the previous filter's figures on screen while the next one loads, as the web does. */
+export function useFinanceMonthlyDashboard(query: FinanceMonthlyDashboardQuery) {
+  return useQuery({
+    queryKey: queryKeys.financeMonthlyDashboard(query),
+    queryFn: () => financeService.getFinanceMonthlyDashboard(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useFinanceDashboardRecords(query: FinanceDashboardRecordsQuery) {
+  return useQuery({
+    queryKey: queryKeys.financeDashboardRecords(query),
+    queryFn: () => financeService.getFinanceDashboardRecords(query),
+    placeholderData: keepPreviousData,
   });
 }
 
