@@ -22,6 +22,13 @@ react {
     //   skip the bundling of the JS bundle and the assets. Default is "debug", "debugOptimized".
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
     // debuggableVariants = ["liteDebug", "liteDebugOptimized", "prodDebug", "prodDebugOptimized"]
+    //
+    //   Empty on purpose: debug APKs also embed the JS bundle. A debug build
+    //   still prefers Metro when it is reachable (fast refresh keeps working),
+    //   but falls back to the embedded bundle when it isn't — otherwise the
+    //   phone sits on the BootSplash logo forever whenever Metro is stopped,
+    //   the USB cable is out, or `adb reverse` was lost on reconnect.
+    debuggableVariants = []
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -92,15 +99,25 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Real release key, read from ~/.gradle/gradle.properties (never
+        // committed). Until those properties exist, release falls back to the
+        // debug key so `npm run android:release` still works for sideloading.
+        if (project.hasProperty('MB_UPLOAD_STORE_FILE')) {
+            release {
+                storeFile file(MB_UPLOAD_STORE_FILE)
+                storePassword MB_UPLOAD_STORE_PASSWORD
+                keyAlias MB_UPLOAD_KEY_ALIAS
+                keyPassword MB_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig project.hasProperty('MB_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
