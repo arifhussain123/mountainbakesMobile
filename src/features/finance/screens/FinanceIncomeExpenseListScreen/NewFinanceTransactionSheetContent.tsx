@@ -10,8 +10,11 @@ import {
 import { useAppTheme } from '@/shared/theme';
 import { Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
+import { FinanceDropdown, type FinanceDropdownOption } from '../../components';
 import { useNewFinanceTransactionForm } from '../../hooks/useNewFinanceTransactionForm';
 import { styles } from './styles';
+
+const PAYMENT_METHOD_OPTIONS: FinanceDropdownOption[] = FINANCE_PAYMENT_METHODS.map((m) => ({ value: m, label: FINANCE_PAYMENT_METHOD_LABELS[m] }));
 
 export interface NewFinanceTransactionSheetContentProps {
   onClose: () => void;
@@ -22,7 +25,10 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
   const theme = useAppTheme();
   const form = useNewFinanceTransactionForm();
   const heads = useLedgerHeads({ type: form.type });
-  const headOptions = useMemo(() => heads.data ?? [], [heads.data]);
+  const headOptions = useMemo<FinanceDropdownOption[]>(
+    () => (heads.data ?? []).map((h) => ({ value: h.id, label: h.name, hint: h.code, sublabel: h.groupName ? `${h.code} · ${h.groupName}` : h.code })),
+    [heads.data],
+  );
 
   const handleSubmit = async (asDraft: boolean) => {
     const ok = await form.submit(asDraft);
@@ -56,23 +62,16 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>LEDGER HEAD</Text>
-      <View style={[styles.chipsWrap, { marginTop: 6 }]}>
-        {headOptions.map((head) => {
-          const active = head.id === form.ledgerHeadId;
-          return (
-            <Pressable
-              key={head.id}
-              onPress={() => form.setLedgerHeadId(head.id)}
-              style={[styles.chip, { backgroundColor: active ? theme.colors.primary : theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]} numberOfLines={1}>
-                {head.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {!heads.isLoading && headOptions.length === 0 ? (
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>No {form.type} heads configured yet.</Text>
-        ) : null}
+      <View style={{ marginTop: 6 }}>
+        <FinanceDropdown
+          key={form.type}
+          options={headOptions}
+          value={form.ledgerHeadId}
+          onChange={form.setLedgerHeadId}
+          placeholder="Select a ledger head"
+          loading={heads.isLoading}
+          emptyLabel={`No ${form.type} heads configured yet`}
+        />
       </View>
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: theme.spacing.md }}>
@@ -122,18 +121,13 @@ export function NewFinanceTransactionSheetContent({ onClose, onCreated }: NewFin
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>PAYMENT METHOD</Text>
-      <View style={[styles.chipsWrap, { marginTop: 6 }]}>
-        {FINANCE_PAYMENT_METHODS.map((method) => {
-          const active = method === form.paymentMethod;
-          return (
-            <Pressable
-              key={method}
-              onPress={() => form.setPaymentMethod(method as FinancePaymentMethod)}
-              style={[styles.chip, { backgroundColor: active ? theme.colors.primary : theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]}>{FINANCE_PAYMENT_METHOD_LABELS[method]}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginTop: 6 }}>
+        <FinanceDropdown
+          options={PAYMENT_METHOD_OPTIONS}
+          value={form.paymentMethod}
+          onChange={(method) => form.setPaymentMethod(method as FinancePaymentMethod)}
+          placeholder="Select a payment method"
+        />
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>NOTES (OPTIONAL)</Text>
