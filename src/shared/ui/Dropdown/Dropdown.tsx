@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
@@ -30,7 +30,16 @@ export interface DropdownProps<T extends string = string> {
   emptyLabel?: string;
 }
 
-/** An inline dropdown that opens below its field (not a nested sheet — @gorhom/bottom-sheet nesting is awkward), so it also works inside form sheets. */
+/**
+ * An inline dropdown that opens below its field (not a nested sheet — @gorhom/bottom-sheet nesting is awkward), so it also works inside form sheets.
+ *
+ * The open list is rendered in full, with no scroll box of its own: inside a
+ * form sheet the sheet's scroll view owns the gesture, so a nested fixed-height
+ * list could not scroll on Android and only its first few options were ever
+ * reachable (Income & Expense showed four or five Ledger Heads of the web's
+ * full list). The surrounding sheet or screen scrolls instead; long lists get
+ * the search box.
+ */
 export function Dropdown<T extends string = string>({ options, value, onChange, placeholder = 'Select…', loading, emptyLabel }: DropdownProps<T>) {
   const theme = useAppTheme();
   const [search, setSearch] = useState('');
@@ -70,7 +79,7 @@ export function Dropdown<T extends string = string>({ options, value, onChange, 
               style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text, marginBottom: 4 }]}
             />
           ) : null}
-          <ScrollView style={{ maxHeight: 240 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+          <View>
             {filtered.map((option, i) => {
               const active = option.value === value;
               return (
@@ -109,7 +118,7 @@ export function Dropdown<T extends string = string>({ options, value, onChange, 
             {filtered.length === 0 ? (
               <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, paddingVertical: 10 }]}>No matches.</Text>
             ) : null}
-          </ScrollView>
+          </View>
         </View>
       ) : null}
     </View>
