@@ -6,7 +6,7 @@ import { ProductionOrdersStackNavigator } from '../ProductionOrdersStackNavigato
 import { ProductionReturnsStackNavigator } from '../ProductionReturnsStackNavigator';
 import { ProductionStockStackNavigator } from '../ProductionStockStackNavigator';
 import { Routes } from '../routes';
-import { NotchTabBar } from '../tabBar/NotchTabBar';
+import { NotchTabBar } from '../tabBar';
 import type { ProductionBottomTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<ProductionBottomTabParamList>();

@@ -52,6 +52,9 @@ export const queryKeys = {
   consolidatedDemand: (eventId: string) => ['consolidatedDemand', eventId] as const,
   eventProductionStatus: (eventId: string) => ['eventProductionStatus', eventId] as const,
   financeDashboard: (params?: { from?: string; to?: string; branchId?: string | null }) => ['financeDashboard', params ?? {}] as const,
+  // Under the 'financeDashboard' root so every invalidation of it refreshes these too.
+  financeMonthlyDashboard: (query: unknown) => ['financeDashboard', 'monthly', query] as const,
+  financeDashboardRecords: (query: unknown) => ['financeDashboard', 'records', query] as const,
   pendingApprovals: () => ['pendingApprovals'] as const,
   financeSettings: () => ['financeSettings'] as const,
   ledgerPage: (query: unknown) => ['ledgerPage', query] as const,

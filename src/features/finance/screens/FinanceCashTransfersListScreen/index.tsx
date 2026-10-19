@@ -18,7 +18,7 @@ import {
 } from '@/api';
 import { TransferCard, TransferSummaryStrip, type TransferCardBadge } from '@/features/cash/components';
 import { BranchPickerModal } from '@/features/production/components';
-import { Routes, openDrawer, useTabBarHeight, type FinanceCashTransfersStackParamList } from '@/navigation';
+import { Routes, openDrawer, type FinanceCashTransfersStackParamList } from '@/navigation';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAppTheme } from '@/shared/theme';
 import {
@@ -125,7 +125,6 @@ function cardLabel(t: CashTransfer, match: ShareMatch | null, noteFlags: string[
 
 export function FinanceCashTransfersListScreen() {
   const theme = useAppTheme();
-  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<FinanceCashTransfersStackParamList>>();
   const dateSheetRef = useRef<BottomSheetModal>(null);
   const today = getBusinessDate();
@@ -240,7 +239,7 @@ export function FinanceCashTransfersListScreen() {
       <FlatList
         data={rows}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl }}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
           if (pagesQ.hasNextPage && !pagesQ.isFetchingNextPage && !showingCache) void pagesQ.fetchNextPage();

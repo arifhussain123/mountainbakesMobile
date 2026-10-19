@@ -10,7 +10,7 @@ import {
   useEmployeeProfile,
   useRecordResignation,
 } from '@/api';
-import type { FinancePayrollStackParamList } from '@/navigation';
+import { useTabBarHeight, type FinancePayrollStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
@@ -32,6 +32,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 /** mountainbakesFinance.html screen 10 — Employee Resignation, folded into the employee's own detail screen (profile via GET /employees/:id). */
 export function FinanceEmployeeDetailScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const route = useRoute<RouteProp<FinancePayrollStackParamList, 'FinanceEmployeeDetail'>>();
   const { employeeId } = route.params;
   const role = useAuthStore((state) => state.user?.role);
@@ -120,7 +121,7 @@ export function FinanceEmployeeDetailScreen() {
   return (
     <Screen>
       <AppHeader title={employee.name} subtitle={employee.employeeCode} />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}>
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatCurrency(employee.baseSalary)}</Text>

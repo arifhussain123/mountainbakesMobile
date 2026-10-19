@@ -6,9 +6,8 @@
  * from here rather than a literal pixel value, so one baseline change
  * updates all three consistently.
  *
- * Lives in `shared/theme` (not `src/theme`, which is the Production app's
- * own separate palette — see that module's own note) because these are
- * Branch screens, built on `shared/theme`'s `useAppTheme()`.
+ * Lives in `shared/theme` because these are Branch screens, built on
+ * `shared/theme`'s `useAppTheme()`.
  *
  * Pure math is kept separate from the hook (same split as
  * `navigation/tabBar/tabBarLayout.ts`) so it's unit-testable without

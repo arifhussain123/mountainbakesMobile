@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SALARY_LEDGER_STATUS_FILTERS, useSalaryLedger, type LedgerCellState, type SalaryLedgerStatusFilter } from '@/api';
+import { useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, LoadingSkeleton, Screen, SearchBar, StatCard, StatusBadge } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -33,6 +34,7 @@ function cellColor(state: LedgerCellState, theme: ReturnType<typeof useAppTheme>
 /** mountainbakesFinance.html screen 11 — Salary Ledger: read-only, approved payslips per employee per month. */
 export function FinanceSalaryLedgerScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<SalaryLedgerStatusFilter>('all');
 
@@ -44,7 +46,7 @@ export function FinanceSalaryLedgerScreen() {
       <FlatList
         data={data?.rows ?? []}
         keyExtractor={(item) => item.employeeId}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
           <View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search employee…" />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, PrimaryButton, Screen } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';

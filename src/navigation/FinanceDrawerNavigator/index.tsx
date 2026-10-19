@@ -11,11 +11,11 @@ import {
 import { ProfileScreen } from '@/features/profile';
 import { DrawerContent } from '../DrawerNavigator/DrawerContent';
 import { FinanceBottomTabNavigator } from '../FinanceBottomTabNavigator';
+import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStackNavigator';
 import { FinanceHelpDeskStackNavigator } from '../FinanceHelpDeskStackNavigator';
-import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { Routes } from '../routes';
 import type { FinanceDrawerParamList } from '../types';
-import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
+import { useDrawerScreenOptions } from '../components';
 import { useFinanceNavCounts } from './useFinanceNavCounts';
 
 const Drawer = createDrawerNavigator<FinanceDrawerParamList>();
@@ -35,7 +35,7 @@ export function FinanceDrawerNavigator() {
   return (
     <Drawer.Navigator screenOptions={screenOptions} drawerContent={(props) => <DrawerContent {...props} />}>
       <Drawer.Screen name={Routes.FINANCE_TABS} component={FinanceBottomTabNavigator} />
-      <Drawer.Screen name={Routes.FINANCE_PAYROLL_STACK} component={FinancePayrollStackNavigator} />
+      <Drawer.Screen name={Routes.FINANCE_CASH_TRANSFERS_STACK} component={FinanceCashTransfersStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={FinancePartnersScreen} />
       <Drawer.Screen name={Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK} component={FinanceCompanyTransactionDetailsScreen} />
       <Drawer.Screen name={Routes.FINANCE_LEDGER_HEADS_STACK} component={FinanceLedgerHeadsScreen} />

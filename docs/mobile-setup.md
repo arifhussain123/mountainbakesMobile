@@ -32,6 +32,25 @@ npm run ios
 Run `typecheck`, `lint`, and `test` after every change — this is the convention the whole
 codebase follows (see `docs/mobile-testing-report.md` for real per-slice output).
 
+## Android builds (stuck on the logo)
+
+A stock RN debug APK has no JS inside — it downloads it from Metro (`localhost:8081`) on
+every launch, so with Metro stopped, the cable out, or `adb reverse` lost on reconnect, the
+app sits on the BootSplash logo. `android/app/build.gradle` sets `debuggableVariants = []`,
+so debug APKs now also embed the bundle: Metro is used when reachable (fast refresh still
+works), the embedded bundle otherwise. Debug builds are slower because of this.
+
+The embedded bundle is a snapshot from build time — rebuild to ship JS changes.
+
+```sh
+npm run android:release   # build + install a release build on the connected phone
+npm run android:apk       # android/app/build/outputs/apk/release/app-release.apk
+```
+
+Release is signed with the debug key until `MB_UPLOAD_STORE_FILE`, `MB_UPLOAD_STORE_PASSWORD`,
+`MB_UPLOAD_KEY_ALIAS`, `MB_UPLOAD_KEY_PASSWORD` are set in `~/.gradle/gradle.properties`
+(required before Play Store; switching keys means uninstalling the old app once).
+
 ## Photo capture (Return Items)
 
 `react-native-image-picker@8.3.1` powers Return Items' Camera/Gallery buttons. Needs a

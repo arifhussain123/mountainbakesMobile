@@ -69,6 +69,8 @@ export {
   useFinanceCashTransfers,
   useFinanceDailySales,
   useFinanceDashboard,
+  useFinanceDashboardRecords,
+  useFinanceMonthlyDashboard,
   useFinanceReport,
   useFinanceSettings,
   useFinanceTransactions,

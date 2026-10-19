@@ -1,4 +1,4 @@
-/** financeApp.md Section 1.1. Ranges kept as both ends (`sm`/`lg`) rather than one guessed value, same convention as `src/theme/radii.ts`. */
+/** financeApp.md Section 1.1. Ranges kept as both ends (`sm`/`lg`) rather than one guessed value, same convention the former Production `src/theme/radii.ts` used. */
 export const radii = {
   card: { sm: 16, lg: 18 },
   input: 12,

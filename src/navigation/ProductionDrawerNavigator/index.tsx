@@ -9,7 +9,7 @@ import { ProductionHelpDeskStackNavigator } from '../ProductionHelpDeskStackNavi
 import { ProductionSalesStackNavigator } from '../ProductionSalesStackNavigator';
 import { Routes } from '../routes';
 import type { ProductionDrawerParamList } from '../types';
-import { useDrawerScreenOptions } from '../components/useDrawerScreenOptions';
+import { useDrawerScreenOptions } from '../components';
 import { useProductionNavCounts } from './useProductionNavCounts';
 
 const Drawer = createDrawerNavigator<ProductionDrawerParamList>();

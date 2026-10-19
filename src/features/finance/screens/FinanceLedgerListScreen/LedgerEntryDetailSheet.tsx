@@ -23,14 +23,14 @@ function Row({ label, value }: { label: string; value: string | null }) {
 
 export function LedgerEntryDetailSheet({ entry }: { entry: LedgerEntry }) {
   const theme = useAppTheme();
-  const isCredit = entry.credit > 0;
+  const isDebit = entry.debit > 0;
 
   return (
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[theme.typography.screenTitle, { color: isCredit ? theme.colors.success : theme.colors.danger }]}>
-          {isCredit ? '+' : '-'}
-          {formatCurrency(isCredit ? entry.credit : entry.debit)}
+        <Text style={[theme.typography.screenTitle, { color: isDebit ? theme.colors.success : theme.colors.danger }]}>
+          {isDebit ? '+' : '−'}
+          {formatCurrency(isDebit ? entry.debit : entry.credit)}
         </Text>
         <StatusBadge label={entry.status} variant={STATUS_VARIANT[entry.status]} />
       </View>

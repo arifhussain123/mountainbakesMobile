@@ -8,11 +8,11 @@
  * component actually needs one, each addition documented at that point.
  *
  * No Space Grotesk font files exist in this repo (same gap already flagged
- * in `src/theme/typography.ts` for the Production rebuild) — renders in the
+ * in the former Production `src/theme/typography.ts`) — renders in the
  * system font until real `.ttf` files are added and linked.
  */
 export const typography = {
-  /** Spec gives a 24–26px range; 26 picked (upper bound, same convention `src/theme/typography.ts` used for its own ranges). */
+  /** Spec gives a 24–26px range; 26 picked (upper bound, same convention the former Production `src/theme/typography.ts` used for its own ranges). */
   screenTitle: { fontSize: 26, fontWeight: '700' as const, lineHeight: 30, textTransform: 'uppercase' as const },
   subtitle: { fontSize: 11, fontWeight: '500' as const, lineHeight: 15 },
 } as const;

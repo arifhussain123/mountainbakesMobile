@@ -1,3 +1,4 @@
+const path = require('path');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 
 /**
@@ -9,22 +10,20 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const defaultConfig = getDefaultConfig(__dirname);
 
 // react-native's own @react-native/virtualized-lists imports a private path
-// ("react-native/src/private/featureflags/ReactNativeFeatureFlags") that
-// isn't listed in react-native's package.json "exports" map. Metro falls
-// back to file-based resolution and resolves it fine, but logs a
-// "resolver_warning" on every bundle. This is an upstream gap in RN 0.87.x's
-// own exports map, not our code — silence just this one warning.
-const SILENCED_WARNING = /not listed in the "exports" of .*react-native["/].*ReactNativeFeatureFlags/;
-const baseReporter = defaultConfig.reporter;
-defaultConfig.reporter = {
-  update(event) {
-    if (event?.type === 'resolver_warning' && SILENCED_WARNING.test(event.message || '')) {
-      return;
-    }
-    baseReporter.update(event);
+// that isn't in react-native's package.json "exports" map, so Metro logs a
+// "not listed in the exports" warning and falls back to file-based resolution.
+// Resolve that one import to its file up front so the fallback never happens.
+// (Filtering the warning in `reporter` doesn't work: `react-native start`
+// replaces the config's reporter with its own.)
+const RN_FEATURE_FLAGS = 'react-native/src/private/featureflags/ReactNativeFeatureFlags';
+const RN_FEATURE_FLAGS_FILE = path.join(path.dirname(require.resolve('react-native/package.json')), 'src/private/featureflags/ReactNativeFeatureFlags');
+
+const config = {
+  resolver: {
+    resolveRequest(context, moduleName, platform) {
+      return context.resolveRequest(context, moduleName === RN_FEATURE_FLAGS ? RN_FEATURE_FLAGS_FILE : moduleName, platform);
+    },
   },
 };
-
-const config = {};
 
 module.exports = mergeConfig(defaultConfig, config);

@@ -9,7 +9,7 @@ import { PRODUCTION_ADJUSTMENT_LABELS, PRODUCTION_ADJUSTMENT_TYPES } from '@/api
 import type { Product, ProductionAdjustmentType } from '@/api';
 import { useProductionAdjustmentForm, type AdjustmentDirection } from '../../hooks';
 import { styles } from './styles';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 
 const DIRECTION_OPTIONS: { value: AdjustmentDirection; label: string }[] = [
   { value: 'out', label: 'Remove from Pool (−)' },

@@ -15,7 +15,7 @@ import {
   type EmployeeAdvance,
   type SalaryPayment,
 } from '@/api';
-import { Routes, type FinancePayrollStackParamList } from '@/navigation';
+import { Routes, useTabBarHeight, type FinancePayrollStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
@@ -33,6 +33,7 @@ const TAB_LABEL: Record<(typeof TABS)[number], string> = { salaries: 'Salaries',
 /** mountainbakesFinance.html screen 06 — Payroll: payslips, advances and the payroll master. */
 export function FinancePayrollListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<FinancePayrollStackParamList>>();
   const role = useAuthStore((state) => state.user?.role);
   const canConfigure = financeCan(role, 'configure');
@@ -110,7 +111,7 @@ export function FinancePayrollListScreen() {
         <FlatList
           data={salaryList}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: theme.spacing.lg }}
+          contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
           ListHeaderComponent={
             <View style={{ marginBottom: theme.spacing.sm }}>
               <View style={styles.row}>
@@ -147,7 +148,7 @@ export function FinancePayrollListScreen() {
         <FlatList
           data={advanceList}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: theme.spacing.lg }}
+          contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
           ListHeaderComponent={
             <View style={{ marginBottom: theme.spacing.sm }}>
               {canApprove ? (
@@ -179,7 +180,7 @@ export function FinancePayrollListScreen() {
         <FlatList
           data={employeeList}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: theme.spacing.lg }}
+          contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
           ListHeaderComponent={
             <View style={{ marginBottom: theme.spacing.sm }}>
               {canConfigure ? (

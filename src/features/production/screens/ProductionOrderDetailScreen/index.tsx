@@ -14,7 +14,7 @@ import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionOrder } from '@/api';
 import { styles } from './styles';
-import { useHideTabBarOnFocus } from '@/navigation/tabBar/useTabBarVisibility';
+import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 
 const STATUS_LABEL: Record<ProductionOrder['status'], string> = {
   pending: 'Pending',
