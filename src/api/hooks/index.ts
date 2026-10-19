@@ -156,3 +156,12 @@ export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';
 export { useNotifications, useNotificationsWithReadState, useMarkNotificationsRead, mergeReadState } from './useNotificationsApi';
 export type { NotificationWithReadState } from './useNotificationsApi';
 export { useBackupHealth, useSuspiciousSignInCount } from './useAdminNavApi';
+export {
+  useAdminBranches,
+  useAdminCustomers,
+  useAdminUsers,
+  useBackupJobPages,
+  useBranchLocations,
+  useLoginSessionPages,
+  useProductCategories,
+} from './useAdminDataApi';

@@ -196,9 +196,9 @@ export type FinanceDrawerParamList = {
 
 export type SuperAdminBottomTabParamList = {
   [Routes.SUPER_ADMIN_DASHBOARD_TAB]: undefined;
-  [Routes.SUPER_ADMIN_ORDERS_TAB]: undefined;
+  [Routes.SUPER_ADMIN_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
   [Routes.SUPER_ADMIN_BRANCH_STOCK_TAB]: undefined;
-  [Routes.SUPER_ADMIN_REPORTS_TAB]: undefined;
+  [Routes.SUPER_ADMIN_REPORTS_TAB]: NavigatorScreenParams<ReportsStackParamList> | undefined;
   [Routes.SUPER_ADMIN_MORE_TAB]: undefined;
 };
 
@@ -206,6 +206,20 @@ export type SuperAdminDrawerParamList = {
   [Routes.SUPER_ADMIN_TABS]: NavigatorScreenParams<SuperAdminBottomTabParamList> | undefined;
   [Routes.PRICE_HISTORY_STACK]: NavigatorScreenParams<PriceHistoryStackParamList> | undefined;
   [Routes.RECIPIENTS_STACK]: NavigatorScreenParams<RecipientsStackParamList> | undefined;
+  [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
+  [Routes.FINANCE_LEDGER_STACK]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
+  [Routes.HELP_DESK_STACK]: NavigatorScreenParams<HelpDeskStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_CUSTOMERS]: undefined;
+  [Routes.SUPER_ADMIN_DAILY_SALE]: undefined;
+  [Routes.SUPER_ADMIN_PRODUCTS]: undefined;
+  [Routes.SUPER_ADMIN_CATEGORIES]: undefined;
+  [Routes.SUPER_ADMIN_PRICE_LIST]: undefined;
+  [Routes.SUPER_ADMIN_BRANCHES]: undefined;
+  [Routes.SUPER_ADMIN_BRANCH_LOCATIONS]: undefined;
+  [Routes.SUPER_ADMIN_USERS]: undefined;
+  [Routes.SUPER_ADMIN_SECURITY]: undefined;
+  [Routes.SUPER_ADMIN_BACKUP]: undefined;
+  [Routes.SUPER_ADMIN_SETTINGS]: undefined;
   [Routes.PROFILE]: undefined;
 };
 

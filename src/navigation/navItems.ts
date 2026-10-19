@@ -484,38 +484,37 @@ const superAdminItem = (
  * rows can't fit a phone at 40dp, so this shell's drawer collapses sections
  * (`collapsibleSections` in `roleShells.ts`).
  *
- * Most screens open Coming Soon until their own brief is built: each is either
- * waiting on a Step 0 decision (Orders, Products, Branches, Users, Database
- * Backup, …) or exists only as a branch/production/finance screen that has no
- * all-branches or read-only mode yet (Daily Sale Records, Reports, Branch
- * Stock, Special Events, Finance Ledger). Price History and Recipients are the
- * first real Super Admin stacks.
+ * Every row opens real data. Orders, Branch Stock, Special Events, Reports,
+ * Finance Ledger and Support Center reuse the Production, branch and Finance
+ * screens (the server serves super_admin every branch on each); the rest are
+ * Super Admin's read-only screens in `features/admin`. Editing stays on the
+ * web until each screen's write decisions are made.
  */
 export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   superAdminItem('dashboard', 'Dashboard', 'grid', 'overview', { tab: Routes.SUPER_ADMIN_DASHBOARD_TAB }),
   superAdminItem('orders', 'Orders', 'cart', 'salesOrders', { tab: Routes.SUPER_ADMIN_ORDERS_TAB }, { badgeSource: 'orders' }),
-  superAdminItem('customers', 'Customers', 'users', 'salesOrders', 'comingSoon'),
-  superAdminItem('dailySaleRecords', 'Daily Sale Records', 'scales', 'salesOrders', 'comingSoon', { badgeSource: 'dailySale', badgeTone: 'muted' }),
-  superAdminItem('products', 'Products', 'box', 'catalog', 'comingSoon'),
-  superAdminItem('categories', 'Categories', 'tag', 'catalog', 'comingSoon'),
-  superAdminItem('priceList', 'Price List', 'file-list', 'catalog', 'comingSoon'),
+  superAdminItem('customers', 'Customers', 'users', 'salesOrders', { stack: Routes.SUPER_ADMIN_CUSTOMERS }),
+  superAdminItem('dailySaleRecords', 'Daily Sale Records', 'scales', 'salesOrders', { stack: Routes.SUPER_ADMIN_DAILY_SALE }, { badgeSource: 'dailySale', badgeTone: 'muted' }),
+  superAdminItem('products', 'Products', 'box', 'catalog', { stack: Routes.SUPER_ADMIN_PRODUCTS }),
+  superAdminItem('categories', 'Categories', 'tag', 'catalog', { stack: Routes.SUPER_ADMIN_CATEGORIES }),
+  superAdminItem('priceList', 'Price List', 'file-list', 'catalog', { stack: Routes.SUPER_ADMIN_PRICE_LIST }),
   superAdminItem('priceHistory', 'Price History', 'history-clock', 'catalog', { stack: Routes.PRICE_HISTORY_STACK }),
-  superAdminItem('branches', 'Branches', 'store', 'branches', 'comingSoon'),
-  superAdminItem('branchLocations', 'Branch Locations', 'map-pin', 'branches', 'comingSoon'),
+  superAdminItem('branches', 'Branches', 'store', 'branches', { stack: Routes.SUPER_ADMIN_BRANCHES }),
+  superAdminItem('branchLocations', 'Branch Locations', 'map-pin', 'branches', { stack: Routes.SUPER_ADMIN_BRANCH_LOCATIONS }),
   superAdminItem('branchStock', 'Branch Stock', 'boxes', 'branches', { tab: Routes.SUPER_ADMIN_BRANCH_STOCK_TAB }, {
     badgeSource: 'branchStockNegative',
     badgeDot: true,
     badgeTone: 'danger',
   }),
-  superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', 'comingSoon', { badgeSource: 'events' }),
+  superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', { stack: Routes.PRODUCTION_EVENTS_STACK }, { badgeSource: 'events' }),
   superAdminItem('reports', 'Reports', 'bar-chart', 'planningInsights', { tab: Routes.SUPER_ADMIN_REPORTS_TAB }),
-  superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', 'comingSoon', { badgeSource: 'approvals', badgeTone: 'muted' }),
-  superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', 'comingSoon', { badgeSource: 'supportCenter' }),
+  superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', { stack: Routes.FINANCE_LEDGER_STACK }, { badgeSource: 'approvals', badgeTone: 'muted' }),
+  superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', { stack: Routes.HELP_DESK_STACK }, { badgeSource: 'supportCenter' }),
   superAdminItem('recipients', 'Recipients', 'send', 'support', { stack: Routes.RECIPIENTS_STACK }, { badgeSource: 'recipientsTestMode', badgeDot: true }),
-  superAdminItem('users', 'Users', 'user-group', 'admin', 'comingSoon', { badgeSource: 'suspiciousSignIns', badgeDot: true, badgeTone: 'danger' }),
-  superAdminItem('security', 'Security', 'shield-check', 'admin', 'comingSoon'),
-  superAdminItem('databaseBackup', 'Database Backup', 'database', 'admin', 'comingSoon', { badgeSource: 'backupAlert', badgeDot: true, badgeTone: 'danger' }),
-  superAdminItem('settings', 'Settings', 'settings', 'admin', 'comingSoon', { badgeSource: 'restrictionAlert', badgeDot: true }),
+  superAdminItem('users', 'Users', 'user-group', 'admin', { stack: Routes.SUPER_ADMIN_USERS }, { badgeSource: 'suspiciousSignIns', badgeDot: true, badgeTone: 'danger' }),
+  superAdminItem('security', 'Security', 'shield-check', 'admin', { stack: Routes.SUPER_ADMIN_SECURITY }),
+  superAdminItem('databaseBackup', 'Database Backup', 'database', 'admin', { stack: Routes.SUPER_ADMIN_BACKUP }, { badgeSource: 'backupAlert', badgeDot: true, badgeTone: 'danger' }),
+  superAdminItem('settings', 'Settings', 'settings', 'admin', { stack: Routes.SUPER_ADMIN_SETTINGS }, { badgeSource: 'restrictionAlert', badgeDot: true }),
 ];
 
 /** True when the focused-route chain (see `DrawerContent.getFocusedChain`) means this item is the active one. */

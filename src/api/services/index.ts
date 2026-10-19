@@ -1,3 +1,4 @@
+import * as adminDataService from './adminDataService';
 import * as adminNavService from './adminNavService';
 import * as attachmentService from './attachmentService';
 import * as authService from './authService';
@@ -34,6 +35,7 @@ import * as stockReturnService from './stockReturnService';
 import * as supportService from './supportService';
 
 export {
+  adminDataService,
   adminNavService,
   attachmentService,
   authService,

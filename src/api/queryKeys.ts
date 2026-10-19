@@ -125,4 +125,11 @@ export const queryKeys = {
   closingNotificationLogs: (query: unknown) => ['closingNotificationLogs', query] as const,
   backupHealth: () => ['backupHealth'] as const,
   suspiciousSignInCount: (from: string) => ['suspiciousSignInCount', from] as const,
+  adminCustomers: (search: string) => ['adminCustomers', search] as const,
+  productCategories: () => ['productCategories'] as const,
+  adminBranches: () => ['adminBranches'] as const,
+  branchLocations: () => ['branchLocations'] as const,
+  adminUsers: () => ['adminUsers'] as const,
+  loginSessions: (suspiciousOnly: boolean) => ['loginSessions', suspiciousOnly] as const,
+  backupJobs: () => ['backupJobs'] as const,
 };

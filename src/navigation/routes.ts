@@ -158,23 +158,34 @@ export const Routes = {
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',
   FINANCE_SETTINGS_STACK: 'FinanceSettingsStack',
 
-  // Super Admin catalog — Price History (read-only). Not mounted in any shell
-  // yet: super_admin has no ROLE_SHELLS entry; its shell mounts this stack.
+  // Super Admin catalog — Price History (read-only), mounted by the Super Admin shell.
   PRICE_HISTORY_STACK: 'PriceHistoryStack',
   PRICE_HISTORY_LIST: 'PriceHistoryList',
   PRICE_HISTORY_PRODUCT: 'PriceHistoryProduct',
 
-  // Super Admin — closing-summary recipients. Not mounted in any shell yet (see PRICE_HISTORY_STACK).
+  // Super Admin — closing-summary recipients, mounted by the Super Admin shell.
   RECIPIENTS_STACK: 'RecipientsStack',
   RECIPIENTS_LIST: 'RecipientsList',
   RECIPIENTS_DELIVERY_LOG: 'RecipientsDeliveryLog',
 
-  // Super Admin shell. The four tab roots are placeholders until each screen's
-  // own brief is built; Price History and Recipients are its first real stacks.
+  // Super Admin shell. Orders, Branch Stock and Reports reuse Production's and
+  // the branch's screens (the server serves super_admin every branch); the
+  // rest are Super Admin's own read-only screens (`features/admin`).
   SUPER_ADMIN_TABS: 'SuperAdminTabs',
   SUPER_ADMIN_DASHBOARD_TAB: 'SuperAdminDashboardTab',
   SUPER_ADMIN_ORDERS_TAB: 'SuperAdminOrdersTab',
   SUPER_ADMIN_BRANCH_STOCK_TAB: 'SuperAdminBranchStockTab',
   SUPER_ADMIN_REPORTS_TAB: 'SuperAdminReportsTab',
   SUPER_ADMIN_MORE_TAB: 'SuperAdminMoreTab',
+  SUPER_ADMIN_CUSTOMERS: 'SuperAdminCustomers',
+  SUPER_ADMIN_DAILY_SALE: 'SuperAdminDailySale',
+  SUPER_ADMIN_PRODUCTS: 'SuperAdminProducts',
+  SUPER_ADMIN_CATEGORIES: 'SuperAdminCategories',
+  SUPER_ADMIN_PRICE_LIST: 'SuperAdminPriceList',
+  SUPER_ADMIN_BRANCHES: 'SuperAdminBranches',
+  SUPER_ADMIN_BRANCH_LOCATIONS: 'SuperAdminBranchLocations',
+  SUPER_ADMIN_USERS: 'SuperAdminUsers',
+  SUPER_ADMIN_SECURITY: 'SuperAdminSecurity',
+  SUPER_ADMIN_BACKUP: 'SuperAdminBackup',
+  SUPER_ADMIN_SETTINGS: 'SuperAdminSettings',
 } as const;

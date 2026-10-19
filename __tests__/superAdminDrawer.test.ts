@@ -106,7 +106,23 @@ describe('Super Admin shell', () => {
     expect(shell.tabItems.find((t) => t.key === 'orders')!.badgeSource).toBe('orders');
   });
 
-  it('only ever offers its own tabs and stacks, or Coming Soon for a screen not built yet', () => {
+  // The stacks Super Admin shares with another role's shell — each drawer mounts its own copy.
+  const SHARED_STACKS = [Routes.PRODUCTION_EVENTS_STACK, Routes.FINANCE_LEDGER_STACK, Routes.HELP_DESK_STACK] as string[];
+  const SUPER_ADMIN_SCREENS = [
+    Routes.SUPER_ADMIN_CUSTOMERS,
+    Routes.SUPER_ADMIN_DAILY_SALE,
+    Routes.SUPER_ADMIN_PRODUCTS,
+    Routes.SUPER_ADMIN_CATEGORIES,
+    Routes.SUPER_ADMIN_PRICE_LIST,
+    Routes.SUPER_ADMIN_BRANCHES,
+    Routes.SUPER_ADMIN_BRANCH_LOCATIONS,
+    Routes.SUPER_ADMIN_USERS,
+    Routes.SUPER_ADMIN_SECURITY,
+    Routes.SUPER_ADMIN_BACKUP,
+    Routes.SUPER_ADMIN_SETTINGS,
+  ] as string[];
+
+  it('only ever offers its own tabs, screens and stacks — never Coming Soon', () => {
     const own = new Set<string>([
       Routes.SUPER_ADMIN_TABS,
       Routes.SUPER_ADMIN_DASHBOARD_TAB,
@@ -115,28 +131,35 @@ describe('Super Admin shell', () => {
       Routes.SUPER_ADMIN_REPORTS_TAB,
       Routes.PRICE_HISTORY_STACK,
       Routes.RECIPIENTS_STACK,
-      Routes.COMING_SOON,
+      ...SHARED_STACKS,
+      ...SUPER_ADMIN_SCREENS,
     ]);
     for (const item of SUPER_ADMIN_NAV_ITEMS) for (const route of targetsOf(item)) expect(own.has(route)).toBe(true);
     for (const tab of shell.tabItems) if (tab.route) expect(own.has(tab.route)).toBe(true);
+    expect(SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf)).not.toContain(Routes.COMING_SOON);
   });
 
-  it("never reaches another role's menu, and no other role reaches Super Admin's", () => {
-    const superAdminOnly = [Routes.SUPER_ADMIN_TABS, Routes.PRICE_HISTORY_STACK, Routes.RECIPIENTS_STACK] as string[];
+  it("never reaches another role's menu beyond the shared stacks, and no other role reaches Super Admin's", () => {
+    const superAdminOnly = [Routes.SUPER_ADMIN_TABS, Routes.PRICE_HISTORY_STACK, Routes.RECIPIENTS_STACK, ...SUPER_ADMIN_SCREENS] as string[];
     for (const role of ['branch_manager', 'production_user', 'finance_admin', 'accountant'] as const) {
       const other = ROLE_SHELLS[role]!;
       const otherRoutes = other.navItems.flatMap(targetsOf);
       expect(otherRoutes.filter((r) => superAdminOnly.includes(r))).toEqual([]);
-      const mine = SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf).filter((r) => r !== Routes.COMING_SOON);
+      const mine = SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf).filter((r) => !SHARED_STACKS.includes(r));
       expect(mine.filter((r) => otherRoutes.includes(r))).toEqual([]);
     }
   });
 
-  it('opens Coming Soon titled with the item, for Customers, Support Center and Security among others', () => {
-    for (const key of ['customers', 'supportCenter', 'security']) {
+  it('opens real screens for Customers, Support Center and Security', () => {
+    const expected: Record<string, string> = {
+      customers: Routes.SUPER_ADMIN_CUSTOMERS,
+      supportCenter: Routes.HELP_DESK_STACK,
+      security: Routes.SUPER_ADMIN_SECURITY,
+    };
+    for (const [key, route] of Object.entries(expected)) {
       const navigate = jest.fn();
       SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
-      expect(navigate).toHaveBeenCalledWith(Routes.COMING_SOON, { title: SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.label });
+      expect(navigate).toHaveBeenCalledWith(route, undefined);
     }
   });
 });

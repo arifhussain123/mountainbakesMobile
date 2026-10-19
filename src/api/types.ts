@@ -387,6 +387,23 @@ export interface OrderListResponse {
 export interface AppSettings {
   gstEnabled: boolean;
   gstRate: number;
+  // Read by Super Admin's Settings screen only. The server always sends them;
+  // optional here because no other screen depends on them.
+  companyName?: string;
+  currency?: string;
+  receiptFooter?: string;
+  businessStartTime?: string;
+  businessClosingTime?: string;
+  orderStartTime?: string;
+  orderEndTime?: string;
+  autoCloseBusiness?: boolean;
+  autoStockClosing?: boolean;
+  closingNotificationsEnabled?: boolean;
+  orderConfirmationsEnabled?: boolean;
+  eventNotificationsEnabled?: boolean;
+  geofencingEnabled?: boolean;
+  geofenceDefaultRadiusKm?: number;
+  geofenceVerifyIntervalMin?: number;
 }
 
 /**
@@ -3369,4 +3386,143 @@ export interface BackupHealth {
   monthly: BackupTypeHealth;
   recentFailures: number;
   checkedAt: string;
+}
+
+// ─── Super Admin read-only lists ────────────────────────────────────────────
+// Verbatim from the server's `@mb/shared` types (customer, product, branch,
+// user, login-session, backup). Every list below is super_admin's all-branch
+// view; none of these routes pages except login history and backups.
+
+/** `GET /api/customers` — no limit server-side, so the db layer caps it at 1,000 rows. */
+export interface AdminCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  totalOrders: number;
+  totalSpent: number;
+  createdAt: string;
+}
+
+/** `GET /api/products/categories` — active categories only, in `sortOrder`. */
+export interface ProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** `GET /api/branches?includeInactive=true` — the full row. */
+export interface AdminBranch {
+  id: string;
+  name: string;
+  slug: string;
+  location: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  isActive: boolean;
+  /** `null` = inherits the global company share. */
+  companySharePct: number | null;
+  createdAt?: string;
+}
+
+export interface BranchGeofence {
+  latitude: number;
+  longitude: number;
+  radiusKm: number;
+  updatedAt?: string;
+}
+
+export interface BranchLocationRow {
+  branchId: string;
+  branchName: string;
+  branchAddress: string;
+  branchIsActive: boolean;
+  location: BranchGeofence | null;
+}
+
+export interface BranchLocationsResponse {
+  branches: BranchLocationRow[];
+  stats: {
+    totalBranches: number;
+    activeBranches: number;
+    gpsConfigured: number;
+    missingGps: number;
+    onlineUsers: number;
+    usersOutsideRadius: number;
+  };
+  geofencingEnabled: boolean;
+}
+
+export type AdminUserStatus = 'active' | 'inactive' | 'suspended';
+
+/** `GET /api/users` — super_admin only, newest first. */
+export interface AdminUser {
+  id: string;
+  userCode: string | null;
+  email: string;
+  displayName: string | null;
+  phone: string | null;
+  username: string | null;
+  role: UserRole;
+  branchId: string | null;
+  branchName: string | null;
+  status: AdminUserStatus;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+/** One `GET /api/login-history` row — the fields the Security list shows. */
+export interface LoginSessionRow {
+  id: string;
+  userCode: string | null;
+  userEmail: string;
+  userName: string;
+  userRole: UserRole | null;
+  branchName: string | null;
+  ipAddress: string | null;
+  browser: string | null;
+  os: string | null;
+  deviceType: string | null;
+  country: string | null;
+  city: string | null;
+  loginAt: string;
+  isSuspicious: boolean;
+}
+
+export interface LoginSessionPage {
+  sessions: LoginSessionRow[];
+  total: number;
+  page: number;
+}
+
+export type BackupJobType = 'daily' | 'weekly' | 'monthly' | 'manual';
+export type BackupJobStatus = 'running' | 'success' | 'verified' | 'failed' | 'stale';
+
+/** `GET /api/admin/backups/history` — the fields the Backup screen shows. */
+export interface BackupJob {
+  id: string;
+  backupId: string;
+  backupType: BackupJobType;
+  status: BackupJobStatus;
+  trigger: string;
+  startedAt: string;
+  completedAt: string | null;
+  durationMs: number | null;
+  fileSize: number | null;
+  errorMessage: string | null;
+  triggeredByName: string | null;
+}
+
+export interface BackupHistoryPage {
+  jobs: BackupJob[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
