@@ -14,11 +14,11 @@ import { restrictionDmy, time12 } from './restrictionFormat';
 type Tab = 'rules' | 'approvals' | 'monitor' | 'audit';
 
 /**
- * Settings → Restriction Rules — the web `/settings/restriction-rules` page,
- * read side: the saved rules, the approval requests, the live branch monitor
- * and the audit log. Saving rules and approving / rejecting requests are web
- * actions this phase; the web's "Popup Preview" tab (a design aid built on the
- * device from the saved rules) is not repeated on the phone.
+ * Settings → Restriction Rules — the web `/settings/restriction-rules` page:
+ * the rules (edited and saved per group), the approval requests (approved or
+ * rejected in place), the live branch monitor and the audit log. The web's
+ * "Popup Preview" tab (a design aid built on the device from the saved rules)
+ * is not repeated on the phone.
  */
 export function RestrictionRulesScreen() {
   const theme = useAppTheme();

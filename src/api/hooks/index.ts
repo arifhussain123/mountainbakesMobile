@@ -234,3 +234,5 @@ export {
   useUpdatePackingMaterial,
   useUpdateProduct,
 } from './useAdminProductsActionsApi';
+export { useDecideRestrictionRequest, useSaveRestrictionGroup, useUpdateAppSettings } from './useAdminSettingsActionsApi';
+export type { SaveRestrictionGroupInput } from './useAdminSettingsActionsApi';

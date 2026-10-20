@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRestrictionEvents, useRestrictionMonitor, useRestrictionRequests, type RestrictionRequest, type RestrictionRequestType } from '@/api';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  useDecideRestrictionRequest,
+  useRestrictionEvents,
+  useRestrictionMonitor,
+  useRestrictionRequests,
+  type RestrictionRequest,
+  type RestrictionRequestType,
+} from '@/api';
+import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Card, FilterChipRow, LoadingSkeleton, type FilterChipOption } from '@/shared/ui';
+import { Card, FilterChipRow, LoadingSkeleton, TextField, type FilterChipOption } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
+import { ActionChip } from '../../components';
 import { CodeTag, DetailRows, MONO, Pill, formatDateTime } from '../../components/AdminDetail';
+import { canDecideRequest, decisionMessage, decisionReason, decisionReasonProblem, type RestrictionDecision } from '../../utils/adminSettingsActions';
 import {
   AUDIT_RULE_CODES,
   EVENT_RESULT_TONES,
@@ -81,7 +91,8 @@ function decisionFields(r: RestrictionRequest): { label: string; value: string }
 /**
  * Restriction Rules → Approvals (`GET /api/restrictions/requests`). The web's
  * list-plus-detail panel as cards: the selected request (the first one by
- * default) opens in place. Approve / Reject are web actions this phase.
+ * default) opens in place, and a pending one carries the web's Admin reason,
+ * Reject and Approve (`POST /api/restrictions/requests/:id/decide`).
  */
 export function ApprovalsTab() {
   const theme = useAppTheme();
@@ -142,13 +153,73 @@ function RequestDetail({ r }: { r: RestrictionRequest }) {
         <CodeTag code={r.type} />
         <Text style={[theme.typography.label, { color: theme.colors.text, flexShrink: 1 }]}>{context(r)}</Text>
       </View>
-      {r.status === 'pending' ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-          Approval is one-time and tied to this request. It cannot be reused for another transaction.
-        </Text>
-      ) : (
-        <DetailRows rows={decisionFields(r)} />
-      )}
+      {canDecideRequest(r) ? <DecisionPanel r={r} /> : <DetailRows rows={decisionFields(r)} />}
+    </View>
+  );
+}
+
+/**
+ * The web's decision footer on a pending request. Approving does not create
+ * the demand, deposit or ledger entry — it authorises the requester to submit
+ * exactly what they described, once. Mounted per opened request, so the
+ * reason starts empty for each.
+ */
+function DecisionPanel({ r }: { r: RestrictionRequest }) {
+  const theme = useAppTheme();
+  const decide = useDecideRestrictionRequest();
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | null>(null);
+
+  const send = (decision: RestrictionDecision) =>
+    decide.mutate(
+      { id: r.id, decision, reason: decisionReason(reason) },
+      {
+        onSuccess: ({ request }) => {
+          setReason('');
+          setReasonError(null);
+          Alert.alert(decision === 'approved' ? 'Approved' : 'Rejected', decisionMessage(request, decision));
+        },
+        onError: (e) => Alert.alert('Could Not Record the Decision', mapErrorToMessage(e)),
+      },
+    );
+
+  const submit = (decision: RestrictionDecision) => {
+    const problem = decisionReasonProblem(decision, reason);
+    if (problem) {
+      setReasonError(problem);
+      return;
+    }
+    if (decision === 'approved') {
+      send(decision);
+      return;
+    }
+    Alert.alert('Reject Request', `Reject ${r.requestNo}? The requester sees your reason.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reject', style: 'destructive', onPress: () => send(decision) },
+    ]);
+  };
+
+  return (
+    <View style={[styles.box, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border, gap: 8 }]}>
+      <TextField
+        label="Admin reason (required to reject, shown to the requester)"
+        value={reason}
+        onChangeText={(v) => {
+          setReason(v);
+          setReasonError(null);
+        }}
+        multiline
+        maxLength={500}
+        placeholder="e.g. Utility bill verified against receipt"
+        error={reasonError ?? undefined}
+      />
+      <View style={styles.actions}>
+        <ActionChip icon="close" label="Reject" danger onPress={() => submit('rejected')} disabled={decide.isPending} />
+        <ActionChip icon="check" label={decide.isPending ? 'Saving…' : 'Approve'} primary onPress={() => submit('approved')} loading={decide.isPending} />
+      </View>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+        Approval is one-time and tied to this request. It cannot be reused for another transaction.
+      </Text>
     </View>
   );
 }
@@ -235,4 +306,5 @@ const styles = StyleSheet.create({
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   detail: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 8, paddingTop: 8, gap: 8 },
   box: { borderWidth: 1, borderRadius: 8, padding: 10, gap: 2 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
 });

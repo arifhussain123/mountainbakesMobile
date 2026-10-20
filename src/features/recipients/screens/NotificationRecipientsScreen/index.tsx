@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { Alert, FlatList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -135,7 +135,9 @@ export function NotificationRecipientsScreen() {
             recipient={item}
             lastLog={lastLogs.get(item.id)}
             toggling={toggle.isPending || showingCache}
-            onToggleActive={(active) => toggle.mutate({ id: item.id, input: { active } })}
+            onToggleActive={(active) =>
+              toggle.mutate({ id: item.id, input: { active } }, { onError: (e) => Alert.alert('Could Not Update the Recipient', mapErrorToMessage(e)) })
+            }
             onEdit={() => (showingCache ? undefined : openForm(item))}
           />
         )}
