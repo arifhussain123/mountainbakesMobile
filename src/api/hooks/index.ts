@@ -47,6 +47,7 @@ export { useCreateProductionSale, useProductionSales } from './useProductionSale
 export { useCreatePosSale, useOrder, useOrders, useSalesData } from './useSalesApi';
 export { useAppSettings } from './useSettingsApi';
 export { useAllBranchesStockSummary, useBranchStock, useStock } from './useStockApi';
+export { useDeleteAdminStock, useSaveAdminStock } from './useAdminBranchStockActionsApi';
 export {
   useBranchReturns,
   useBranchReturnsSummary,

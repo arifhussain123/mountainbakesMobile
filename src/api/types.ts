@@ -198,6 +198,45 @@ export interface StockListResponse {
   rows: StockRow[];
 }
 
+/** One product's ABSOLUTE target figures in a super admin save (`PATCH /stock/admin`). Never both `balance` and `adjustment`. */
+export interface AdminStockRowEdit {
+  productId: string;
+  opening?: number;
+  newQty?: number;
+  sold?: number;
+  returned?: number;
+  adjustment?: number;
+  balance?: number;
+}
+
+export interface AdminStockSaveInput {
+  branchId: string;
+  date?: string;
+  /** Rides along on the notification the branch receives. ≤ 300 chars. */
+  reason?: string;
+  rows: AdminStockRowEdit[];
+}
+
+export type AdminStockFigures = Pick<StockRow, 'opening' | 'newQty' | 'sold' | 'returned' | 'adjustment' | 'balance'>;
+
+/** Partial saves are possible and named: `applied: false` is a no-op (figures already matched), `failed` is every row refused and why. */
+export interface AdminStockSaveResult {
+  branchId: string;
+  date: string;
+  changedCount: number;
+  saved: { productId: string; productName: string; applied: boolean; before: AdminStockFigures; after: AdminStockFigures }[];
+  failed: { productId: string; productName: string; error: string }[];
+}
+
+/** `zero` corrects the balance to 0 and keeps the ledger; `purge` deletes the stock row and its whole history for that branch. */
+export interface AdminStockDeleteInput {
+  branchId: string;
+  productId: string;
+  mode: 'zero' | 'purge';
+  date?: string;
+  reason?: string;
+}
+
 export interface BranchStockHistoryRow {
   date: string;
   openingQty: number;

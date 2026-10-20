@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   getBusinessDate,
+  useSaveAdminStock,
   useAllBranchesStockSummary,
   useBranchStock,
   useBranchStockHistorySeries,
@@ -21,11 +22,27 @@ import {
   LoadingSkeleton,
   Screen,
   SearchBar,
+  TextField,
   type DropdownOption,
 } from '@/shared/ui';
 import { formatCount, formatDisplayDate, formatSigned } from '@/shared/utils';
+import { ActionChip } from '../components';
 import { StockActivityCard, type HistoryDays, type StockActivityRow } from '../components/StockActivityCard';
+import {
+  dirtyRows as findDirtyRows,
+  draftFromRow,
+  draftsAfterSave,
+  figureNum,
+  isDirty,
+  rowError,
+  saveOutcome,
+  savePayload,
+  withoutDraft,
+  type StockDraft,
+  type StockDrafts,
+} from '../utils/branchStockActions';
 import { addDays, filterStockRows, formatDay, toActivityFigures, totalBranchSummary } from '../utils/stockActivity';
+import { useBranchStockSheet } from './BranchStock/branchStockSheets';
 
 /** The picker value meaning "every branch at once" — never a uuid, so it cannot collide with one. */
 const ALL_BRANCHES = 'all';
@@ -41,17 +58,46 @@ const LEDGER_COLUMNS: { key: keyof Pick<StockRow, 'opening' | 'newQty' | 'sold' 
   { key: 'balance', label: 'Balance' },
 ];
 
-function LedgerCard({ row }: { row: StockRow }) {
+/**
+ * One product's ledger. A pending edit shows its figures in place of the
+ * server's — the changed ones in the accent colour — until Save or Undo.
+ */
+function LedgerCard({
+  row,
+  draft,
+  busy,
+  onEdit,
+  onUndo,
+  onDelete,
+}: {
+  row: StockRow;
+  draft: StockDraft | undefined;
+  busy: boolean;
+  onEdit: () => void;
+  onUndo: () => void;
+  onDelete: () => void;
+}) {
   const theme = useAppTheme();
+  const dirty = !!draft && isDirty(draft, row);
+  const error = dirty ? rowError(draft!) : null;
   return (
-    <Card style={{ padding: 14 }}>
+    <Card
+      style={{
+        padding: 14,
+        ...(dirty ? { borderColor: error ? theme.colors.danger : theme.colors.primary, borderWidth: 1 } : null),
+      }}>
       <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]} numberOfLines={2}>
         {row.productName}
       </Text>
       {row.stockCode ? <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{row.stockCode}</Text> : null}
+      {dirty ? (
+        <Text style={[theme.typography.label, { color: error ? theme.colors.danger : theme.colors.primary, marginTop: 2 }]}>{error ?? 'Unsaved change'}</Text>
+      ) : null}
       <View style={styles.ledgerGrid}>
         {LEDGER_COLUMNS.map((c) => {
-          const value = Number(row[c.key]) || 0;
+          const server = Number(row[c.key]) || 0;
+          const value = dirty ? figureNum(draft![c.key]) : server;
+          const changed = dirty && value !== server;
           return (
             <View key={c.key} style={styles.ledgerCell}>
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{c.label}</Text>
@@ -59,8 +105,8 @@ function LedgerCard({ row }: { row: StockRow }) {
                 style={[
                   theme.typography.bodySmall,
                   {
-                    color: c.key === 'balance' && value < 0 ? theme.colors.danger : theme.colors.text,
-                    fontWeight: c.key === 'balance' ? '700' : '600',
+                    color: c.key === 'balance' && value < 0 ? theme.colors.danger : changed ? theme.colors.primary : theme.colors.text,
+                    fontWeight: c.key === 'balance' || changed ? '700' : '600',
                   },
                 ]}>
                 {c.key === 'adjustment' ? formatSigned(value) : formatCount(value)}
@@ -68,6 +114,11 @@ function LedgerCard({ row }: { row: StockRow }) {
             </View>
           );
         })}
+      </View>
+      <View style={styles.rowActions}>
+        <ActionChip icon="pencil" label="Edit" onPress={onEdit} disabled={busy} />
+        <ActionChip icon="rotate-ccw" label="Undo" onPress={onUndo} disabled={!dirty || busy} />
+        <ActionChip icon="trash" label="Delete" danger onPress={onDelete} disabled={busy} />
       </View>
     </Card>
   );
@@ -107,9 +158,13 @@ function DateStepper({ date, today, onChange }: { date: string; today: string; o
 
 /**
  * Super Admin → Branch Stock: the web `/stock-control` page ("Branch Stock
- * Control"), read-only. One branch: its per-product ledger for a business
- * date plus its day-by-day stock history. "All branches": each branch's stock
- * activity over the window. Editing, Add Stock and Delete stay on the web.
+ * Control"). One branch: its per-product ledger for a business date, editable
+ * the web's way — Edit keeps an unsaved change per row (ABSOLUTE figures,
+ * Balance/Adjustment driving each other), Save sends every changed row in one
+ * `PATCH /stock/admin`, Discard / Undo drop them, Add Stock adds a quantity and
+ * Delete sets a product to zero or purges it — plus its day-by-day stock
+ * history. "All branches": each branch's stock activity over the window, with
+ * no editing (a correction targets one branch's ledger).
  */
 export function AdminBranchStockScreen() {
   const theme = useAppTheme();
@@ -126,6 +181,11 @@ export function AdminBranchStockScreen() {
 
   const [date, setDate] = useState(today);
   const [search, setSearch] = useState('');
+  // Rides along on the notification the branch receives, for Save, Add and Delete alike.
+  const [reason, setReason] = useState('');
+  const [drafts, setDrafts] = useState<StockDrafts>({});
+  const save = useSaveAdminStock();
+  const sheet = useBranchStockSheet();
   // Shared by both history views, so switching keeps the chosen window.
   const [days, setDays] = useState<HistoryDays>('7');
 
@@ -133,7 +193,55 @@ export function AdminBranchStockScreen() {
   const historyQ = useBranchStockHistorySeries(single ? branchId : null, Number(days));
   const allQ = useAllBranchesStockSummary(Number(days), branchId === ALL_BRANCHES);
 
-  const visible = useMemo(() => filterStockRows(stockQ.data?.rows ?? [], search), [stockQ.data, search]);
+  const rows = useMemo(() => stockQ.data?.rows ?? [], [stockQ.data]);
+  const visible = useMemo(() => filterStockRows(rows, search), [rows, search]);
+  const dirty = useMemo(() => findDirtyRows(rows, drafts), [rows, drafts]);
+  const busy = save.isPending;
+
+  // A pending edit belongs to one branch's ledger on one day: switching either drops them, as on the web.
+  const pickBranch = (v: string) => {
+    setPicked(v);
+    setDrafts({});
+  };
+  const pickDate = (d: string) => {
+    setDate(d > today ? today : d);
+    setDrafts({});
+  };
+
+  const target = { branchId: branchId ?? '', branchName, date, reason };
+  // The row cards read these through closures, so the list must re-render when they change.
+  const listExtra = useMemo(() => ({ drafts, busy, reason, branchName, date }), [drafts, busy, reason, branchName, date]);
+  const undo = useCallback((productId: string) => setDrafts((prev) => withoutDraft(prev, productId)), []);
+
+  const openEdit = (row: StockRow) =>
+    sheet.open({
+      kind: 'edit',
+      row,
+      draft: drafts[row.productId] ?? draftFromRow(row),
+      branchName,
+      onKeep: (draft) => setDrafts((prev) => (isDirty(draft, row) ? { ...prev, [row.productId]: draft } : withoutDraft(prev, row.productId))),
+    });
+
+  const onSave = () => {
+    if (!single || !branchId || dirty.length === 0) return;
+    const built = savePayload(dirty, drafts);
+    if ('error' in built) {
+      Alert.alert('Check the Figures', built.error);
+      return;
+    }
+    save.mutate(
+      { branchId, date, reason: reason.trim(), rows: built.rows },
+      {
+        onSuccess: (result) => {
+          const outcome = saveOutcome(result);
+          Alert.alert(outcome.title, outcome.message);
+          setDrafts((prev) => draftsAfterSave(prev, result.saved));
+          setReason('');
+        },
+        onError: (e) => Alert.alert('Could Not Save Stock', mapErrorToMessage(e)),
+      },
+    );
+  };
 
   const branchOptions = useMemo<DropdownOption<string>[]>(
     () => [{ value: ALL_BRANCHES, label: 'All branches' }, ...branches.map((b) => ({ value: b.id, label: b.name }))],
@@ -177,16 +285,17 @@ export function AdminBranchStockScreen() {
         <Dropdown
           options={branchOptions}
           value={branchId}
-          onChange={(v) => setPicked(v)}
+          onChange={pickBranch}
           placeholder={branchesQ.isLoading ? 'Loading…' : 'Choose a branch'}
           loading={branchesQ.isLoading}
         />
         {single ? (
           <>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 12, marginBottom: 6 }]}>Business date</Text>
-            <DateStepper date={date} today={today} onChange={(d) => setDate(d > today ? today : d)} />
+            <DateStepper date={date} today={today} onChange={pickDate} />
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 12, marginBottom: 6 }]}>Search</Text>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Product or ID…" />
+            <TextField label="Reason (optional)" value={reason} onChangeText={setReason} placeholder="Why is this changing?" maxLength={300} />
           </>
         ) : null}
       </Card>
@@ -196,8 +305,16 @@ export function AdminBranchStockScreen() {
         </View>
       ) : null}
       {single ? (
+        <View style={[styles.actions, { marginTop: theme.spacing.md }]}>
+          <ActionChip icon="plus" label="Add Stock" primary onPress={() => sheet.open({ kind: 'add', rows, target })} disabled={busy || stockQ.isLoading} />
+          <ActionChip icon="check" label={busy ? 'Saving…' : `Save${dirty.length ? ` (${dirty.length})` : ''}`} onPress={onSave} loading={busy} disabled={dirty.length === 0} />
+          <ActionChip icon="close" label="Discard" onPress={() => setDrafts({})} disabled={dirty.length === 0 || busy} />
+        </View>
+      ) : null}
+      {single ? (
         <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }]}>
           {branchName} · {date}
+          {dirty.length > 0 ? ` · ${dirty.length} unsaved` : ''}
         </Text>
       ) : null}
       {single && stockQ.isLoading ? <LoadingSkeleton height={220} /> : null}
@@ -255,7 +372,16 @@ export function AdminBranchStockScreen() {
       <FlatList
         data={showLedger ? visible : []}
         keyExtractor={(r) => r.productId}
-        renderItem={({ item }) => <LedgerCard row={item} />}
+        renderItem={({ item }) => (
+          <LedgerCard
+            row={item}
+            draft={drafts[item.productId]}
+            busy={busy}
+            onEdit={() => openEdit(item)}
+            onUndo={() => undo(item.productId)}
+            onDelete={() => sheet.open({ kind: 'delete', row: item, target, onDeleted: undo })}
+          />
+        )}
         contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight, gap: 10 }}
         ListHeaderComponent={header}
         ListEmptyComponent={
@@ -268,7 +394,10 @@ export function AdminBranchStockScreen() {
         onRefresh={onRefresh}
         initialNumToRender={10}
         windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        extraData={listExtra}
       />
+      {sheet.element}
     </Screen>
   );
 }
@@ -278,4 +407,6 @@ const styles = StyleSheet.create({
   ledgerCell: { width: '33.33%', paddingRight: 6 },
   stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingVertical: 6, paddingHorizontal: 4 },
   stepBtn: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  rowActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
 });
