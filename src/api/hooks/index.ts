@@ -260,3 +260,29 @@ export {
 } from './useAdminProductsActionsApi';
 export { useDecideRestrictionRequest, useSaveRestrictionGroup, useUpdateAppSettings } from './useAdminSettingsActionsApi';
 export type { SaveRestrictionGroupInput } from './useAdminSettingsActionsApi';
+export {
+  useArchiveSupportTicket,
+  useAssignFinanceTicket,
+  useChangeSupportFigures,
+  useCorrectFinanceRecord,
+  useDeleteFinanceRecord,
+  useDeleteFinanceTicket,
+  useDeleteSupportCashDeposit,
+  useDeleteSupportDemand,
+  useEditSupportDemandItems,
+  useEditSupportSaleItems,
+  useEditSupportTicket,
+  useFeedFinanceTicket,
+  useResolveSupportTicket,
+  useRestoreFinanceTicket,
+  useSaveFinanceTicketResponse,
+  useSetFinanceTicketStatus,
+  useSupportProducts,
+} from './useAdminSupportActionsApi';
+export type {
+  CorrectFinanceRecordInput,
+  CorrectFinanceRecordResult,
+  FinanceTicketStatusInput,
+  SupportFiguresResult,
+  SupportSaleItemInput,
+} from '../services/adminSupportActionsService';

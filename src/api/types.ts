@@ -412,6 +412,7 @@ export interface UpdatePackingMaterialInput {
   description?: string;
   isActive?: boolean;
 }
+
 // ─── Price History (`/api/products/price/history`, super_admin only) ───────
 
 /**
@@ -1644,7 +1645,6 @@ export interface UpdateEventStageInput {
 
 export type EventCalendarSystem = 'gregorian' | 'hijri' | 'gregorian_nth_weekday' | 'hijri_last_weekday';
 
-
 /**
  * The anchor and scheduling columns every event view carries (the server maps
  * the whole row) that the branch / production screens never read. Super
@@ -1669,9 +1669,7 @@ export interface SpecialEventAnchorFields {
   reminderLeadDays: number;
 }
 
-
 export type AdminSpecialEvent = SpecialEvent & SpecialEventAnchorFields;
-
 
 /** `POST /special-events` and `PUT /special-events/:id` — the web EventFormDialog's body. */
 export interface SpecialEventInput {
@@ -1701,7 +1699,6 @@ export interface SpecialEventInput {
   notes?: string;
 }
 
-
 /** `POST /special-events/:id/notifications/regenerate` — what the reconcile changed. */
 export interface EventScheduleResult {
   created: number;
@@ -1709,7 +1706,6 @@ export interface EventScheduleResult {
   removed: number;
   skippedPast: number;
 }
-
 
 /** `POST /special-events/notifications/dispatch` — never throws; failures are counted. */
 export interface EventDispatchResult {
@@ -1985,6 +1981,25 @@ export interface SupportReference {
   isProductionPool?: boolean;
   /** Sale references only: the sale's current lines. */
   saleItems?: SupportSaleItem[];
+  // ── Read by the Super Admin Support Center's correction editors (web `SupportReference`). ──
+  /** Directly correctable fields (expense amount/description, deposit figures, legacy stock targets). */
+  editableFields?: SupportEditableField[];
+  /** Sale references: the order's money row, for the line editor's preview. */
+  saleTotals?: SupportSaleTotals;
+  /** Sale references: the tender at snapshot/lookup time. */
+  paymentMethod?: PaymentMethod;
+  /** Demand references: requested + approved qty per product. */
+  demandItems?: SupportDemandItem[];
+  /** Demand references: whether this order already credited the branch (from stock_history, not status). */
+  demandStockMoved?: boolean;
+  /** Cash deposit references: approved, i.e. booked in the Daily Ledger. */
+  cashTransferApproved?: boolean;
+  /** Stock / deposit references: the business date the figures describe. */
+  businessDate?: string;
+  /** Branch-scoped stock references: the live derived row. */
+  stockFigures?: SupportStockFigures;
+  /** Production-pool stock references: the pool's live derived row. */
+  productionFigures?: SupportProductionStockFigures;
 }
 
 /** One line of a sale reference, as the Support Center's View prints it. */
@@ -1994,6 +2009,57 @@ export interface SupportSaleItem {
   unitPrice: number;
   qty: number;
   discount: number;
+  /** Carried on the server's lines and sent back by the sale editor. */
+  categoryId?: string | null;
+  categoryName?: string | null;
+}
+
+/** A field the admin may correct directly on the underlying record. */
+export interface SupportEditableField {
+  key: string;
+  label: string;
+  kind: 'number' | 'text';
+  value: string | number;
+}
+
+/** A sale reference's money row — `subtotal` is net of line discounts. */
+export interface SupportSaleTotals {
+  subtotal: number;
+  discountTotal: number;
+  deliveryCharges: number;
+  taxRate: number;
+  taxAmount: number;
+  grandTotal: number;
+}
+
+/** One demand line: `qty` requested by the branch, `approvedQty` granted by Production (the one that moves stock). */
+export interface SupportDemandItem {
+  productId: string;
+  productName: string;
+  qty: number;
+  approvedQty: number;
+}
+
+/** A branch's derived stock row for one product and day (web `StockFigures`). */
+export interface SupportStockFigures {
+  opening: number;
+  newQty: number;
+  sold: number;
+  returned: number;
+  /** Signed. */
+  adjustment: number;
+  balance: number;
+}
+
+/** The production pool's derived row for one product and day (web `ProductionStockFigures`, the fields the editor reads). */
+export interface SupportProductionStockFigures {
+  opening: number;
+  preparedToday: number;
+  totalStock: number;
+  demandFulfilled: number;
+  soldToday: number;
+  adjustment: number;
+  balance: number;
 }
 
 /** `GET /api/support` query — the Super Admin Support Center's server-paged ops queue. */
@@ -3406,6 +3472,7 @@ export interface PartnerLedgerTransactionsQuery {
 // decision this session — every super_admin-only admin action (edit a query,
 // amend/correct/delete the underlying financial record, restore, recreate,
 // assign, change status, truly reopen) stays web-only and is not built here.
+// (The Super Admin Support Center offers those — `adminSupportActionsService`.)
 
 export type FinanceTicketStatus = 'draft' | 'open' | 'under_review' | 'waiting_for_finance' | 'amended' | 'reopened' | 'resolved' | 'rejected' | 'closed';
 
@@ -3504,7 +3571,23 @@ export interface FinanceTicket {
   recreatedAsQueryNo?: string | null;
   deletedAt?: string | null;
   deleteReason?: string | null;
+  /** Admin-side columns the Super Admin Support Center's query actions read (web FinanceQueryDetail). */
+  referenceId?: string | null;
+  branchId?: string | null;
+  assignedTo?: string | null;
+  recreatedAsId?: string | null;
+  resolutionType?: FinanceResolutionType | null;
+  resolutionAmount?: number | null;
+  internalNote?: string | null;
+  respondedByName?: string | null;
+  respondedAt?: string | null;
+  deletedByName?: string | null;
+  /** `GET /finance/tickets/:id` for an admin: the referenced record as it stands now. */
+  liveRecord?: Record<string, unknown> | null;
 }
+
+/** How an admin closed a finance query (web `FINANCE_RESOLUTION_TYPES`). */
+export type FinanceResolutionType = 'fixed' | 'information_provided' | 'rejected' | 'duplicate' | 'other';
 
 export interface FinanceTicketStats {
   total: number;
@@ -4114,7 +4197,6 @@ export interface CreateUserInput {
   branchId: string | null;
 }
 
-
 /** `PUT /api/users/:id` — the web's Edit dialog sends all five. */
 export interface UpdateUserInput {
   displayName: string;
@@ -4124,14 +4206,12 @@ export interface UpdateUserInput {
   status: AdminUserStatus;
 }
 
-
 /** `POST /api/users/:id/reset-password` — `AdminResetPasswordSchema`. */
 export interface AdminResetPasswordInput {
   generateTemp: boolean;
   sendEmail: boolean;
   forceChange: boolean;
 }
-
 
 /** A failed reset email is reported here, not thrown: any temporary password was already set. */
 export interface AdminResetPasswordResult {
@@ -4142,7 +4222,6 @@ export interface AdminResetPasswordResult {
   emailError?: string | null;
 }
 
-
 /** `POST /api/users/:id/change-email` — `ChangeUserEmailSchema`, already trimmed and lower-cased. */
 export interface ChangeUserEmailInput {
   email: string;
@@ -4150,20 +4229,17 @@ export interface ChangeUserEmailInput {
   reason?: string;
 }
 
-
 /** Sessions marked revoked, and authentication sessions actually ended — reported separately on purpose. */
 export interface RevokeSessionResult {
   revoked: number;
   authSessionsEnded: number;
 }
 
-
 export interface BackupVerifyCheck {
   name: string;
   ok: boolean;
   detail?: string;
 }
-
 
 /** `POST /api/admin/backups/:id/verify`. */
 export interface BackupVerifyResult {
@@ -4172,7 +4248,6 @@ export interface BackupVerifyResult {
   verifiedAt: string;
   checks: BackupVerifyCheck[];
 }
-
 
 /** `POST /api/admin/backups/run` — 202 `started`, or 200 with why nothing started. */
 export interface BackupRunResponse {

@@ -206,6 +206,17 @@ export function formatQueryDate(iso: string | null | undefined, withTime = true)
   return withTime ? `${date}, ${formatDisplayTime(iso)}` : date;
 }
 
+/** Web `RecordFigures`'s filter: no ids, no bookkeeping stamps, no nested objects, first 18. */
+const NOISE_KEYS = new Set(['id', 'createdAt', 'updatedAt', 'deletedBy', 'deletedQueryId']);
+
+export function recordRows(record: Record<string, unknown> | null | undefined): [string, string][] {
+  if (!record) return [];
+  return Object.entries(record)
+    .filter(([k, v]) => !k.endsWith('Id') && !NOISE_KEYS.has(k) && v !== null && v !== '' && typeof v !== 'object')
+    .slice(0, 18)
+    .map(([k, v]) => [k.replace(/([A-Z])/g, ' $1').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()), String(v)]);
+}
+
 /** "1 query" / "3 queries". */
 export function queries(n: number): string {
   return `${n} quer${n === 1 ? 'y' : 'ies'}`;

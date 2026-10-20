@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useFinanceCashTransfers, useLedgerSummary, usePendingApprovals, type LedgerPage } from '@/api';
+import { useFinanceCashTransfers, useLedgerSummary, usePendingApprovals, type CashTransfer, type LedgerPage } from '@/api';
 import { formatMoney2 } from '@/features/finance/utils/financeFormat';
 import { useAppTheme } from '@/shared/theme';
 import { Card, LoadingSkeleton, SecondaryButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { SummaryTiles } from '../../components';
+import { ActionChip, SummaryTiles } from '../../components';
 import { channelsLabel, LEDGER_STATUS_LABELS, PENDING_APPROVAL_LABELS, shortBranch, type DisplayEntry } from './ledgerDisplay';
 
 /** Web `PendingCashTransfersPanel`'s PANEL_LIMIT. */
@@ -51,10 +51,19 @@ function PanelRow({ refNo, children, last }: { refNo: string; children: ReactNod
 
 /**
  * Web "Cash transfers awaiting approval" — the oldest pending branch
- * handovers, not yet in the book. Read-only here: no Approve / Reject.
+ * handovers, not yet in the book, with the web's Approve / Reject on each row
+ * when `canDecide` (the Finance Settings toggle lets Super Admin modify).
  * Renders nothing while loading or when the queue is empty, like the web.
  */
-export function PendingCashTransfersPanel() {
+export function PendingCashTransfersPanel({
+  canDecide,
+  onApprove,
+  onReject,
+}: {
+  canDecide: boolean;
+  onApprove: (t: CashTransfer) => void;
+  onReject: (t: CashTransfer) => void;
+}) {
   const theme = useAppTheme();
   const { data, isLoading } = useFinanceCashTransfers({ status: 'pending', limit: PANEL_LIMIT, sortBy: 'createdAt', sortDir: 'asc' });
   const rows = data?.transfers ?? [];
@@ -75,6 +84,12 @@ export function PendingCashTransfersPanel() {
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
             {channelsLabel(t)} · {formatDisplayDate(t.date)}
           </Text>
+          {canDecide ? (
+            <View style={styles.actions}>
+              <ActionChip icon="check" label="Approve" primary onPress={() => onApprove(t)} />
+              <ActionChip icon="close" label="Reject" danger onPress={() => onReject(t)} />
+            </View>
+          ) : null}
         </PanelRow>
       ))}
       {total > rows.length ? (
@@ -143,7 +158,7 @@ export function LedgerSummaryTiles({ date, branchId }: { date: string; branchId?
   );
 }
 
-/** Web read-only notice, worded for the one role that reaches this screen. */
+/** Web `ReadOnlyNotice`, worded for the one role that reaches this screen — shown while the toggle keeps Super Admin out. */
 export function ReadOnlyBanner() {
   const theme = useAppTheme();
   return (
@@ -241,6 +256,7 @@ const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' },
   panelRow: { paddingVertical: 8, gap: 2 },
   rowLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 10 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   banner: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
   errorCard: { padding: 16, gap: 8 },
   strip: { borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

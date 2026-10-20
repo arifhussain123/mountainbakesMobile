@@ -28,6 +28,8 @@ import {
   ReadOnlyBanner,
 } from './LedgerPanels';
 import { parseAmount, toDisplayEntries, type DisplayEntry } from './ledgerDisplay';
+import { useLedgerSheet } from './ledgerSheets';
+import { canDecideCashTransfers } from '../../utils/ledgerActions';
 
 const PAGE_SIZE = 20;
 
@@ -36,7 +38,13 @@ const PAGE_SIZE = 20;
  * it. Every posted voucher in posting order (never re-sorted: the running
  * balance only means anything in that order), server-side filters and paging,
  * opening balance and totals from the server over the whole filtered set.
- * Read-only: no Approve / Reject / Edit / Delete / export here.
+ *
+ * The web page's only write actions are the pending cash transfers' Approve /
+ * Reject (`PUT /finance/cash-transfers/:id/approve|reject`), offered only when
+ * Finance Settings "Allow Super Admin to modify" is on — the server's
+ * `requireFinance('approve')` refuses super_admin otherwise. Row Edit / Delete
+ * are switched off on the web for every role, "Pending approval" rows only
+ * link to their own screens, and PDF / Excel export stays on the web.
  */
 export function AdminDailyLedgerScreen() {
   const theme = useAppTheme();
@@ -104,11 +112,13 @@ export function AdminDailyLedgerScreen() {
   };
 
   const showReadOnly = !!settingsQ.data && !settingsQ.data.allowSuperAdminWrite;
+  const canDecide = canDecideCashTransfers(settingsQ.data);
+  const decision = useLedgerSheet();
   const ledgerError = ledgerQ.error && !ledgerQ.data;
 
   return (
     <Screen>
-      <AppHeader title="Daily Ledger" subtitle="Finance · read-only" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title="Daily Ledger" subtitle={canDecide ? 'Finance' : 'Finance · read-only'} actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
       <FlatList<DisplayEntry>
         data={ledgerQ.isLoading || ledgerError ? [] : entries}
         keyExtractor={(e) => e.id}
@@ -120,7 +130,11 @@ export function AdminDailyLedgerScreen() {
               Every posted voucher, in posting order. Balances run down the page as a cash book does.
             </Text>
             {showReadOnly ? <ReadOnlyBanner /> : null}
-            <PendingCashTransfersPanel />
+            <PendingCashTransfersPanel
+              canDecide={canDecide}
+              onApprove={(transfer) => decision.open({ kind: 'approve', transfer })}
+              onReject={(transfer) => decision.open({ kind: 'reject', transfer })}
+            />
             <PendingApprovalsPanel />
             <LedgerSummaryTiles date={filters.range.to} branchId={query.branchId} />
             <LedgerFilters
@@ -174,6 +188,7 @@ export function AdminDailyLedgerScreen() {
         onApply={applyRange}
         onRequestClose={() => dateSheetRef.current?.dismiss()}
       />
+      {decision.element}
     </Screen>
   );
 }
