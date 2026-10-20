@@ -27,6 +27,7 @@ import * as productionReportService from './productionReportService';
 import * as productionReturnService from './productionReturnService';
 import * as productionSaleService from './productionSaleService';
 import * as productionStockService from './productionStockService';
+import * as purchasingService from './purchasingService';
 import * as reportService from './reportService';
 import * as salesService from './salesService';
 import * as settingsService from './settingsService';
@@ -35,6 +36,7 @@ import * as specialOrderService from './specialOrderService';
 import * as stockService from './stockService';
 import * as stockReturnService from './stockReturnService';
 import * as supportService from './supportService';
+import * as supplierPaymentsService from './supplierPaymentsService';
 
 export {
   adminCatalogService,
@@ -66,6 +68,7 @@ export {
   productionReturnService,
   productionSaleService,
   productionStockService,
+  purchasingService,
   reportService,
   salesService,
   settingsService,
@@ -74,4 +77,5 @@ export {
   stockService,
   stockReturnService,
   supportService,
+  supplierPaymentsService,
 };

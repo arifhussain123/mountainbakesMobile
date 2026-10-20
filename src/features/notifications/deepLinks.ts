@@ -25,6 +25,13 @@ export interface NotificationTypeConfig {
  * number) — confirmed against each route's own detail screen, which all key
  * off the DB id the same way Help Desk's `SupportReference.entityId` does.
  */
+/** A WhatsApp Purchasing demand, from anywhere: Production drawer → its stack → the demand, with the list beneath it. */
+const openPurchaseDemand = (demandId: string) =>
+  navigateToRecord(Routes.PRODUCTION_DRAWER, {
+    screen: Routes.PRODUCTION_WHATSAPP_STACK,
+    params: { screen: Routes.PRODUCTION_WHATSAPP_DEMAND_DETAIL, params: { demandId }, initial: false },
+  });
+
 export const NOTIFICATION_TYPES: Record<NotificationType, NotificationTypeConfig> = {
   order_created: { icon: 'sales', openRecord: (id) => navigateToRecord(Routes.SALE_DETAIL, { orderId: id }) },
   order_ready: { icon: 'sales', openRecord: (id) => navigateToRecord(Routes.SALE_DETAIL, { orderId: id }) },
@@ -60,6 +67,25 @@ export const NOTIFICATION_TYPES: Record<NotificationType, NotificationTypeConfig
   event_demand_reviewed: { icon: 'calendar', openRecord: (id) => navigateToRecord(Routes.EVENT_DEMAND, { eventId: id }) },
   event_production_updated: { icon: 'calendar', openRecord: null },
   security_alert: { icon: 'warning', openRecord: null },
+  // WhatsApp Purchasing — Production's quotation/bill/review alerts open the demand.
+  purchase_quotation: { icon: 'message-circle', openRecord: openPurchaseDemand },
+  purchase_bill: { icon: 'receipt', openRecord: openPurchaseDemand },
+  purchase_payment_reviewed: { icon: 'wallet', openRecord: openPurchaseDemand },
+  // relatedId is the demand when the message was matched, else the message
+  // itself — Conversations covers both (its Unmatched queue holds the latter).
+  purchase_message: {
+    icon: 'message-circle',
+    openRecord: () =>
+      navigateToRecord(Routes.PRODUCTION_DRAWER, {
+        screen: Routes.PRODUCTION_WHATSAPP_STACK,
+        params: { screen: Routes.PRODUCTION_WHATSAPP_CONVERSATIONS, initial: false },
+      }),
+  },
+  // Finance's queue: a payment or credit to approve.
+  purchase_payment: {
+    icon: 'wallet',
+    openRecord: () => navigateToRecord(Routes.FINANCE_DRAWER, { screen: Routes.FINANCE_SUPPLIER_PAYMENTS_STACK }),
+  },
 };
 
 /** Opens the right screen for a notification, or returns `false` when this type has no deep link (`relatedId` missing or the type has none) — the caller falls back to a plain alert-style detail view. */

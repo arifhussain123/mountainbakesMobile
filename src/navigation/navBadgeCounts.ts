@@ -16,7 +16,9 @@ import type {
   ProductionOrderListResponse,
   ProductionOrderStatus,
   ProductionStockListResponse,
+  PurchasingSummary,
   SpecialEventListResponse,
+  SupplierPaymentListResponse,
   SupportTicketListResponse,
 } from '@/api';
 import { isActiveOrder } from '@/features/orders/utils/demandLines';
@@ -116,8 +118,15 @@ export function computeProductionBadges(): NavBadges {
     queryClient.getQueryData<ProductionStockListResponse>(queryKeys.productionStock())?.rows.filter((r) => r.status === 'shortage').length,
   );
   setIfPositive(badges, 'helpDesk', helpDeskReplied());
+  // WhatsApp Purchasing: quotations and bills waiting on Production, plus
+  // messages that need a person (failed sends, unmatched replies).
+  const purchasing = queryClient.getQueryData<PurchasingSummary>(queryKeys.purchasingSummary());
+  setIfPositive(badges, 'whatsappPurchasing', purchasing ? purchasing.buckets.awaiting_approval + purchasing.failedMessages + purchasing.unmatchedMessages : undefined);
   return badges;
 }
+
+/** The count-only query behind Finance's Supplier Payments badge (`usePendingSupplierPaymentCount`). */
+export const FINANCE_PENDING_SUPPLIER_PAYMENTS_QUERY = { status: 'pending_approval', limit: 1 } as const;
 
 /** The count-only query behind Finance's Cash Transfers badge — `useFinanceNavCounts` fetches it, `computeFinanceBadges` reads its `total`. */
 export const FINANCE_PENDING_TRANSFERS_QUERY: FinanceCashTransferQuery = { status: 'pending', limit: 1 };
@@ -146,6 +155,11 @@ export function computeFinanceBadges(): NavBadges {
 
   // `waiting` is the server's "Waiting for Finance" bucket.
   setIfPositive(badges, 'helpDesk', queryClient.getQueryData<Partial<FinanceTicketStats>>(queryKeys.financeTicketStats())?.waiting);
+  setIfPositive(
+    badges,
+    'supplierPayments',
+    queryClient.getQueryData<SupplierPaymentListResponse>(queryKeys.supplierPayments(FINANCE_PENDING_SUPPLIER_PAYMENTS_QUERY))?.total,
+  );
   if (queryClient.getQueryData<FinanceSettings>(queryKeys.financeSettings())?.allowSuperAdminWrite) badges.financeSettings = 1;
   return badges;
 }

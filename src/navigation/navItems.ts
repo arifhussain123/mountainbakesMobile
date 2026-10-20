@@ -9,6 +9,8 @@ export type NavBadgeSource =
   | 'helpDesk'
   | 'returns'
   | 'productionStock'
+  | 'whatsappPurchasing'
+  | 'supplierPayments'
   | 'approvals'
   | 'cashTransfers'
   | 'dailyClosing'
@@ -280,6 +282,15 @@ export const PRODUCTION_NAV_ITEMS: NavItem[] = [
     activeMatch: { root: Routes.PRODUCTION_DISCOUNTS_STACK },
   },
   {
+    key: 'whatsappPurchasing',
+    label: 'WhatsApp Purchasing',
+    icon: 'message-circle',
+    group: 'work',
+    badgeSource: 'whatsappPurchasing',
+    navigate: goToStack(Routes.PRODUCTION_WHATSAPP_STACK, Routes.PRODUCTION_WHATSAPP_LIST),
+    activeMatch: { root: Routes.PRODUCTION_WHATSAPP_STACK },
+  },
+  {
     key: 'events',
     label: 'Events',
     icon: 'calendar',
@@ -360,6 +371,15 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
     badgeSource: 'cashTransfers',
     navigate: goToStack(Routes.FINANCE_CASH_TRANSFERS_STACK, Routes.FINANCE_CASH_TRANSFERS_LIST),
     activeMatch: { root: Routes.FINANCE_CASH_TRANSFERS_STACK },
+  },
+  {
+    key: 'supplierPayments',
+    label: 'Supplier Payments',
+    icon: 'receipt',
+    group: 'books',
+    badgeSource: 'supplierPayments',
+    navigate: goToStack(Routes.FINANCE_SUPPLIER_PAYMENTS_STACK),
+    activeMatch: { root: Routes.FINANCE_SUPPLIER_PAYMENTS_STACK },
   },
   {
     key: 'incomeExpense',

@@ -77,6 +77,7 @@ export type IconName =
   | 'boxes'
   | 'life-buoy'
   | 'send'
+  | 'message-circle'
   | 'user-group'
   | 'database';
 
@@ -712,6 +713,13 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path d="M22 2L11 13" {...common} />
           <Path d="M22 2l-7 20-4-9-9-4z" {...common} />
+        </Svg>
+      );
+    case 'message-circle':
+      // Drawer "WhatsApp Purchasing" item; inbound messages.
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.9-.9L3 20.5l1.6-4.6a8.2 8.2 0 0 1-1.1-4.4A8.5 8.5 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" {...common} />
         </Svg>
       );
     case 'user-group':

@@ -102,9 +102,22 @@ describe('section labels', () => {
     expect(m.rowHeight).toBeCloseTo(computeAvailableListHeight(800, 24, 48) / BRANCH_NAV_ITEMS.length);
   });
 
-  it('stay when the rows still reach 40dp (Production, 10 items)', () => {
+  it('stay when the rows still reach 40dp (Production, 11 items, on a 393x873 or taller phone)', () => {
+    expect(PRODUCTION_NAV_ITEMS).toHaveLength(11);
+    for (const [height, insets] of [
+      [873, ANDROID_GESTURE],
+      [915, ANDROID_3_BUTTON],
+    ] as const) {
+      const m = metricsFor(height, insets, PRODUCTION_NAV_ITEMS.length, productionSections);
+      expect(m.showSectionLabels).toBe(true);
+      expect(m.rowHeight).toBeGreaterThanOrEqual(ROW_MIN_HEIGHT);
+      expect(m.needsScroll).toBe(false);
+    }
+  });
+
+  it("drop on a 360x800 3-button phone once WhatsApp Purchasing makes Production 11 items — still no scrolling", () => {
     const m = metricsFor(800, ANDROID_3_BUTTON, PRODUCTION_NAV_ITEMS.length, productionSections);
-    expect(m.showSectionLabels).toBe(true);
+    expect(m.showSectionLabels).toBe(false);
     expect(m.rowHeight).toBeGreaterThanOrEqual(ROW_MIN_HEIGHT);
     expect(m.needsScroll).toBe(false);
   });

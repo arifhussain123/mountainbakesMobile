@@ -134,6 +134,19 @@ export type ProductionEventsStackParamList = {
   [Routes.PRODUCTION_EVENT_DEMAND]: { eventId: string; eventName: string };
 };
 
+/** WhatsApp Purchasing (drawer stack). */
+export type ProductionWhatsAppStackParamList = {
+  [Routes.PRODUCTION_WHATSAPP_LIST]: undefined;
+  /** No `demandId`: a new demand. With one: edit, verify and send that draft. */
+  [Routes.PRODUCTION_WHATSAPP_DEMAND_FORM]: { demandId?: string } | undefined;
+  [Routes.PRODUCTION_WHATSAPP_DEMAND_DETAIL]: { demandId: string };
+  [Routes.PRODUCTION_WHATSAPP_QUOTATION_ENTRY]: { demandId: string };
+  [Routes.PRODUCTION_WHATSAPP_BILL_ENTRY]: { demandId: string };
+  [Routes.PRODUCTION_WHATSAPP_RECEIPT]: { demandId: string };
+  [Routes.PRODUCTION_WHATSAPP_CONVERSATIONS]: { tab?: 'conversations' | 'unmatched' | 'failed' } | undefined;
+  [Routes.PRODUCTION_WHATSAPP_THREAD]: { conversationId: string; title: string; windowOpenUntil: string | null; supplierId: string | null };
+};
+
 export type ProductionBottomTabParamList = {
   [Routes.PRODUCTION_DASHBOARD_TAB]: undefined;
   [Routes.PRODUCTION_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
@@ -148,6 +161,7 @@ export type ProductionDrawerParamList = {
   [Routes.PRODUCTION_DISCOUNTS_STACK]: NavigatorScreenParams<ProductionDiscountsStackParamList> | undefined;
   [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
   [Routes.PRODUCTION_REPORTS_STACK]: undefined;
+  [Routes.PRODUCTION_WHATSAPP_STACK]: NavigatorScreenParams<ProductionWhatsAppStackParamList> | undefined;
   [Routes.PRODUCTION_HELP_DESK_STACK]: undefined;
   [Routes.PROFILE]: undefined;
 };
@@ -197,6 +211,7 @@ export type FinanceDrawerParamList = {
   [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
   [Routes.FINANCE_HELP_DESK_STACK]: NavigatorScreenParams<FinanceHelpDeskStackParamList> | undefined;
   [Routes.FINANCE_SETTINGS_STACK]: undefined;
+  [Routes.FINANCE_SUPPLIER_PAYMENTS_STACK]: undefined;
   [Routes.PROFILE]: undefined;
 };
 

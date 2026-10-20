@@ -128,6 +128,17 @@ export const Routes = {
   PRODUCTION_EVENT_DEMAND: 'ProductionEventDemand',
 
   PRODUCTION_REPORTS_STACK: 'ProductionReportsStack',
+
+  // WhatsApp Purchasing — Production buying from outside suppliers.
+  PRODUCTION_WHATSAPP_STACK: 'ProductionWhatsAppStack',
+  PRODUCTION_WHATSAPP_LIST: 'ProductionWhatsAppList',
+  PRODUCTION_WHATSAPP_DEMAND_FORM: 'ProductionWhatsAppDemandForm',
+  PRODUCTION_WHATSAPP_DEMAND_DETAIL: 'ProductionWhatsAppDemandDetail',
+  PRODUCTION_WHATSAPP_QUOTATION_ENTRY: 'ProductionWhatsAppQuotationEntry',
+  PRODUCTION_WHATSAPP_BILL_ENTRY: 'ProductionWhatsAppBillEntry',
+  PRODUCTION_WHATSAPP_RECEIPT: 'ProductionWhatsAppReceipt',
+  PRODUCTION_WHATSAPP_CONVERSATIONS: 'ProductionWhatsAppConversations',
+  PRODUCTION_WHATSAPP_THREAD: 'ProductionWhatsAppThread',
   PRODUCTION_HELP_DESK_STACK: 'ProductionHelpDeskStack',
 
   // mountainbakesFinance.html — docs/mobile-finance-plan.md. 13 top-level areas
@@ -165,6 +176,8 @@ export const Routes = {
   FINANCE_AUDIT_TRAIL_STACK: 'FinanceAuditTrailStack',
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',
   FINANCE_SETTINGS_STACK: 'FinanceSettingsStack',
+  // Supplier payments and credit raised from WhatsApp Purchasing.
+  FINANCE_SUPPLIER_PAYMENTS_STACK: 'FinanceSupplierPaymentsStack',
 
   // Super Admin catalog — Price History (read-only), mounted by the Super Admin shell.
   PRICE_HISTORY_STACK: 'PriceHistoryStack',

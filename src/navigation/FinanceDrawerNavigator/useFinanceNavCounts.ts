@@ -5,6 +5,7 @@ import {
   useFinanceSettings,
   useFinanceTicketStats,
   usePendingApprovals,
+  usePendingSupplierPaymentCount,
 } from '@/api';
 import { FINANCE_PENDING_TRANSFERS_QUERY } from '../navBadgeCounts';
 
@@ -22,5 +23,6 @@ export function useFinanceNavCounts(): void {
   useFinanceCashTransfers(FINANCE_PENDING_TRANSFERS_QUERY);
   useFinanceTicketStats();
   useFinanceSettings();
+  usePendingSupplierPaymentCount();
   useDayClosing(businessDate, { enabled: !!businessDate });
 }

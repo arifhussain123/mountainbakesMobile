@@ -7,6 +7,7 @@ import { ProductionDiscountsStackNavigator } from '../ProductionDiscountsStackNa
 import { ProductionEventsStackNavigator } from '../ProductionEventsStackNavigator';
 import { ProductionHelpDeskStackNavigator } from '../ProductionHelpDeskStackNavigator';
 import { ProductionSalesStackNavigator } from '../ProductionSalesStackNavigator';
+import { ProductionWhatsAppStackNavigator } from '../ProductionWhatsAppStackNavigator';
 import { Routes } from '../routes';
 import type { ProductionDrawerParamList } from '../types';
 import { useDrawerScreenOptions } from '../components';
@@ -34,6 +35,7 @@ export function ProductionDrawerNavigator() {
       <Drawer.Screen name={Routes.PRODUCTION_SALES_STACK} component={ProductionSalesStackNavigator} />
       <Drawer.Screen name={Routes.PRODUCTION_DISCOUNTS_STACK} component={ProductionDiscountsStackNavigator} />
       <Drawer.Screen name={Routes.PRODUCTION_EVENTS_STACK} component={ProductionEventsStackNavigator} />
+      <Drawer.Screen name={Routes.PRODUCTION_WHATSAPP_STACK} component={ProductionWhatsAppStackNavigator} />
       <Drawer.Screen name={Routes.PRODUCTION_REPORTS_STACK} component={ProductionReportsScreen} />
       <Drawer.Screen name={Routes.PRODUCTION_HELP_DESK_STACK} component={ProductionHelpDeskStackNavigator} />
       <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
