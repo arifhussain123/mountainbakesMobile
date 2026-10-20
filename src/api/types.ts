@@ -3870,6 +3870,32 @@ export interface BranchLocationsResponse {
   geofencingEnabled: boolean;
 }
 
+/**
+ * `POST /api/branches` / `PUT /api/branches/:id` body — the web form sends the
+ * whole CreateBranchInput on both. `companySharePct: null` CLEARS an override
+ * (back on the global split); it is never 0.
+ */
+export interface AdminBranchInput {
+  name: string;
+  location: string;
+  phone: string;
+  address: string;
+  city: string;
+  dailyBudget: number;
+  weeklyBudget: number;
+  monthlyBudget: number;
+  companySharePct: number | null;
+}
+
+/** `PUT /api/branch-locations/:branchId` body — an upsert, one geofence per branch. */
+export interface UpsertBranchLocationInput {
+  latitude: number;
+  longitude: number;
+  address: string;
+  radiusKm: number;
+  googlePlaceId: string | null;
+}
+
 export type AdminUserStatus = 'active' | 'inactive' | 'suspended';
 
 /** `GET /api/users` — super_admin only, newest first. */

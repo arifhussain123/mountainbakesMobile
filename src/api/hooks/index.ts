@@ -1,6 +1,14 @@
 export { useLogin } from './useAuthApi';
 export { useAdminSalesAnalytics, useAdminTodaySummary, useBranchSales, useLoginHistoryPage } from './useAdminDashboardApi';
 export { useActiveAdminBranches, useAdminProductPages, useAllPackingMaterials } from './useAdminCatalogApi';
+export {
+  useCreateAdminBranch,
+  useDeactivateAdminBranch,
+  useDeleteBranchLocation,
+  useSetBranchLocationStatus,
+  useUpdateAdminBranch,
+  useUpsertBranchLocation,
+} from './useAdminBranchActionsApi';
 export { useBranchClosing } from './useBranchClosingApi';
 export { useBranches } from './useBranchesApi';
 export {
