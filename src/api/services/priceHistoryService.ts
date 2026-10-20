@@ -30,17 +30,6 @@ function normalisePriceChange(h: PriceChange): PriceChange {
 }
 
 /**
- * `GET /api/products/price/history/export?type=csv` — the server's own export
- * (up to 1,000 rows, optionally one product). CSV rather than Excel: there is
- * no file-system/binary-share module in this app, so plain text into the share
- * sheet is the only honest export (same as `exportBranchClosingCsv`). The
- * server ignores search — the file is the whole history, or one product's.
- */
-export async function exportPriceHistoryCsv(productId?: string): Promise<string> {
-  return apiClient.get<string>('/products/price/history/export', { type: 'csv', ...(productId ? { productId } : {}) });
-}
-
-/**
  * `GET /api/products?includeSpecial=true` — every product, hidden Special Order
  * items too (a price change can be on one), with cost. Used for the "Below
  * cost" hint and the current price.

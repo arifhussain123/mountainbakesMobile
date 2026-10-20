@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
-  exportCollectionsCsv,
   getBusinessDate,
   productionOrdersExportParams,
   useAppSettings,
@@ -17,22 +16,22 @@ import { DateField, Dropdown, FormBottomSheet, PrimaryButton, SecondaryButton, t
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import {
   DEMAND_PRINT_FORMATS,
-  EXCEL_ON_WEB,
   buildDemandSnapshot,
   buildDemandSummaryPrintText,
-  collectionsFileName,
+  collectionsExportRequest,
   collectionsWindow,
   hasDemandToPrint,
 } from '../utils/exports';
 import { ActionChip } from './ActionChip';
-import { dataTableExportOptions, dataTableExportable, shareText, useExportSheet } from './ExportSheet';
+import { dataTableExportOptions, dataTableExportable, downloadAndShare, shareText, useExportSheet } from './ExportSheet';
 
 const ALL = 'all';
 
 /**
- * Web `CollectionsExportModal`: branch + date window → the Collections sheet
- * (`/production-reports/export?report=collections`), one row per billed
- * delivery. Mounted only while open, so it always starts at today / all branches.
+ * Web `CollectionsExportModal`: branch + date window → the Collections Excel
+ * file (`/production-reports/export?report=collections&type=excel`), one row
+ * per billed delivery, named as the web names it. Mounted only while open, so
+ * it always starts at today / all branches.
  */
 function CollectionsForm({ onClose }: { onClose: () => void }) {
   const theme = useAppTheme();
@@ -47,11 +46,10 @@ function CollectionsForm({ onClose }: { onClose: () => void }) {
 
   const run = async () => {
     const w = collectionsWindow(from, to, today);
-    const branch = branchId === ALL ? null : branchId;
+    const branch = branchId === ALL ? null : { id: branchId, name: branches.find((b) => b.id === branchId)?.name ?? 'branch' };
     setBusy(true);
     try {
-      const csv = await exportCollectionsCsv({ from: w.from, to: w.to, branchId: branch });
-      await shareText(collectionsFileName(w.from, w.to, branch === null ? null : (branches.find((b) => b.id === branch)?.name ?? 'branch')), csv);
+      await downloadAndShare(collectionsExportRequest(w.from, w.to, branch));
       onClose();
     } catch (e) {
       Alert.alert('Could Not Export', mapErrorToMessage(e));
@@ -83,10 +81,9 @@ function CollectionsForm({ onClose }: { onClose: () => void }) {
           <SecondaryButton label="Cancel" onPress={onClose} disabled={busy} />
         </View>
         <View style={{ flex: 1.4 }}>
-          <PrimaryButton label="Export CSV" onPress={() => void run()} loading={busy} />
+          <PrimaryButton label="Export Excel" onPress={() => void run()} loading={busy} />
         </View>
       </View>
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint, textAlign: 'center' }]}>{EXCEL_ON_WEB}.</Text>
     </View>
   );
 }

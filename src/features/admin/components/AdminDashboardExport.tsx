@@ -3,12 +3,14 @@ import type { FinanceMonthlyDashboard, ProductionCurrentStockSection, Production
 import { dayLabel, karachiTime, type FinanceGranularity } from '@/features/finance';
 import type { AppHeaderAction } from '@/shared/ui';
 import { adminDashboardCsv, adminDashboardCsvName, adminDashboardPrintText } from '../utils/exports';
-import { shareText, useExportSheet } from './ExportSheet';
+import { shareText, shareTextAsFile, useExportSheet } from './ExportSheet';
 
 /**
  * The Admin Dashboard's Print and Export CSV (the web heading's two buttons)
  * as one header button opening a small sheet. Print needs the month's
  * figures; Export CSV also needs the month not to be empty — as on the web.
+ * The web builds this CSV in the browser and saves it as a file; so does the
+ * phone (same text, same file name), then shares the file.
  */
 export function useAdminDashboardExport(p: {
   data: FinanceMonthlyDashboard | undefined;
@@ -69,7 +71,7 @@ export function useAdminDashboardExport(p: {
           icon: 'file-spreadsheet',
           hint: p.isEmpty ? 'No records for this month and branch' : 'Every section, one block each',
           disabled: !input || p.isEmpty,
-          run: async () => input && shareText(adminDashboardCsvName(p.month, p.branchLabel, p.range), adminDashboardCsv(input)),
+          run: async () => input && shareTextAsFile(adminDashboardCsvName(p.month, p.branchLabel, p.range), adminDashboardCsv(input)),
         },
       ],
     });

@@ -31,6 +31,9 @@ import { parseAmount, toDisplayEntries, type DisplayEntry } from './ledgerDispla
 import { useLedgerSheet } from './ledgerSheets';
 import { canDecideCashTransfers, OPEN_CASH_TRANSFERS_TARGET, PENDING_REVIEW_TARGET, type LedgerLinkTarget } from '../../utils/ledgerActions';
 import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
+import { ActionChip } from '../../components/ActionChip';
+import { FORMAT_ICON, useFileDownload } from '../../components/ExportSheet';
+import { EXPORT_FORMATS, FORMAT_LABEL, financeLedgerExportRequest } from '../../utils/exports';
 
 const PAGE_SIZE = 20;
 
@@ -47,8 +50,9 @@ const openLedgerLink = (target: LedgerLinkTarget) => navigateToRecord(target.sta
  * Reject (`PUT /finance/cash-transfers/:id/approve|reject`), offered only when
  * Finance Settings "Allow Super Admin to modify" is on — the server's
  * `requireFinance('approve')` refuses super_admin otherwise. Row Edit / Delete
- * are switched off on the web for every role, and PDF / Excel export stays on
- * the web. The panels' "Open Cash Transfers" and per-row "Review" links open
+ * are switched off on the web for every role. PDF / Excel are the web's: the
+ * server's Daily Cash Book file (`/finance/reports/export?type=daily_cash_book`)
+ * over the ledger's window and branch, shared as a file. The panels' "Open Cash Transfers" and per-row "Review" links open
  * the Finance screens mounted in this shell (`ledgerActions.ts` targets), as
  * the web's links open /finance-cash-transfers, -entries, -partner-transactions
  * and -payroll.
@@ -122,6 +126,7 @@ export function AdminDailyLedgerScreen() {
   const showReadOnly = !!settingsQ.data && !settingsQ.data.allowSuperAdminWrite;
   const canDecide = canDecideCashTransfers(settingsQ.data);
   const decision = useLedgerSheet();
+  const download = useFileDownload();
   const ledgerError = ledgerQ.error && !ledgerQ.data;
 
   return (
@@ -137,6 +142,18 @@ export function AdminDailyLedgerScreen() {
             <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
               Every posted voucher, in posting order. Balances run down the page as a cash book does.
             </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {EXPORT_FORMATS.financeLedger.map((format) => (
+                <ActionChip
+                  key={format}
+                  icon={FORMAT_ICON[format]}
+                  label={FORMAT_LABEL[format]}
+                  onPress={() => void download.run(format, financeLedgerExportRequest(query, format))}
+                  loading={download.busy === format}
+                  disabled={download.busy !== null}
+                />
+              ))}
+            </View>
             {showReadOnly ? <ReadOnlyBanner /> : null}
             <PendingCashTransfersPanel
               canDecide={canDecide}

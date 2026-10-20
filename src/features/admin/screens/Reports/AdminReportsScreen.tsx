@@ -4,7 +4,6 @@ import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   getBusinessDate,
   getBusinessMonthStart,
-  getReportExportCsv,
   useAdminReportSummary,
   useAllPackingMaterials,
   useBranches,
@@ -33,8 +32,8 @@ import { formatDisplayDate } from '@/shared/utils';
 import { ActiveFilterChips, FieldGrid, SortControl } from '../../components';
 import { activeChips, chipLabel, rangeChipLabel, toSortPair, type SortField, type SortState } from '../../utils/listControls';
 import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
-import { shareText, useExportSheet } from '../../components/ExportSheet';
-import { EXCEL_ON_WEB, PDF_ON_WEB, buildReportsPrintText } from '../../utils/exports';
+import { fileFormatOptions, shareText, useExportSheet } from '../../components/ExportSheet';
+import { EXPORT_FORMATS, buildReportsPrintText, reportsExportRequest } from '../../utils/exports';
 import { BranchPerformanceCard, DailySalesChartCard, PaymentMethodsSummaryCard, TopProductsDonutCard, TopTenProductsCard } from './reportCharts';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -74,8 +73,8 @@ const rs = (n: number) => `Rs.${Math.round(Number(n) || 0).toLocaleString('en-US
  * without `fields=basic` — across all branches. The Packing Materials tab has
  * its own date range, branch and material filters and its own server-paged
  * call (`GET /reports/packing-usage`), with the web table's sortable columns
- * and active-filter chips. Read-only; the CSV export and Print are shared as
- * text (this app has no file module for PDF/Excel, which stay listed, disabled).
+ * and active-filter chips. Read-only; PDF / Excel / CSV are the server's files
+ * (`GET /reports/export`), shared as files; Print is shared as text.
  *
  * Kept separate from the branch manager's `ReportsScreen`, which reads a
  * different shape (`/sales-analytics`) for one branch.
@@ -146,25 +145,17 @@ export function AdminReportsScreen() {
     setPackMaterial(ALL);
   };
 
-  // The web's PDF · Excel · CSV · Print buttons, in one sheet. PDF and Excel
-  // are binary files the phone cannot share; CSV is the server's own file;
-  // Print is the page (stats, payment methods, the open tab) as text.
+  // The web's PDF · Excel · CSV · Print buttons, in one sheet. PDF, Excel and
+  // CSV are the server's own files for the period (`/reports/export`), shared
+  // as files; Print is the page (stats, payment methods, the open tab) as text,
+  // as the web prints the page itself.
   const exportSheet = useExportSheet();
   const openExport = () =>
     exportSheet.open({
       title: 'Reports & Analytics',
       subtitle: s ? `${s.from.slice(0, 10)} – ${s.to.slice(0, 10)}` : undefined,
       options: [
-        { key: 'pdf', section: 'Export', label: 'PDF', icon: 'file-list', hint: PDF_ON_WEB, disabled: true },
-        { key: 'excel', section: 'Export', label: 'Excel', hint: EXCEL_ON_WEB, disabled: true },
-        {
-          key: 'csv',
-          section: 'Export',
-          label: 'CSV',
-          hint: 'The period’s report, shared as text',
-          errorTitle: 'Export failed',
-          run: async () => shareText(`mountain-bakes-report-${period}.csv`, await getReportExportCsv(period)),
-        },
+        ...fileFormatOptions(EXPORT_FORMATS.reports, (format) => reportsExportRequest(period, format), { section: 'Export' }),
         {
           key: 'print',
           section: 'Print',

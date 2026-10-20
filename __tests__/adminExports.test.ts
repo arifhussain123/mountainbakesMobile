@@ -19,15 +19,12 @@ import {
   buildDemandSummaryPrintText,
   buildReportsPrintText,
   canExport,
-  collectionsFileName,
   collectionsWindow,
   demandStatusText,
   differenceText,
   exportAllLabel,
-  exportFileTitle,
   hasDemandToPrint,
   karachiStamp,
-  mergeCsvPages,
 } from '@/features/admin/utils/exports';
 import {
   buildA4ChallanText,
@@ -64,19 +61,8 @@ describe('textLayout', () => {
   });
 });
 
+// File names and requests: adminFileExports.test.ts.
 describe('data table export', () => {
-  it('joins loaded pages, keeping one header', () => {
-    expect(mergeCsvPages(['"A","B"\n"1","2"', '"A","B"\n"3","4"', '"A","B"'])).toBe('"A","B"\n"1","2"\n"3","4"');
-    expect(mergeCsvPages(['"A"'])).toBe('"A"');
-    expect(mergeCsvPages([])).toBe('');
-  });
-
-  it('names the file as the web does', () => {
-    const now = new Date('2026-10-20T08:00:00Z');
-    expect(exportFileTitle('customers', 'mountain-bakes-customers', now)).toBe('mountain-bakes-customers-2026-10-20.csv');
-    expect(exportFileTitle('users', undefined, now)).toBe('mountain-bakes-users-2026-10-20.csv');
-  });
-
   it('is dead only with no rows and no total', () => {
     expect(canExport(0, 0)).toBe(false);
     expect(canExport(0, null)).toBe(false);
@@ -85,9 +71,7 @@ describe('data table export', () => {
     expect(exportAllLabel(undefined)).toBe('Export all results');
   });
 
-  it('names and orders the Collections window', () => {
-    expect(collectionsFileName('2026-10-01', '2026-10-20', null)).toBe('mountain-bakes-collections-all-branches-2026-10-01_to_2026-10-20.csv');
-    expect(collectionsFileName('2026-10-20', '2026-10-20', 'Mountain Bakes Alabad')).toBe('mountain-bakes-collections-mountain-bakes-alabad-2026-10-20.csv');
+  it('orders the Collections window', () => {
     expect(collectionsWindow('2026-10-25', '2026-10-01', '2026-10-20')).toEqual({ from: '2026-10-01', to: '2026-10-20' });
     expect(collectionsWindow('', '', '2026-10-20')).toEqual({ from: '2026-10-20', to: '2026-10-20' });
   });

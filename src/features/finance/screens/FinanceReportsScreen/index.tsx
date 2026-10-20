@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, SectionList, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   FINANCE_REPORT_LABELS,
@@ -14,9 +14,10 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, DateRangeSheet, EmptyState, ErrorState, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, Screen, StatCard } from '@/shared/ui';
 import { formatDisplayDate, type DateRange } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { FORMAT_ICON, useFileDownload } from '@/features/admin/components/ExportSheet';
+import { EXPORT_FORMATS, FORMAT_LABEL, financeReportExportRequest } from '@/features/admin/utils/exports/fileExports';
 import { computeCashBookBalances, groupByDate, type CashBookRowOut } from '../../utils/cashBookBalance';
 import { approverLabel, formatMoney2, formatStamp } from '../../utils/financeFormat';
-import { reportToCsv } from '../../utils/reportCsv';
 import { styles } from './styles';
 
 type Row = FinanceReport['rows'][number];
@@ -48,8 +49,11 @@ function defaultRange(type: FinanceReportType, today: string): DateRange {
  * whose stored figure differs. Other reports are the server's descriptor as
  * cards, one per row, so nothing scrolls sideways at 360dp.
  *
- * Export is CSV through the share sheet, built from the rows on screen. PDF and
- * Excel need a file library this app does not have yet.
+ * Export is the web's three buttons — PDF, Excel, CSV — each the server's file
+ * of the report on screen (`/finance/reports/export`, every row the filters
+ * match, no paging), shared as a file. Those files are the server's rendering,
+ * so a Daily Cash Book's Balance column there is the stored posting-order
+ * balance, exactly as the web's download shows it.
  */
 export function FinanceReportsScreen() {
   const theme = useAppTheme();
@@ -62,12 +66,14 @@ export function FinanceReportsScreen() {
 
   const usesHead = HEAD_FILTERED.includes(type);
   const heads = useLedgerHeads();
-  const { data, isLoading, error, refetch, isRefetching } = useFinanceReport({
+  const reportQuery = {
     type,
     from: range.from,
     to: range.to,
     ...(usesHead && headId !== 'all' ? { ledgerHeadId: headId } : {}),
-  });
+  };
+  const { data, isLoading, error, refetch, isRefetching } = useFinanceReport(reportQuery);
+  const download = useFileDownload();
 
   const isCashBook = data?.type === 'daily_cash_book';
   const filtered = usesHead && headId !== 'all';
@@ -96,16 +102,6 @@ export function FinanceReportsScreen() {
     setRange(defaultRange(t, today));
     setHeadId('all');
     pickerRef.current?.dismiss();
-  };
-
-  const exportCsv = async () => {
-    if (!data) return;
-    try {
-      const csv = reportToCsv(data, isCashBook ? balanced.map((r) => r.runningBalance) : undefined);
-      await Share.share({ title: `${data.title} ${range.from} to ${range.to}`, message: csv });
-    } catch (e) {
-      Alert.alert('Export Failed', mapErrorToMessage(e));
-    }
   };
 
   const formula = isCashBook
@@ -137,16 +133,27 @@ export function FinanceReportsScreen() {
             {range.from === range.to ? formatDisplayDate(range.from) : `${formatDisplayDate(range.from)} – ${formatDisplayDate(range.to)}`}
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Export as CSV"
-          accessibilityState={{ disabled: !data }}
-          disabled={!data}
-          onPress={() => void exportCsv()}
-          style={[styles.rangeButton, { borderColor: theme.colors.border, borderRadius: theme.radii.pill, opacity: data ? 1 : 0.4 }]}>
-          <Icon name="file-spreadsheet" size={14} color={theme.colors.text} />
-          <Text style={[theme.typography.label, { color: theme.colors.text }]}>Export CSV</Text>
-        </Pressable>
+        {EXPORT_FORMATS.financeReports.map((format) => {
+          // As the web: every button waits while one prepares, and none works before the report has loaded.
+          const off = !data || download.busy !== null;
+          return (
+            <Pressable
+              key={format}
+              accessibilityRole="button"
+              accessibilityLabel={`Export as ${FORMAT_LABEL[format]}`}
+              accessibilityState={{ disabled: off, busy: download.busy === format }}
+              disabled={off}
+              onPress={() => void download.run(format, financeReportExportRequest(reportQuery, format))}
+              style={[styles.rangeButton, { borderColor: theme.colors.border, borderRadius: theme.radii.pill, opacity: off && download.busy !== format ? 0.4 : 1 }]}>
+              {download.busy === format ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <Icon name={FORMAT_ICON[format]} size={14} color={theme.colors.text} />
+              )}
+              <Text style={[theme.typography.label, { color: theme.colors.text }]}>{download.busy === format ? 'Preparing…' : FORMAT_LABEL[format]}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {usesHead ? (

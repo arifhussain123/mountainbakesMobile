@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, SectionList, Share, Text, View } from 'react-native';
+import { ActivityIndicator, SectionList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  exportPriceHistoryCsv,
   getBusinessDate,
   useCatalogProducts,
   usePriceHistoryPages,
@@ -19,8 +18,8 @@ import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { SortControl } from '@/features/admin/components';
-import { useExportSheet } from '@/features/admin/components/ExportSheet';
-import { EXCEL_ON_WEB } from '@/features/admin/utils/exports';
+import { fileFormatOptions, useExportSheet } from '@/features/admin/components/ExportSheet';
+import { EXPORT_FORMATS, priceHistoryExportRequest } from '@/features/admin/utils/exports';
 import { sortSummary, toSortPair, type SortField, type SortState } from '@/features/admin/utils/listControls';
 import { PriceChangeCard } from '../../components/PriceChangeCard';
 import { ALL, PriceHistoryFilters, type DirectionFilter, type SourceFilter } from '../../components/PriceHistoryFilters';
@@ -74,7 +73,6 @@ export function PriceHistoryScreen() {
   const [direction, setDirection] = useState<DirectionFilter>('all');
   const [source, setSource] = useState<SourceFilter>('all');
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
-  const [exporting, setExporting] = useState(false);
   const [sort, setSort] = useState<SortState | null>(null);
 
   const serverQuery = useMemo(() => {
@@ -161,31 +159,21 @@ export function PriceHistoryScreen() {
     void catalogQ.refetch();
   };
 
-  const handleExport = async () => {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      const csv = await exportPriceHistoryCsv(productId === ALL ? undefined : productId);
-      await Share.share({ title: 'Price History', message: csv });
-    } catch (e) {
-      Alert.alert('Could Not Export', mapErrorToMessage(e));
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const total = pagesQ.data?.pages[0]?.total;
 
-  // The web's Excel and CSV buttons; Excel is a binary file the phone cannot share.
+  // The web's Excel and CSV buttons: the server's file of the whole trail
+  // (`/products/price/history/export`, no filters — as the web page exports
+  // it), shared as a file. Dead while nothing is listed, as on the web.
   const exportSheet = useExportSheet();
+  const exporting = exportSheet.busy;
   const openExport = () =>
     exportSheet.open({
       title: 'Export Price History',
-      subtitle: productId === ALL ? 'Every price change' : "This product's price changes",
-      options: [
-        { key: 'excel', label: 'Excel', hint: EXCEL_ON_WEB, disabled: true },
-        { key: 'csv', label: 'CSV', hint: 'Shared as text', run: handleExport },
-      ],
+      subtitle: 'Every price change',
+      options: fileFormatOptions(EXPORT_FORMATS.priceHistory, (format) => priceHistoryExportRequest(format), {
+        disabled: rows.length === 0,
+        hint: rows.length === 0 ? 'No price changes to export' : undefined,
+      }),
     });
 
   return (
@@ -194,7 +182,7 @@ export function PriceHistoryScreen() {
         title="Price History"
         subtitle="Every price change, permanently recorded. Read-only — cannot be edited or deleted."
         actions={[
-          { icon: 'file-spreadsheet', onPress: openExport, accessibilityLabel: productId === ALL ? 'Export all price history' : "Export this product's price history" },
+          { icon: 'file-spreadsheet', onPress: openExport, accessibilityLabel: 'Export all price history' },
           { icon: 'refresh', onPress: refresh, accessibilityLabel: 'Refresh' },
         ]}
       />

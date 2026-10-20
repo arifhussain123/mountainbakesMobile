@@ -56,12 +56,3 @@ export async function listActiveAdminBranches(): Promise<{ branches: AdminBranch
   };
 }
 
-/**
- * `GET /api/products/price/list/export?type=csv[&groupBy=category]` — the
- * web's "Export CSV" (also the re-import template). CSV only: there is no
- * file-system/binary-share module in this app, so the Excel variant cannot be
- * handed to the share sheet; plain text can (same as `exportPriceHistoryCsv`).
- */
-export async function exportPriceListCsv(groupByCategory = false): Promise<string> {
-  return apiClient.get<string>('/products/price/list/export', { type: 'csv', ...(groupByCategory ? { groupBy: 'category' } : {}) });
-}

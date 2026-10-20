@@ -149,7 +149,7 @@ export interface LocationFormValues {
   longitude: string;
   address: string;
   radiusKm: string;
-  /** Kept from the stored location — only the web's Places search sets a new one. */
+  /** Kept from the stored location — only a Places search pick sets a new one. */
   googlePlaceId: string | null;
 }
 

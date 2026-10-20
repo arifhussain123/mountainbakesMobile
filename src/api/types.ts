@@ -397,6 +397,57 @@ export interface ChangeProductPriceResult {
   reason?: string;
 }
 
+// ─── Price List import (`/api/products/price/import/*`, shared price.types.ts) ─
+
+/** Why the server rejected a sheet row in the import preview. */
+export type ImportRowError = 'UNKNOWN_SKU' | 'INVALID_PRICE' | 'DUPLICATE_IN_FILE' | 'MISSING_FIELD';
+
+export interface ImportValidRow {
+  productId: string;
+  productCode: string;
+  productName: string;
+  categoryName: string;
+  currentPrice: number;
+  newPrice: number;
+}
+
+export interface ImportUnchangedRow {
+  productCode: string;
+  productName: string;
+  price: number;
+}
+
+export interface ImportErrorRow {
+  rowNumber: number;
+  productCode: string;
+  rawPrice: string;
+  error: ImportRowError;
+  message: string;
+}
+
+/** `POST /api/products/price/import/preview` — validated, never written. */
+export interface ImportPreviewResult {
+  summary: { total: number; valid: number; unchanged: number; errors: number };
+  validRows: ImportValidRow[];
+  unchangedRows: ImportUnchangedRow[];
+  errorRows: ImportErrorRow[];
+}
+
+/** `POST /api/products/price/import/commit` body — `effectiveDate` is a business date `YYYY-MM-DD`. */
+export interface PriceImportCommitInput {
+  rows: { productId: string; newPrice: number }[];
+  effectiveDate: string;
+  reason: string;
+}
+
+export interface ImportCommitResult {
+  batchId: string;
+  appliedImmediate: number;
+  scheduled: number;
+  skipped: number;
+  errors: { productId: string; message: string }[];
+}
+
 /** `POST /api/packing-materials` — no price, no cost: service items, never sold. */
 export interface CreatePackingMaterialInput {
   materialCode: string;

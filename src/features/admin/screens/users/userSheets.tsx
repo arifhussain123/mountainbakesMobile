@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   useBranches,
@@ -13,6 +13,7 @@ import {
   type CreateUserInput,
   type UserRole,
 } from '@/api';
+import { copyToClipboard } from '@/shared/files';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { Dropdown, FormBottomSheet, Icon, PasswordField, PrimaryButton, SecondaryButton, TextField } from '@/shared/ui';
@@ -224,7 +225,7 @@ function ToggleRow({ label, desc, value, onChange }: { label: string; desc: stri
 
 /**
  * Web `ResetPasswordDialog`. A temporary password comes back once and is
- * shown here, selectable, until Done — it is never stored or logged.
+ * shown here, with the web's Copy button, until Done — it is never stored or logged.
  */
 function ResetPasswordForm({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   const theme = useAppTheme();
@@ -233,6 +234,20 @@ function ResetPasswordForm({ user, onClose }: { user: AdminUser; onClose: () => 
   const [sendEmail, setSendEmail] = useState(false);
   const [forceChange, setForceChange] = useState(true);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // The web's Copy → Check swap, back after 2 s.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copyTemp = () => {
+    if (!tempPassword) return;
+    copyToClipboard(tempPassword);
+    setCopied(true);
+  };
 
   const save = () => {
     const problem = resetPasswordProblem(generateTemp, sendEmail);
@@ -263,10 +278,19 @@ function ResetPasswordForm({ user, onClose }: { user: AdminUser; onClose: () => 
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
               Temporary password (shown once — copy it now and share it securely):
             </Text>
-            <Text selectable style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', marginTop: 6 }, MONO]}>
-              {tempPassword}
-            </Text>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 6 }]}>Press and hold the password to copy it.</Text>
+            <View style={styles.copyRow}>
+              <Text selectable style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }, MONO]}>
+                {tempPassword}
+              </Text>
+              <Pressable
+                onPress={copyTemp}
+                accessibilityRole="button"
+                accessibilityLabel="Copy password"
+                hitSlop={8}
+                style={[styles.copyButton, { borderColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
+                <Icon name={copied ? 'check' : 'copy'} size={16} color={copied ? theme.colors.success : theme.colors.text} />
+              </Pressable>
+            </View>
           </View>
           <View style={styles.buttons}>
             <View style={{ flex: 1 }}>
@@ -460,5 +484,7 @@ const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', gap: 10, marginTop: 18 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 },
   reveal: { borderWidth: 1, padding: 12, marginTop: 14 },
+  copyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  copyButton: { borderWidth: 1, width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   serverError: { borderWidth: 1, padding: 10, marginTop: 10 },
 });

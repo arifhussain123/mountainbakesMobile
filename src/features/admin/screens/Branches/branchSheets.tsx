@@ -6,6 +6,8 @@ import { getCurrentGeoPosition } from '@/api/geo';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { Dropdown, FormBottomSheet, PrimaryButton, SecondaryButton, TextField, type DropdownOption } from '@/shared/ui';
+import { BranchMapPicker, isMapsConfigured, type BranchMapPickerHandle } from '../../components/BranchMapPicker';
+import { MAP_ZOOM } from '../../utils/branchMap';
 import {
   BRANCH_BUDGET_FIELDS,
   BRANCH_TEXT_FIELDS,
@@ -165,10 +167,13 @@ function BranchForm({ branch, defaultCompanyPct, onClose }: { branch: AdminBranc
 }
 
 /**
- * Web `LocationPickerDialog` without the map: the web's dialog is built to work
- * with coordinates typed by hand (its no-Maps-key mode), plus "Use my current
- * location" for configuring a branch while standing in it. The Places search
- * and the map pin stay on the web. A stored Google place id is kept as is.
+ * Web `LocationPickerDialog`: the Places search and the map (draggable pin,
+ * tap-to-move, the shaded radius circle — `BranchMapPicker`) write into the same
+ * latitude / longitude / address / radius boxes the admin can also type, plus
+ * "Use my current location" for configuring a branch while standing in it.
+ * Without a Google Maps key the map and search are left out (the web's no-key
+ * mode) and the typed boxes work alone. A picked place sets a new Google place
+ * id; otherwise the stored one is kept as is.
  */
 function LocationForm({ row, onClose }: { row: BranchLocationRow; onClose: () => void }) {
   const theme = useAppTheme();
@@ -176,6 +181,7 @@ function LocationForm({ row, onClose }: { row: BranchLocationRow; onClose: () =>
   const [values, setValues] = useState(() => initialLocationForm(row));
   const [locating, setLocating] = useState(false);
   const [accuracyM, setAccuracyM] = useState<number | null>(null);
+  const map = useRef<BranchMapPickerHandle>(null);
 
   const fillFromDevice = () => {
     setLocating(true);
@@ -186,6 +192,7 @@ function LocationForm({ row, onClose }: { row: BranchLocationRow; onClose: () =>
         return;
       }
       setValues((p) => ({ ...p, latitude: formatCoordinate(pos.latitude), longitude: formatCoordinate(pos.longitude) }));
+      map.current?.focus({ latitude: pos.latitude, longitude: pos.longitude }, MAP_ZOOM.myLocation);
       setAccuracyM(pos.accuracyM);
       Alert.alert('Location Found', 'Coordinates set to your current location.');
     });
@@ -209,8 +216,27 @@ function LocationForm({ row, onClose }: { row: BranchLocationRow; onClose: () =>
   return (
     <View>
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-        Enter the branch's coordinates, or stand in the branch and use your current location. The radius is the area sales will be allowed from.
+        {isMapsConfigured()
+          ? 'Search for the branch, tap the map, or drag the pin. The shaded circle is the area sales will be allowed from.'
+          : "Enter the branch's coordinates, or stand in the branch and use your current location. The radius is the area sales will be allowed from."}
       </Text>
+      <BranchMapPicker
+        ref={map}
+        row={row}
+        latitude={values.latitude}
+        longitude={values.longitude}
+        radiusKm={values.radiusKm}
+        onPinMoved={(pt) => setValues((p) => ({ ...p, latitude: formatCoordinate(pt.latitude), longitude: formatCoordinate(pt.longitude) }))}
+        onPlacePicked={(place) =>
+          setValues((p) => ({
+            ...p,
+            latitude: formatCoordinate(place.latitude),
+            longitude: formatCoordinate(place.longitude),
+            address: place.address,
+            googlePlaceId: place.placeId,
+          }))
+        }
+      />
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <TextField

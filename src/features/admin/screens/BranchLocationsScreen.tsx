@@ -30,8 +30,9 @@ const EMPTY_STATS: BranchLocationsResponse['stats'] = {
  * unconfigured branch is unrestricted). The status is the GEOFENCE's own
  * state (`location.isActive`), not the branch's.
  *
- * Actions (the web's): Set Location / Edit (typed coordinates or the device's
- * current position, address and radius — the map picker stays on the web),
+ * Actions (the web's): Set Location / Edit (Places search, a Google map with a
+ * draggable pin and the radius circle when a Maps key is built in, typed
+ * coordinates or the device's current position, address and radius),
  * Enable / Disable enforcement keeping the pin, Remove after a confirm, and
  * opening the point in Google Maps.
  */

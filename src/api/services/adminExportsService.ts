@@ -3,13 +3,11 @@ import type { AdminCustomersQuery, AdminProductsQuery, UsersDataQuery } from '..
 import type { ProductionOrdersDataQuery } from './productionOrderService';
 
 /**
- * Super Admin's exports — the files the web builds on the server, fetched
- * as CSV text for the Share sheet. Nothing here writes, except
+ * Super Admin's exports — the list query each exported table sends (the
+ * files themselves are downloaded with `downloadServerFile`, see
+ * `features/admin/utils/exports/fileExports.ts`). Nothing here writes, except
  * `markProductionOrderPrinted` (the web's bookkeeping flag on a printed slip).
  */
-
-/** A server-built export can take longer than an ordinary read (the web waits as long as it takes). */
-const EXPORT_TIMEOUT_MS = 120_000;
 
 type Params = Record<string, string | number>;
 
@@ -76,52 +74,6 @@ export function productionOrdersExportParams(q: ProductionOrdersDataQuery): Para
     'requiredDate.lte': q.requiredTo,
     sort: q.sort,
   });
-}
-
-/** The API answers a CSV as text; a header-only file could parse as JSON — never hand back anything but text. */
-const asText = (v: unknown): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v));
-
-/**
- * `GET /data/:resource/export?scope=all&format=csv` — every row of the
- * filtered set. Past the resource's ceiling (10,000 rows by default) the
- * server refuses with a message naming it, which is shown as-is.
- */
-export async function exportDataAllCsv(resource: string, params: Params): Promise<string> {
-  const res = await apiClient.get<unknown>(`/data/${resource}/export`, { ...params, scope: 'all', format: 'csv' }, { timeout: EXPORT_TIMEOUT_MS });
-  return asText(res);
-}
-
-/**
- * `GET /data/:resource/export?scope=page&format=csv` for pages 1…`pages` at
- * the list's own page size — one CSV per page, in order (the caller joins
- * them). Sequential: the phone's "current page" is rarely more than a few.
- */
-export async function exportDataPagesCsv(resource: string, params: Params, pageSize: number, pages: number): Promise<string[]> {
-  const out: string[] = [];
-  for (let page = 1; page <= Math.max(1, pages); page++) {
-    const res = await apiClient.get<unknown>(
-      `/data/${resource}/export`,
-      { ...params, page, pageSize, scope: 'page', format: 'csv' },
-      { timeout: EXPORT_TIMEOUT_MS },
-    );
-    out.push(asText(res));
-  }
-  return out;
-}
-
-/**
- * `GET /production-reports/export?report=collections&from&to[&branchId]&type=csv`
- * — the web's Collections sheet (one row per billed delivery, what the branch
- * owes for it, then the trailing TOTAL / held-back rows), as CSV. Each row
- * is a balance computation on the server, so this can take a while.
- */
-export async function exportCollectionsCsv(query: { from: string; to: string; branchId: string | null }): Promise<string> {
-  const res = await apiClient.get<unknown>(
-    '/production-reports/export',
-    compact({ report: 'collections', from: query.from, to: query.to, branchId: query.branchId, type: 'csv' }),
-    { timeout: EXPORT_TIMEOUT_MS },
-  );
-  return asText(res);
 }
 
 /**

@@ -91,6 +91,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Google Maps SDK key for the Branch Locations map — the same key the
+        // app's Places search uses, kept in one place: src/config/googleMaps.json.
+        // An empty key still builds; the screen then hides the map.
+        manifestPlaceholders += [googleMapsApiKey: new groovy.json.JsonSlurper().parse(file("../../src/config/googleMaps.json")).apiKey ?: ""]
     }
     signingConfigs {
         debug {
