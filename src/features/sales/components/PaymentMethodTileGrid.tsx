@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 
 export interface PaymentMethodTile {
@@ -6,25 +6,41 @@ export interface PaymentMethodTile {
   label: string;
   value: string;
   dotColor: string;
+  /** The tile's method is the list's active payment filter. */
+  selected?: boolean;
 }
 
 export interface PaymentMethodTileGridProps {
   tiles: PaymentMethodTile[];
+  /** Makes each tile a button — the screen uses it to filter by that method. */
+  onPressTile?: (key: string) => void;
 }
 
 /**
  * Design `09 Sales` lines 448-449 — the `{{ slPay }}` 2x2 tile grid: a
  * color-coded dot + label, then the big value, one tile per payment method.
  */
-export function PaymentMethodTileGrid({ tiles }: PaymentMethodTileGridProps) {
+export function PaymentMethodTileGrid({ tiles, onPressTile }: PaymentMethodTileGridProps) {
   const theme = useAppTheme();
 
   return (
     <View style={styles.grid}>
       {tiles.map((tile) => (
-        <View
+        <Pressable
           key={tile.key}
-          style={[styles.tile, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+          disabled={!onPressTile}
+          accessibilityRole={onPressTile ? 'button' : undefined}
+          accessibilityState={onPressTile ? { selected: !!tile.selected } : undefined}
+          accessibilityLabel={onPressTile ? `${tile.label} ${tile.value}` : undefined}
+          onPress={() => onPressTile?.(tile.key)}
+          style={[
+            styles.tile,
+            {
+              backgroundColor: theme.colors.cardFill,
+              borderColor: tile.selected ? theme.colors.primary : theme.colors.cardBorder,
+              borderRadius: theme.radii.md,
+            },
+          ]}>
           <View style={styles.labelRow}>
             <View style={[styles.dot, { backgroundColor: tile.dotColor }]} />
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
@@ -34,7 +50,7 @@ export function PaymentMethodTileGrid({ tiles }: PaymentMethodTileGridProps) {
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 4 }]} numberOfLines={1}>
             {tile.value}
           </Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
