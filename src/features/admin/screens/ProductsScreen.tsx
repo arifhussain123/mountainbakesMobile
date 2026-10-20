@@ -1,14 +1,19 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   useAdminProductPages,
   useAllPackingMaterials,
+  useDeactivateProduct,
+  useDeletePackingMaterial,
   useProductCategories,
+  useUpdatePackingMaterial,
+  useUpdateProduct,
   type AdminProductsQuery,
   type CatalogProduct,
   type PackingMaterial,
 } from '@/api';
+import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import {
@@ -23,8 +28,10 @@ import {
   type FilterChipOption,
 } from '@/shared/ui';
 import { includesTerm } from '@/shared/utils';
-import { AdminListScreen, DetailRow, FieldGrid, MONO_FONT } from '../components';
+import { ActionChip, AdminListScreen, DetailRow, FieldGrid, MONO_FONT } from '../components';
 import { formatRsCompact, karachiDisplayDate } from '../utils/catalogFormat';
+import { deletePackingMaterialPrompt, packingToggleCopy, productRowActions, removeProductPrompt } from '../utils/productsActions';
+import { useProductsSheet, type ProductsSheet } from './Products/productsSheets';
 
 type Tab = 'products' | 'packing';
 const TABS: FilterChipOption<Tab>[] = [
@@ -32,15 +39,25 @@ const TABS: FilterChipOption<Tab>[] = [
   { value: 'packing', label: 'Packing Materials' },
 ];
 
+type OpenSheet = (sheet: ProductsSheet) => void;
+
 /**
  * Web `/products`: two catalogues, deliberately never mixed — bakery products
  * (priced, sold) and packing materials (service items supplied with a demand).
- * Read-only in this phase: no add / edit / change-price / activate.
+ * With the web's actions: Add / Edit / Change Price / Deactivate / Activate a
+ * product, and Add / Edit / Disable / Enable / Delete a packing material.
+ * Each tab owns its own Add, as on the web.
  */
 export function ProductsScreen() {
   const [tab, setTab] = useState<Tab>('products');
+  const sheet = useProductsSheet();
   const tabs = <FilterChipRow options={TABS} value={tab} onChange={setTab} />;
-  return tab === 'products' ? <ProductsTab tabs={tabs} /> : <PackingMaterialsTab tabs={tabs} />;
+  return (
+    <>
+      {tab === 'products' ? <ProductsTab tabs={tabs} openSheet={sheet.open} /> : <PackingMaterialsTab tabs={tabs} openSheet={sheet.open} />}
+      {sheet.element}
+    </>
+  );
 }
 
 // ─── Products ────────────────────────────────────────────────────────────────
@@ -75,7 +92,7 @@ function parsePrice(text: string): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
-function ProductsTab({ tabs }: { tabs: ReactNode }) {
+function ProductsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: OpenSheet }) {
   const theme = useAppTheme();
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim());
@@ -117,7 +134,7 @@ function ProductsTab({ tabs }: { tabs: ReactNode }) {
       subtitle={total === undefined ? 'Loading…' : `${total.toLocaleString('en-US')} products in catalog`}
       data={rows}
       keyExtractor={(p) => p.id}
-      renderItem={({ item }) => <ProductCard product={item} />}
+      renderItem={({ item }) => <ProductCard product={item} openSheet={openSheet} />}
       isLoading={q.isLoading}
       error={q.error}
       refreshing={q.isRefetching && !q.isFetchingNextPage}
@@ -133,6 +150,9 @@ function ProductsTab({ tabs }: { tabs: ReactNode }) {
       header={
         <>
           {tabs}
+          <View style={styles.actions}>
+            <ActionChip icon="plus" label="Add Product" primary onPress={() => openSheet({ kind: 'product', product: null })} />
+          </View>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search products, SKU, code…" />
           <Dropdown options={categoryOptions} value={categoryId} onChange={setCategoryId} loading={categoriesQ.isLoading} />
           <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
@@ -183,9 +203,41 @@ function RangeInput({ value, onChangeText, placeholder }: { value: string; onCha
   );
 }
 
-/** One product row as a card: name over SKU, then Category / Price / Cost, Status as the badge. */
-function ProductCard({ product }: { product: CatalogProduct }) {
+/**
+ * One product row as a card: name over SKU, then Category / Price / Cost,
+ * Status as the badge, and the web's row actions. "Deactivate" is the web's
+ * trash button — a soft delete (`DELETE /products/:id`), confirmed first;
+ * Activate takes it back with `PUT { isActive: true }`.
+ */
+function ProductCard({ product, openSheet }: { product: CatalogProduct; openSheet: OpenSheet }) {
   const theme = useAppTheme();
+  const deactivate = useDeactivateProduct();
+  const update = useUpdateProduct();
+  const actions = productRowActions(product);
+
+  const confirmDeactivate = () =>
+    Alert.alert('Deactivate Product', removeProductPrompt(product.name), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Deactivate',
+        style: 'destructive',
+        onPress: () =>
+          deactivate.mutate(product.id, {
+            onSuccess: () => Alert.alert('Removed', `${product.name} removed`),
+            onError: (e) => Alert.alert('Could Not Remove the Product', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
+
+  const activate = () =>
+    update.mutate(
+      { id: product.id, input: { isActive: true } },
+      {
+        onSuccess: () => Alert.alert('Activated', `${product.name} activated`),
+        onError: (e) => Alert.alert('Could Not Activate the Product', mapErrorToMessage(e)),
+      },
+    );
+
   return (
     <Card style={styles.card}>
       <View style={styles.head}>
@@ -208,6 +260,12 @@ function ProductCard({ product }: { product: CatalogProduct }) {
           { label: 'Cost', value: formatRsCompact(product.costPrice), valueStyle: { color: theme.colors.textSecondary } },
         ]}
       />
+      <View style={[styles.actions, styles.rowActions]}>
+        {actions.changePrice ? <ActionChip icon="banknote" label="Change Price" onPress={() => openSheet({ kind: 'price', product })} /> : null}
+        {actions.edit ? <ActionChip icon="pencil" label="Edit" onPress={() => openSheet({ kind: 'product', product })} /> : null}
+        {actions.deactivate ? <ActionChip icon="trash" label="Deactivate" danger loading={deactivate.isPending} onPress={confirmDeactivate} /> : null}
+        {actions.activate ? <ActionChip icon="check" label="Activate" loading={update.isPending} onPress={activate} /> : null}
+      </View>
     </Card>
   );
 }
@@ -217,8 +275,10 @@ function ProductCard({ product }: { product: CatalogProduct }) {
 /**
  * The admin catalogue for packing materials — disabled ones included, no
  * Price or Cost (service items, never sold). Tap a card for the web's View.
+ * Disable and Delete differ here, unlike products: Disable hides a material
+ * from new demands; Delete removes it (past demands snapshot the name).
  */
-function PackingMaterialsTab({ tabs }: { tabs: ReactNode }) {
+function PackingMaterialsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: OpenSheet }) {
   const theme = useAppTheme();
   const q = useAllPackingMaterials();
   const [search, setSearch] = useState('');
@@ -272,6 +332,7 @@ function PackingMaterialsTab({ tabs }: { tabs: ReactNode }) {
                   { label: 'Created Date', value: karachiDisplayDate(item.createdAt), valueStyle: { color: theme.colors.textSecondary } },
                 ]}
               />
+              <PackingMaterialActions material={item} openSheet={openSheet} />
             </Card>
           </Pressable>
         )}
@@ -285,6 +346,9 @@ function PackingMaterialsTab({ tabs }: { tabs: ReactNode }) {
         header={
           <>
             {tabs}
+            <View style={styles.actions}>
+              <ActionChip icon="plus" label="Add Packing Material" primary onPress={() => openSheet({ kind: 'material', material: null })} />
+            </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search packing materials, code…" />
           </>
         }
@@ -309,8 +373,59 @@ function PackingMaterialsTab({ tabs }: { tabs: ReactNode }) {
   );
 }
 
+/** The web row's Edit / Disable–Enable / Delete (View is the card tap). */
+function PackingMaterialActions({ material, openSheet }: { material: PackingMaterial; openSheet: OpenSheet }) {
+  const update = useUpdatePackingMaterial();
+  const remove = useDeletePackingMaterial();
+  const toggle = packingToggleCopy(material);
+
+  const runToggle = () =>
+    update.mutate(
+      { id: material.id, input: { isActive: !material.isActive } },
+      {
+        onSuccess: () => Alert.alert(toggle.label === 'Disable' ? 'Disabled' : 'Enabled', toggle.success),
+        onError: (e) => Alert.alert(toggle.failure, mapErrorToMessage(e)),
+      },
+    );
+
+  const pressToggle = () => {
+    if (!toggle.confirm) {
+      runToggle();
+      return;
+    }
+    Alert.alert('Disable Packing Material', toggle.confirm, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disable', style: 'destructive', onPress: runToggle },
+    ]);
+  };
+
+  const confirmDelete = () =>
+    Alert.alert('Delete Packing Material', deletePackingMaterialPrompt(material.materialName), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () =>
+          remove.mutate(material.id, {
+            onSuccess: () => Alert.alert('Deleted', `${material.materialName} deleted`),
+            onError: (e) => Alert.alert('Could Not Delete the Packing Material', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
+
+  return (
+    <View style={[styles.actions, styles.rowActions]}>
+      <ActionChip icon="pencil" label="Edit" onPress={() => openSheet({ kind: 'material', material })} />
+      <ActionChip icon={material.isActive ? 'close' : 'check'} label={toggle.label} loading={update.isPending} onPress={pressToggle} />
+      <ActionChip icon="trash" label="Delete" danger loading={remove.isPending} onPress={confirmDelete} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: { padding: 14 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  rowActions: { marginTop: 12 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   moreToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   rangeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

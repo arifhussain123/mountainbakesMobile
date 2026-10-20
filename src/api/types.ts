@@ -361,6 +361,57 @@ export interface AdminProductsQuery {
   sort?: string;
 }
 
+/** `POST /api/products` — `CreateProductSchema`; the price is set here once, then only via Change Price. */
+export interface CreateProductInput {
+  name: string;
+  categoryId: string;
+  sku: string;
+  price: number;
+  costPrice: number;
+  description: string;
+}
+
+/** `PUT /api/products/:id` — `UpdateProductSchema`. The server strips `price` on this route, so it is never sent. */
+export interface UpdateProductInput {
+  name?: string;
+  categoryId?: string;
+  sku?: string;
+  costPrice?: number;
+  description?: string;
+  isActive?: boolean;
+}
+
+/** `POST /api/products/:id/price` — `ChangePriceSchema`. */
+export interface ChangeProductPriceInput {
+  newPrice: number;
+  /** 'YYYY-MM-DD' — today or earlier applies now, a future day is scheduled. */
+  effectiveDate: string;
+  reason: string;
+}
+
+/** `skipped` = the price already was that; `effectiveDate` comes back as "DD-MM-YYYY". */
+export interface ChangeProductPriceResult {
+  status: 'active' | 'scheduled' | 'skipped';
+  versionNumber?: number;
+  effectiveDate?: string;
+  reason?: string;
+}
+
+/** `POST /api/packing-materials` — no price, no cost: service items, never sold. */
+export interface CreatePackingMaterialInput {
+  materialCode: string;
+  materialName: string;
+  category: string;
+  description: string;
+}
+
+export interface UpdatePackingMaterialInput {
+  materialCode?: string;
+  materialName?: string;
+  category?: string;
+  description?: string;
+  isActive?: boolean;
+}
 // ─── Price History (`/api/products/price/history`, super_admin only) ───────
 
 /**

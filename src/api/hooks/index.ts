@@ -217,3 +217,12 @@ export {
   useRenameCategory,
   useUpdateCustomer,
 } from './useAdminCatalogActionsApi';
+export {
+  useChangeProductPrice,
+  useCreatePackingMaterial,
+  useCreateProduct,
+  useDeactivateProduct,
+  useDeletePackingMaterial,
+  useUpdatePackingMaterial,
+  useUpdateProduct,
+} from './useAdminProductsActionsApi';
