@@ -226,6 +226,19 @@ export {
   useUpdateCustomer,
 } from './useAdminCatalogActionsApi';
 export {
+  useActivateUser,
+  useChangeUserEmail,
+  useCreateUser,
+  useDeactivateUser,
+  useDeleteUser,
+  useResetUserPassword,
+  useRevokeAllSessions,
+  useRevokeSession,
+  useRunManualBackup,
+  useUpdateUser,
+  useVerifyBackup,
+} from './useAdminSystemActionsApi';
+export {
   useChangeProductPrice,
   useCreatePackingMaterial,
   useCreateProduct,

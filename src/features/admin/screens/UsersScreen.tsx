@@ -4,7 +4,10 @@ import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   exportUsersCsv,
   getBusinessDate,
+  useActivateUser,
   useBranches,
+  useDeactivateUser,
+  useDeleteUser,
   useUserActivity,
   useUsersDataPages,
   type AdminUser,
@@ -18,7 +21,9 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, DateRangeSheet, FilterChipRow, FormBottomSheet, SearchBar, type FilterChipOption } from '@/shared/ui';
 import { resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { format, isValid, parseISO } from 'date-fns';
-import { AdminListScreen } from '../components';
+import { ActionChip, AdminListScreen } from '../components';
+import { deactivatePrompt, deletePrompt, userToggleAction } from '../utils/systemActions';
+import { useUserSheet } from './users/userSheets';
 import {
   ALL,
   DateRangeField,
@@ -86,11 +91,11 @@ function activityWhen(iso: string): string {
 }
 
 /**
- * Users — the web `/users` page, read side. "All Users" is the web table
+ * Users — the web `/users` page. "All Users" is the web table
  * (`/api/data/users`: searched, filtered and paged by the server) as cards;
- * tapping one opens the web's "User details". "User Activity" is the audit
- * feed. Add / Edit / Reset Password / Change Email / Deactivate / Delete are
- * the web's write actions and are not on mobile in this phase.
+ * tapping one opens the web's "User details", which carries the web row
+ * menu: Edit, Reset Password, Change Email Address, Deactivate / Activate and
+ * Delete. "+ Add User" sits above the list. "User Activity" is the audit feed.
  */
 export function UsersScreen() {
   const [tab, setTab] = useState<Tab>('all');
@@ -111,6 +116,10 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
   const [exporting, setExporting] = useState(false);
   const dateSheet = useRef<BottomSheetModal>(null);
   const detailSheet = useRef<BottomSheetModal>(null);
+  const forms = useUserSheet();
+  const deactivate = useDeactivateUser();
+  const activate = useActivateUser();
+  const remove = useDeleteUser();
   const today = getBusinessDate();
 
   const query = useMemo(
@@ -134,6 +143,56 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
   const open = (u: AdminUser) => {
     setSelected(u);
     detailSheet.current?.present();
+  };
+
+  /** Closed first, so a form never stacks on the details it was opened from. */
+  const openForm = (kind: 'edit' | 'reset' | 'email', u: AdminUser) => {
+    detailSheet.current?.dismiss();
+    forms.open({ kind, user: u });
+  };
+
+  const afterWrite = (title: string, message: string) => {
+    detailSheet.current?.dismiss();
+    Alert.alert(title, message);
+  };
+
+  const toggleStatus = (u: AdminUser) => {
+    const name = u.displayName || u.email;
+    if (userToggleAction(u.status) === 'activate') {
+      activate.mutate(u.id, {
+        onSuccess: () => afterWrite('User Activated', `${name} activated`),
+        onError: (e) => Alert.alert('Could Not Activate User', mapErrorToMessage(e)),
+      });
+      return;
+    }
+    Alert.alert('Deactivate User', deactivatePrompt(name), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Deactivate',
+        style: 'destructive',
+        onPress: () =>
+          deactivate.mutate(u.id, {
+            onSuccess: () => afterWrite('User Deactivated', `${name} deactivated`),
+            onError: (e) => Alert.alert('Could Not Deactivate User', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
+  };
+
+  const confirmDelete = (u: AdminUser) => {
+    const name = u.displayName || u.email;
+    Alert.alert('Delete User', deletePrompt(name), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () =>
+          remove.mutate(u.id, {
+            onSuccess: () => afterWrite('User Deleted', `${name} deleted`),
+            onError: (e) => Alert.alert('Could Not Delete User', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
   };
 
   const handleExport = async () => {
@@ -170,6 +229,9 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
         header={
           <>
             {tabs}
+            <View style={{ alignSelf: 'flex-start' }}>
+              <ActionChip icon="plus" label="Add User" primary onPress={() => forms.open({ kind: 'create' })} />
+            </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, email, username, code…" />
             <FilterSelect<UserRole> label="Role" allLabel="All Roles" options={ROLE_OPTIONS} value={role} onChange={(v) => setRole(v as UserRole | typeof ALL)} />
             <View style={{ gap: 4 }}>
@@ -196,8 +258,26 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
         onRequestClose={() => dateSheet.current?.dismiss()}
       />
       <FormBottomSheet ref={detailSheet} title="User details" onRequestClose={() => detailSheet.current?.dismiss()} snapPoints={['75%']}>
-        {selected ? <UserDetails user={selected} /> : null}
+        {selected ? (
+          <UserDetails
+            user={selected}
+            actions={
+              <View style={styles.actions}>
+                <ActionChip icon="pencil" label="Edit" onPress={() => openForm('edit', selected)} />
+                <ActionChip icon="lock" label="Reset Password" onPress={() => openForm('reset', selected)} />
+                <ActionChip icon="send" label="Change Email Address" onPress={() => openForm('email', selected)} />
+                {userToggleAction(selected.status) === 'deactivate' ? (
+                  <ActionChip icon="close" label="Deactivate" danger onPress={() => toggleStatus(selected)} loading={deactivate.isPending} />
+                ) : (
+                  <ActionChip icon="check" label="Activate" onPress={() => toggleStatus(selected)} loading={activate.isPending} />
+                )}
+                <ActionChip icon="trash" label="Delete" danger onPress={() => confirmDelete(selected)} loading={remove.isPending} />
+              </View>
+            }
+          />
+        ) : null}
       </FormBottomSheet>
+      {forms.element}
     </>
   );
 }
@@ -243,8 +323,8 @@ function Meta({ label, value, mono }: { label: string; value: string; mono?: boo
   );
 }
 
-/** The web's "User details" dialog. */
-function UserDetails({ user }: { user: AdminUser }) {
+/** The web's "User details" dialog, with the row menu's actions under it. */
+function UserDetails({ user, actions }: { user: AdminUser; actions: ReactNode }) {
   const theme = useAppTheme();
   return (
     <View style={{ gap: 12 }}>
@@ -268,6 +348,7 @@ function UserDetails({ user }: { user: AdminUser }) {
           { label: 'Reset by', value: user.passwordResetByName || '—' },
         ]}
       />
+      {actions}
     </View>
   );
 }
@@ -316,4 +397,5 @@ const styles = StyleSheet.create({
   card: { padding: 14 },
   cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
 });

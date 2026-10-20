@@ -4015,6 +4015,89 @@ export interface BackupHistoryPage {
   pageSize: number;
 }
 
+// ─── Super Admin write actions: Users, Security, Database Backup ────────────
+// Bodies and replies of `/api/users`, `/api/login-history/*revoke*` and
+// `/api/admin/backups/{run,:id/verify}` (`@mb/shared` user / login-session /
+// backup types).
+
+/** `POST /api/users` — `CreateUserSchema`. */
+export interface CreateUserInput {
+  email: string;
+  displayName: string;
+  phone: string;
+  username: string;
+  password: string;
+  role: UserRole;
+  branchId: string | null;
+}
+
+
+/** `PUT /api/users/:id` — the web's Edit dialog sends all five. */
+export interface UpdateUserInput {
+  displayName: string;
+  phone: string;
+  role: UserRole;
+  branchId: string | null;
+  status: AdminUserStatus;
+}
+
+
+/** `POST /api/users/:id/reset-password` — `AdminResetPasswordSchema`. */
+export interface AdminResetPasswordInput {
+  generateTemp: boolean;
+  sendEmail: boolean;
+  forceChange: boolean;
+}
+
+
+/** A failed reset email is reported here, not thrown: any temporary password was already set. */
+export interface AdminResetPasswordResult {
+  success: boolean;
+  tempPassword: string | null;
+  email: string | null;
+  emailSent?: boolean;
+  emailError?: string | null;
+}
+
+
+/** `POST /api/users/:id/change-email` — `ChangeUserEmailSchema`, already trimmed and lower-cased. */
+export interface ChangeUserEmailInput {
+  email: string;
+  confirmEmail: string;
+  reason?: string;
+}
+
+
+/** Sessions marked revoked, and authentication sessions actually ended — reported separately on purpose. */
+export interface RevokeSessionResult {
+  revoked: number;
+  authSessionsEnded: number;
+}
+
+
+export interface BackupVerifyCheck {
+  name: string;
+  ok: boolean;
+  detail?: string;
+}
+
+
+/** `POST /api/admin/backups/:id/verify`. */
+export interface BackupVerifyResult {
+  backupId: string;
+  ok: boolean;
+  verifiedAt: string;
+  checks: BackupVerifyCheck[];
+}
+
+
+/** `POST /api/admin/backups/run` — 202 `started`, or 200 with why nothing started. */
+export interface BackupRunResponse {
+  backupId: string;
+  outcome: 'started' | 'already_completed' | 'in_progress' | 'not_due';
+  message: string;
+}
+
 // ─── Super Admin: Users, Security, Database Backup, Restriction Rules ───────
 // Verbatim from the server's `@mb/shared` types (audit, login-session, backup,
 // restriction). Read-only on mobile this phase.

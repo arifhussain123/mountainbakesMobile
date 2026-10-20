@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native';
-import { useSecuritySession } from '@/api';
+import { useSecuritySession, type SecuritySession } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { LoadingSkeleton } from '@/shared/ui';
+import { ActionChip } from '../../components';
 import { DetailHeading, DetailRows, MONO, NoticeBox, Pill, formatDateOnly, formatDateTime } from '../../components/AdminDetail';
 import {
   EMAIL_NOT_RECORDED,
@@ -16,12 +17,12 @@ import {
 } from './sessionFormat';
 
 /**
- * The web's "Session detail" dialog, read-only: `GET /api/login-history/:id`
- * (fetched, not passed down — the server may reveal an address the list
- * masked, and records the view in its audit log). "Sign out this session" is
- * a web action and is not offered here.
+ * The web's "Session detail" dialog: `GET /api/login-history/:id` (fetched,
+ * not passed down — the server may reveal an address the list masked, and
+ * records the view in its audit log), with "Sign out this session" when the
+ * session can still be ended.
  */
-export function SessionDetail({ sessionId }: { sessionId: string }) {
+export function SessionDetail({ sessionId, onRevoke }: { sessionId: string; onRevoke?: (session: SecuritySession) => void }) {
   const theme = useAppTheme();
   const q = useSecuritySession(sessionId);
   const s = q.data;
@@ -131,6 +132,12 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             {s.userAgent}
           </Text>
         </>
+      ) : null}
+
+      {onRevoke && s.canRevoke ? (
+        <View style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+          <ActionChip icon="logout" label="Sign out this session" danger onPress={() => onRevoke(s)} />
+        </View>
       ) : null}
     </View>
   );

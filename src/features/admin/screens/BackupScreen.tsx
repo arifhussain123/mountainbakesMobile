@@ -1,20 +1,25 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   isApiError,
   useBackupHistory,
   useBackupStatus,
   useLatestRestoreTest,
+  useRunManualBackup,
+  useVerifyBackup,
   type BackupJob,
   type BackupStatusResponse,
   type BackupTypeHealth,
+  type BackupVerifyResult,
 } from '@/api';
+import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import { Card, FormBottomSheet, Icon, LoadingSkeleton, SearchBar } from '@/shared/ui';
 import { includesTerm } from '@/shared/utils';
-import { AdminListScreen } from '../components';
+import { ActionChip, AdminListScreen } from '../components';
+import { isBackupDone, runBackupConflictMessage, runBackupOutcome, verifyOutcome } from '../utils/systemActions';
 import { DetailRows, NoticeBox, Pill, formatDateTime } from '../components/AdminDetail';
 import {
   HEALTH_LABELS,
@@ -32,11 +37,12 @@ type ScheduledType = 'daily' | 'weekly' | 'monthly';
 const SCHEDULED: ScheduledType[] = ['daily', 'weekly', 'monthly'];
 
 /**
- * Database Backup — the web `/database-backup` page, read side: the three
- * health cards (status, schedule, retention, latest run), the running /
- * failures / restore-test tiles, and the newest 100 runs with search. Tap a
- * run for the web's detail view. Create backup, Verify and Download are web
- * actions and are not on mobile in this phase.
+ * Database Backup — the web `/database-backup` page: the three health cards
+ * (status, schedule, retention, latest run), the running / failures /
+ * restore-test tiles, and the newest 100 runs with search. Tap a run for the
+ * web's detail view. "Create backup" (a manual run — nothing here can delete)
+ * and Verify are the web's actions; Download stays on the web, since a
+ * presigned archive link is no use on a phone.
  */
 export function BackupScreen() {
   const statusQ = useBackupStatus();
@@ -46,6 +52,10 @@ export function BackupScreen() {
   const term = useDebouncedValue(search.trim().toLowerCase());
   const [detail, setDetail] = useState<BackupJob | null>(null);
   const sheet = useRef<BottomSheetModal>(null);
+  const run = useRunManualBackup();
+  const verify = useVerifyBackup();
+  const [verifyResult, setVerifyResult] = useState<BackupVerifyResult | null>(null);
+  const resultSheet = useRef<BottomSheetModal>(null);
 
   const status = statusQ.data;
   const notConfigured = isApiError(statusQ.error) && statusQ.error.status === 503;
@@ -81,6 +91,27 @@ export function BackupScreen() {
     sheet.current?.present();
   };
 
+  const createManual = () =>
+    run.mutate(undefined, {
+      onSuccess: (res) => {
+        const outcome = runBackupOutcome(res);
+        Alert.alert(outcome.started ? 'Backup Started' : 'Backup Not Started', outcome.message);
+      },
+      onError: (e) =>
+        Alert.alert('Could Not Start the Backup', runBackupConflictMessage(isApiError(e) ? e.status : null) ?? mapErrorToMessage(e)),
+    });
+
+  /** The web shows the outcome and then every check; here the checks sheet's title carries the outcome. */
+  const onVerify = (job: BackupJob) =>
+    verify.mutate(job.id, {
+      onSuccess: (res) => {
+        sheet.current?.dismiss();
+        setVerifyResult(res);
+        resultSheet.current?.present();
+      },
+      onError: (e) => Alert.alert('Verification Failed', mapErrorToMessage(e)),
+    });
+
   return (
     <>
       <AdminListScreen<BackupJob>
@@ -88,7 +119,7 @@ export function BackupScreen() {
         subtitle={subtitle}
         data={rows}
         keyExtractor={(j) => j.id}
-        renderItem={({ item }) => <JobCard job={item} onPress={() => open(item)} />}
+        renderItem={({ item }) => <JobCard job={item} onPress={() => open(item)} onVerify={() => onVerify(item)} verifying={verify.isPending} />}
         isLoading={historyQ.isLoading}
         error={notConfigured ? null : historyQ.error}
         refreshing={historyQ.isRefetching || statusQ.isRefetching}
@@ -97,6 +128,9 @@ export function BackupScreen() {
         emptyMessage={term ? 'No backup matches this search.' : 'The first scheduled run will appear here, or create a manual backup now.'}
         header={
           <>
+            <View style={{ alignSelf: 'flex-start' }}>
+              <ActionChip icon="database" label="Create backup" primary onPress={createManual} loading={run.isPending} disabled={notConfigured} />
+            </View>
             {notConfigured ? (
               <NoticeBox tone="warning">
                 The backup system is not configured on this server yet (missing environment). See docs/database-backup.md in the backend repository.
@@ -120,7 +154,24 @@ export function BackupScreen() {
         title={detail?.backupId ?? 'Backup'}
         subtitle={detail ? `${TYPE_LABELS[detail.backupType]} backup · ${STATUS_LABELS[detail.status]} · triggered by ${detail.triggeredByName ?? detail.trigger}` : undefined}
         onRequestClose={() => sheet.current?.dismiss()}>
-        {detail ? <JobDetail job={detail} /> : null}
+        {detail ? (
+          <>
+            <JobDetail job={detail} />
+            {isBackupDone(detail) ? (
+              <View style={{ alignSelf: 'flex-end', marginTop: 12 }}>
+                <ActionChip icon="shield-check" label="Verify" primary onPress={() => onVerify(detail)} loading={verify.isPending} />
+              </View>
+            ) : null}
+          </>
+        ) : null}
+      </FormBottomSheet>
+      <FormBottomSheet
+        ref={resultSheet}
+        title={verifyResult ? (verifyResult.ok ? 'Backup verified' : 'Verification failed') : ''}
+        subtitle={verifyResult ? `${verifyOutcome(verifyResult.backupId, verifyResult.ok)} · ${formatDateTime(verifyResult.verifiedAt)}` : undefined}
+        onRequestClose={() => resultSheet.current?.dismiss()}
+        onDismiss={() => setVerifyResult(null)}>
+        {verifyResult ? <VerifyChecks result={verifyResult} /> : null}
       </FormBottomSheet>
     </>
   );
@@ -189,7 +240,7 @@ function Tiles({ status, restore }: { status: BackupStatusResponse; restore: { s
   );
 }
 
-function JobCard({ job, onPress }: { job: BackupJob; onPress: () => void }) {
+function JobCard({ job, onPress, onVerify, verifying }: { job: BackupJob; onPress: () => void; onVerify: () => void; verifying: boolean }) {
   const theme = useAppTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${TYPE_LABELS[job.backupType]} backup ${job.backupId}, ${STATUS_LABELS[job.status]}`}>
@@ -211,8 +262,31 @@ function JobCard({ job, onPress }: { job: BackupJob; onPress: () => void }) {
             { label: 'SHA-256', value: shortChecksum(job.checksumSha256), mono: true },
           ]}
         />
+        <View style={styles.actions}>
+          <ActionChip icon="search" label="View" onPress={onPress} />
+          {/* Re-checks this backup against S3 — only a completed one. */}
+          <ActionChip icon="shield-check" label="Verify" onPress={onVerify} disabled={!isBackupDone(job) || verifying} />
+        </View>
       </Card>
     </Pressable>
+  );
+}
+
+/** The web's verification result: every check, passed or not, with its detail. */
+function VerifyChecks({ result }: { result: BackupVerifyResult }) {
+  const theme = useAppTheme();
+  return (
+    <View style={{ gap: 8 }}>
+      {result.checks.map((c) => (
+        <View key={c.name} style={styles.check}>
+          <Icon name={c.ok ? 'check' : 'close'} size={16} color={c.ok ? theme.colors.success : theme.colors.danger} />
+          <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]}>
+            {c.name}
+            {c.detail ? <Text style={{ color: theme.colors.textSecondary }}> — {c.detail}</Text> : null}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -254,4 +328,6 @@ const styles = StyleSheet.create({
   card: { padding: 14, gap: 6 },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tile: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  check: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
 });

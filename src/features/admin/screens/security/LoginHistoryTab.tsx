@@ -14,8 +14,9 @@ import {
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Card, DateRangeSheet, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, SearchBar, SecondaryButton, type DropdownOption, type FilterChipOption } from '@/shared/ui';
+import { Card, DateRangeSheet, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, SearchBar, type DropdownOption, type FilterChipOption } from '@/shared/ui';
 import { formatCount, type DateRange } from '@/shared/utils';
+import { ActionChip } from '../../components';
 import { ALL, DateRangeField, FilterSelect, MONO, MoreFilters, NoticeBox, Pill, formatClock, formatDateOnly } from '../../components/AdminDetail';
 import { QUICK_RANGES, ToggleRow, isQuickRange, quickRange } from './quickRanges';
 import {
@@ -62,9 +63,18 @@ function pick<T extends string>(v: T | typeof ALL): T | undefined {
 /**
  * Security → Login History (`GET /api/login-history`): every sign-in that
  * worked, filtered, sorted and paged by the server — the web's phone-card
- * layout. Tapping a card opens the session detail.
+ * layout. Tapping a card opens the session detail; a session that can still
+ * be ended also offers Sign out.
  */
-export function LoginHistoryTab({ header, onView }: { header: ReactNode; onView: (sessionId: string) => void }) {
+export function LoginHistoryTab({
+  header,
+  onView,
+  onRevoke,
+}: {
+  header: ReactNode;
+  onView: (sessionId: string) => void;
+  onRevoke: (session: SecuritySession) => void;
+}) {
   const theme = useAppTheme();
   const today = getBusinessDate();
   const dateSheet = useRef<BottomSheetModal>(null);
@@ -185,7 +195,7 @@ export function LoginHistoryTab({ header, onView }: { header: ReactNode; onView:
           ) : undefined
         }
         ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: theme.spacing.md }} color={theme.colors.primary} /> : undefined}
-        renderItem={({ item }) => <SessionCard session={item} onView={() => onView(item.id)} />}
+        renderItem={({ item }) => <SessionCard session={item} onView={() => onView(item.id)} onRevoke={() => onRevoke(item)} />}
       />
       <DateRangeSheet
         ref={dateSheet}
@@ -198,8 +208,8 @@ export function LoginHistoryTab({ header, onView }: { header: ReactNode; onView:
   );
 }
 
-/** The web's own phone card for a sign-in. */
-function SessionCard({ session: s, onView }: { session: SecuritySession; onView: () => void }) {
+/** The web's own phone card for a sign-in; Sign out only on a session that can still be ended. */
+function SessionCard({ session: s, onView, onRevoke }: { session: SecuritySession; onView: () => void; onRevoke: () => void }) {
   const theme = useAppTheme();
   const cell = (label: string, value: string, mono?: boolean) => (
     <View key={label} style={styles.cell}>
@@ -238,8 +248,9 @@ function SessionCard({ session: s, onView }: { session: SecuritySession; onView:
             <NoticeBox tone="warning">{s.suspiciousReason}</NoticeBox>
           </View>
         ) : null}
-        <View style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-          <SecondaryButton label="View" onPress={onView} />
+        <View style={styles.actions}>
+          <ActionChip icon="search" label="View" onPress={onView} />
+          {s.canRevoke ? <ActionChip icon="logout" label="Sign out" danger onPress={onRevoke} /> : null}
         </View>
       </Card>
     </Pressable>
@@ -251,4 +262,5 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   cell: { flexBasis: '45%', flexGrow: 1 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
 });

@@ -1,21 +1,34 @@
 import { useState, type ReactNode } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useActiveSessions, type ActiveSessionGroup } from '@/api';
+import { useActiveSessions, type ActiveSessionGroup, type SecuritySession } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Card, EmptyState, ErrorState, Icon, LoadingSkeleton, SecondaryButton } from '@/shared/ui';
+import { Card, EmptyState, ErrorState, Icon, LoadingSkeleton } from '@/shared/ui';
 import { formatCount } from '@/shared/utils';
-import { SummaryTiles } from '../../components';
+import { ActionChip, SummaryTiles } from '../../components';
+import { canRevokeAll } from '../../utils/systemActions';
 import { MONO, NoticeBox, Pill, formatClock } from '../../components/AdminDetail';
 import { EMAIL_NOT_RECORDED, STATE_LABELS, STATE_TONES, formatBrowser, formatLocation, formatPlatform, formatSessionDuration, roleChip } from './sessionFormat';
 
 /**
  * Security → Active Sessions (`GET /api/login-history/active`): everything
  * signed in now, grouped by account, with the unusual-activity banner and the
- * three counts. Groups start collapsed; tapping one shows its sessions. The
- * web's "Sign out" / "Sign out all sessions" are not offered on mobile yet.
+ * three counts. Groups start collapsed; tapping one shows its sessions, each
+ * with View and Sign out, and — for an account with more than one — "Sign out
+ * all sessions for …". A session that predates revocation cannot be ended, so
+ * its Sign out is disabled, as on the web.
  */
-export function ActiveSessionsTab({ header, onView }: { header: ReactNode; onView: (sessionId: string) => void }) {
+export function ActiveSessionsTab({
+  header,
+  onView,
+  onRevoke,
+  onRevokeAll,
+}: {
+  header: ReactNode;
+  onView: (sessionId: string) => void;
+  onRevoke: (session: SecuritySession) => void;
+  onRevokeAll: (session: SecuritySession, sessionCount: number) => void;
+}) {
   const theme = useAppTheme();
   const q = useActiveSessions();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -67,13 +80,29 @@ export function ActiveSessionsTab({ header, onView }: { header: ReactNode; onVie
       }
       renderItem={({ item, index }) => {
         const key = item.userId ?? item.userCode ?? `${item.userName}-${index}`;
-        return <GroupCard group={item} open={expanded.has(key)} onToggle={() => toggle(key)} onView={onView} />;
+        return (
+          <GroupCard group={item} open={expanded.has(key)} onToggle={() => toggle(key)} onView={onView} onRevoke={onRevoke} onRevokeAll={onRevokeAll} />
+        );
       }}
     />
   );
 }
 
-function GroupCard({ group: g, open, onToggle, onView }: { group: ActiveSessionGroup; open: boolean; onToggle: () => void; onView: (id: string) => void }) {
+function GroupCard({
+  group: g,
+  open,
+  onToggle,
+  onView,
+  onRevoke,
+  onRevokeAll,
+}: {
+  group: ActiveSessionGroup;
+  open: boolean;
+  onToggle: () => void;
+  onView: (id: string) => void;
+  onRevoke: (session: SecuritySession) => void;
+  onRevokeAll: (session: SecuritySession, sessionCount: number) => void;
+}) {
   const theme = useAppTheme();
   const many = g.sessionCount > 1;
   const first = g.sessions[0];
@@ -131,12 +160,24 @@ function GroupCard({ group: g, open, onToggle, onView }: { group: ActiveSessionG
               {s.isSuspicious && s.suspiciousReason ? (
                 <Text style={[theme.typography.label, { color: theme.colors.warning }]}>{s.suspiciousReason}</Text>
               ) : null}
-              <View style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-                <SecondaryButton label="View" onPress={() => onView(s.id)} />
+              <View style={styles.actions}>
+                <ActionChip icon="search" label="View" onPress={() => onView(s.id)} />
+                <ActionChip icon="logout" label="Sign out" danger disabled={!s.canRevoke} onPress={() => onRevoke(s)} />
               </View>
+              {!s.canRevoke ? (
+                <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>
+                  This session predates session revocation and cannot be ended from here
+                </Text>
+              ) : null}
             </View>
           ))
         : null}
+
+      {open && first && canRevokeAll(g) ? (
+        <View style={[styles.session, { borderTopColor: theme.colors.border, alignItems: 'flex-start' }]}>
+          <ActionChip icon="logout" label={`Sign out all sessions for ${g.userCode ?? g.userName}`} danger onPress={() => onRevokeAll(first, g.sessionCount)} />
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -146,4 +187,5 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   inline: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   session: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 10, paddingTop: 10, gap: 3 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
 });
