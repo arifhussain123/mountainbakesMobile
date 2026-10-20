@@ -80,9 +80,12 @@ const PRIORITY_OPTIONS: FilterChipOption<FinanceQueryPriority | typeof ALL>[] = 
 /**
  * Web `/support` — the Super Admin Support Center. Two queues under one Source
  * filter: Branches & Production (`GET /api/support`, server-paged) and Finance
- * Queries (the Finance Help Desk, `GET /api/finance/tickets`). Read-only this
- * phase: View only, no resolve/edit/reject/archive, and no "+ New Query" (the
- * server refuses POST /support from super_admin).
+ * Queries (the Finance Help Desk, `GET /api/finance/tickets`). Tapping a row
+ * opens it with the web row's actions (resolve / edit / change figures /
+ * reject / delete record / archive; and for a finance query edit / amend /
+ * recreate / assign / correct / delete / restore / reopen / status / respond /
+ * reply). No "+ New Query": the server refuses POST /support from super_admin,
+ * and the web offers it to Finance roles only.
  */
 export function SupportCenterScreen() {
   const theme = useAppTheme();
