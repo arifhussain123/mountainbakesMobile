@@ -41,8 +41,8 @@ const Drawer = createDrawerNavigator<SuperAdminDrawerParamList>();
 
 /**
  * Super Admin's app shell. Same drawer as every other role (`DrawerContent` →
- * `DrawerMenu`), with `SUPER_ADMIN_NAV_ITEMS` through the role's shell and its
- * sections folding (`collapsibleSections`). Every screen behind it is Super
+ * `DrawerMenu`), with `SUPER_ADMIN_NAV_ITEMS` through the role's shell: the
+ * Branch drawer's flat, labelled list, scrolling. Every screen behind it is Super
  * Admin's own (`features/admin`), built to show what the web Super Admin
  * page shows — plus the web's other finance pages a super_admin may open
  * (`canAccessFinance`), which are the Finance role's own screens: they read

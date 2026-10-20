@@ -516,8 +516,8 @@ const superAdminItem = (
 /**
  * The web's super-admin sidebar, in its order, under eight sections, plus the
  * finance pages the web lets super_admin open (two more sections). Thirty-one
- * rows can't fit a phone at 40dp, so this shell's drawer collapses sections
- * (`collapsibleSections` in `roleShells.ts`).
+ * rows can't fit a phone at 40dp, so this shell's drawer — the same flat,
+ * labelled list as Branch's — scrolls.
  *
  * The web sidebar's rows open Super Admin's own screens (`features/admin`),
  * built to show what the matching web Super Admin page shows. The finance

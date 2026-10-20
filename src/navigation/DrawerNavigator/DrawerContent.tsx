@@ -27,7 +27,7 @@ export function getFocusedChain(state: AnyNavState | undefined): string[] {
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const user = useAuthStore((s) => s.user);
-  const { navItems, contextLine, collapsibleSections } = useRoleShell();
+  const { navItems, contextLine } = useRoleShell();
   const badges = useNavBadges();
 
   const focusedChain = getFocusedChain(state);
@@ -49,7 +49,6 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
       roleLabel={user ? roleLabel(user.role) : ''}
       contextLine={user ? contextLine(user) : ''}
       rows={rows}
-      collapsibleSections={collapsibleSections}
       closeDrawer={navigation.closeDrawer}
       onPressProfile={() => {
         navigation.closeDrawer();

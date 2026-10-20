@@ -4,23 +4,7 @@
 import { financeCan, getBusinessDate, queryClient, queryKeys } from '@/api';
 import { OPEN_CASH_TRANSFERS_TARGET, PENDING_REVIEW_TARGET } from '@/features/admin/utils/ledgerActions';
 import type { BackupHealth, ProductionOrderListResponse } from '@/api';
-import {
-  SEARCH_FIELD_HEIGHT,
-  computeAvailableListHeight,
-  computeCollapsibleRowMetrics,
-  fitsAtMinimum,
-} from '@/navigation/components/drawerLayout';
-import {
-  collapseSection,
-  effectiveExpanded,
-  expandSection,
-  filterRows,
-  initialExpanded,
-  pinnedSections,
-  sectionOrder,
-  summarizeSection,
-  type SectionRow,
-} from '@/navigation/components/drawerSections';
+import { ROW_MIN_HEIGHT, computeAvailableListHeight, computeDrawerRowMetrics, countSections } from '@/navigation/components/drawerLayout';
 import { computeSuperAdminBadges } from '@/navigation/navBadgeCounts';
 import { GROUP_LABEL, SUPER_ADMIN_NAV_ITEMS, isNavItemActive, type NavItem } from '@/navigation/navItems';
 import { ROLE_SHELLS, getRoleShell } from '@/navigation/roleShells';
@@ -36,26 +20,13 @@ function targetsOf(item: NavItem): string[] {
   return [name, params?.screen].filter((r): r is string => !!r);
 }
 
-/** The drawer rows as `DrawerContent` builds them, with `activeKey` marked active. */
-function rowsFor(activeKey: string | null): SectionRow[] {
-  return SUPER_ADMIN_NAV_ITEMS.map((i) => ({
-    label: i.label,
-    section: GROUP_LABEL[i.group],
-    active: i.key === activeKey,
-    badgeDot: i.badgeDot,
-    badgeTone: i.badgeTone,
-  }));
-}
-
-// Typical Android 3-button nav insets (24 top / 48 bottom), as drawerLayout.test.ts uses.
-const listHeight = (height: number) => computeAvailableListHeight(height, 24, 48) - SEARCH_FIELD_HEIGHT;
+/** Each row's section label, in menu order — what `DrawerContent` hands `DrawerMenu`. */
+const sections = SUPER_ADMIN_NAV_ITEMS.map((i) => GROUP_LABEL[i.group]);
 
 describe('Super Admin shell', () => {
-  it('gets its own drawer, says "All branches", and is the only shell whose sections fold', () => {
+  it('gets its own drawer and says "All branches"', () => {
     expect(getRoleShell('super_admin').route).toBe(Routes.SUPER_ADMIN_DRAWER);
     expect(shell.contextLine({ role: 'super_admin', branchName: null })).toBe('All branches');
-    expect(shell.collapsibleSections).toBe(true);
-    for (const role of ['branch_manager', 'production_user', 'finance_admin'] as const) expect(ROLE_SHELLS[role]!.collapsibleSections).toBeFalsy();
   });
 
   it('is the 20 web items, in order, under the eight sections, then the web\'s finance pages under two more', () => {
@@ -73,7 +44,7 @@ describe('Super Admin shell', () => {
       Support: ['Support Center', 'Recipients'],
       Admin: ['Users', 'Security', 'Database Backup', 'Settings'],
     });
-    expect(Object.keys(bySection)).toEqual(sectionOrder(rowsFor(null)));
+    expect(Object.keys(bySection)).toEqual([...new Set(sections)]);
     expect(SUPER_ADMIN_NAV_ITEMS).toHaveLength(31);
     expect(new Set(SUPER_ADMIN_NAV_ITEMS.map((i) => i.key)).size).toBe(31);
   });
@@ -340,89 +311,15 @@ describe('Super Admin badges', () => {
   });
 });
 
-describe('collapsible sections', () => {
-  it('pins Overview and the section holding the active screen', () => {
-    expect(pinnedSections(rowsFor(null))).toEqual(['Overview']);
-    expect(pinnedSections(rowsFor('dashboard'))).toEqual(['Overview']);
-    expect(pinnedSections(rowsFor('priceHistory'))).toEqual(['Overview', 'Catalog']);
-  });
-
-  it('opens with the pinned sections plus what the user left open, dropping sections that no longer exist', () => {
-    expect(initialExpanded(rowsFor('priceHistory'), null)).toEqual(['Overview', 'Catalog']);
-    expect(initialExpanded(rowsFor('priceHistory'), ['Admin', 'Gone'])).toEqual(['Overview', 'Catalog', 'Admin']);
-  });
-
-  it('keeps the active section open even when the stored list folded it', () => {
-    expect(effectiveExpanded(rowsFor('recipients'), ['Overview'])).toEqual(['Support', 'Overview']);
-  });
-
-  it('never folds a pinned section', () => {
-    expect(collapseSection(['Overview', 'Catalog'], 'Catalog', ['Overview', 'Catalog'])).toEqual(['Overview', 'Catalog']);
-    expect(collapseSection(['Overview', 'Admin'], 'Admin', ['Overview'])).toEqual(['Overview']);
-  });
-
-  it('folds the least recently opened section once the list no longer fits, never a pinned one or the one just opened', () => {
-    const rows = rowsFor('dashboard');
-    const sections = sectionOrder(rows).length;
-    const count = (open: readonly string[]) => rows.filter((r) => open.includes(r.section!)).length;
-    // Room for every header and 9 rows at 40dp: headers × 28 + 9 × 40.
-    const fits = (open: readonly string[]) => fitsAtMinimum(sections * 28 + 9 * 40, count(open), sections);
-    let open = ['Overview'];
-    open = expandSection(open, 'Sales & orders', ['Overview'], fits); // 1 + 3
-    open = expandSection(open, 'Branches', ['Overview'], fits); // + 3 = 7
-    expect(open).toEqual(['Overview', 'Sales & orders', 'Branches']);
-    open = expandSection(open, 'Admin', ['Overview'], fits); // + 4 = 11 > 9: Sales & orders goes
-    expect(open).toEqual(['Overview', 'Branches', 'Admin']);
-    // + Catalog 4 = 12 > 9: Branches, now the least recent, goes; 1 + 4 + 4 fits.
-    open = expandSection(open, 'Catalog', ['Overview'], fits);
-    expect(open).toEqual(['Overview', 'Admin', 'Catalog']);
-    // Re-opening Admin makes it the most recent, so the next fold takes Catalog.
-    open = expandSection(open, 'Admin', ['Overview'], fits);
-    open = expandSection(open, 'Support', ['Overview'], fits);
-    expect(open).toEqual(['Overview', 'Admin', 'Support']);
-  });
-
-  it('filters rows across folded sections as you type', () => {
-    const rows = rowsFor(null);
-    expect(filterRows(rows, '').length).toBe(31);
-    expect(filterRows(rows, '  branch ').map((r) => r.label)).toEqual(['Branches', 'Branch Locations', 'Branch Stock']);
-    expect(filterRows(rows, 'PRICE').map((r) => r.label)).toEqual(['Price List', 'Price History']);
-    expect(filterRows(rows, 'zzz')).toEqual([]);
-  });
-
-  it("sums a folded section's counts and keeps its loudest dot", () => {
-    const rows = rowsFor(null).map((r) => ({
-      ...r,
-      badgeCount: ({ Users: 1, 'Database Backup': 1, Settings: 1, Orders: 4, 'Daily Sale Records': 3 } as Record<string, number>)[r.label],
-    }));
-    expect(summarizeSection(rows, 'Admin')).toEqual({ itemCount: 4, badgeTotal: 0, dot: 'danger' });
-    expect(summarizeSection(rows, 'Sales & orders')).toEqual({ itemCount: 3, badgeTotal: 7, dot: null });
-    expect(summarizeSection(rows, 'Catalog')).toEqual({ itemCount: 4, badgeTotal: 0, dot: null });
-  });
-});
-
-describe('collapsible drawer sizing', () => {
+describe('drawer layout', () => {
+  // Typical Android 3-button nav insets (24 top / 48 bottom), as drawerLayout.test.ts uses.
   it.each([
     ['360x800', 800],
     ['412x915', 915],
-  ])('on %s, opens with Overview + the active section expanded and nothing clipped', (_name, height) => {
-    const available = listHeight(height);
-    for (const active of ['dashboard', 'priceHistory', 'databaseBackup', 'dailySaleRecords', 'financeCashTransfers', 'financeSalaries', 'financeSettings']) {
-      const rows = rowsFor(active);
-      const open = initialExpanded(rows, null);
-      const visible = rows.filter((r) => open.includes(r.section!)).length;
-      const m = computeCollapsibleRowMetrics(available, visible, sectionOrder(rows).length);
-      expect(m.needsScroll).toBe(false);
-      expect(m.rowHeight).toBeGreaterThanOrEqual(40);
-      expect(m.rowHeight).toBeLessThanOrEqual(50);
-      expect(m.headerHeight).toBeGreaterThanOrEqual(28);
-    }
-  });
-
-  it('caps rows at 50dp, floors them at 40dp and scrolls past that', () => {
-    expect(computeCollapsibleRowMetrics(1000, 2, 8).rowHeight).toBe(50);
-    const tight = computeCollapsibleRowMetrics(500, 20, 8);
-    expect(tight.rowHeight).toBe(40);
-    expect(tight.needsScroll).toBe(true);
+  ])("on %s, is the Branch drawer's flat list: every section labelled, 40dp rows, scrolling", (_name, height) => {
+    const m = computeDrawerRowMetrics(computeAvailableListHeight(height, 24, 48), SUPER_ADMIN_NAV_ITEMS.length, countSections(sections));
+    expect(m.needsScroll).toBe(true);
+    expect(m.showSectionLabels).toBe(true);
+    expect(m.rowHeight).toBe(ROW_MIN_HEIGHT);
   });
 });

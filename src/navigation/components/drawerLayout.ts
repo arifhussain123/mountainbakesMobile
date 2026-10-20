@@ -71,7 +71,7 @@ export interface DrawerRowMetrics {
   iconSize: number;
   fontSize: number;
   lineHeight: number;
-  /** Labels are shown only when every row still gets at least `ROW_MIN_HEIGHT` with them in place. */
+  /** Hidden only when they alone would push rows below `ROW_MIN_HEIGHT` in a list that otherwise fits. */
   showSectionLabels: boolean;
   /** True once rows would have to drop below `ROW_MIN_HEIGHT` — the cue to scroll the item list instead. */
   needsScroll: boolean;
@@ -86,15 +86,18 @@ export function computeAvailableListHeight(windowHeight: number, insetTop: numbe
  * `rowHeight = clamp(40, available / itemCount, 52)`, with the icon and font
  * sizes derived from it. `available` is the list area's height — measured by
  * `DrawerMenu` once laid out, `computeAvailableListHeight` before that.
- * Section labels (`sectionCount` of them) are kept only if the rows still
- * reach 40dp after paying for the labels' height; otherwise they're dropped
- * and the rows get the whole list area.
+ * Section labels (`sectionCount` of them) are dropped when they are what
+ * stops the list fitting: the rows then get the whole list area and nothing
+ * scrolls. A list too long to fit even without them (Super Admin's, or a
+ * small phone) scrolls anyway, and there the labels cost only scroll
+ * distance, so they stay.
  */
 export function computeDrawerRowMetrics(available: number, itemCount: number, sectionCount = 0): DrawerRowMetrics {
   const count = Math.max(itemCount, 1);
+  const withoutLabels = available / count;
   const withLabels = (available - sectionCount * SECTION_LABEL_HEIGHT) / count;
-  const showSectionLabels = sectionCount > 0 && withLabels >= ROW_MIN_HEIGHT;
-  const perItem = showSectionLabels ? withLabels : available / count;
+  const showSectionLabels = sectionCount > 0 && (withLabels >= ROW_MIN_HEIGHT || withoutLabels < ROW_MIN_HEIGHT);
+  const perItem = showSectionLabels ? withLabels : withoutLabels;
   const rowHeight = clamp(ROW_MIN_HEIGHT, perItem, ROW_MAX_HEIGHT);
   const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);
   const fontSize = clamp(ROW_FONT_MIN, rowHeight * 0.34, ROW_FONT_MAX);
@@ -111,48 +114,4 @@ export function computeDrawerRowMetrics(available: number, itemCount: number, se
 /** How many section labels a grouped list renders: one at each change of group (a group that comes back later gets a second label). */
 export function countSections(groups: readonly string[]): number {
   return groups.filter((group, i) => i === 0 || group !== groups[i - 1]).length;
-}
-
-// ─── Collapsible sections (Super Admin) ─────────────────────────────────
-export const COLLAPSIBLE_ROW_MAX_HEIGHT = 50;
-/** A section header costs this fraction of a row in the height budget. */
-export const SECTION_HEADER_ROW_FRACTION = 0.6;
-export const SECTION_HEADER_MIN_HEIGHT = 28;
-/** The "Go to…" field: a 44dp search bar plus 4dp below. */
-export const SEARCH_FIELD_HEIGHT = 48;
-/** Menus longer than this get the "Go to…" field. */
-export const SEARCH_MIN_ITEMS = 15;
-
-export interface CollapsibleRowMetrics extends Omit<DrawerRowMetrics, 'showSectionLabels'> {
-  headerHeight: number;
-}
-
-/**
- * `rowHeight = clamp(40, available / (rows + 0.6 × headers), 50)` for the
- * rows currently visible. Headers get 0.6 of a row, never under 28dp. Past the
- * 40dp floor the list scrolls. The rows then absorb what the headers' rounding
- * and 28dp floor cost, so a list that fits at that row height is never pushed
- * a few dp into scrolling by them.
- */
-export function computeCollapsibleRowMetrics(available: number, visibleRows: number, headerCount: number): CollapsibleRowMetrics {
-  const units = Math.max(visibleRows + headerCount * SECTION_HEADER_ROW_FRACTION, 1);
-  const baseRow = clamp(ROW_MIN_HEIGHT, available / units, COLLAPSIBLE_ROW_MAX_HEIGHT);
-  const headerHeight = Math.max(SECTION_HEADER_MIN_HEIGHT, Math.round(baseRow * SECTION_HEADER_ROW_FRACTION));
-  const rowHeight =
-    visibleRows > 0 ? clamp(ROW_MIN_HEIGHT, (available - headerCount * headerHeight) / visibleRows, COLLAPSIBLE_ROW_MAX_HEIGHT) : baseRow;
-  const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);
-  const fontSize = clamp(ROW_FONT_MIN, rowHeight * 0.34, ROW_FONT_MAX);
-  return {
-    rowHeight,
-    headerHeight,
-    iconSize,
-    fontSize,
-    lineHeight: fontSize * 1.2,
-    needsScroll: visibleRows * rowHeight + headerCount * headerHeight > available + 0.5,
-  };
-}
-
-/** Whether `visibleRows` under `headerCount` headers fit `available` at the 40dp floor — the test `expandSection` folds against. */
-export function fitsAtMinimum(available: number, visibleRows: number, headerCount: number): boolean {
-  return visibleRows * ROW_MIN_HEIGHT + headerCount * SECTION_HEADER_MIN_HEIGHT <= available;
 }

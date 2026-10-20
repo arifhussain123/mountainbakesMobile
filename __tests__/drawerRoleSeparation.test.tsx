@@ -97,16 +97,24 @@ describe('the drawer, per server role', () => {
     for (const label of ['New Orders', 'Cash Deposits', 'Production Stock', 'Returns', 'Branch Closing']) expect(texts).not.toContain(label);
   });
 
-  it('a Super Admin sees Overview open and the other nine sections folded to their headers, with counts', () => {
+  it("a Super Admin sees the Branch drawer's flat list: all ten sections labelled, every item listed, nothing folded", () => {
     const texts = renderDrawerFor(user('super_admin', null));
-    expect(texts).toEqual(expect.arrayContaining(['Super Admin', 'All branches', 'OVERVIEW', 'Dashboard']));
-    // A folded header carries its item count.
-    expect(texts).toEqual(
-      expect.arrayContaining(['SALES & ORDERS · 3', 'CATALOG · 4', 'BRANCHES · 3', 'PLANNING & INSIGHTS · 2', 'FINANCE · 4', 'PAYROLL & PARTNERS · 4', 'FINANCE SETUP & REVIEW · 4', 'SUPPORT · 2', 'ADMIN · 4']),
-    );
-    // Folded items aren't rendered, and nothing from another role's menu is.
-    for (const label of ['Users', 'Price History', 'Orders', 'New Orders', 'Production Stock', 'Daily Ledger', 'Help Desk', 'Cash Transfers', 'Payroll']) {
-      expect(texts).not.toContain(label);
-    }
+    expect(texts).toEqual(expect.arrayContaining(['Super Admin', 'All branches']));
+    const menu = [
+      'OVERVIEW', 'Dashboard',
+      'SALES & ORDERS', 'Orders', 'Customers', 'Daily Sale Records',
+      'CATALOG', 'Products', 'Categories', 'Price List', 'Price History',
+      'BRANCHES', 'Branches', 'Branch Locations', 'Branch Stock',
+      'PLANNING & INSIGHTS', 'Special Events', 'Reports',
+      'FINANCE', 'Finance Ledger', 'Cash Transfers', 'Income & Expense', 'Daily Closing',
+      'PAYROLL & PARTNERS', 'Payroll', 'Salary Ledger', 'Partner Transactions', 'Company Transactions',
+      'FINANCE SETUP & REVIEW', 'Ledger Heads', 'Finance Reports', 'Audit Trail', 'Finance Settings',
+      'SUPPORT', 'Support Center', 'Recipients',
+      'ADMIN', 'Users', 'Security', 'Database Backup', 'Settings',
+    ];
+    expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
+    // No folded-header counts, and nothing from another role's menu.
+    expect(texts.some((t) => / · \d+$/.test(t))).toBe(false);
+    for (const label of ['New Orders', 'Production Stock', 'Daily Ledger', 'Help Desk']) expect(texts).not.toContain(label);
   });
 });

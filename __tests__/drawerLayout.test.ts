@@ -81,11 +81,11 @@ describe('the 13 Branch items fit without scrolling', () => {
     }
   }
 
-  it('iPhone SE falls back to scrolling the list at the 40dp floor', () => {
+  it('iPhone SE falls back to scrolling the list at the 40dp floor, keeping its section labels', () => {
     const m = metricsFor(IPHONE_SE.height, IPHONE_SE, BRANCH_NAV_ITEMS.length, branchSections);
     expect(m.needsScroll).toBe(true);
     expect(m.rowHeight).toBe(ROW_MIN_HEIGHT);
-    expect(m.showSectionLabels).toBe(false);
+    expect(m.showSectionLabels).toBe(true);
   });
 });
 
