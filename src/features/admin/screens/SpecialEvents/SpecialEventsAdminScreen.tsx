@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -7,19 +7,23 @@ import {
   EVENT_PRIORITY_LABELS,
   getBusinessDate,
   useAdminSpecialEvents,
+  useDeleteSpecialEvent,
   useEventCalendar,
   useEventsSummary,
   type EventCategory,
   type EventStatus,
+  type SpecialEvent,
 } from '@/api';
 import { openDrawer, Routes, type SuperAdminEventsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, Screen, SearchBar, type FilterChipOption } from '@/shared/ui';
 import { formatCount, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { SummaryTiles } from '../../components';
+import { ActionChip, SummaryTiles } from '../../components';
+import { deleteEventPrompt } from '../../utils/eventActions';
 import { EventCalendarView } from './EventCalendarView';
 import { EventListCard, EventTimelineRow } from './EventRows';
+import { useEventSheet } from './eventSheets';
 import { groupTimeline, matchesEventSearch } from './eventModel';
 
 type Tab = 'calendar' | 'timeline' | 'list';
@@ -45,7 +49,11 @@ const STATUS_OPTIONS: FilterChipOption<EventStatus | typeof ALL>[] = [
 /**
  * Web /special-events for Super Admin: eight summary tiles, the "Next up"
  * strip, Year / Category / Status filters, then Calendar / Timeline / List
- * views of the same event set. Read-only this phase — no add, edit or delete.
+ * views of the same event set. Actions as on the web: "Add Company Event"
+ * (the catalogue's Islamic / national / international events are
+ * auto-detected, so a new one is for what no calendar derives), and Edit /
+ * Delete on each List row. Delete is the server's soft delete and cancels the
+ * pending reminders.
  */
 export function SpecialEventsAdminScreen() {
   const theme = useAppTheme();
@@ -63,6 +71,8 @@ export function SpecialEventsAdminScreen() {
   const summaryQ = useEventsSummary();
   const eventsQ = useAdminSpecialEvents(year, category === ALL ? null : category, status === ALL ? null : status);
   const calendarQ = useEventCalendar(calendarMonth.year, calendarMonth.month);
+  const deleteEvent = useDeleteSpecialEvent();
+  const eventSheet = useEventSheet();
 
   const events = useMemo(() => eventsQ.data?.events ?? [], [eventsQ.data]);
   const timeline = useMemo(() => groupTimeline(events), [events]);
@@ -83,6 +93,21 @@ export function SpecialEventsAdminScreen() {
     void summaryQ.refetch();
     void eventsQ.refetch();
     void calendarQ.refetch();
+  };
+
+  const onDelete = (event: SpecialEvent) => {
+    Alert.alert('Remove Event', deleteEventPrompt(event.name), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          deleteEvent.mutate(event.id, {
+            onSuccess: () => Alert.alert('Event Removed', 'Event removed'),
+            onError: (e) => Alert.alert('Could Not Remove the Event', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
   };
 
   const muted = { color: theme.colors.textSecondary };
@@ -125,6 +150,9 @@ export function SpecialEventsAdminScreen() {
           <FilterChipRow options={yearOptions} value={String(year)} onChange={(v) => setYear(Number(v))} />
           <FilterChipRow options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
           <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+        </View>
+        <View style={styles.actions}>
+          <ActionChip icon="plus" label="Add Company Event" primary onPress={() => eventSheet.open({ kind: 'new' })} />
         </View>
         <Text style={[theme.typography.label, muted]}>
           Islamic, national and international events are detected automatically — Hijri dates are resolved from the Umm al-Qura calendar for
@@ -175,15 +203,26 @@ export function SpecialEventsAdminScreen() {
             {listed.length === 0 ? (
               <EmptyState title="No events found" message="Adjust the filters, or add an event to start planning." />
             ) : (
-              listed.map((event) => <EventListCard key={event.id} event={event} onPress={() => goToEvent(event.id)} />)
+              listed.map((event) => (
+                <EventListCard
+                  key={event.id}
+                  event={event}
+                  onPress={() => goToEvent(event.id)}
+                  onEdit={() => eventSheet.open({ kind: 'edit', eventId: event.id })}
+                  onDelete={() => onDelete(event)}
+                  deleting={deleteEvent.isPending && deleteEvent.variables === event.id}
+                />
+              ))
             )}
           </View>
         )}
       </ScrollView>
+      {eventSheet.element}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   rail: { borderLeftWidth: 2, paddingLeft: 16, gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

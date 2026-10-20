@@ -24,7 +24,7 @@ export const MONTH_NAMES = [
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 /** Umm al-Qura month names, index 0 = Muharram (web `HIJRI_MONTHS`). */
-const HIJRI_MONTHS = [
+export const HIJRI_MONTHS = [
   'Muharram',
   'Safar',
   "Rabi' al-Awwal",
@@ -205,13 +205,11 @@ function getHijriFormatter(): Intl.DateTimeFormat | null {
 }
 
 /**
- * "1 Shawwal 1447 AH" for a Gregorian 'YYYY-MM-DD', DISPLAY ONLY — the web's
- * `formatHijriFor`. Event rows use the server's `hijriLabel`; this only labels
- * the calendar month header and a picked day. Returns null when the runtime's
- * Intl has no Umm al-Qura calendar (it then silently answers in Gregorian,
- * which the year sanity check catches) — the label is simply hidden.
+ * Gregorian 'YYYY-MM-DD' → Umm al-Qura { year, month, day }, or null when the
+ * runtime's Intl has no Umm al-Qura calendar (it then silently answers in
+ * Gregorian, which the year sanity check catches). The web's `toHijri`.
  */
-export function formatHijriFor(dateKey: string): string | null {
+export function toHijriParts(dateKey: string): { year: number; month: number; day: number } | null {
   const fmt = getHijriFormatter();
   if (!fmt) return null;
   try {
@@ -225,8 +223,20 @@ export function formatHijriFor(dateKey: string): string | null {
       else if (part.type === 'day') day = Number.parseInt(part.value, 10);
     }
     if (year < 1300 || year > 1700 || month < 1 || month > 12 || day < 1 || day > 30) return null;
-    return `${day} ${HIJRI_MONTHS[month - 1]} ${year} AH`;
+    return { year, month, day };
   } catch {
     return null;
   }
+}
+
+/**
+ * "1 Shawwal 1447 AH" for a Gregorian 'YYYY-MM-DD', DISPLAY ONLY — the web's
+ * `formatHijriFor`. Event rows use the server's `hijriLabel`; this only labels
+ * the calendar month header, a picked day and the event form's date preview.
+ * Null when the runtime cannot convert (see `toHijriParts`) — the label is
+ * simply hidden.
+ */
+export function formatHijriFor(dateKey: string): string | null {
+  const h = toHijriParts(dateKey);
+  return h ? `${h.day} ${HIJRI_MONTHS[h.month - 1]} ${h.year} AH` : null;
 }

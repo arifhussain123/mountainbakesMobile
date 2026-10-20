@@ -3,6 +3,7 @@ import type { SpecialEvent } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
+import { ActionChip } from '../../components';
 import { EventCategoryBadge, EventCountdown, EventDateLabel, EventPriorityBadge, EventStatusBadge, InfoLine, ProgressBar } from './EventBits';
 
 /** One web EventTimeline row: dot, name + date, three badges, countdown / demand-due / branches line, readiness bar. */
@@ -41,8 +42,23 @@ export function EventTimelineRow({ event, onPress }: { event: SpecialEvent; onPr
   );
 }
 
-/** One web EventListTable row as a card — every column the table shows. */
-export function EventListCard({ event, onPress }: { event: SpecialEvent; onPress: () => void }) {
+/**
+ * One web EventListTable row as a card — every column the table shows, plus
+ * the admin's Edit / Delete row actions when the handlers are given.
+ */
+export function EventListCard({
+  event,
+  onPress,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  event: SpecialEvent;
+  onPress: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
   const theme = useAppTheme();
   const s = event.demandSummary;
   return (
@@ -71,6 +87,12 @@ export function EventListCard({ event, onPress }: { event: SpecialEvent; onPress
           <InfoLine label="Branches" value={s ? `${s.submittedBranches}/${s.totalBranches}` : '—'} />
         </View>
         <ProgressBar value={event.readinessPercentage ?? 0} label="Readiness" />
+        {onEdit || onDelete ? (
+          <View style={styles.actions}>
+            {onEdit ? <ActionChip icon="pencil" label="Edit" onPress={onEdit} /> : null}
+            {onDelete ? <ActionChip icon="trash" label="Delete" danger onPress={onDelete} loading={deleting} /> : null}
+          </View>
+        ) : null}
       </Card>
     </Pressable>
   );
@@ -83,4 +105,5 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

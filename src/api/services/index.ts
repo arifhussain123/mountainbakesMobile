@@ -1,5 +1,6 @@
 import * as adminCatalogService from './adminCatalogService';
 import * as adminDataService from './adminDataService';
+import * as adminEventActionsService from './adminEventActionsService';
 import * as adminNavService from './adminNavService';
 import * as attachmentService from './attachmentService';
 import * as authService from './authService';
@@ -38,6 +39,7 @@ import * as supportService from './supportService';
 export {
   adminCatalogService,
   adminDataService,
+  adminEventActionsService,
   adminNavService,
   attachmentService,
   authService,

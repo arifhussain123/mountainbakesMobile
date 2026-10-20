@@ -1,16 +1,23 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import {
   EVENT_STAGE_LABELS,
+  useAdminReviewEventDemand,
   useConsolidatedDemand,
+  useDispatchEventNotifications,
   useEventDemands,
   useEventNotifications,
   useEventProductionStatus,
+  useRegenerateEventSchedule,
+  type EventBranchDemand,
   type EventNotificationRow,
+  type EventProductionStatusRow,
 } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { Card, EmptyState, ErrorState, LoadingSkeleton } from '@/shared/ui';
 import { formatCount, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { ActionChip } from '../../components';
+import { canReviewDemand, dispatchResultMessage, scheduleRebuiltMessage } from '../../utils/eventActions';
 import { DemandStatusBadge, ProgressBar, ReminderStatusBadge } from './EventBits';
 
 function formatDateTime(iso: string): string {
@@ -40,10 +47,33 @@ function TableRow({ cells, bold, header }: { cells: string[]; bold?: boolean; he
   );
 }
 
-/** Web BranchDemandPanel, read-only: no Approve / Reject this phase. */
+/**
+ * Web BranchDemandPanel with `canReview`: Approve / Reject on a submitted
+ * demand (the whole demand at its requested quantities — the web sends only
+ * the status). Reject asks first.
+ */
 export function BranchDemandsTab({ eventId }: { eventId: string }) {
   const theme = useAppTheme();
   const q = useEventDemands(eventId);
+  const review = useAdminReviewEventDemand();
+  const busyId = review.isPending ? review.variables?.demandId : undefined;
+
+  const send = (demand: EventBranchDemand, status: 'approved' | 'rejected') =>
+    review.mutate(
+      { demandId: demand.id, input: { status } },
+      {
+        onSuccess: () =>
+          status === 'approved' ? Alert.alert('Demand Approved', 'Demand approved') : Alert.alert('Demand Rejected', 'Demand rejected'),
+        onError: (e) => Alert.alert('Could Not Review the Demand', mapErrorToMessage(e)),
+      },
+    );
+
+  const reject = (demand: EventBranchDemand) =>
+    Alert.alert('Reject Demand', `Reject ${demand.branchName || 'this branch'}'s demand?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reject', style: 'destructive', onPress: () => send(demand, 'rejected') },
+    ]);
+
   if (q.isLoading) return <LoadingSkeleton height={160} />;
   if (q.error) return <ErrorState message={mapErrorToMessage(q.error)} onRetry={() => void q.refetch()} />;
   const demands = q.data ?? [];
@@ -82,6 +112,12 @@ export function BranchDemandsTab({ eventId }: { eventId: string }) {
             ))}
           </View>
           {demand.reviewRemarks ? <Text style={[theme.typography.label, muted]}>Review note: {demand.reviewRemarks}</Text> : null}
+          {canReviewDemand(demand) ? (
+            <View style={styles.actions}>
+              <ActionChip icon="check" label="Approve" primary onPress={() => send(demand, 'approved')} disabled={!!busyId} loading={busyId === demand.id} />
+              <ActionChip icon="close" label="Reject" danger onPress={() => reject(demand)} disabled={!!busyId} />
+            </View>
+          ) : null}
         </Card>
       ))}
     </View>
@@ -125,8 +161,11 @@ export function ConsolidatedTab({ eventId }: { eventId: string }) {
   );
 }
 
-/** Web ProductionReadinessPanel, read-only: overall readiness then the four stage cards. */
-export function ReadinessTab({ eventId }: { eventId: string }) {
+/**
+ * Web ProductionReadinessPanel with `editable`: overall readiness then the
+ * four stage cards, each with Update (presets / percentage / remarks in a sheet).
+ */
+export function ReadinessTab({ eventId, onEditStage }: { eventId: string; onEditStage: (stage: EventProductionStatusRow) => void }) {
   const theme = useAppTheme();
   const q = useEventProductionStatus(eventId);
   if (q.isLoading) return <LoadingSkeleton height={200} />;
@@ -164,6 +203,9 @@ export function ReadinessTab({ eventId }: { eventId: string }) {
             <Text style={[theme.typography.label, muted]}>Not started</Text>
           )}
           {stage.remarks ? <Text style={[theme.typography.bodySmall, muted]}>{stage.remarks}</Text> : null}
+          <View style={styles.actions}>
+            <ActionChip icon="pencil" label="Update" onPress={() => onEditStage(stage)} />
+          </View>
         </Card>
       ))}
     </View>
@@ -176,10 +218,33 @@ function reminderText(row: EventNotificationRow): string {
   return row.reminderKind === 'demand_due' ? `Demand deadline · ${row.offsetDays} day before` : `${row.offsetDays} days before event`;
 }
 
-/** Web EventNotificationSchedule, read-only: no Rebuild / Send due reminders now. */
+/**
+ * Web EventNotificationSchedule: the schedule plus Rebuild (this event) and
+ * "Send due reminders now" — which sends EVERY event's due reminders, and is
+ * the only delivery path while the server's event scheduler is not started.
+ */
 export function RemindersTab({ eventId }: { eventId: string }) {
   const theme = useAppTheme();
   const q = useEventNotifications(eventId);
+  const dispatch = useDispatchEventNotifications();
+  const regenerate = useRegenerateEventSchedule();
+  const busy = dispatch.isPending || regenerate.isPending;
+
+  const sendDue = () =>
+    dispatch.mutate(undefined, {
+      onSuccess: (result) => {
+        const { tone, text } = dispatchResultMessage(result);
+        Alert.alert(tone === 'success' ? 'Reminders Sent' : 'Nothing Sent', text);
+      },
+      onError: (e) => Alert.alert('Could Not Dispatch Reminders', mapErrorToMessage(e)),
+    });
+
+  const rebuild = () =>
+    regenerate.mutate(eventId, {
+      onSuccess: (result) => Alert.alert('Schedule Rebuilt', scheduleRebuiltMessage(result)),
+      onError: (e) => Alert.alert('Could Not Rebuild the Schedule', mapErrorToMessage(e)),
+    });
+
   const rows = q.data ?? [];
   const pending = rows.filter((r) => r.status === 'pending').length;
   const sent = rows.filter((r) => r.status === 'sent').length;
@@ -191,7 +256,14 @@ export function RemindersTab({ eventId }: { eventId: string }) {
         <Text style={[theme.typography.label, muted]}>
           {pending} scheduled · {sent} sent
         </Text>
+        <View style={[styles.actions, { marginTop: 10 }]}>
+          <ActionChip icon="refresh" label="Rebuild" onPress={rebuild} disabled={busy} loading={regenerate.isPending} />
+          <ActionChip icon="send" label="Send due reminders now" primary onPress={sendDue} disabled={busy} loading={dispatch.isPending} />
+        </View>
       </Card>
+      <Text style={[theme.typography.label, muted]}>
+        Automatic sending is currently off on the server. Until the scheduler is armed, reminders go out when this button is pressed.
+      </Text>
       {q.isLoading ? (
         <LoadingSkeleton height={160} />
       ) : q.error ? (
@@ -222,4 +294,5 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tableRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   numCell: { width: 68, textAlign: 'right' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
 });

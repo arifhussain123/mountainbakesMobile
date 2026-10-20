@@ -67,6 +67,17 @@ export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, u
 export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer, useMonthlyCashTransferSummary } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses, useExpensesData, useExpensesTotal } from './useExpensesApi';
 export {
+  useAdminReviewEventDemand,
+  useAdminUpdateEventStage,
+  useConfirmEventDate,
+  useCreateSpecialEvent,
+  useDeleteSpecialEvent,
+  useDispatchEventNotifications,
+  useRegenerateEventSchedule,
+  useUpdateEventStatus,
+  useUpdateSpecialEvent,
+} from './useAdminEventActionsApi';
+export {
   useAdminSpecialEvents,
   useEventCalendar,
   useEventNotifications,

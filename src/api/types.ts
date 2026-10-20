@@ -1640,6 +1640,89 @@ export interface UpdateEventStageInput {
   remarks?: string;
 }
 
+// ─── Super Admin event actions (web /special-events) ───────────────────────
+
+export type EventCalendarSystem = 'gregorian' | 'hijri' | 'gregorian_nth_weekday' | 'hijri_last_weekday';
+
+
+/**
+ * The anchor and scheduling columns every event view carries (the server maps
+ * the whole row) that the branch / production screens never read. Super
+ * Admin's event form seeds an edit from them.
+ */
+export interface SpecialEventAnchorFields {
+  eventYear: number;
+  eventType: string | null;
+  calendarSystem: EventCalendarSystem;
+  hijriMonth: number | null;
+  hijriDay: number | null;
+  gregorianMonth: number | null;
+  gregorianDay: number | null;
+  nthWeekday: number | null;
+  /** 0 = Sunday. */
+  weekday: number | null;
+  anchorOffsetDays: number;
+  isRecurring: boolean;
+  /** Admin override; null while the estimate is in use. */
+  confirmedDate: string | null;
+  demandLeadDays: number;
+  reminderLeadDays: number;
+}
+
+
+export type AdminSpecialEvent = SpecialEvent & SpecialEventAnchorFields;
+
+
+/** `POST /special-events` and `PUT /special-events/:id` — the web EventFormDialog's body. */
+export interface SpecialEventInput {
+  name: string;
+  description: string;
+  category: EventCategory;
+  eventType: string;
+  calendarSystem: EventCalendarSystem;
+  eventYear: number;
+  hijriMonth: number | null;
+  hijriDay: number | null;
+  gregorianMonth: number | null;
+  gregorianDay: number | null;
+  nthWeekday: number | null;
+  weekday: number | null;
+  anchorOffsetDays: number;
+  isRecurring: boolean;
+  confirmedDate: string | null;
+  durationDays: number;
+  demandLeadDays: number;
+  reminderLeadDays: number;
+  priority: EventPriority;
+  appliesToAllBranches: boolean;
+  branchIds: string[];
+  /** Carried through unchanged on an edit — the form has no input for them. */
+  color?: string | null;
+  notes?: string;
+}
+
+
+/** `POST /special-events/:id/notifications/regenerate` — what the reconcile changed. */
+export interface EventScheduleResult {
+  created: number;
+  updated: number;
+  removed: number;
+  skippedPast: number;
+}
+
+
+/** `POST /special-events/notifications/dispatch` — never throws; failures are counted. */
+export interface EventDispatchResult {
+  onDate: string;
+  dispatched: number;
+  sent: number;
+  failed: number;
+  messagesSent: number;
+  messagesFailed: number;
+  /** Set when the run sent nothing on purpose (setting off for the cron, or a dry run). */
+  skipped?: string;
+}
+
 // ─── Branch Closing ─────────────────────────────────────────────────────────
 // `/api/branch-closing` — one business date's reconciliation. Added alongside
 // this screen: previously only `/branch-closing/export` (a file) existed. The
