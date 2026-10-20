@@ -18,6 +18,7 @@ export { usePackingMaterials } from './usePackingMaterialsApi';
 export { useCatalogProducts, usePriceHistoryPages, useProductPriceHistory } from './usePriceHistoryApi';
 export { useProducts } from './useProductsApi';
 export {
+  useAddProductionOrderItem,
   useCancelProductionOrder,
   useCreateProductionOrder,
   useFinalApproveProductionOrder,
@@ -151,7 +152,7 @@ export {
   useSubmitFinanceTicket,
 } from './useFinanceTicketsApi';
 export { useDailySaleRecord, useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
-export { usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
+export { useApproveSpecialOrder, usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {
   useProductionBranchStock,
   useProductionBranchSummary,

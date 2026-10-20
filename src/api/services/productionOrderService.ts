@@ -109,6 +109,18 @@ export async function reviewProductionOrder(id: string, input: ReviewProductionO
   return apiClient.put<{ success: boolean; status: string }>(`/production-orders/${id}/review`, input);
 }
 
+/**
+ * `POST /production-orders/:id/items` — Production (or Super Admin) adds a line
+ * the branch never asked for to a still-'pending' demand, before submitting it.
+ * The server refuses once the order has left 'pending'.
+ */
+export async function addProductionOrderItem(
+  id: string,
+  input: { productId: string; qty: number; remarks?: string },
+): Promise<{ success: boolean }> {
+  return apiClient.post<{ success: boolean }>(`/production-orders/${id}/items`, { ...input, remarks: input.remarks ?? '' });
+}
+
 /** `PUT /production-orders/:id/final-approve` — only once the branch has verified. */
 export async function finalApproveProductionOrder(id: string): Promise<{ success: boolean }> {
   return apiClient.put<{ success: boolean }>(`/production-orders/${id}/final-approve`);

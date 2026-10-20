@@ -1,13 +1,18 @@
-import { useMemo, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
+  useAddProductionOrderItem,
   useAdminBranches,
   useAppSettings,
+  useCreateProductionReturn,
+  useFinalApproveProductionOrder,
   usePreviousOrderBalance,
   useProductionOrder,
   useProducts,
+  useReviewProductionOrder,
   type PreviousOrderBalance,
+  type Product,
   type ProductionOrder,
 } from '@/api';
 import { Routes } from '@/navigation';
@@ -15,15 +20,34 @@ import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 import type { SuperAdminOrdersStackParamList } from '@/navigation/types';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
+import {
+  AppHeader,
+  Card,
+  Dropdown,
+  ErrorState,
+  Icon,
+  LoadingSkeleton,
+  PrimaryButton,
+  QtyStepper,
+  Screen,
+  SecondaryButton,
+  StatusBadge,
+  TextField,
+} from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { PhotoStrip } from '../components/PhotoStrip';
 import {
   PRODUCTION_ORDER_STATUS_VARIANT,
+  addableProducts,
   productionOrderStatusLabel,
+  returnableItems,
+  reviewSubmission,
+  shortageFromError,
   slipPackingLines,
   slipReference,
   slipView,
+  type QtyEdits,
+  type StockShortageNotice,
 } from '../utils/productionOrders';
 
 function SectionTitle({ children }: { children: string }) {
@@ -149,7 +173,15 @@ function PreviousBalanceSection({ balance, loading }: { balance: PreviousOrderBa
   );
 }
 
-function OrderSlip({ order }: { order: ProductionOrder }) {
+interface QtyEditing {
+  editing: boolean;
+  edits: QtyEdits;
+  packingEdits: QtyEdits;
+  setEdit: (productId: string, qty: number | null) => void;
+  setPackingEdit: (packingMaterialId: string, qty: number | null) => void;
+}
+
+function OrderSlip({ order, qty }: { order: ProductionOrder; qty: QtyEditing }) {
   const theme = useAppTheme();
   const settingsQ = useAppSettings();
   const branchesQ = useAdminBranches();
@@ -158,8 +190,9 @@ function OrderSlip({ order }: { order: ProductionOrder }) {
 
   const branch = (branchesQ.data?.branches ?? []).find((b) => b.id === order.branchId) ?? null;
   const livePriceById = useMemo(() => new Map((productsQ.data?.products ?? []).map((p) => [p.id, Number(p.price) || 0])), [productsQ.data]);
-  const { lines, totals } = useMemo(() => slipView(order, livePriceById), [order, livePriceById]);
-  const packing = useMemo(() => slipPackingLines(order), [order]);
+  const { lines, totals } = useMemo(() => slipView(order, livePriceById, qty.edits), [order, livePriceById, qty.edits]);
+  const packing = useMemo(() => slipPackingLines(order, qty.packingEdits), [order, qty.packingEdits]);
+  const editable = qty.editing && order.status === 'pending';
   const balance = balanceQ.data;
   const hasDemandPhotos = (order.demandPhotos?.length ?? 0) > 0;
   const hasDeliveryPhotos = (order.verificationPhotos?.length ?? 0) > 0;
@@ -227,6 +260,16 @@ function OrderSlip({ order }: { order: ProductionOrder }) {
               <Figure label="Unit Price" value={formatCurrency(l.unitPrice)} />
               <Figure label="Amount" value={formatCurrency(l.amount)} strong align="right" />
             </View>
+            {editable ? (
+              <View style={styles.qtyRow}>
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>APPROVED QTY</Text>
+                <QtyStepper
+                  value={qty.edits[l.productId] === undefined ? l.approved : qty.edits[l.productId] ?? null}
+                  onChange={(v) => qty.setEdit(l.productId, v)}
+                  accessibilityLabel={`Approved quantity for ${l.productName}`}
+                />
+              </View>
+            ) : null}
           </Card>
         ))}
         <View style={[styles.totalsBox, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
@@ -240,10 +283,31 @@ function OrderSlip({ order }: { order: ProductionOrder }) {
       {packing.length > 0 ? (
         <>
           <SectionTitle>Packing Material Demand</SectionTitle>
-          <BoxTable
-            header={['Packing Material', 'Requested Qty', 'Approved Qty']}
-            rows={packing.map((p) => [p.materialName, formatCount(p.requested), formatCount(p.approved)])}
-          />
+          {editable ? (
+            <View style={{ gap: 8 }}>
+              {packing.map((p) => (
+                <Card key={p.key} style={{ padding: 12 }}>
+                  <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>{p.materialName}</Text>
+                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>
+                    Requested {formatCount(p.requested)}
+                  </Text>
+                  <View style={styles.qtyRow}>
+                    <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>APPROVED QTY</Text>
+                    <QtyStepper
+                      value={qty.packingEdits[p.packingMaterialId] === undefined ? p.approved : qty.packingEdits[p.packingMaterialId] ?? null}
+                      onChange={(v) => qty.setPackingEdit(p.packingMaterialId, v)}
+                      accessibilityLabel={`Approved quantity for ${p.materialName}`}
+                    />
+                  </View>
+                </Card>
+              ))}
+            </View>
+          ) : (
+            <BoxTable
+              header={['Packing Material', 'Requested Qty', 'Approved Qty']}
+              rows={packing.map((p) => [p.materialName, formatCount(p.requested), formatCount(p.approved)])}
+            />
+          )}
         </>
       ) : null}
 
@@ -274,11 +338,164 @@ function OrderSlip({ order }: { order: ProductionOrder }) {
   );
 }
 
+function ShortageCard({ notice }: { notice: StockShortageNotice }) {
+  const theme = useAppTheme();
+  return (
+    <Card style={{ marginTop: theme.spacing.lg, borderColor: theme.colors.danger, borderWidth: 1 }}>
+      <View style={styles.noticeHead}>
+        <Icon name="warning" size={16} color={theme.colors.danger} />
+        <Text style={[theme.typography.cardTitle, { color: theme.colors.danger, flex: 1 }]}>{notice.title}</Text>
+      </View>
+      {notice.messages.map((m) => (
+        <Text key={m} style={[theme.typography.bodySmall, { color: theme.colors.text, marginTop: 6 }]}>
+          {m}
+        </Text>
+      ))}
+      {notice.shortages.length > 0 ? (
+        <View style={{ marginTop: 10 }}>
+          <BoxTable
+            header={['Product', 'Required', 'Available', 'Short']}
+            rows={notice.shortages.map((x) => [x.productName, formatCount(x.required), formatCount(x.available), formatCount(x.short)])}
+          />
+        </View>
+      ) : null}
+      {notice.after.map((m) => (
+        <Text key={m} style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 6 }]}>
+          {m}
+        </Text>
+      ))}
+    </Card>
+  );
+}
+
+function InfoCard({ title, lines }: { title: string; lines: string[] }) {
+  const theme = useAppTheme();
+  return (
+    <Card style={{ marginTop: theme.spacing.lg }}>
+      <View style={styles.noticeHead}>
+        <Icon name="info" size={16} color={theme.colors.primary} />
+        <Text style={[theme.typography.cardTitle, { color: theme.colors.text, flex: 1 }]}>{title}</Text>
+      </View>
+      {lines.map((m) => (
+        <Text key={m} style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 6 }]}>
+          {m}
+        </Text>
+      ))}
+    </Card>
+  );
+}
+
+/** Add a product the branch never asked for — while the demand is still pending only. */
+function AddProductForm({ order, products, loading, onDone }: { order: ProductionOrder; products: Product[]; loading: boolean; onDone: () => void }) {
+  const theme = useAppTheme();
+  const addItem = useAddProductionOrderItem();
+  const [productId, setProductId] = useState<string | null>(null);
+  const [qty, setQty] = useState<number | null>(null);
+  const options = useMemo(() => addableProducts(products, order).map((p) => ({ value: p.id, label: p.name })), [products, order]);
+
+  const submit = () => {
+    if (!productId || !qty || qty <= 0) return;
+    addItem.mutate(
+      { id: order.id, productId, qty },
+      {
+        onSuccess: () => {
+          Alert.alert('Product Added', 'Product added to the demand.');
+          onDone();
+        },
+        onError: (e) => Alert.alert('Could Not Add Product', mapErrorToMessage(e)),
+      },
+    );
+  };
+
+  return (
+    <Card style={{ marginTop: theme.spacing.lg }}>
+      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Add Product</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 10, marginBottom: 6 }]}>PRODUCT</Text>
+      <Dropdown
+        options={options}
+        value={productId}
+        onChange={setProductId}
+        placeholder={loading ? 'Loading…' : 'Select a product'}
+        loading={loading}
+        emptyLabel="Every product is already on this demand"
+      />
+      <View style={styles.qtyRow}>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>QTY</Text>
+        <QtyStepper value={qty} onChange={setQty} min={1} accessibilityLabel="Quantity to add" />
+      </View>
+      <View style={styles.formButtons}>
+        <View style={{ flex: 1 }}>
+          <SecondaryButton label="Cancel" onPress={onDone} disabled={addItem.isPending} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <PrimaryButton label="Add" onPress={submit} loading={addItem.isPending} disabled={!productId || !qty || qty <= 0} />
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * Records goods coming back against a verified delivery. It goes through the
+ * ordinary production-returns flow (created 'pending', accepted separately),
+ * so it records the claim — it does not move stock.
+ */
+function ReturnForm({ order, onDone }: { order: ProductionOrder; onDone: () => void }) {
+  const theme = useAppTheme();
+  const createReturn = useCreateProductionReturn();
+  const [productId, setProductId] = useState<string | null>(null);
+  const [qty, setQty] = useState<number | null>(null);
+  const [reason, setReason] = useState('');
+  const options = useMemo(() => returnableItems(order).map((it) => ({ value: it.productId, label: it.productName })), [order]);
+  const ready = !!productId && !!qty && qty > 0 && reason.trim().length > 0;
+
+  const submit = () => {
+    if (!ready || !productId || !qty) return;
+    createReturn.mutate(
+      { branchId: order.branchId, productId, qty, reason: reason.trim() },
+      {
+        onSuccess: () => {
+          Alert.alert('Return Recorded', 'Return recorded — awaiting review.');
+          onDone();
+        },
+        onError: (e) => Alert.alert('Could Not Record Return', mapErrorToMessage(e)),
+      },
+    );
+  };
+
+  return (
+    <Card style={{ marginTop: theme.spacing.lg }}>
+      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Record Return</Text>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 10, marginBottom: 6 }]}>PRODUCT</Text>
+      <Dropdown options={options} value={productId} onChange={setProductId} placeholder="Select a delivered product" />
+      <View style={styles.qtyRow}>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>QTY</Text>
+        <QtyStepper value={qty} onChange={setQty} min={1} accessibilityLabel="Quantity returned" />
+      </View>
+      <TextField label="Reason" value={reason} onChangeText={setReason} placeholder="Why is this coming back?" />
+      <View style={styles.formButtons}>
+        <View style={{ flex: 1 }}>
+          <SecondaryButton label="Cancel" onPress={onDone} disabled={createReturn.isPending} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <PrimaryButton label="Record Return" onPress={submit} loading={createReturn.isPending} disabled={!ready} />
+        </View>
+      </View>
+    </Card>
+  );
+}
+
 /**
  * Super Admin → Orders → one demand: the web's order slip (`OrderPrintPreview`)
- * read-only — header, meta, the branch's photos, the review table, packing
- * materials and the previous order's balance. Review, add-product, returns and
- * printing are not part of this phase.
+ * — header, meta, the branch's photos, the review table, packing materials,
+ * the previous order's balance — and its actions:
+ *
+ *   pending   Add Product · Change Quantity (+ reason) · Reject · Submit for Verification
+ *   verified  Return · Approve (the closing sign-off; no Reject — the stock already moved)
+ *   approved  a done marker, nothing left to act on
+ *
+ * Every action is the web's own endpoint; the server re-checks stock and status.
+ * Printing stays on the web.
  */
 export function AdminOrderDetailScreen() {
   const theme = useAppTheme();
@@ -287,6 +504,93 @@ export function AdminOrderDetailScreen() {
   const route = useRoute<RouteProp<SuperAdminOrdersStackParamList, typeof Routes.SUPER_ADMIN_ORDER_DETAIL>>();
   const orderQ = useProductionOrder(route.params.orderId);
   const order = orderQ.data?.order;
+  const productsQ = useProducts();
+
+  const review = useReviewProductionOrder();
+  const finalApprove = useFinalApproveProductionOrder();
+
+  const [editing, setEditing] = useState(false);
+  const [edits, setEdits] = useState<QtyEdits>({});
+  const [packingEdits, setPackingEdits] = useState<QtyEdits>({});
+  const [reason, setReason] = useState<string | null>(null);
+  const [panel, setPanel] = useState<'add' | 'return' | null>(null);
+  const [shortage, setShortage] = useState<StockShortageNotice | null>(null);
+  const [unverified, setUnverified] = useState(false);
+
+  const qty: QtyEditing = {
+    editing,
+    edits,
+    packingEdits,
+    setEdit: (id, v) => setEdits((p) => ({ ...p, [id]: v })),
+    setPackingEdit: (id, v) => setPackingEdits((p) => ({ ...p, [id]: v })),
+  };
+
+  const submission = useMemo(() => (order ? reviewSubmission(order, edits, packingEdits) : null), [order, edits, packingEdits]);
+  const reasonText = reason ?? order?.changeReason ?? '';
+  const busy = review.isPending || finalApprove.isPending;
+
+  const submitForVerification = () => {
+    if (!order || !submission) return;
+    setShortage(null);
+    setUnverified(false);
+    review.mutate(
+      {
+        id: order.id,
+        input: {
+          status: 'awaiting_verification',
+          approvedItems: submission.approvedItems,
+          approvedPackingItems: submission.approvedPackingItems,
+          reason: submission.changed ? reasonText : undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Sent to Branch', 'Sent to branch for verification — stock transferred.');
+          navigation.goBack();
+        },
+        onError: (e) => {
+          const notice = shortageFromError(e);
+          if (notice) setShortage(notice);
+          // The stock check is the server's: with no answer, nothing was submitted.
+          else if ((e as { status?: unknown }).status === null) setUnverified(true);
+          else Alert.alert('Could Not Submit', mapErrorToMessage(e));
+        },
+      },
+    );
+  };
+
+  const reject = () => {
+    if (!order) return;
+    Alert.alert('Reject Order', `Reject ${order.demandNumber}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: () =>
+          review.mutate(
+            { id: order.id, input: { status: 'rejected' } },
+            {
+              onSuccess: () => {
+                Alert.alert('Order Rejected', `${order.demandNumber} was rejected.`);
+                navigation.goBack();
+              },
+              onError: (e) => Alert.alert('Could Not Reject', mapErrorToMessage(e)),
+            },
+          ),
+      },
+    ]);
+  };
+
+  const approve = () => {
+    if (!order) return;
+    finalApprove.mutate(order.id, {
+      onSuccess: () => {
+        Alert.alert('Order Approved', `${order.demandNumber} is approved.`);
+        navigation.goBack();
+      },
+      onError: (e) => Alert.alert('Could Not Approve', mapErrorToMessage(e)),
+    });
+  };
 
   return (
     <Screen>
@@ -295,10 +599,78 @@ export function AdminOrderDetailScreen() {
         subtitle={order ? slipReference(order) : undefined}
         actions={[{ icon: 'close', onPress: () => navigation.goBack(), accessibilityLabel: 'Close' }]}
       />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }} keyboardShouldPersistTaps="handled">
         {orderQ.isLoading ? <LoadingSkeleton height={240} /> : null}
         {orderQ.error ? <ErrorState message={mapErrorToMessage(orderQ.error)} onRetry={() => void orderQ.refetch()} /> : null}
-        {order ? <OrderSlip order={order} /> : null}
+        {order ? (
+          <>
+            {panel === 'add' && order.status === 'pending' ? (
+              <AddProductForm order={order} products={productsQ.data?.products ?? []} loading={productsQ.isLoading} onDone={() => setPanel(null)} />
+            ) : null}
+            {panel === 'return' && order.status === 'verified' ? <ReturnForm order={order} onDone={() => setPanel(null)} /> : null}
+
+            <View style={{ marginTop: panel ? theme.spacing.lg : 0 }}>
+              <OrderSlip order={order} qty={qty} />
+            </View>
+
+            {editing && order.status === 'pending' && submission?.changed ? (
+              <TextField
+                label="Reason for change"
+                value={reasonText}
+                onChangeText={setReason}
+                placeholder="Why was the quantity adjusted?"
+                multiline
+              />
+            ) : null}
+
+            {shortage ? <ShortageCard notice={shortage} /> : null}
+            {unverified ? (
+              <InfoCard
+                title="Verification Required"
+                lines={['Stock verification requires a current stock check.', 'Please reconnect to the internet and try again.']}
+              />
+            ) : null}
+
+            {order.status === 'pending' ? (
+              <View style={{ marginTop: theme.spacing.lg, gap: 10 }}>
+                <View style={styles.formButtons}>
+                  <View style={{ flex: 1 }}>
+                    <SecondaryButton label="Add Product" onPress={() => setPanel((p) => (p === 'add' ? null : 'add'))} disabled={busy} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <SecondaryButton label={editing ? 'Done' : 'Change Quantity'} onPress={() => setEditing((e) => !e)} disabled={busy} />
+                  </View>
+                </View>
+                <View style={styles.formButtons}>
+                  <View style={{ flex: 1 }}>
+                    <SecondaryButton label="Reject" onPress={reject} disabled={busy} />
+                  </View>
+                  <View style={{ flex: 1.4 }}>
+                    <PrimaryButton label="Submit for Verification" onPress={submitForVerification} loading={review.isPending} disabled={busy} />
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {order.status === 'verified' ? (
+              <View style={[styles.formButtons, { marginTop: theme.spacing.lg }]}>
+                <View style={{ flex: 1 }}>
+                  <SecondaryButton label="Return" onPress={() => setPanel((p) => (p === 'return' ? null : 'return'))} disabled={busy} />
+                </View>
+                <View style={{ flex: 1.4 }}>
+                  <PrimaryButton label="Approve" onPress={approve} loading={finalApprove.isPending} disabled={busy} />
+                </View>
+              </View>
+            ) : null}
+
+            {order.status === 'approved' ? (
+              <View style={[styles.doneMarker, { borderColor: theme.colors.success, borderRadius: theme.radii.md, marginTop: theme.spacing.lg }]}>
+                <Icon name="check" size={16} color={theme.colors.success} />
+                <Text style={[theme.typography.body, { color: theme.colors.success, fontWeight: '700' }]}>Approved</Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -311,6 +683,10 @@ const styles = StyleSheet.create({
   lineHead: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   tag: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
   figures: { flexDirection: 'row', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  noticeHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  formButtons: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  doneMarker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, height: 52 },
   totalsBox: { padding: 12, gap: 4 },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between' },
   box: { borderWidth: 1, paddingHorizontal: 12 },

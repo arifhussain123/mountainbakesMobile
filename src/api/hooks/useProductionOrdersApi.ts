@@ -60,8 +60,9 @@ export function useReviewProductionOrder() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ReviewProductionOrderInput }) =>
       productionOrderService.reviewProductionOrder(id, input),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: ['productionOrders'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.productionOrder(id) });
     },
   });
 }
@@ -70,8 +71,22 @@ export function useFinalApproveProductionOrder() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => productionOrderService.finalApproveProductionOrder(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ['productionOrders'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.productionOrder(id) });
+    },
+  });
+}
+
+/** Production / Super Admin adds a product to a still-'pending' demand before submitting it. */
+export function useAddProductionOrderItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, productId, qty, remarks }: { id: string; productId: string; qty: number; remarks?: string }) =>
+      productionOrderService.addProductionOrderItem(id, { productId, qty, remarks }),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['productionOrders'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.productionOrder(id) });
     },
   });
 }

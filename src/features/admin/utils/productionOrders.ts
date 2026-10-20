@@ -197,6 +197,7 @@ export function waitingSubtitle(pendingOrders: number, awaitingOrders: number): 
 export interface SlipLine {
   key: string;
   productName: string;
+  productId: string;
   isSpecial: boolean;
   description: string;
   /** Production added it — the branch never demanded it, so Demand reads "—". */
@@ -206,6 +207,14 @@ export interface SlipLine {
   unitPrice: number;
   amount: number;
 }
+
+/**
+ * Approved quantities typed under Change Quantity, keyed by product id (or
+ * packing material id). Absent = not touched, which reads as the requested
+ * quantity; `null` = the box was emptied, which counts as 0 — the web's
+ * `parseInt(...) || 0`.
+ */
+export type QtyEdits = Record<string, number | null>;
 
 const isFrozen = (status: ProductionOrderStatus): boolean =>
   status === 'awaiting_verification' || status === 'verified' || status === 'approved';
@@ -221,16 +230,19 @@ const isFrozen = (status: ProductionOrderStatus): boolean =>
 export function slipView(
   order: Pick<ProductionOrder, 'status' | 'items'>,
   livePriceById?: Map<string, number>,
+  edits?: QtyEdits,
 ): { lines: SlipLine[]; totals: { demand: number; approved: number; amount: number } } {
   const frozen = isFrozen(order.status);
   const all = (order.items ?? []).map((it, i): SlipLine => {
     const isAdded = it.addedByProduction === true;
     const qty = Number(it.qty) || 0;
-    const approved = frozen ? Number(it.approvedQty ?? qty) || 0 : qty;
+    const typed = edits?.[it.productId];
+    const approved = frozen ? Number(it.approvedQty ?? qty) || 0 : typed !== undefined ? (typed ?? 0) : qty;
     const snapshot = it.unitPrice == null ? null : Number(it.unitPrice);
     const unitPrice = snapshot != null && Number.isFinite(snapshot) ? snapshot : (livePriceById?.get(it.productId) ?? 0);
     return {
       key: `${it.productId}-${i}`,
+      productId: it.productId,
       productName: it.productName,
       isSpecial: it.isSpecial === true,
       description: (it.description ?? (it.isSpecial ? it.remarks : '')) || '',
@@ -250,21 +262,120 @@ export function slipView(
 
 export interface SlipPackingLine {
   key: string;
+  packingMaterialId: string;
   materialName: string;
   requested: number;
   approved: number;
 }
 
-export function slipPackingLines(order: Pick<ProductionOrder, 'status' | 'packingItems'>): SlipPackingLine[] {
+export function slipPackingLines(order: Pick<ProductionOrder, 'status' | 'packingItems'>, edits?: QtyEdits): SlipPackingLine[] {
   const frozen = isFrozen(order.status);
   const lines = (order.packingItems ?? []).map((it) => {
     const requested = Number(it.qty) || 0;
+    const typed = edits?.[it.packingMaterialId];
     return {
       key: it.packingMaterialId,
+      packingMaterialId: it.packingMaterialId,
       materialName: it.materialName,
       requested,
-      approved: frozen ? Number(it.approvedQty ?? requested) || 0 : requested,
+      approved: frozen ? Number(it.approvedQty ?? requested) || 0 : typed !== undefined ? (typed ?? 0) : requested,
     };
   });
   return frozen ? lines.filter((l) => l.approved > 0) : lines;
+}
+
+// ─── Review actions (OrderPrintPreview) ────────────────────────────────────
+
+/**
+ * What Submit for Verification sends for a 'pending' demand. Built from EVERY
+ * line, never a filtered list: a short override list lets the server fall back
+ * to its own default for the missing lines — silently re-approving in full
+ * what somebody cut to zero.
+ *
+ * `changed` is the web's test exactly: any approved figure differing from what
+ * the branch demanded. A line Production added always counts (its demand is
+ * 0), so a reason is asked for whenever one is on the order.
+ */
+export function reviewSubmission(
+  order: Pick<ProductionOrder, 'status' | 'items' | 'packingItems'>,
+  edits: QtyEdits,
+  packingEdits: QtyEdits,
+): {
+  approvedItems: { productId: string; approvedQty: number }[];
+  approvedPackingItems: { packingMaterialId: string; approvedQty: number }[];
+  changed: boolean;
+} {
+  const { lines } = slipView({ ...order, status: 'pending' }, undefined, edits);
+  const packing = slipPackingLines({ ...order, status: 'pending' }, packingEdits);
+  return {
+    approvedItems: lines.map((l) => ({ productId: l.productId, approvedQty: l.approved })),
+    approvedPackingItems: packing.map((p) => ({ packingMaterialId: p.packingMaterialId, approvedQty: p.approved })),
+    changed: lines.some((l) => l.approved !== l.demand) || packing.some((p) => p.approved !== p.requested),
+  };
+}
+
+/** Add Product offers only products not already on the demand. */
+export function addableProducts<P extends { id: string }>(products: P[], order: Pick<ProductionOrder, 'items'>): P[] {
+  const onOrder = new Set((order.items ?? []).map((it) => it.productId));
+  return products.filter((p) => !onOrder.has(p.id));
+}
+
+/** Return offers only products that actually went out on this delivery. */
+export function returnableItems(order: Pick<ProductionOrder, 'items'>): { productId: string; productName: string }[] {
+  return (order.items ?? [])
+    .filter((it) => (Number(it.approvedQty) || 0) > 0)
+    .map((it) => ({ productId: it.productId, productName: it.productName }));
+}
+
+export interface StockShortageNotice {
+  title: string;
+  messages: string[];
+  shortages: { productName: string; required: number; available: number; short: number }[];
+  after: string[];
+}
+
+/**
+ * The stock shortage the server refused Submit for Verification with (a 409
+ * whose `details` is a Restriction Rules notice), or null for any other error.
+ * The response's own `error` is the bare code INSUFFICIENT_STOCK, so the notice
+ * — every short product with its exact quantities — is what gets shown.
+ */
+export function shortageFromError(err: unknown): StockShortageNotice | null {
+  if (!err || typeof err !== 'object') return null;
+  const e = err as { status?: unknown; details?: unknown };
+  if (e.status !== 409 || !e.details || typeof e.details !== 'object') return null;
+  const d = e.details as { code?: unknown; restriction?: unknown };
+  if (d.code !== 'restriction' || !d.restriction || typeof d.restriction !== 'object') return null;
+  const r = d.restriction as { title?: unknown; messages?: unknown; shortages?: unknown; after?: unknown };
+  const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  return {
+    title: typeof r.title === 'string' && r.title ? r.title : 'Insufficient Production Stock',
+    messages: strings(r.messages),
+    shortages: Array.isArray(r.shortages)
+      ? r.shortages.map((x: { productName?: unknown; required?: unknown; available?: unknown; short?: unknown }) => ({
+          productName: String(x?.productName ?? ''),
+          required: Number(x?.required) || 0,
+          available: Number(x?.available) || 0,
+          short: Number(x?.short) || 0,
+        }))
+      : [],
+    after: strings(r.after),
+  };
+}
+
+// ─── Special Orders: Mark Prepared ─────────────────────────────────────────
+
+/**
+ * The Prepared Qty boxes, checked the web's way: every item needs a figure
+ * (an empty box is not 0), and at least one must be above 0. Returns the
+ * request body, or the problem to show in its place.
+ */
+export function preparePayload(
+  items: { id: string; qty: number }[],
+  typed: QtyEdits,
+): { items: { itemId: string; preparedQty: number }[] } | { problem: string } {
+  const rows = items.map((it) => ({ itemId: it.id, qty: typed[it.id] === undefined ? Number(it.qty) || 0 : typed[it.id] }));
+  if (rows.some((r) => r.qty === null)) return { problem: 'Enter the quantity prepared for every item.' };
+  if (rows.every((r) => r.qty === 0)) return { problem: 'Enter the quantity prepared for at least one item.' };
+  return { items: rows.map((r) => ({ itemId: r.itemId, preparedQty: r.qty ?? 0 })) };
 }

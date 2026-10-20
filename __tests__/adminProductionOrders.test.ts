@@ -3,8 +3,13 @@
  */
 import type { BranchStockSummaryRow, ProductionOrder, SpecialOrder } from '@/api/types';
 import {
+  addableProducts,
   buildDemandSummary,
   openSpecialOrders,
+  preparePayload,
+  returnableItems,
+  reviewSubmission,
+  shortageFromError,
   productionOrderStatusLabel,
   slipPackingLines,
   slipReference,
@@ -101,7 +106,7 @@ describe('production order helpers', () => {
     expect(lines.map((l) => l.productName)).toEqual(['A', 'C']);
     expect(lines[1]).toMatchObject({ isAdded: true, demand: 0, approved: 2, unitPrice: 30, amount: 60 });
     expect(totals).toEqual({ demand: 14, approved: 10, amount: 860 });
-    expect(slipPackingLines(o)).toEqual([{ key: 'm2', materialName: 'Bag', requested: 3, approved: 2 }]);
+    expect(slipPackingLines(o)).toEqual([{ key: 'm2', packingMaterialId: 'm2', materialName: 'Bag', requested: 3, approved: 2 }]);
   });
 
   it('shows every line at its request while pending', () => {
@@ -115,6 +120,101 @@ describe('production order helpers', () => {
     const open = openSpecialOrders([so('pending'), so('awaiting_verification'), so('verified'), so('approved')]);
     expect(open).toHaveLength(3);
     expect(specialOrdersNeedingAction(open)).toBe(2);
+  });
+});
+
+describe('order review actions', () => {
+  const pending = order({
+    items: [
+      { productId: 'p1', productName: 'A', qty: 10, approvedQty: undefined, unitPrice: 100, remarks: '' },
+      { productId: 'p2', productName: 'B', qty: 4, approvedQty: undefined, unitPrice: 50, remarks: '' },
+    ],
+    packingItems: [{ packingMaterialId: 'm1', materialName: 'Box', qty: 5 }],
+  });
+
+  it('applies typed quantities while pending; an emptied box counts as 0', () => {
+    const { lines, totals } = slipView(pending, undefined, { p1: 7, p2: null });
+    expect(lines.map((l) => l.approved)).toEqual([7, 0]);
+    expect(totals).toEqual({ demand: 14, approved: 7, amount: 700 });
+    expect(slipPackingLines(pending, { m1: 2 })[0]!.approved).toBe(2);
+  });
+
+  it('ignores typed quantities once frozen', () => {
+    const frozen = { ...pending, status: 'awaiting_verification' as const, items: pending.items.map((i) => ({ ...i, approvedQty: 3 })) };
+    expect(slipView(frozen, undefined, { p1: 9 }).lines[0]!.approved).toBe(3);
+  });
+
+  it('submits every line and flags a change only when a figure moved', () => {
+    expect(reviewSubmission(pending, {}, {})).toEqual({
+      approvedItems: [
+        { productId: 'p1', approvedQty: 10 },
+        { productId: 'p2', approvedQty: 4 },
+      ],
+      approvedPackingItems: [{ packingMaterialId: 'm1', approvedQty: 5 }],
+      changed: false,
+    });
+    const cut = reviewSubmission(pending, { p2: 0 }, {});
+    expect(cut.approvedItems).toHaveLength(2);
+    expect(cut.approvedItems[1]).toEqual({ productId: 'p2', approvedQty: 0 });
+    expect(cut.changed).toBe(true);
+    expect(reviewSubmission(pending, {}, { m1: 1 }).changed).toBe(true);
+  });
+
+  it('counts a line Production added as a change', () => {
+    const added = order({ items: [{ productId: 'p9', productName: 'Z', qty: 3, approvedQty: undefined, addedByProduction: true, remarks: '' }] });
+    expect(reviewSubmission(added, {}, {}).changed).toBe(true);
+  });
+
+  it('offers only products not on the demand, and returns only delivered lines', () => {
+    expect(addableProducts([{ id: 'p1' }, { id: 'p3' }], pending)).toEqual([{ id: 'p3' }]);
+    const delivered = order({
+      items: [
+        { productId: 'p1', productName: 'A', qty: 10, approvedQty: 6, remarks: '' },
+        { productId: 'p2', productName: 'B', qty: 4, approvedQty: 0, remarks: '' },
+      ],
+    });
+    expect(returnableItems(delivered)).toEqual([{ productId: 'p1', productName: 'A' }]);
+  });
+
+  it('reads the stock-shortage notice off a 409 and ignores anything else', () => {
+    const err = {
+      status: 409,
+      message: 'INSUFFICIENT_STOCK',
+      details: {
+        code: 'restriction',
+        allowed: false,
+        restriction: {
+          title: 'Insufficient Production Stock',
+          messages: ['Not enough stock.'],
+          shortages: [{ productName: 'Cream Puff', required: 20, available: 12, short: 8 }],
+        },
+      },
+    };
+    expect(shortageFromError(err)).toEqual({
+      title: 'Insufficient Production Stock',
+      messages: ['Not enough stock.'],
+      shortages: [{ productName: 'Cream Puff', required: 20, available: 12, short: 8 }],
+      after: [],
+    });
+    expect(shortageFromError({ status: 409, message: 'x' })).toBeNull();
+    expect(shortageFromError({ status: 400, details: err.details })).toBeNull();
+    expect(shortageFromError(null)).toBeNull();
+  });
+
+  it('checks Prepared Qty the web way', () => {
+    const items = [
+      { id: 'i1', qty: 2 },
+      { id: 'i2', qty: 1 },
+    ];
+    expect(preparePayload(items, {})).toEqual({
+      items: [
+        { itemId: 'i1', preparedQty: 2 },
+        { itemId: 'i2', preparedQty: 1 },
+      ],
+    });
+    expect(preparePayload(items, { i1: null })).toEqual({ problem: 'Enter the quantity prepared for every item.' });
+    expect(preparePayload(items, { i1: 0, i2: 0 })).toEqual({ problem: 'Enter the quantity prepared for at least one item.' });
+    expect(preparePayload(items, { i2: 0 })).toEqual({ items: [{ itemId: 'i1', preparedQty: 2 }, { itemId: 'i2', preparedQty: 0 }] });
   });
 });
 

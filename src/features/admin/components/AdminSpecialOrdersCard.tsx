@@ -1,13 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
-import type { SpecialOrder } from '@/api';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useApproveSpecialOrder, usePrepareSpecialOrder, type SpecialOrder } from '@/api';
+import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, StatusBadge } from '@/shared/ui';
+import { Card, Icon, PrimaryButton, QtyStepper, StatusBadge } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import {
   SPECIAL_ORDER_STATUS_LABEL,
   SPECIAL_ORDER_STATUS_VARIANT,
   openSpecialOrders,
+  preparePayload,
   specialOrdersNeedingAction,
+  type QtyEdits,
 } from '../utils/productionOrders';
 import { PhotoStrip } from './PhotoStrip';
 
@@ -42,6 +46,35 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 function SpecialOrderBlock({ order }: { order: SpecialOrder }) {
   const theme = useAppTheme();
+  const prepare = usePrepareSpecialOrder();
+  const approve = useApproveSpecialOrder();
+  // Prepared Qty as typed, by item id. Absent = untouched = the full requested quantity.
+  const [typed, setTyped] = useState<QtyEdits>({});
+  const canPrepare = order.status === 'pending';
+  const payload = canPrepare ? preparePayload(order.items, typed) : null;
+  const problem = payload && 'problem' in payload ? payload.problem : null;
+
+  const markPrepared = () => {
+    if (!payload || 'problem' in payload) return;
+    prepare.mutate(
+      { id: order.id, input: { items: payload.items } },
+      {
+        onSuccess: () => {
+          setTyped({});
+          Alert.alert('Prepared', 'Prepared — added to Production Stock and sent to the branch to verify.');
+        },
+        onError: (e) => Alert.alert('Could Not Mark It Prepared', mapErrorToMessage(e)),
+      },
+    );
+  };
+
+  const approveLegacy = () => {
+    approve.mutate(order.id, {
+      onSuccess: () => Alert.alert('Approved', 'Approved — delivered to branch stock.'),
+      onError: (e) => Alert.alert('Could Not Approve This Special Order', mapErrorToMessage(e)),
+    });
+  };
+
   return (
     <View style={[styles.block, { borderColor: theme.colors.border, borderRadius: theme.radii.md }]}>
       <View style={styles.headRow}>
@@ -77,6 +110,17 @@ function SpecialOrderBlock({ order }: { order: SpecialOrder }) {
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>{item.description}</Text>
           ) : null}
           <PhotoStrip title="Requested photo" photos={item.requestPhotos} />
+          {canPrepare ? (
+            <View style={styles.qtyRow}>
+              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PREPARED QTY</Text>
+              <QtyStepper
+                value={typed[item.id] === undefined ? item.qty : typed[item.id] ?? null}
+                onChange={(v) => setTyped((p) => ({ ...p, [item.id]: v }))}
+                min={0}
+                accessibilityLabel={`Prepared quantity for ${item.itemName}`}
+              />
+            </View>
+          ) : null}
           {item.stockTransactionNo ? (
             <View style={styles.okRow}>
               <Icon name="check" size={12} color={theme.colors.success} />
@@ -117,10 +161,21 @@ function SpecialOrderBlock({ order }: { order: SpecialOrder }) {
 
       <PhotoStrip title="Received item photo" photos={order.verificationPhotos} />
 
+      {canPrepare ? (
+        <View style={{ marginTop: 10, gap: 8 }}>
+          <Text style={[theme.typography.label, { color: problem ? theme.colors.danger : theme.colors.textSecondary }]}>
+            {problem ?? 'Marking it prepared adds the Prepared Qty to Production Stock. No separate stock entry is needed.'}
+          </Text>
+          <PrimaryButton label="Mark Prepared" onPress={markPrepared} loading={prepare.isPending} disabled={problem !== null} />
+        </View>
+      ) : null}
       {order.status === 'verified' ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 8 }]}>
-          {"Verified by the branch under the earlier workflow. Approving books it into Production Stock and on to the branch's stock, once."}
-        </Text>
+        <View style={{ marginTop: 8, gap: 8 }}>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+            {"Verified by the branch under the earlier workflow. Approving books it into Production Stock and on to the branch's stock, once."}
+          </Text>
+          <PrimaryButton label="Approve" onPress={approveLegacy} loading={approve.isPending} />
+        </View>
       ) : null}
       {order.status === 'awaiting_verification' ? (
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 8 }]}>
@@ -132,10 +187,13 @@ function SpecialOrderBlock({ order }: { order: SpecialOrder }) {
 }
 
 /**
- * Web `SpecialOrdersPanel` in production mode, read-only: a branch's one-off
+ * Web `SpecialOrdersPanel` in production mode: a branch's one-off
  * sent straight to Production — not demand, and never counted in it. Approved
  * orders drop off (Production is done with them), and with nothing open the
- * card is not rendered at all, exactly as on the web.
+ * card is not rendered at all, exactly as on the web. A pending order is
+ * marked prepared with a Prepared Qty per item; a legacy branch-verified one
+ * is approved. Neither is a manual stock entry — the server writes each
+ * movement once, as part of the step.
  */
 export function AdminSpecialOrdersCard({ orders }: { orders: SpecialOrder[] }) {
   const theme = useAppTheme();
@@ -172,4 +230,5 @@ const styles = StyleSheet.create({
   item: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 10, paddingTop: 10 },
   figures: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2, marginTop: 4 },
   okRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
 });
