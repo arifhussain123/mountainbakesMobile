@@ -1,8 +1,16 @@
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useAdminCustomersData, useBranches, type AdminCustomer, type AdminCustomersQuery } from '@/api';
+import {
+  useAdminCustomersData,
+  useBranches,
+  useCreateCustomer,
+  useUpdateCustomer,
+  type AdminCustomer,
+  type AdminCustomersQuery,
+} from '@/api';
 import { openDrawer } from '@/navigation';
+import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import {
@@ -21,7 +29,8 @@ import {
   TextField,
   type DropdownOption,
 } from '@/shared/ui';
-import { FieldGrid } from '../components';
+import { ActionChip, FieldGrid } from '../components';
+import { customerFormErrors, initialCustomerValues, type CustomerFormValues } from '../utils/catalogActions';
 
 const ALL = 'all';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,11 +68,14 @@ const dateOrEmpty = (v: string) => (ISO_DATE.test(v.trim()) ? v.trim() : '');
  * resource: searched (name, phone, email), filtered, sorted and paged in the
  * database, 50 at a time with the next page on scroll. Branch sits in the bar
  * as on the web; Orders, Total spent and Customer since are in the filter
- * sheet. Read-only this phase — no Add or Edit.
+ * sheet. The web's two actions: Add Customer (above the list) and Edit on each
+ * card, one form sheet for both — the web has no delete. Saving refetches the
+ * list.
  */
 export function CustomersScreen() {
   const theme = useAppTheme();
   const filterSheetRef = useRef<BottomSheetModal>(null);
+  const customerSheet = useCustomerSheet();
 
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim());
@@ -128,11 +140,17 @@ export function CustomersScreen() {
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Address</Text>
         <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>{item.address || '—'}</Text>
       </View>
+      <View style={[styles.pair, { marginTop: 10 }]}>
+        <ActionChip icon="pencil" label="Edit" onPress={() => customerSheet.open(item)} />
+      </View>
     </Card>
   );
 
   const header = (
     <View style={{ gap: 10, marginBottom: theme.spacing.sm }}>
+      <View style={{ alignSelf: 'flex-end' }}>
+        <ActionChip icon="plus" label="Add Customer" primary onPress={() => customerSheet.open(null)} />
+      </View>
       <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, phone, email…" />
       <Dropdown options={branchOptions} value={branchId} onChange={setBranchId} placeholder="All Branches" loading={branchesQ.isLoading} />
       <View style={styles.controls}>
@@ -259,8 +277,119 @@ export function CustomersScreen() {
           </View>
         </View>
       </FormBottomSheet>
+      {customerSheet.element}
     </Screen>
   );
+}
+
+/**
+ * Web `CustomerForm`, for Add (`customer` null) and Edit. Errors show after
+ * the first Save, as react-hook-form does. Branch is picked on Add only: the
+ * web's Edit sends `branchId` too, but the server's update schema drops it, so
+ * here it is shown read-only rather than as a choice that would not stick.
+ */
+function CustomerForm({ customer, onClose }: { customer: AdminCustomer | null; onClose: () => void }) {
+  const theme = useAppTheme();
+  const create = useCreateCustomer();
+  const update = useUpdateCustomer();
+  const branchesQ = useBranches();
+  const [values, setValues] = useState<CustomerFormValues>(() => initialCustomerValues(customer));
+  const [submitted, setSubmitted] = useState(false);
+  const errors = submitted ? customerFormErrors(values) : {};
+  const busy = create.isPending || update.isPending;
+  const set = (field: keyof CustomerFormValues) => (v: string) => setValues((p) => ({ ...p, [field]: v }));
+
+  const branchOptions = useMemo<DropdownOption[]>(
+    () => (branchesQ.data?.branches ?? []).map((b) => ({ value: b.id, label: b.name })),
+    [branchesQ.data],
+  );
+
+  const save = () => {
+    setSubmitted(true);
+    if (Object.keys(customerFormErrors(values)).length > 0) return;
+    const onError = (e: unknown) => Alert.alert('Could Not Save Customer', mapErrorToMessage(e));
+    if (customer) {
+      update.mutate(
+        { id: customer.id, input: values },
+        {
+          onSuccess: () => {
+            Alert.alert('Updated', 'Customer updated.');
+            onClose();
+          },
+          onError,
+        },
+      );
+    } else {
+      create.mutate(values, {
+        onSuccess: () => {
+          Alert.alert('Added', 'Customer added.');
+          onClose();
+        },
+        onError,
+      });
+    }
+  };
+
+  return (
+    <View>
+      <TextField label="Full Name" value={values.name} onChangeText={set('name')} placeholder="Ahmed Khan" error={errors.name} />
+      <TextField
+        label="Phone Number"
+        value={values.phone}
+        onChangeText={set('phone')}
+        placeholder="03001234567"
+        keyboardType="phone-pad"
+        error={errors.phone}
+      />
+      <TextField
+        label="Email (optional)"
+        value={values.email}
+        onChangeText={set('email')}
+        placeholder="ahmed@example.com"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        error={errors.email}
+      />
+      <TextField label="Address (optional)" value={values.address} onChangeText={set('address')} placeholder="Street, area, city" />
+      {customer ? (
+        <TextField label="Branch" value={customer.branchName || '—'} editable={false} />
+      ) : (
+        <View style={{ marginTop: 16, gap: 8 }}>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>Branch</Text>
+          <Dropdown options={branchOptions} value={values.branchId || null} onChange={set('branchId')} placeholder="Select branch" loading={branchesQ.isLoading} />
+          {errors.branchId ? <Text style={[theme.typography.label, { color: theme.colors.danger }]}>{errors.branchId}</Text> : null}
+        </View>
+      )}
+      <View style={{ marginTop: 18 }}>
+        <PrimaryButton label={customer ? 'Update Customer' : 'Add Customer'} onPress={save} loading={busy} />
+      </View>
+    </View>
+  );
+}
+
+function useCustomerSheet() {
+  const ref = useRef<BottomSheetModal>(null);
+  // undefined = closed; null = Add; a customer = Edit.
+  const [customer, setCustomer] = useState<AdminCustomer | null | undefined>(undefined);
+  const close = () => ref.current?.dismiss();
+
+  const open = (next: AdminCustomer | null) => {
+    setCustomer(next);
+    ref.current?.present();
+  };
+
+  const element = (
+    <FormBottomSheet
+      ref={ref}
+      title={customer ? 'Edit Customer' : 'Add Customer'}
+      subtitle={customer?.name}
+      onRequestClose={close}
+      onDismiss={() => setCustomer(undefined)}>
+      {customer !== undefined ? <CustomerForm key={customer?.id ?? 'new'} customer={customer} onClose={close} /> : null}
+    </FormBottomSheet>
+  );
+
+  return { open, element };
 }
 
 const styles = StyleSheet.create({

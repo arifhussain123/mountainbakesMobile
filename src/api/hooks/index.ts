@@ -209,3 +209,10 @@ export {
   useUserActivity,
   useUsersDataPages,
 } from './useAdminDataApi';
+export {
+  useCreateCategory,
+  useCreateCustomer,
+  useRemoveCategory,
+  useRenameCategory,
+  useUpdateCustomer,
+} from './useAdminCatalogActionsApi';

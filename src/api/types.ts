@@ -3709,6 +3709,15 @@ export interface AdminCustomer {
   createdAt: string;
 }
 
+/** `POST` / `PUT /api/customers` body — the web `CustomerForm` (`CreateCustomerInput`). */
+export interface AdminCustomerInput {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  branchId: string;
+}
+
 /** `GET /api/products/categories` — active categories only, in `sortOrder`. */
 export interface ProductCategory {
   id: string;
