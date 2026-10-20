@@ -1,4 +1,5 @@
 import type { IconName } from '@/shared/ui';
+import type { NavBadges } from './navBadgeCounts';
 import { Routes } from './routes';
 
 export type NavBadgeSource =
@@ -49,6 +50,7 @@ export interface NavItem {
     | 'finance'
     | 'financePeople'
     | 'financeSetup'
+    | 'manage'
     | 'admin';
   badgeSource: NavBadgeSource;
   /** Show the badge as an amber dot (a state, not a count) rather than a number. */
@@ -67,6 +69,12 @@ export interface NavItem {
    * prepare/adjust modals still read as Production Stock, Branch Stock does not).
    */
   activeMatch: { root: string; leaf?: string; exceptLeaves?: string[] };
+  /**
+   * A group row (Super Admin's Catalog, Branches, Finance, Admin): `navigate`
+   * opens a page listing these, the row is active on any of them, and its
+   * badge is theirs (`navItemBadge`).
+   */
+  children?: NavItem[];
 }
 
 const goToTab = (tabs: string, tab: string, screen?: string) => (navigation: DrawerNavigation) => {
@@ -514,10 +522,11 @@ const superAdminItem = (
 };
 
 /**
- * The web's super-admin sidebar, in its order, under eight sections, plus the
- * finance pages the web lets super_admin open (two more sections). Thirty-one
- * rows can't fit a phone at 40dp, so this shell's drawer — the same flat,
- * labelled list as Branch's — scrolls.
+ * Every page Super Admin can open: the web's super-admin sidebar, in its
+ * order, under eight sections, plus the finance pages the web lets
+ * super_admin open (two more sections). Thirty-one is too many drawer rows
+ * for a phone, so the drawer is `SUPER_ADMIN_NAV_ITEMS` below, which lists
+ * the daily ones and reaches the rest through four group rows.
  *
  * The web sidebar's rows open Super Admin's own screens (`features/admin`),
  * built to show what the matching web Super Admin page shows. The finance
@@ -526,7 +535,7 @@ const superAdminItem = (
  * modify" is on — the web's `useFinanceAbilities` and the API's
  * `requireFinance` decide from the same toggle.
  */
-export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
+export const SUPER_ADMIN_PAGES: NavItem[] = [
   superAdminItem('dashboard', 'Dashboard', 'grid', 'overview', { tab: Routes.SUPER_ADMIN_DASHBOARD_TAB }),
   superAdminItem('orders', 'Orders', 'cart', 'salesOrders', { tab: Routes.SUPER_ADMIN_ORDERS_TAB }, { badgeSource: 'orders' }),
   superAdminItem('customers', 'Customers', 'users', 'salesOrders', { stack: Routes.SUPER_ADMIN_CUSTOMERS }),
@@ -578,8 +587,88 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   superAdminItem('settings', 'Settings', 'settings', 'admin', { stack: Routes.SUPER_ADMIN_SETTINGS }, { badgeSource: 'restrictionAlert', badgeDot: true }),
 ];
 
+const page = (key: string, group?: NavItem['group']): NavItem => {
+  const found = SUPER_ADMIN_PAGES.find((p) => p.key === key);
+  if (!found) throw new Error(`No Super Admin page ${key}`);
+  return group ? { ...found, group } : found;
+};
+
+/** A group row: opens `route`, the page listing `pageKeys` (`SuperAdminHubScreen`). */
+const superAdminHub = (key: string, label: string, icon: IconName, group: NavItem['group'], route: string, pageKeys: string[]): NavItem => ({
+  key,
+  label,
+  icon,
+  group,
+  badgeSource: null,
+  navigate: goToStack(route),
+  activeMatch: { root: route },
+  children: pageKeys.map((k) => page(k)),
+});
+
+/**
+ * Super Admin's drawer: twelve rows, so it fits a phone at the Branch
+ * drawer's row size instead of scrolling. The daily pages are rows of their
+ * own; Catalog, Branches, Finance and Admin each open a page listing theirs.
+ */
+export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
+  page('dashboard'),
+  page('orders'),
+  page('customers'),
+  page('dailySaleRecords'),
+  superAdminHub('catalogHub', 'Catalog', 'box', 'manage', Routes.SUPER_ADMIN_CATALOG_HUB, ['products', 'categories', 'priceList', 'priceHistory']),
+  superAdminHub('branchesHub', 'Branches', 'store', 'manage', Routes.SUPER_ADMIN_BRANCHES_HUB, ['branches', 'branchLocations', 'branchStock']),
+  page('specialEvents', 'manage'),
+  page('reports', 'manage'),
+  superAdminHub('financeHub', 'Finance', 'book-open', 'money', Routes.SUPER_ADMIN_FINANCE_HUB, [
+    'financeLedger',
+    'financeCashTransfers',
+    'financeEntries',
+    'financeClosing',
+    'financePayroll',
+    'financeSalaries',
+    'financePartnerTransactions',
+    'financeCompanyTransactions',
+    'financeHeads',
+    'financeReports',
+    'financeAudit',
+    'financeSettings',
+  ]),
+  page('supportCenter'),
+  page('recipients'),
+  superAdminHub('adminHub', 'Admin', 'shield-check', 'admin', Routes.SUPER_ADMIN_ADMIN_HUB, ['users', 'security', 'databaseBackup', 'settings']),
+];
+
+export interface NavItemBadge {
+  badgeCount?: number;
+  badgeDot?: boolean;
+  badgeTone?: 'muted' | 'danger';
+}
+
+/**
+ * A row's badge: its own source's, or — for a group row — the loudest of its
+ * pages': a red dot, then a count (grey only if every page's count is), then
+ * an amber dot.
+ */
+export function navItemBadge(item: NavItem, badges: NavBadges): NavItemBadge {
+  if (!item.children) {
+    return { badgeCount: item.badgeSource ? badges[item.badgeSource] : undefined, badgeDot: item.badgeDot, badgeTone: item.badgeTone };
+  }
+  const raised = item.children.filter((c) => c.badgeSource && (badges[c.badgeSource] ?? 0) > 0);
+  if (raised.some((c) => c.badgeDot && c.badgeTone === 'danger')) return { badgeCount: 1, badgeDot: true, badgeTone: 'danger' };
+  const counted = raised.filter((c) => !c.badgeDot);
+  if (counted.length > 0) {
+    return {
+      badgeCount: counted.reduce((sum, c) => sum + (badges[c.badgeSource!] ?? 0), 0),
+      badgeTone: counted.every((c) => c.badgeTone === 'muted') ? 'muted' : undefined,
+    };
+  }
+  if (raised.length > 0) return { badgeCount: 1, badgeDot: true };
+  return {};
+}
+
 /** True when the focused-route chain (see `DrawerContent.getFocusedChain`) means this item is the active one. */
 export function isNavItemActive(item: NavItem, chain: string[]): boolean {
+  if (item.children?.some((child) => isNavItemActive(child, chain))) return true;
   if (!chain.includes(item.activeMatch.root)) return false;
   const leaf = chain[chain.length - 1];
   if (item.activeMatch.leaf) return leaf === item.activeMatch.leaf;
@@ -607,6 +696,7 @@ export const GROUP_LABEL: Record<NavItem['group'], string> = {
   finance: 'Finance',
   financePeople: 'Payroll & partners',
   financeSetup: 'Finance setup & review',
+  manage: 'Manage',
   admin: 'Admin',
 };
 

@@ -97,24 +97,21 @@ describe('the drawer, per server role', () => {
     for (const label of ['New Orders', 'Cash Deposits', 'Production Stock', 'Returns', 'Branch Closing']) expect(texts).not.toContain(label);
   });
 
-  it("a Super Admin sees the Branch drawer's flat list: all ten sections labelled, every item listed, nothing folded", () => {
+  it("a Super Admin sees a twelve-row menu like the Branch drawer's, with Catalog, Branches, Finance and Admin as group rows", () => {
     const texts = renderDrawerFor(user('super_admin', null));
     expect(texts).toEqual(expect.arrayContaining(['Super Admin', 'All branches']));
     const menu = [
-      'OVERVIEW', 'Dashboard',
-      'SALES & ORDERS', 'Orders', 'Customers', 'Daily Sale Records',
-      'CATALOG', 'Products', 'Categories', 'Price List', 'Price History',
-      'BRANCHES', 'Branches', 'Branch Locations', 'Branch Stock',
-      'PLANNING & INSIGHTS', 'Special Events', 'Reports',
-      'FINANCE', 'Finance Ledger', 'Cash Transfers', 'Income & Expense', 'Daily Closing',
-      'PAYROLL & PARTNERS', 'Payroll', 'Salary Ledger', 'Partner Transactions', 'Company Transactions',
-      'FINANCE SETUP & REVIEW', 'Ledger Heads', 'Finance Reports', 'Audit Trail', 'Finance Settings',
-      'SUPPORT', 'Support Center', 'Recipients',
-      'ADMIN', 'Users', 'Security', 'Database Backup', 'Settings',
+      'Dashboard',
+      'Orders', 'Customers', 'Daily Sale Records',
+      'Catalog', 'Branches', 'Special Events', 'Reports',
+      'Finance',
+      'Support Center', 'Recipients',
+      'Admin',
     ];
     expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
-    // No folded-header counts, and nothing from another role's menu.
-    expect(texts.some((t) => / · \d+$/.test(t))).toBe(false);
-    for (const label of ['New Orders', 'Production Stock', 'Daily Ledger', 'Help Desk']) expect(texts).not.toContain(label);
+    // The pages behind the group rows are not drawer rows, and nothing from another role's menu is.
+    for (const label of ['Products', 'Price History', 'Users', 'Finance Ledger', 'Payroll', 'New Orders', 'Production Stock', 'Daily Ledger', 'Help Desk']) {
+      expect(texts).not.toContain(label);
+    }
   });
 });

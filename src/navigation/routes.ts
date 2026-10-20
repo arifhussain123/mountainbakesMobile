@@ -212,6 +212,11 @@ export const Routes = {
   SUPER_ADMIN_SECURITY: 'SuperAdminSecurity',
   SUPER_ADMIN_BACKUP: 'SuperAdminBackup',
   SUPER_ADMIN_SETTINGS: 'SuperAdminSettings',
+  // Super Admin drawer group rows: each lists its pages (SuperAdminHubScreen).
+  SUPER_ADMIN_CATALOG_HUB: 'SuperAdminCatalogHub',
+  SUPER_ADMIN_BRANCHES_HUB: 'SuperAdminBranchesHub',
+  SUPER_ADMIN_FINANCE_HUB: 'SuperAdminFinanceHub',
+  SUPER_ADMIN_ADMIN_HUB: 'SuperAdminAdminHub',
   // Inside SuperAdminSettingsStackNavigator (mounted at SUPER_ADMIN_SETTINGS): Settings → Restriction Rules.
   SUPER_ADMIN_SETTINGS_HOME: 'SuperAdminSettingsHome',
   SUPER_ADMIN_RESTRICTION_RULES: 'SuperAdminRestrictionRules',
