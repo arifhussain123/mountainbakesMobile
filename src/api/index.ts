@@ -24,3 +24,4 @@ export {
 export type { ProductionOrdersDataQuery } from './services/productionOrderService';
 export * from './hooks';
 export * from './types';
+export * from './purchasingTypes';

@@ -3816,7 +3816,15 @@ export type NotificationType =
   | 'event_demand_submitted'
   | 'event_demand_reviewed'
   | 'event_production_updated'
-  | 'security_alert';
+  | 'security_alert'
+  // WhatsApp Purchasing (relatedId: the demand, except purchase_message — the
+  // demand when matched, else the message — and purchase_payment — the
+  // payment or credit).
+  | 'purchase_quotation'
+  | 'purchase_bill'
+  | 'purchase_message'
+  | 'purchase_payment'
+  | 'purchase_payment_reviewed';
 
 export interface AppNotification {
   id: string;

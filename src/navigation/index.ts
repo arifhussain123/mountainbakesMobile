@@ -34,6 +34,7 @@ export type {
   SuperAdminDailySaleStackParamList,
   ProductionDiscountsStackParamList,
   ProductionEventsStackParamList,
+  ProductionWhatsAppStackParamList,
   FinanceDrawerParamList,
   FinanceBottomTabParamList,
   FinanceHomeStackParamList,

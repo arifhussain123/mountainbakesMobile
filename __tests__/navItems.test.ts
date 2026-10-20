@@ -61,6 +61,7 @@ describe('PRODUCTION_NAV_ITEMS', () => {
       'Branch Stock',
       'Returns',
       'Discounts',
+      'WhatsApp Purchasing',
       'Events',
       'Reports',
       'Help Desk',
@@ -76,6 +77,7 @@ describe('PRODUCTION_NAV_ITEMS', () => {
       branchStock: null,
       returns: 'returns',
       discounts: 'discounts',
+      whatsappPurchasing: 'whatsappPurchasing',
       events: null,
       reports: null,
       helpDesk: 'helpDesk',
@@ -92,6 +94,7 @@ describe('PRODUCTION_NAV_ITEMS', () => {
       'Branch Stock',
       'Returns',
       'Discounts',
+      'WhatsApp Purchasing',
     ]);
   });
 
@@ -104,6 +107,7 @@ describe('PRODUCTION_NAV_ITEMS', () => {
       'layers',
       'rotate-ccw',
       'percent',
+      'message-circle',
       'calendar',
       'bar-chart',
       'headset',
@@ -112,17 +116,17 @@ describe('PRODUCTION_NAV_ITEMS', () => {
 });
 
 describe('FINANCE_NAV_ITEMS', () => {
-  it('is the 15 Finance items under Overview / Books / People / Partners / Setup & review', () => {
+  it('is the 16 Finance items under Overview / Books / People / Partners / Setup & review', () => {
     const bySection: Record<string, string[]> = {};
     for (const item of FINANCE_NAV_ITEMS) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
     expect(bySection).toEqual({
       Overview: ['Dashboard', 'Approvals'],
-      Books: ['Daily Ledger', 'Cash Transfers', 'Income & Expense', 'Daily Closing'],
+      Books: ['Daily Ledger', 'Cash Transfers', 'Supplier Payments', 'Income & Expense', 'Daily Closing'],
       People: ['Payroll', 'Salary Ledger'],
       Partners: ['Partner Transactions', 'Company Transactions'],
       'Setup & review': ['Ledger Heads', 'Reports', 'Audit Trail', 'Help Desk', 'Settings'],
     });
-    expect(FINANCE_NAV_ITEMS).toHaveLength(15);
+    expect(FINANCE_NAV_ITEMS).toHaveLength(16);
   });
 
   it('maps each badge, with Daily Closing and Settings as dots rather than counts', () => {
@@ -130,6 +134,7 @@ describe('FINANCE_NAV_ITEMS', () => {
     expect(badged).toEqual([
       ['approvals', 'approvals', false],
       ['cashTransfers', 'cashTransfers', false],
+      ['supplierPayments', 'supplierPayments', false],
       ['dailyClosing', 'dailyClosing', true],
       ['helpDesk', 'helpDesk', false],
       ['settings', 'financeSettings', true],

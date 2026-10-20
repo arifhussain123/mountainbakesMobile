@@ -12,6 +12,12 @@ jest.mock('@/navigation/routes', () => ({
     CASH_TRANSFER_DETAIL: 'CashTransferDetail',
     QUERY_DETAIL: 'QueryDetail',
     EVENT_DEMAND: 'EventDemand',
+    PRODUCTION_DRAWER: 'ProductionDrawer',
+    PRODUCTION_WHATSAPP_STACK: 'ProductionWhatsAppStack',
+    PRODUCTION_WHATSAPP_DEMAND_DETAIL: 'ProductionWhatsAppDemandDetail',
+    PRODUCTION_WHATSAPP_CONVERSATIONS: 'ProductionWhatsAppConversations',
+    FINANCE_DRAWER: 'FinanceDrawer',
+    FINANCE_SUPPLIER_PAYMENTS_STACK: 'FinanceSupplierPaymentsStack',
   },
 }));
 
@@ -27,6 +33,7 @@ describe('NOTIFICATION_TYPES', () => {
       'cash_transfer_reviewed', 'support_query', 'support_resolved', 'finance_query', 'finance_query_resolved',
       'finance_query_updated', 'finance_query_message', 'finance_query_amended', 'event_created', 'event_reminder',
       'event_demand_due', 'event_demand_submitted', 'event_demand_reviewed', 'event_production_updated', 'security_alert',
+      'purchase_quotation', 'purchase_bill', 'purchase_message', 'purchase_payment', 'purchase_payment_reviewed',
     ];
     for (const type of ALL_TYPES) {
       expect(NOTIFICATION_TYPES[type]).toBeDefined();
@@ -81,5 +88,26 @@ describe('openNotificationRecord', () => {
   it('returns false for a Finance-only type this app has no detail screen for', () => {
     const opened = openNotificationRecord({ type: 'finance_query_resolved', relatedId: 'finance-ticket-uuid' });
     expect(opened).toBe(false);
+  });
+
+  it.each(['purchase_quotation', 'purchase_bill', 'purchase_payment_reviewed'] as const)('routes %s to the WhatsApp Purchasing demand, with the list beneath it', (type) => {
+    expect(openNotificationRecord({ type, relatedId: 'demand-uuid' })).toBe(true);
+    expect(mockNavigateToRecord).toHaveBeenCalledWith('ProductionDrawer', {
+      screen: 'ProductionWhatsAppStack',
+      params: { screen: 'ProductionWhatsAppDemandDetail', params: { demandId: 'demand-uuid' }, initial: false },
+    });
+  });
+
+  it('routes purchase_message to Conversations (its relatedId may be a message, not a demand)', () => {
+    expect(openNotificationRecord({ type: 'purchase_message', relatedId: 'message-or-demand' })).toBe(true);
+    expect(mockNavigateToRecord).toHaveBeenCalledWith('ProductionDrawer', {
+      screen: 'ProductionWhatsAppStack',
+      params: { screen: 'ProductionWhatsAppConversations', initial: false },
+    });
+  });
+
+  it("routes purchase_payment to Finance's Supplier Payments queue", () => {
+    expect(openNotificationRecord({ type: 'purchase_payment', relatedId: 'payment-uuid' })).toBe(true);
+    expect(mockNavigateToRecord).toHaveBeenCalledWith('FinanceDrawer', { screen: 'FinanceSupplierPaymentsStack' });
   });
 });

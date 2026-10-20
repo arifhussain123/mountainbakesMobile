@@ -16,6 +16,7 @@ export { FinanceSalaryLedgerScreen } from './screens/FinanceSalaryLedgerScreen';
 export { FinanceLedgerListScreen } from './screens/FinanceLedgerListScreen';
 export { FinanceReportsScreen } from './screens/FinanceReportsScreen';
 export { FinanceSettingsScreen } from './screens/FinanceSettingsScreen';
+export { FinanceSupplierPaymentsScreen } from './screens/FinanceSupplierPaymentsScreen';
 
 // The monthly Finance Dashboard's own cards, charts and tables — reused as the
 // Super Admin dashboard's Finance Summary, fed the same response, as the web's

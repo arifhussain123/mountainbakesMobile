@@ -184,6 +184,26 @@ export const queryKeys = {
   restrictionRequests: (type: string | null) => ['restrictions', 'requests', type] as const,
   restrictionMonitor: () => ['restrictions', 'monitor'] as const,
   restrictionEvents: (ruleCode: string | null) => ['restrictions', 'events', ruleCode] as const,
+  // WhatsApp Purchasing — everything under one `purchasing` root, so a
+  // decision on one demand can refresh the list, the counts and the detail
+  // with a single invalidation.
+  purchasingRoot: () => ['purchasing'] as const,
+  purchasingStatus: () => ['purchasing', 'status'] as const,
+  purchasingSummary: () => ['purchasing', 'summary'] as const,
+  purchasingDemandPages: (query: unknown) => ['purchasing', 'demands', 'pages', query] as const,
+  purchasingDemands: (query: unknown) => ['purchasing', 'demands', 'list', query] as const,
+  purchasingDemand: (id: string) => ['purchasing', 'demand', id] as const,
+  purchasingSuppliers: (search: string) => ['purchasing', 'suppliers', search] as const,
+  purchasingSupplierBalance: (supplierId: string) => ['purchasing', 'supplierBalance', supplierId] as const,
+  purchasingItems: (search: string) => ['purchasing', 'items', search] as const,
+  purchasingConversations: (search: string) => ['purchasing', 'conversations', search] as const,
+  purchasingMessages: (query: unknown) => ['purchasing', 'messages', query] as const,
+  // Finance → Supplier Payments
+  supplierPaymentsRoot: () => ['supplierPayments'] as const,
+  supplierPayments: (query: unknown) => ['supplierPayments', 'payments', query] as const,
+  supplierCredits: (query: unknown) => ['supplierPayments', 'credits', query] as const,
+  supplierPaymentBalances: () => ['supplierPayments', 'balances'] as const,
+  supplierPaymentHeads: () => ['supplierPayments', 'heads'] as const,
   // Global Search (web header Ctrl+K) — one answer per trimmed term.
   globalSearch: (q: string) => ['globalSearch', q] as const,
 };

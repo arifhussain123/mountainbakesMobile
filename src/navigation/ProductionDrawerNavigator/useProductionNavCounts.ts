@@ -3,6 +3,7 @@ import {
   useProductionOrders,
   useProductionReturnsAwaitingCount,
   useProductionStock,
+  usePurchasingSummary,
 } from '@/api';
 
 /**
@@ -17,4 +18,6 @@ export function useProductionNavCounts(): void {
   useProductionStock();
   useProductionReturnsAwaitingCount();
   useProductionDiscountsAwaitingCount();
+  // WhatsApp Purchasing's badge: its tab counts, the same response its screen shows.
+  usePurchasingSummary();
 }

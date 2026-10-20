@@ -7,6 +7,7 @@ import {
   FinancePartnersScreen,
   FinanceReportsScreen,
   FinanceSettingsScreen,
+  FinanceSupplierPaymentsScreen,
 } from '@/features/finance';
 import { ProfileScreen } from '@/features/profile';
 import { DrawerContent } from '../DrawerNavigator/DrawerContent';
@@ -44,6 +45,7 @@ export function FinanceDrawerNavigator() {
       <Drawer.Screen name={Routes.FINANCE_AUDIT_TRAIL_STACK} component={FinanceAuditTrailScreen} />
       <Drawer.Screen name={Routes.FINANCE_HELP_DESK_STACK} component={FinanceHelpDeskStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_SETTINGS_STACK} component={FinanceSettingsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_SUPPLIER_PAYMENTS_STACK} component={FinanceSupplierPaymentsScreen} />
       <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
     </Drawer.Navigator>
   );

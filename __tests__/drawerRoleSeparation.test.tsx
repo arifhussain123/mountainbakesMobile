@@ -58,8 +58,8 @@ describe('the drawer, per server role', () => {
     expect(texts).toEqual(
       expect.arrayContaining(['Production User', 'Production · All branches', 'OVERVIEW', 'WORK', 'PLANNING', 'INSIGHTS', 'SUPPORT']),
     );
-    const menu = ['Dashboard', 'Orders', 'Sales', 'Production Stock', 'Branch Stock', 'Returns', 'Discounts', 'Events', 'Reports', 'Help Desk'];
-    // Exactly the 10 items, in the web's order (Appearance/Logout follow under Settings).
+    const menu = ['Dashboard', 'Orders', 'Sales', 'Production Stock', 'Branch Stock', 'Returns', 'Discounts', 'WhatsApp Purchasing', 'Events', 'Reports', 'Help Desk'];
+    // Exactly the 11 items, in the web's order (Appearance/Logout follow under Settings).
     expect(texts.filter((t) => menu.includes(t))).toEqual(menu);
     for (const label of ['New Orders', 'Cash Deposits', 'Shop Expenses', 'Branch Closing', 'Daily Sale Record', 'Return Stock', 'No branch assigned']) {
       expect(texts).not.toContain(label);
@@ -72,7 +72,7 @@ describe('the drawer, per server role', () => {
     expect(texts).toContain('7');
   });
 
-  it('a Finance Admin sees the 15 Finance items across all branches — no Branch or Production screens', () => {
+  it('a Finance Admin sees the 16 Finance items across all branches — no Branch or Production screens', () => {
     const texts = renderDrawerFor(user('finance_admin', null));
     expect(texts).toEqual(expect.arrayContaining(['Finance Admin', 'Finance · All branches', 'OVERVIEW', 'BOOKS', 'PEOPLE', 'PARTNERS', 'SETUP & REVIEW']));
     const menu = [
@@ -80,6 +80,7 @@ describe('the drawer, per server role', () => {
       'Approvals',
       'Daily Ledger',
       'Cash Transfers',
+      'Supplier Payments',
       'Income & Expense',
       'Daily Closing',
       'Payroll',
