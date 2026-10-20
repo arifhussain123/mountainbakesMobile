@@ -76,6 +76,14 @@ export const Routes = {
   // the bell lives in several module headers, not one stack.
   NOTIFICATIONS: 'Notifications',
 
+  // Global Search (the web header's Ctrl+K) — root-level modal, opened from
+  // the search icon in every Super Admin header.
+  GLOBAL_SEARCH: 'GlobalSearch',
+
+  // Forced password change (web /change-password) — root-level, shown by
+  // RootNavigator in place of the role shell while `mustChangePassword`.
+  CHANGE_PASSWORD: 'ChangePassword',
+
   // Account
   PROFILE: 'Profile',
   SETTINGS: 'Settings',
@@ -158,23 +166,63 @@ export const Routes = {
   FINANCE_HELP_DESK_STACK: 'FinanceHelpDeskStack',
   FINANCE_SETTINGS_STACK: 'FinanceSettingsStack',
 
-  // Super Admin catalog — Price History (read-only). Not mounted in any shell
-  // yet: super_admin has no ROLE_SHELLS entry; its shell mounts this stack.
+  // Super Admin catalog — Price History (read-only), mounted by the Super Admin shell.
   PRICE_HISTORY_STACK: 'PriceHistoryStack',
   PRICE_HISTORY_LIST: 'PriceHistoryList',
   PRICE_HISTORY_PRODUCT: 'PriceHistoryProduct',
 
-  // Super Admin — closing-summary recipients. Not mounted in any shell yet (see PRICE_HISTORY_STACK).
+  // Super Admin — closing-summary recipients, mounted by the Super Admin shell.
   RECIPIENTS_STACK: 'RecipientsStack',
   RECIPIENTS_LIST: 'RecipientsList',
   RECIPIENTS_DELIVERY_LOG: 'RecipientsDeliveryLog',
 
-  // Super Admin shell. The four tab roots are placeholders until each screen's
-  // own brief is built; Price History and Recipients are its first real stacks.
+  // Super Admin shell. Orders, Branch Stock and Reports reuse Production's and
+  // the branch's screens (the server serves super_admin every branch); the
+  // rest are Super Admin's own read-only screens (`features/admin`).
   SUPER_ADMIN_TABS: 'SuperAdminTabs',
   SUPER_ADMIN_DASHBOARD_TAB: 'SuperAdminDashboardTab',
   SUPER_ADMIN_ORDERS_TAB: 'SuperAdminOrdersTab',
   SUPER_ADMIN_BRANCH_STOCK_TAB: 'SuperAdminBranchStockTab',
   SUPER_ADMIN_REPORTS_TAB: 'SuperAdminReportsTab',
   SUPER_ADMIN_MORE_TAB: 'SuperAdminMoreTab',
+  // Super Admin Orders tab stack (web /orders — Production Orders, read-only).
+  SUPER_ADMIN_ORDERS_LIST: 'SuperAdminOrdersList',
+  SUPER_ADMIN_ORDER_DETAIL: 'SuperAdminOrderDetail',
+  SUPER_ADMIN_CUSTOMERS: 'SuperAdminCustomers',
+  SUPER_ADMIN_DAILY_SALE: 'SuperAdminDailySale',
+  SUPER_ADMIN_PRODUCTS: 'SuperAdminProducts',
+  SUPER_ADMIN_CATEGORIES: 'SuperAdminCategories',
+  SUPER_ADMIN_PRICE_LIST: 'SuperAdminPriceList',
+  SUPER_ADMIN_BRANCHES: 'SuperAdminBranches',
+  SUPER_ADMIN_BRANCH_LOCATIONS: 'SuperAdminBranchLocations',
+  SUPER_ADMIN_USERS: 'SuperAdminUsers',
+  SUPER_ADMIN_SECURITY: 'SuperAdminSecurity',
+  SUPER_ADMIN_BACKUP: 'SuperAdminBackup',
+  SUPER_ADMIN_SETTINGS: 'SuperAdminSettings',
+  // Inside SuperAdminSettingsStackNavigator (mounted at SUPER_ADMIN_SETTINGS): Settings → Restriction Rules.
+  SUPER_ADMIN_SETTINGS_HOME: 'SuperAdminSettingsHome',
+  SUPER_ADMIN_RESTRICTION_RULES: 'SuperAdminRestrictionRules',
+
+  // Super Admin — Special Events (web /special-events), read-only this phase.
+  SUPER_ADMIN_EVENTS_STACK: 'SuperAdminEventsStack',
+  SUPER_ADMIN_EVENTS_LIST: 'SuperAdminEventsList',
+  SUPER_ADMIN_EVENT_DETAIL: 'SuperAdminEventDetail',
+  // Super Admin — Support Center (web /support), read-only this phase.
+  SUPER_ADMIN_SUPPORT_STACK: 'SuperAdminSupportStack',
+  SUPER_ADMIN_SUPPORT_LIST: 'SuperAdminSupportList',
+  SUPER_ADMIN_SUPPORT_TICKET: 'SuperAdminSupportTicket',
+  SUPER_ADMIN_FINANCE_TICKET: 'SuperAdminFinanceTicket',
+  // Super Admin — Daily Ledger (web /finance-ledger), read-only this phase.
+  SUPER_ADMIN_LEDGER_STACK: 'SuperAdminLedgerStack',
+  SUPER_ADMIN_LEDGER_LIST: 'SuperAdminLedgerList',
+  // Super Admin — the web's other finance pages (`canAccessFinance`), mounted
+  // in the Super Admin drawer from the Finance role's own screens. The ones
+  // that are drawer screens in the Finance shell keep their FINANCE_* names
+  // there too; these two are tabs in that shell, so they get drawer names here.
+  SUPER_ADMIN_FINANCE_ENTRIES: 'SuperAdminFinanceEntries',
+  SUPER_ADMIN_FINANCE_PAYROLL_STACK: 'SuperAdminFinancePayrollStack',
+  // Super Admin — Daily Sale Records (web /daily-sale-records): the board and
+  // one record's read-only View. The stack mounts under SUPER_ADMIN_DAILY_SALE.
+  SUPER_ADMIN_DAILY_SALE_LIST: 'SuperAdminDailySaleList',
+  SUPER_ADMIN_DAILY_SALE_DETAIL: 'SuperAdminDailySaleDetail',
 } as const;

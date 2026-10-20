@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { useDispatchClosingSummaries, type NotificationRecipient } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { PrimaryButton, TextField } from '@/shared/ui';
+import { DateField, PrimaryButton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayDate } from '@/shared/utils';
 import { lastClosedBusinessDay, messagesPerRun } from '../utils/recipientRules';
@@ -71,17 +71,14 @@ export function SendNowSheetContent({ live, recipients, activeBranchCount, today
         </Text>
       ) : null}
       <View style={{ marginTop: theme.spacing.md }}>
-        <TextField
+        {/* Only days that have already closed can be picked: today's summary does not exist until 2:00 AM. */}
+        <DateField
           label="Business date"
           value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          autoCapitalize="none"
-          error={DATE_RE.test(date) && !dateOk ? 'Pick a day that has already closed.' : !DATE_RE.test(date) && date.length >= 10 ? 'Use YYYY-MM-DD.' : undefined}
+          onChange={setDate}
+          maximumDate={lastClosedBusinessDay(today)}
+          error={DATE_RE.test(date) && !dateOk ? 'Pick a day that has already closed.' : undefined}
         />
-        {dateOk ? (
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>{formatDisplayDate(date)}</Text>
-        ) : null}
       </View>
 
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>RECIPIENTS</Text>

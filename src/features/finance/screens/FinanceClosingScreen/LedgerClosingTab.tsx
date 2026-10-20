@@ -3,7 +3,6 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  financeCan,
   generateIdempotencyKey,
   getBusinessDate,
   queryKeys,
@@ -19,7 +18,7 @@ import { useAppTheme } from '@/shared/theme';
 import { Card, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, PrimaryButton, SecondaryButton, StatCard, StatusBadge } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage, requestDeviceReauth } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { dateAttention } from '../../utils/branchSalesAttention';
 import { closeOrderBlocker, computeClosingChecklist, oldestOpenDay, shiftDate } from '../../utils/closingChecklist';
 import { formatMoney2, formatStamp } from '../../utils/financeFormat';
@@ -64,8 +63,8 @@ function Figures({ day }: { day: FinanceDayClosing }) {
 export function LedgerClosingTab() {
   const theme = useAppTheme();
   const queryClient = useQueryClient();
-  const role = useAuthStore((state) => state.user?.role);
-  const canClose = financeCan(role, 'approve');
+  const can = useFinanceCan();
+  const canClose = can('approve');
   const today = getBusinessDate();
 
   const history = useDayClosingHistory(HISTORY_DAYS);

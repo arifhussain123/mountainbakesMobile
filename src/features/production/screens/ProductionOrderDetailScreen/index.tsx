@@ -12,6 +12,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, Icon, PrimaryButton, Screen, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { buildA4ChallanText, buildPopPrintText } from '@/features/orders/utils/productionOrderPrint';
 import type { ProductionOrder } from '@/api';
 import { styles } from './styles';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar';
@@ -24,62 +25,6 @@ const STATUS_LABEL: Record<ProductionOrder['status'], string> = {
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 };
-
-/**
- * Share-based "printing" (screen 03's POP Print / A4 Challan buttons).
- *
- * There is no native thermal-printer SDK anywhere in this app's dependencies
- * (confirmed — adding Bluetooth/USB printer integration is real native-module
- * work, out of scope here; see the `pop-printer-setup` memory for why). Both
- * buttons instead hand a plain-text rendition of the order to React Native's
- * built-in `Share` sheet, so the user can route it to any app that accepts a
- * share — including, on most Android devices, a system "Print" service. This
- * is NOT the till's POP printer; it is the closest honest equivalent without
- * a new native dependency.
- */
-function buildPopPrintText(order: ProductionOrder): string {
-  const lines = order.items.map(
-    (i) => `${i.productName}${i.isSpecial ? ' (Special)' : ''} x${i.qty}  ${formatCurrency((i.unitPrice ?? 0) * i.qty)}`,
-  );
-  const total = order.items.reduce((sum, i) => sum + (i.unitPrice ?? 0) * i.qty, 0);
-  return [
-    'Mountain Bakes — Production Department',
-    `Demand ${order.demandNumber}`,
-    order.branchName,
-    `Raised ${formatDisplayDate(order.date)}${order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}`,
-    '',
-    ...lines,
-    '',
-    `Total  ${formatCurrency(total)}`,
-  ].join('\n');
-}
-
-function buildA4ChallanText(order: ProductionOrder, balance: ReturnType<typeof usePreviousOrderBalance>['data']): string {
-  const itemLines = order.items.map(
-    (i) => `${i.productName}  Demand ${i.qty}  Appr. ${i.approvedQty ?? i.qty}  ${formatCurrency((i.unitPrice ?? 0) * i.qty)}`,
-  );
-  const total = order.items.reduce((sum, i) => sum + (i.unitPrice ?? 0) * i.qty, 0);
-  const copy = (label: string) =>
-    [
-      `--- ${label} ---`,
-      'Mountain Bakes — Production Department',
-      `Demand ${order.demandNumber}  ·  ${order.branchName}`,
-      `Raised ${formatDisplayDate(order.date)}${order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}`,
-      '',
-      ...itemLines,
-      `Totals  ${formatCurrency(total)}`,
-      ...(label === 'Company Copy' && balance?.previous
-        ? [
-            '',
-            `Previous order ${balance.previous.demandNumber} (${formatDisplayDate(balance.previous.date)})`,
-            `Amount to collect  ${formatCurrency(balance.amountToCollect)}`,
-            `Payments received  ${formatCurrency(balance.paymentsReceivedValue)}`,
-            `Remaining balance  ${formatCurrency(balance.remainingBalance)}`,
-          ]
-        : []),
-    ].join('\n');
-  return [copy('Customer Copy'), '\n'.repeat(1) + '— — — — — — cut here — — — — — —\n', copy('Company Copy')].join('\n');
-}
 
 /** mountainbakesProduction.html screen 03 — Order Detail: review one branch demand. */
 export function ProductionOrderDetailScreen() {

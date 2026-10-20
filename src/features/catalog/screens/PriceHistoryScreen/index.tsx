@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, SectionList, Share, Text, View } from 'react-native';
+import { ActivityIndicator, SectionList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  exportPriceHistoryCsv,
   getBusinessDate,
   useCatalogProducts,
   usePriceHistoryPages,
   type PriceChange,
+  type PriceHistorySortKey,
 } from '@/api';
 import { Routes, type PriceHistoryStackParamList } from '@/navigation';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
@@ -17,10 +17,31 @@ import { AppHeader, DateRangeSheet, EmptyState, ErrorState, LoadingSkeleton, Scr
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
+import { SortControl } from '@/features/admin/components';
+import { fileFormatOptions, useExportSheet } from '@/features/admin/components/ExportSheet';
+import { EXPORT_FORMATS, priceHistoryExportRequest } from '@/features/admin/utils/exports';
+import { sortSummary, toSortPair, type SortField, type SortState } from '@/features/admin/utils/listControls';
 import { PriceChangeCard } from '../../components/PriceChangeCard';
 import { ALL, PriceHistoryFilters, type DirectionFilter, type SourceFilter } from '../../components/PriceHistoryFilters';
 import { groupByMonth, inForceIds, matchesPriceFilters, priceHints } from '../../utils/priceHistoryHints';
 import { styles } from './styles';
+
+/**
+ * The web table's sortable columns (Reason does not sort), each both ways,
+ * sorted by the server. Unset keeps the server's newest change first,
+ * grouped by month.
+ */
+const SORT_FIELDS: SortField<PriceChange>[] = [
+  { key: 'priceNumber', label: 'ID', kind: 'text' },
+  { key: 'productName', label: 'Product', kind: 'text' },
+  { key: 'oldPrice', label: 'Old Price', kind: 'number' },
+  { key: 'newPrice', label: 'New Price', kind: 'number' },
+  { key: 'effectiveDate', label: 'Effective Date', kind: 'date' },
+  { key: 'changedByName', label: 'Changed By', kind: 'text' },
+  { key: 'changedOn', label: 'Changed On', kind: 'date' },
+  { key: 'status', label: 'Status', kind: 'text' },
+];
+const DEFAULT_SORT_LABEL = 'Newest change first';
 
 interface CachePayload {
   history: PriceChange[];
@@ -52,12 +73,12 @@ export function PriceHistoryScreen() {
   const [direction, setDirection] = useState<DirectionFilter>('all');
   const [source, setSource] = useState<SourceFilter>('all');
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const [sort, setSort] = useState<SortState | null>(null);
 
-  const serverQuery = useMemo(
-    () => ({ productId: productId === ALL ? undefined : productId, search: debouncedSearch || undefined }),
-    [productId, debouncedSearch],
-  );
+  const serverQuery = useMemo(() => {
+    const { sortBy, sortDir } = toSortPair<PriceHistorySortKey>(sort);
+    return { productId: productId === ALL ? undefined : productId, search: debouncedSearch || undefined, sortBy, sortDir };
+  }, [productId, debouncedSearch, sort]);
   const pagesQ = usePriceHistoryPages(serverQuery);
   const catalogQ = useCatalogProducts();
   const liveRows = useMemo(() => pagesQ.data?.pages.flatMap((p) => p.history) ?? [], [pagesQ.data]);
@@ -101,7 +122,12 @@ export function PriceHistoryScreen() {
 
   const costById = useMemo(() => new Map((catalogQ.data?.products ?? []).map((p) => [p.id, p.costPrice])), [catalogQ.data]);
   const inForce = useMemo(() => inForceIds(rows), [rows]);
-  const sections = useMemo(() => groupByMonth(rows.filter((r) => matchesPriceFilters(r, clientFilters))), [rows, clientFilters]);
+  const sections = useMemo(() => {
+    const matching = rows.filter((r) => matchesPriceFilters(r, clientFilters));
+    // Month headings only make sense in date order; any other sort is one flat list in the server's order.
+    if (!sort || matching.length === 0) return groupByMonth(matching);
+    return [{ key: `${sort.key}:${sort.dir}`, title: sortSummary(sort, SORT_FIELDS, DEFAULT_SORT_LABEL), data: matching }];
+  }, [rows, clientFilters, sort]);
 
   // Products: the ordinary catalogue plus any (hidden Special Order) product a loaded change is on.
   const productOptions = useMemo<DropdownOption[]>(() => {
@@ -133,28 +159,30 @@ export function PriceHistoryScreen() {
     void catalogQ.refetch();
   };
 
-  const handleExport = async () => {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      const csv = await exportPriceHistoryCsv(productId === ALL ? undefined : productId);
-      await Share.share({ title: 'Price History', message: csv });
-    } catch (e) {
-      Alert.alert('Could Not Export', mapErrorToMessage(e));
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const total = pagesQ.data?.pages[0]?.total;
+
+  // The web's Excel and CSV buttons: the server's file of the whole trail
+  // (`/products/price/history/export`, no filters — as the web page exports
+  // it), shared as a file. Dead while nothing is listed, as on the web.
+  const exportSheet = useExportSheet();
+  const exporting = exportSheet.busy;
+  const openExport = () =>
+    exportSheet.open({
+      title: 'Export Price History',
+      subtitle: 'Every price change',
+      options: fileFormatOptions(EXPORT_FORMATS.priceHistory, (format) => priceHistoryExportRequest(format), {
+        disabled: rows.length === 0,
+        hint: rows.length === 0 ? 'No price changes to export' : undefined,
+      }),
+    });
 
   return (
     <Screen>
       <AppHeader
         title="Price History"
-        subtitle="Every price change, permanently recorded. Read-only."
+        subtitle="Every price change, permanently recorded. Read-only — cannot be edited or deleted."
         actions={[
-          { icon: 'file-spreadsheet', onPress: () => void handleExport(), accessibilityLabel: productId === ALL ? 'Export all price history as CSV' : "Export this product's price history as CSV" },
+          { icon: 'file-spreadsheet', onPress: openExport, accessibilityLabel: 'Export all price history' },
           { icon: 'refresh', onPress: refresh, accessibilityLabel: 'Refresh' },
         ]}
       />
@@ -195,6 +223,7 @@ export function PriceHistoryScreen() {
               hasActiveFilters={hasActiveFilters}
               onClearAll={clearAll}
             />
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel={DEFAULT_SORT_LABEL} />
             {total !== undefined && !showingCache ? (
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
                 {total} {total === 1 ? 'change' : 'changes'} on record{exporting ? ' · preparing export…' : ''}
@@ -238,6 +267,7 @@ export function PriceHistoryScreen() {
         onApply={setDateRange}
         onRequestClose={() => dateSheetRef.current?.dismiss()}
       />
+      {exportSheet.element}
     </Screen>
   );
 }

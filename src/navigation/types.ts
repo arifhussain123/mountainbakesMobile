@@ -113,6 +113,12 @@ export type RecipientsStackParamList = {
   [Routes.RECIPIENTS_DELIVERY_LOG]: undefined;
 };
 
+/** Super Admin Settings → Restriction Rules (web /settings and /settings/restriction-rules). */
+export type SuperAdminSettingsStackParamList = {
+  [Routes.SUPER_ADMIN_SETTINGS_HOME]: undefined;
+  [Routes.SUPER_ADMIN_RESTRICTION_RULES]: undefined;
+};
+
 export type PriceHistoryStackParamList = {
   [Routes.PRICE_HISTORY_LIST]: undefined;
   [Routes.PRICE_HISTORY_PRODUCT]: { productId: string; productName: string };
@@ -194,18 +200,72 @@ export type FinanceDrawerParamList = {
   [Routes.PROFILE]: undefined;
 };
 
+export type SuperAdminOrdersStackParamList = {
+  [Routes.SUPER_ADMIN_ORDERS_LIST]: undefined;
+  [Routes.SUPER_ADMIN_ORDER_DETAIL]: { orderId: string };
+};
+
 export type SuperAdminBottomTabParamList = {
   [Routes.SUPER_ADMIN_DASHBOARD_TAB]: undefined;
-  [Routes.SUPER_ADMIN_ORDERS_TAB]: undefined;
+  [Routes.SUPER_ADMIN_ORDERS_TAB]: NavigatorScreenParams<SuperAdminOrdersStackParamList> | undefined;
   [Routes.SUPER_ADMIN_BRANCH_STOCK_TAB]: undefined;
   [Routes.SUPER_ADMIN_REPORTS_TAB]: undefined;
   [Routes.SUPER_ADMIN_MORE_TAB]: undefined;
 };
 
+/** Super Admin — Special Events (web /special-events + /special-events/[id]). */
+export type SuperAdminEventsStackParamList = {
+  [Routes.SUPER_ADMIN_EVENTS_LIST]: undefined;
+  [Routes.SUPER_ADMIN_EVENT_DETAIL]: { eventId: string };
+};
+
+/** Super Admin — Support Center (web /support): ops tickets + Finance queries. */
+export type SuperAdminSupportStackParamList = {
+  [Routes.SUPER_ADMIN_SUPPORT_LIST]: undefined;
+  [Routes.SUPER_ADMIN_SUPPORT_TICKET]: { ticketId: string };
+  [Routes.SUPER_ADMIN_FINANCE_TICKET]: { ticketId: string };
+};
+
+/** Super Admin — Daily Ledger (web /finance-ledger). */
+export type SuperAdminLedgerStackParamList = {
+  [Routes.SUPER_ADMIN_LEDGER_LIST]: undefined;
+};
+
+/** Super Admin — Daily Sale Records (web /daily-sale-records): the board, then one record's View. */
+export type SuperAdminDailySaleStackParamList = {
+  [Routes.SUPER_ADMIN_DAILY_SALE_LIST]: undefined;
+  [Routes.SUPER_ADMIN_DAILY_SALE_DETAIL]: { recordId: string };
+};
+
 export type SuperAdminDrawerParamList = {
+  [Routes.SUPER_ADMIN_EVENTS_STACK]: NavigatorScreenParams<SuperAdminEventsStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_SUPPORT_STACK]: NavigatorScreenParams<SuperAdminSupportStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_LEDGER_STACK]: NavigatorScreenParams<SuperAdminLedgerStackParamList> | undefined;
   [Routes.SUPER_ADMIN_TABS]: NavigatorScreenParams<SuperAdminBottomTabParamList> | undefined;
   [Routes.PRICE_HISTORY_STACK]: NavigatorScreenParams<PriceHistoryStackParamList> | undefined;
   [Routes.RECIPIENTS_STACK]: NavigatorScreenParams<RecipientsStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_CUSTOMERS]: undefined;
+  [Routes.SUPER_ADMIN_DAILY_SALE]: NavigatorScreenParams<SuperAdminDailySaleStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_PRODUCTS]: undefined;
+  [Routes.SUPER_ADMIN_CATEGORIES]: undefined;
+  [Routes.SUPER_ADMIN_PRICE_LIST]: undefined;
+  [Routes.SUPER_ADMIN_BRANCHES]: undefined;
+  [Routes.SUPER_ADMIN_BRANCH_LOCATIONS]: undefined;
+  [Routes.SUPER_ADMIN_USERS]: undefined;
+  [Routes.SUPER_ADMIN_SECURITY]: undefined;
+  [Routes.SUPER_ADMIN_BACKUP]: undefined;
+  [Routes.SUPER_ADMIN_SETTINGS]: NavigatorScreenParams<SuperAdminSettingsStackParamList> | undefined;
+  // The Finance role's screens, as the web lets super_admin open them.
+  [Routes.FINANCE_CASH_TRANSFERS_STACK]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_FINANCE_ENTRIES]: undefined;
+  [Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
+  [Routes.FINANCE_PARTNERS_STACK]: undefined;
+  [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
+  [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;
+  [Routes.FINANCE_CLOSING_STACK]: undefined;
+  [Routes.FINANCE_REPORTS_STACK]: undefined;
+  [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
+  [Routes.FINANCE_SETTINGS_STACK]: undefined;
   [Routes.PROFILE]: undefined;
 };
 
@@ -224,4 +284,6 @@ export type RootStackParamList = {
   [Routes.QUERY_DETAIL]: { ticketId: string };
   [Routes.NEW_QUERY]: { prefillReferenceId?: string } | undefined;
   [Routes.NOTIFICATIONS]: undefined;
+  [Routes.GLOBAL_SEARCH]: undefined;
+  [Routes.CHANGE_PASSWORD]: undefined;
 };

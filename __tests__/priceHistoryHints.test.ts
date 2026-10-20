@@ -181,12 +181,12 @@ describe('matchesPriceFilters', () => {
 describe('priceChangeA11yLabel', () => {
   it('reads the card as one line, as the brief words it', () => {
     expect(priceChangeA11yLabel(cookies)).toBe(
-      'Cookies, COOKIES-001, price down from 200 to 150 rupees, 25 percent, effective 23 September, reason: change due to old stock, applied',
+      'Cookies, COOKIES-001, price down from 200 to 150 rupees, 25 percent, effective 23 September, reason: change due to old stock, active',
     );
   });
 
   it('says when there is no code or reason, and reads the hints', () => {
     const label = priceChangeA11yLabel(lotus, priceHints(lotus, all, null));
-    expect(label).toBe('Lotus cake 2 pounds, no code, price up from 0 to 1,500 rupees, effective 19 September, no reason given, applied, From Rs. 0');
+    expect(label).toBe('Lotus cake 2 pounds, no code, price up from 0 to 1,500 rupees, effective 19 September, no reason given, active, From Rs. 0');
   });
 });

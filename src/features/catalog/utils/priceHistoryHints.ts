@@ -10,10 +10,11 @@ import { percentChange } from '@/shared/utils';
  * finding.
  */
 
+/** The web's labels: the raw status, capitalised. */
 export const PRICE_STATUS_LABEL: Record<PriceChangeStatus, string> = {
-  active: 'Applied',
+  active: 'Active',
   scheduled: 'Scheduled',
-  superseded: 'Replaced before it applied',
+  superseded: 'Superseded',
 };
 
 export const PRICE_STATUS_VARIANT: Record<PriceChangeStatus, StatusVariant> = {

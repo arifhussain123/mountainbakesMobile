@@ -1,4 +1,14 @@
 export { useLogin } from './useAuthApi';
+export { useAdminSalesAnalytics, useAdminTodaySummary, useBranchSales, useLoginHistoryPage } from './useAdminDashboardApi';
+export { useActiveAdminBranches, useAdminProductPages, useAllPackingMaterials } from './useAdminCatalogApi';
+export {
+  useCreateAdminBranch,
+  useDeactivateAdminBranch,
+  useDeleteBranchLocation,
+  useSetBranchLocationStatus,
+  useUpdateAdminBranch,
+  useUpsertBranchLocation,
+} from './useAdminBranchActionsApi';
 export { useBranchClosing } from './useBranchClosingApi';
 export { useBranches } from './useBranchesApi';
 export {
@@ -11,16 +21,18 @@ export {
   useRecentNotificationLogs,
   useUpdateRecipient,
 } from './useClosingRecipientsApi';
-export { useReportSummary, useSalesAnalytics, useStockHistoryDay, useStockHistorySeries } from './useDashboardApi';
+export { useBranchStockHistorySeries, useReportSummary, useSalesAnalytics, useStockHistoryDay, useStockHistorySeries } from './useDashboardApi';
 export { usePackingMaterials } from './usePackingMaterialsApi';
 export { useCatalogProducts, usePriceHistoryPages, useProductPriceHistory } from './usePriceHistoryApi';
 export { useProducts } from './useProductsApi';
 export {
+  useAddProductionOrderItem,
   useCancelProductionOrder,
   useCreateProductionOrder,
   useFinalApproveProductionOrder,
   usePreviousOrderBalance,
   useProductionOrder,
+  useProductionOrderPages,
   useProductionOrders,
   useReviewProductionOrder,
   useVerifyProductionOrder,
@@ -42,7 +54,8 @@ export {
 export { useCreateProductionSale, useProductionSales } from './useProductionSalesApi';
 export { useCreatePosSale, useOrder, useOrders, useSalesData } from './useSalesApi';
 export { useAppSettings } from './useSettingsApi';
-export { useStock } from './useStockApi';
+export { useAllBranchesStockSummary, useBranchStock, useStock } from './useStockApi';
+export { useDeleteAdminStock, useSaveAdminStock } from './useAdminBranchStockActionsApi';
 export {
   useBranchReturns,
   useBranchReturnsSummary,
@@ -54,6 +67,21 @@ export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, u
 export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer, useMonthlyCashTransferSummary } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses, useExpensesData, useExpensesTotal } from './useExpensesApi';
 export {
+  useAdminReviewEventDemand,
+  useAdminUpdateEventStage,
+  useConfirmEventDate,
+  useCreateSpecialEvent,
+  useDeleteSpecialEvent,
+  useDispatchEventNotifications,
+  useRegenerateEventSchedule,
+  useUpdateEventStatus,
+  useUpdateSpecialEvent,
+} from './useAdminEventActionsApi';
+export {
+  useAdminSpecialEvents,
+  useEventCalendar,
+  useEventNotifications,
+  useSpecialEvent,
   useConsolidatedDemand,
   useEventDemands,
   useEventProductionStatus,
@@ -88,6 +116,7 @@ export {
   useLedgerEntry,
   useLedgerHeads,
   useLedgerPage,
+  useLedgerPages,
   useLedgerSummary,
   usePendingApprovals,
   useRejectFinanceCashTransfer,
@@ -142,8 +171,20 @@ export {
   useRequestReopenFinanceTicket,
   useSubmitFinanceTicket,
 } from './useFinanceTicketsApi';
-export { useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
-export { usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
+export {
+  useAdminGenerateDailySaleRecord,
+  useAmendDailySaleRecord,
+  useDailySaleLocks,
+  useDailySaleRecord,
+  useDailySaleRecords,
+  useFeedDailySaleRecord,
+  useGenerateDailySaleRecord,
+  useLockDailySaleRecord,
+  useSetPaymentMethodLock,
+  useUnlockDailySaleRecord,
+  useVerifyDailySaleRecord,
+} from './useDailySaleApi';
+export { useApproveSpecialOrder, usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {
   useProductionBranchStock,
   useProductionBranchSummary,
@@ -151,8 +192,114 @@ export {
   useProductionOverview,
   useProductionReportSummary,
 } from './useProductionOverviewApi';
-export { usePackingUsage } from './useReportsApi';
-export { useCreateSupportTicket, useSupportTickets } from './useSupportApi';
+export { useAdminReportSummary, usePackingUsage, usePackingUsagePages } from './useReportsApi';
+export {
+  useAdminSupportTickets,
+  useCachedAdminSupportTicket,
+  useCreateSupportTicket,
+  useFinanceTicketsPaged,
+  useSupportLiveReference,
+  useSupportStats,
+  useSupportTickets,
+} from './useSupportApi';
 export { useNotifications, useNotificationsWithReadState, useMarkNotificationsRead, mergeReadState } from './useNotificationsApi';
 export type { NotificationWithReadState } from './useNotificationsApi';
 export { useBackupHealth, useSuspiciousSignInCount } from './useAdminNavApi';
+export {
+  useAdminBranches,
+  useAdminCustomers,
+  useAdminCustomersData,
+  useAdminUsers,
+  useBackupJobPages,
+  useBranchLocations,
+  useLoginSessionPages,
+  useProductCategories,
+  useActiveSessions,
+  useBackupHistory,
+  useBackupStatus,
+  useLatestRestoreTest,
+  useLoginAttemptPages,
+  useLoginFilterOptions,
+  useRestrictionEvents,
+  useRestrictionMonitor,
+  useRestrictionRequests,
+  useRestrictionRules,
+  useSecuritySession,
+  useSecuritySessionPages,
+  useUserActivity,
+  useUsersDataPages,
+} from './useAdminDataApi';
+export {
+  useCreateCategory,
+  useCreateCustomer,
+  useRemoveCategory,
+  useRenameCategory,
+  useUpdateCustomer,
+} from './useAdminCatalogActionsApi';
+export {
+  useActivateUser,
+  useChangeUserEmail,
+  useCreateUser,
+  useDeactivateUser,
+  useDeleteUser,
+  useResetUserPassword,
+  useRevokeAllSessions,
+  useRevokeSession,
+  useRunManualBackup,
+  useUpdateUser,
+  useVerifyBackup,
+} from './useAdminSystemActionsApi';
+export {
+  useChangeProductPrice,
+  useCreatePackingMaterial,
+  useCreateProduct,
+  useDeactivateProduct,
+  useDeletePackingMaterial,
+  useUpdatePackingMaterial,
+  useUpdateProduct,
+} from './useAdminProductsActionsApi';
+export { useDecideRestrictionRequest, useSaveRestrictionGroup, useUpdateAppSettings } from './useAdminSettingsActionsApi';
+export type { SaveRestrictionGroupInput } from './useAdminSettingsActionsApi';
+export {
+  useArchiveSupportTicket,
+  useAssignFinanceTicket,
+  useChangeSupportFigures,
+  useCorrectFinanceRecord,
+  useDeleteFinanceRecord,
+  useDeleteFinanceTicket,
+  useDeleteSupportCashDeposit,
+  useDeleteSupportDemand,
+  useEditSupportDemandItems,
+  useEditSupportSaleItems,
+  useEditSupportTicket,
+  useFeedFinanceTicket,
+  useResolveSupportTicket,
+  useRestoreFinanceTicket,
+  useSaveFinanceTicketResponse,
+  useSetFinanceTicketStatus,
+  useSupportProducts,
+} from './useAdminSupportActionsApi';
+export type {
+  CorrectFinanceRecordInput,
+  CorrectFinanceRecordResult,
+  FinanceTicketStatusInput,
+  SupportFiguresResult,
+  SupportSaleItemInput,
+} from '../services/adminSupportActionsService';
+export {
+  GLOBAL_SEARCH_MIN_CHARS,
+  useBackupDownloadUrl,
+  useChangeOwnPassword,
+  useGlobalSearch,
+  useUploadSettingsLogo,
+} from './useAdminSearchAndFilesApi';
+export type {
+  BackupArchive,
+  BackupDownloadUrlResponse,
+  GlobalSearchGroup,
+  GlobalSearchResult,
+  PickedLogo,
+} from '../services/adminSearchAndFilesService';
+export { useProductionReceivedDemand, useProductionRepairedStock, useProductionReturnStock } from './useProductionDashboardSectionsApi';
+export { useCommitPriceImport, usePreviewPriceImport } from './usePriceImportApi';
+export type { PriceImportFile } from '../services/priceImportService';

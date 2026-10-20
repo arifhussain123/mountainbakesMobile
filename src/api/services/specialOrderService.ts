@@ -23,3 +23,12 @@ export async function prepareSpecialOrder(
 ): Promise<{ success: boolean; status: string }> {
   return apiClient.put<{ success: boolean; status: string }>(`/special-orders/${id}/prepare`, input);
 }
+
+/**
+ * `PUT /special-orders/:id/approve` — LEGACY: finishes an order the branch
+ * verified before verification itself moved the stock. Nothing raised since
+ * reaches 'verified', so this only ever clears old orders.
+ */
+export async function approveSpecialOrder(id: string): Promise<{ success: boolean }> {
+  return apiClient.put<{ success: boolean }>(`/special-orders/${id}/approve`);
+}

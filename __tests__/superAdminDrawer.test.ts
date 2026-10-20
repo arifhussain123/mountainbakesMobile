@@ -1,7 +1,8 @@
 /**
  * @format
  */
-import { getBusinessDate, queryClient, queryKeys } from '@/api';
+import { financeCan, getBusinessDate, queryClient, queryKeys } from '@/api';
+import { OPEN_CASH_TRANSFERS_TARGET, PENDING_REVIEW_TARGET } from '@/features/admin/utils/ledgerActions';
 import type { BackupHealth, ProductionOrderListResponse } from '@/api';
 import {
   SEARCH_FIELD_HEIGHT,
@@ -21,7 +22,7 @@ import {
   type SectionRow,
 } from '@/navigation/components/drawerSections';
 import { computeSuperAdminBadges } from '@/navigation/navBadgeCounts';
-import { GROUP_LABEL, SUPER_ADMIN_NAV_ITEMS, type NavItem } from '@/navigation/navItems';
+import { GROUP_LABEL, SUPER_ADMIN_NAV_ITEMS, isNavItemActive, type NavItem } from '@/navigation/navItems';
 import { ROLE_SHELLS, getRoleShell } from '@/navigation/roleShells';
 import { Routes } from '@/navigation/routes';
 
@@ -57,7 +58,7 @@ describe('Super Admin shell', () => {
     for (const role of ['branch_manager', 'production_user', 'finance_admin'] as const) expect(ROLE_SHELLS[role]!.collapsibleSections).toBeFalsy();
   });
 
-  it('is the 20 web items, in order, under the eight sections', () => {
+  it('is the 20 web items, in order, under the eight sections, then the web\'s finance pages under two more', () => {
     const bySection: Record<string, string[]> = {};
     for (const item of SUPER_ADMIN_NAV_ITEMS) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
     expect(bySection).toEqual({
@@ -66,13 +67,15 @@ describe('Super Admin shell', () => {
       Catalog: ['Products', 'Categories', 'Price List', 'Price History'],
       Branches: ['Branches', 'Branch Locations', 'Branch Stock'],
       'Planning & insights': ['Special Events', 'Reports'],
-      Finance: ['Finance Ledger'],
+      Finance: ['Finance Ledger', 'Cash Transfers', 'Income & Expense', 'Daily Closing'],
+      'Payroll & partners': ['Payroll', 'Salary Ledger', 'Partner Transactions', 'Company Transactions'],
+      'Finance setup & review': ['Ledger Heads', 'Finance Reports', 'Audit Trail', 'Finance Settings'],
       Support: ['Support Center', 'Recipients'],
       Admin: ['Users', 'Security', 'Database Backup', 'Settings'],
     });
     expect(Object.keys(bySection)).toEqual(sectionOrder(rowsFor(null)));
-    expect(SUPER_ADMIN_NAV_ITEMS).toHaveLength(20);
-    expect(new Set(SUPER_ADMIN_NAV_ITEMS.map((i) => i.key)).size).toBe(20);
+    expect(SUPER_ADMIN_NAV_ITEMS).toHaveLength(31);
+    expect(new Set(SUPER_ADMIN_NAV_ITEMS.map((i) => i.key)).size).toBe(31);
   });
 
   it("uses the brief's icons", () => {
@@ -91,6 +94,17 @@ describe('Super Admin shell', () => {
       'calendar',
       'bar-chart',
       'book-open',
+      'banknote',
+      'wallet',
+      'calendar-check',
+      'user-coin',
+      'table',
+      'handshake',
+      'bank',
+      'list-indent',
+      'trending-up',
+      'clock',
+      'settings',
       'life-buoy',
       'send',
       'user-group',
@@ -106,7 +120,40 @@ describe('Super Admin shell', () => {
     expect(shell.tabItems.find((t) => t.key === 'orders')!.badgeSource).toBe('orders');
   });
 
-  it('only ever offers its own tabs and stacks, or Coming Soon for a screen not built yet', () => {
+  // The Finance role's screens Super Admin opens as the web lets it (`canAccessFinance`).
+  const SHARED_STACKS = [
+    Routes.FINANCE_CASH_TRANSFERS_STACK,
+    Routes.FINANCE_CASH_TRANSFERS_LIST,
+    Routes.FINANCE_PAYROLL_LIST,
+    Routes.FINANCE_SALARY_LEDGER,
+    Routes.FINANCE_PARTNERS_STACK,
+    Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK,
+    Routes.FINANCE_LEDGER_HEADS_STACK,
+    Routes.FINANCE_CLOSING_STACK,
+    Routes.FINANCE_REPORTS_STACK,
+    Routes.FINANCE_AUDIT_TRAIL_STACK,
+    Routes.FINANCE_SETTINGS_STACK,
+  ] as string[];
+  const SUPER_ADMIN_SCREENS = [
+    Routes.SUPER_ADMIN_EVENTS_STACK,
+    Routes.SUPER_ADMIN_LEDGER_STACK,
+    Routes.SUPER_ADMIN_SUPPORT_STACK,
+    Routes.SUPER_ADMIN_CUSTOMERS,
+    Routes.SUPER_ADMIN_DAILY_SALE,
+    Routes.SUPER_ADMIN_PRODUCTS,
+    Routes.SUPER_ADMIN_CATEGORIES,
+    Routes.SUPER_ADMIN_PRICE_LIST,
+    Routes.SUPER_ADMIN_BRANCHES,
+    Routes.SUPER_ADMIN_BRANCH_LOCATIONS,
+    Routes.SUPER_ADMIN_USERS,
+    Routes.SUPER_ADMIN_SECURITY,
+    Routes.SUPER_ADMIN_BACKUP,
+    Routes.SUPER_ADMIN_SETTINGS,
+    Routes.SUPER_ADMIN_FINANCE_ENTRIES,
+    Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK,
+  ] as string[];
+
+  it('only ever offers its own tabs, screens and stacks — never Coming Soon', () => {
     const own = new Set<string>([
       Routes.SUPER_ADMIN_TABS,
       Routes.SUPER_ADMIN_DASHBOARD_TAB,
@@ -115,28 +162,110 @@ describe('Super Admin shell', () => {
       Routes.SUPER_ADMIN_REPORTS_TAB,
       Routes.PRICE_HISTORY_STACK,
       Routes.RECIPIENTS_STACK,
-      Routes.COMING_SOON,
+      ...SHARED_STACKS,
+      ...SUPER_ADMIN_SCREENS,
     ]);
     for (const item of SUPER_ADMIN_NAV_ITEMS) for (const route of targetsOf(item)) expect(own.has(route)).toBe(true);
     for (const tab of shell.tabItems) if (tab.route) expect(own.has(tab.route)).toBe(true);
+    expect(SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf)).not.toContain(Routes.COMING_SOON);
   });
 
-  it("never reaches another role's menu, and no other role reaches Super Admin's", () => {
-    const superAdminOnly = [Routes.SUPER_ADMIN_TABS, Routes.PRICE_HISTORY_STACK, Routes.RECIPIENTS_STACK] as string[];
+  it("never reaches another role's menu beyond the shared stacks, and no other role reaches Super Admin's", () => {
+    const superAdminOnly = [Routes.SUPER_ADMIN_TABS, Routes.PRICE_HISTORY_STACK, Routes.RECIPIENTS_STACK, ...SUPER_ADMIN_SCREENS] as string[];
     for (const role of ['branch_manager', 'production_user', 'finance_admin', 'accountant'] as const) {
       const other = ROLE_SHELLS[role]!;
       const otherRoutes = other.navItems.flatMap(targetsOf);
       expect(otherRoutes.filter((r) => superAdminOnly.includes(r))).toEqual([]);
-      const mine = SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf).filter((r) => r !== Routes.COMING_SOON);
+      const mine = SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf).filter((r) => !SHARED_STACKS.includes(r));
       expect(mine.filter((r) => otherRoutes.includes(r))).toEqual([]);
     }
   });
 
-  it('opens Coming Soon titled with the item, for Customers, Support Center and Security among others', () => {
-    for (const key of ['customers', 'supportCenter', 'security']) {
+  it('opens real screens for Customers, Support Center and Security', () => {
+    const expected: Record<string, string> = {
+      customers: Routes.SUPER_ADMIN_CUSTOMERS,
+      supportCenter: Routes.SUPER_ADMIN_SUPPORT_STACK,
+      security: Routes.SUPER_ADMIN_SECURITY,
+    };
+    for (const [key, route] of Object.entries(expected)) {
       const navigate = jest.fn();
       SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
-      expect(navigate).toHaveBeenCalledWith(Routes.COMING_SOON, { title: SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.label });
+      expect(navigate).toHaveBeenCalledWith(route, undefined);
+    }
+  });
+});
+
+describe('Super Admin finance pages', () => {
+  const navigateOf = (key: string) => {
+    const navigate = jest.fn();
+    SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
+    return navigate.mock.calls[0];
+  };
+
+  it("opens every finance page the web lets super_admin open, on the Finance role's own screens", () => {
+    // Web route → the drawer row that reaches it.
+    expect({
+      '/finance-ledger': navigateOf('financeLedger'),
+      '/finance-cash-transfers': navigateOf('financeCashTransfers'),
+      '/finance-entries': navigateOf('financeEntries'),
+      '/finance-closing': navigateOf('financeClosing'),
+      '/finance-payroll': navigateOf('financePayroll'),
+      '/finance-salaries': navigateOf('financeSalaries'),
+      '/finance-partner-transactions': navigateOf('financePartnerTransactions'),
+      '/finance-partner-expenses': navigateOf('financeCompanyTransactions'),
+      '/finance-heads': navigateOf('financeHeads'),
+      '/finance-reports': navigateOf('financeReports'),
+      '/finance-audit': navigateOf('financeAudit'),
+      '/finance-settings': navigateOf('financeSettings'),
+    }).toEqual({
+      '/finance-ledger': [Routes.SUPER_ADMIN_LEDGER_STACK, undefined],
+      '/finance-cash-transfers': [Routes.FINANCE_CASH_TRANSFERS_STACK, { screen: Routes.FINANCE_CASH_TRANSFERS_LIST }],
+      '/finance-entries': [Routes.SUPER_ADMIN_FINANCE_ENTRIES, undefined],
+      '/finance-closing': [Routes.FINANCE_CLOSING_STACK, undefined],
+      '/finance-payroll': [Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, { screen: Routes.FINANCE_PAYROLL_LIST }],
+      '/finance-salaries': [Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, { screen: Routes.FINANCE_SALARY_LEDGER }],
+      '/finance-partner-transactions': [Routes.FINANCE_PARTNERS_STACK, undefined],
+      '/finance-partner-expenses': [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK, undefined],
+      '/finance-heads': [Routes.FINANCE_LEDGER_HEADS_STACK, undefined],
+      '/finance-reports': [Routes.FINANCE_REPORTS_STACK, undefined],
+      '/finance-audit': [Routes.FINANCE_AUDIT_TRAIL_STACK, undefined],
+      '/finance-settings': [Routes.FINANCE_SETTINGS_STACK, undefined],
+    });
+  });
+
+  it('marks Payroll active across its stack except on the Salary Ledger, which has its own row', () => {
+    const payroll = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'financePayroll')!;
+    const salaries = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'financeSalaries')!;
+    const chain = (leaf: string) => [Routes.SUPER_ADMIN_DRAWER, Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, leaf];
+    expect(isNavItemActive(payroll, chain(Routes.FINANCE_PAYROLL_LIST))).toBe(true);
+    expect(isNavItemActive(payroll, chain(Routes.FINANCE_EMPLOYEE_DETAIL))).toBe(true);
+    expect(isNavItemActive(payroll, chain(Routes.FINANCE_SALARY_LEDGER))).toBe(false);
+    expect(isNavItemActive(salaries, chain(Routes.FINANCE_SALARY_LEDGER))).toBe(true);
+    expect(isNavItemActive(salaries, chain(Routes.FINANCE_PAYROLL_LIST))).toBe(false);
+  });
+
+  it("links the Finance Ledger's pending panels where the web's do", () => {
+    expect(OPEN_CASH_TRANSFERS_TARGET).toEqual({ stack: Routes.FINANCE_CASH_TRANSFERS_STACK, screen: Routes.FINANCE_CASH_TRANSFERS_LIST });
+    expect(PENDING_REVIEW_TARGET).toEqual({
+      transaction: { stack: Routes.SUPER_ADMIN_FINANCE_ENTRIES },
+      partner_expense: { stack: Routes.FINANCE_PARTNERS_STACK },
+      salary: { stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, screen: Routes.FINANCE_PAYROLL_LIST },
+      advance: { stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, screen: Routes.FINANCE_PAYROLL_LIST },
+    });
+    // Every target is a row of this drawer, so the screen behind it is mounted.
+    const drawerTargets = new Set(SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf));
+    for (const t of [OPEN_CASH_TRANSFERS_TARGET, ...Object.values(PENDING_REVIEW_TARGET)]) expect(drawerTargets.has(t.stack)).toBe(true);
+  });
+
+  it('is read-only for super_admin until "Allow Super Admin to modify" is on, and unchanged for the finance roles', () => {
+    const perms = ['view', 'create', 'approve', 'adjust', 'configure'] as const;
+    expect(perms.filter((p) => financeCan('super_admin', p, false))).toEqual(['view']);
+    expect(perms.filter((p) => financeCan('super_admin', p, true))).toEqual([...perms]);
+    for (const allow of [false, true]) {
+      expect(perms.filter((p) => financeCan('finance_auditor', p, allow))).toEqual(['view']);
+      expect(perms.filter((p) => financeCan('accountant', p, allow))).toEqual(['view', 'create']);
+      expect(perms.filter((p) => financeCan('finance_manager', p, allow))).toEqual(['view', 'create', 'approve']);
+      expect(perms.filter((p) => financeCan('finance_admin', p, allow))).toEqual([...perms]);
     }
   });
 });
@@ -236,8 +365,8 @@ describe('collapsible sections', () => {
     const rows = rowsFor('dashboard');
     const sections = sectionOrder(rows).length;
     const count = (open: readonly string[]) => rows.filter((r) => open.includes(r.section!)).length;
-    // Room for 8 headers and 9 rows at 40dp: 8 × 28 + 9 × 40.
-    const fits = (open: readonly string[]) => fitsAtMinimum(8 * 28 + 9 * 40, count(open), sections);
+    // Room for every header and 9 rows at 40dp: headers × 28 + 9 × 40.
+    const fits = (open: readonly string[]) => fitsAtMinimum(sections * 28 + 9 * 40, count(open), sections);
     let open = ['Overview'];
     open = expandSection(open, 'Sales & orders', ['Overview'], fits); // 1 + 3
     open = expandSection(open, 'Branches', ['Overview'], fits); // + 3 = 7
@@ -255,7 +384,7 @@ describe('collapsible sections', () => {
 
   it('filters rows across folded sections as you type', () => {
     const rows = rowsFor(null);
-    expect(filterRows(rows, '').length).toBe(20);
+    expect(filterRows(rows, '').length).toBe(31);
     expect(filterRows(rows, '  branch ').map((r) => r.label)).toEqual(['Branches', 'Branch Locations', 'Branch Stock']);
     expect(filterRows(rows, 'PRICE').map((r) => r.label)).toEqual(['Price List', 'Price History']);
     expect(filterRows(rows, 'zzz')).toEqual([]);
@@ -278,7 +407,7 @@ describe('collapsible drawer sizing', () => {
     ['412x915', 915],
   ])('on %s, opens with Overview + the active section expanded and nothing clipped', (_name, height) => {
     const available = listHeight(height);
-    for (const active of ['dashboard', 'priceHistory', 'databaseBackup', 'dailySaleRecords']) {
+    for (const active of ['dashboard', 'priceHistory', 'databaseBackup', 'dailySaleRecords', 'financeCashTransfers', 'financeSalaries', 'financeSettings']) {
       const rows = rowsFor(active);
       const open = initialExpanded(rows, null);
       const visible = rows.filter((r) => open.includes(r.section!)).length;

@@ -22,3 +22,16 @@ export function usePrepareSpecialOrder() {
     },
   });
 }
+
+/** LEGACY: approve a Special Order the branch verified under the earlier workflow. */
+export function useApproveSpecialOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => specialOrderService.approveSpecialOrder(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.specialOrders() });
+      void queryClient.invalidateQueries({ queryKey: ['productionStock'] });
+      void queryClient.invalidateQueries({ queryKey: ['stock'] });
+    },
+  });
+}

@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
-  financeCan,
   useCreateLedgerHead,
   useLedgerHeads,
   useUpdateLedgerHead,
@@ -12,7 +11,7 @@ import {
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { styles } from './styles';
 
 function TypeChip({ type }: { type: LedgerHeadType }) {
@@ -28,8 +27,8 @@ function TypeChip({ type }: { type: LedgerHeadType }) {
 /** mountainbakesFinance.html screens 16–17 — Ledger Heads / New Ledger Head. A head is never deleted, only deactivated. */
 export function FinanceLedgerHeadsScreen() {
   const theme = useAppTheme();
-  const role = useAuthStore((state) => state.user?.role);
-  const canConfigure = financeCan(role, 'configure');
+  const can = useFinanceCan();
+  const canConfigure = can('configure');
 
   const { data: heads, isLoading, error, refetch } = useLedgerHeads({ includeInactive: true });
   const create = useCreateLedgerHead();

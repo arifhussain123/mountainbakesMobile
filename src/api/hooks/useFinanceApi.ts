@@ -76,6 +76,24 @@ export function useLedgerPage(query: LedgerQuery) {
   });
 }
 
+/**
+ * The cash book in posting order, `pageSize` vouchers a page, for infinite
+ * scroll. Opening balance and totals are server-side over the whole filtered
+ * set, so every page carries the same ones.
+ */
+export function useLedgerPages(query: Omit<LedgerQuery, 'limit' | 'offset'>, pageSize = 20) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.ledgerPages({ ...query, pageSize }),
+    queryFn: ({ pageParam }) => financeService.queryLedger({ ...query, limit: pageSize, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.entries.length, 0);
+      return loaded < lastPage.total && lastPage.entries.length > 0 ? loaded : undefined;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useLedgerSummary(params: { to?: string; branchId?: string }) {
   return useQuery({
     queryKey: queryKeys.ledgerSummary(params),

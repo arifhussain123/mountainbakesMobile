@@ -35,3 +35,13 @@ export function useStockHistorySeries(days: number) {
     staleTime: LIVE_STALE_TIME_MS,
   });
 }
+
+/** Branch Stock History for a branch the caller names (super_admin) — the per-day series of one shop. */
+export function useBranchStockHistorySeries(branchId: string | null, days: number) {
+  return useQuery({
+    queryKey: queryKeys.branchStockHistorySeries(branchId ?? '', days),
+    queryFn: () => dashboardService.getStockHistorySeries(days, branchId!),
+    enabled: !!branchId,
+    staleTime: LIVE_STALE_TIME_MS,
+  });
+}

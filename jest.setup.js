@@ -154,3 +154,41 @@ jest.mock('react-native-haptic-feedback', () => ({
   default: { trigger: jest.fn() },
   HapticFeedbackTypes: {},
 }));
+
+jest.mock('react-native-blob-util', () => ({
+  __esModule: true,
+  default: {
+    config: jest.fn(() => ({ fetch: jest.fn() })),
+    fs: { dirs: { CacheDir: '/cache' }, readFile: jest.fn(), unlink: jest.fn(() => Promise.resolve()) },
+  },
+}));
+
+jest.mock('react-native-share', () => ({
+  __esModule: true,
+  default: { open: jest.fn(() => Promise.resolve({ success: true })) },
+}));
+
+jest.mock('@react-native-documents/picker', () => ({
+  pick: jest.fn(),
+  types: { csv: 'text/csv', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel' },
+  errorCodes: { OPERATION_CANCELED: 'OPERATION_CANCELED' },
+  isErrorWithCode: (e) => !!e && typeof e === 'object' && 'code' in e,
+}));
+
+jest.mock('@react-native-clipboard/clipboard', () => ({
+  __esModule: true,
+  default: { setString: jest.fn(), getString: jest.fn(() => Promise.resolve('')) },
+}));
+
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MapView = React.forwardRef((props, ref) => React.createElement(View, { ...props, ref }));
+  return {
+    __esModule: true,
+    default: MapView,
+    Marker: (props) => React.createElement(View, props),
+    Circle: (props) => React.createElement(View, props),
+    PROVIDER_GOOGLE: 'google',
+  };
+});

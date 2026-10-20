@@ -1,6 +1,8 @@
 import { useEffect, useMemo, type ComponentType } from 'react';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GlobalSearchScreen } from '@/features/admin';
+import { ChangePasswordScreen } from '@/features/auth';
 import { NotificationsScreen } from '@/features/notifications';
 import { ComingSoonScreen } from '@/features/placeholder';
 import { NewQueryScreen, QueryDetailScreen } from '@/features/support';
@@ -65,11 +67,17 @@ function useNavigationTheme(): NavigationTheme {
  * mountainbakesProduction.html's, a finance role mountainbakesFinance.html's,
  * super_admin its own, and anything else an explicit "not built for this role"
  * screen rather than one it was never designed for.
+ *
+ * A signed-in user with `mustChangePassword` (an admin reset them to a
+ * temporary password) gets only the forced Change Password screen, whatever
+ * the role — the web RouteGuard's gate, which comes before role routing.
+ * Completing it refreshes the session, the flag clears, and the shell mounts.
  */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const role = useAuthStore((state) => state.user?.role);
+  const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword === true);
   const navigationTheme = useNavigationTheme();
 
   useEffect(() => {
@@ -83,7 +91,9 @@ export function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {status === 'signedIn' ? (
+        {status === 'signedIn' && mustChangePassword ? (
+          <Stack.Screen name={Routes.CHANGE_PASSWORD} component={ChangePasswordScreen} />
+        ) : status === 'signedIn' ? (
           <Stack.Screen name={shellRoute} component={SHELL_COMPONENT[shellRoute]} />
         ) : (
           <Stack.Screen name={Routes.AUTH} component={AuthNavigator} />
@@ -92,6 +102,7 @@ export function RootNavigator() {
         <Stack.Screen name={Routes.QUERY_DETAIL} component={QueryDetailScreen} options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name={Routes.NEW_QUERY} component={NewQueryScreen} options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name={Routes.NOTIFICATIONS} component={NotificationsScreen} options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name={Routes.GLOBAL_SEARCH} component={GlobalSearchScreen} options={{ presentation: 'modal', headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

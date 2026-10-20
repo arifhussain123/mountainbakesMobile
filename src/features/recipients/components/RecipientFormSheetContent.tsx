@@ -189,7 +189,10 @@ export function RecipientFormSheetContent({ recipient, recipients, branches, act
       {showErrors && errors.channel ? <Text style={[theme.typography.label, { color: theme.colors.danger, marginTop: 4 }]}>{errors.channel}</Text> : null}
 
       <View style={[styles.activeRow, { marginTop: theme.spacing.md }]}>
-        <Text style={[theme.typography.body, { color: theme.colors.text, flex: 1 }]}>Active</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.body, { color: theme.colors.text }]}>Active</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>Inactive numbers are skipped at 2:00 AM</Text>
+        </View>
         <Switch value={active} onValueChange={setActive} accessibilityLabel="Active" trackColor={{ true: theme.colors.primary, false: theme.colors.cardBorder }} />
       </View>
 

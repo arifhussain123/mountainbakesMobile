@@ -3,9 +3,11 @@ import { getBusinessDate } from '../businessDate';
 import type {
   CancelProductionOrderInput,
   CreateProductionOrderInput,
+  DataEnginePage,
   PreviousOrderBalance,
   ProductionOrder,
   ProductionOrderListResponse,
+  ProductionOrderStatus,
   ReviewProductionOrderInput,
   VerifyProductionOrderInput,
 } from '../types';
@@ -13,6 +15,46 @@ import type {
 /** `/api/production-orders` — last 7 business days, branch-scoped server-side. */
 export async function listProductionOrders(): Promise<ProductionOrderListResponse> {
   return apiClient.get<ProductionOrderListResponse>('/production-orders');
+}
+
+/** Filters for the Data Engine's `productionOrders` resource — the web Production Orders table's filter bar. */
+export interface ProductionOrdersDataQuery {
+  /** Demand #, branch name, raised by. */
+  search?: string;
+  status?: ProductionOrderStatus;
+  branchId?: string;
+  /** Business-date window, 'YYYY-MM-DD'. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Required-date window, 'YYYY-MM-DD'. */
+  requiredFrom?: string;
+  requiredTo?: string;
+  /** The Data Engine's `sort=field:dir` (a web column header); absent = newest business date first. */
+  sort?: string;
+}
+
+/**
+ * `GET /data/productionOrders` — every demand ever raised, server-paged and
+ * filtered (the web Orders table), newest business date first. Unlike
+ * `/production-orders` (last 7 business days) it reaches back indefinitely.
+ * Rows carry their lines and packing lines but not their photos.
+ */
+export async function listProductionOrdersData(
+  query: ProductionOrdersDataQuery & { page?: number; pageSize?: number },
+): Promise<DataEnginePage<ProductionOrder>> {
+  const { page = 1, pageSize = 20, search, status, branchId, dateFrom, dateTo, requiredFrom, requiredTo, sort } = query;
+  return apiClient.get<DataEnginePage<ProductionOrder>>('/data/productionOrders', {
+    page,
+    pageSize,
+    ...(search ? { search } : {}),
+    ...(status ? { status } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(dateFrom ? { 'businessDate.gte': dateFrom } : {}),
+    ...(dateTo ? { 'businessDate.lte': dateTo } : {}),
+    ...(requiredFrom ? { 'requiredDate.gte': requiredFrom } : {}),
+    ...(requiredTo ? { 'requiredDate.lte': requiredTo } : {}),
+    ...(sort ? { sort } : {}),
+  });
 }
 
 /** `GET /production-orders/:id` — one demand's complete record, for the detail screen. */
@@ -68,6 +110,18 @@ export async function verifyProductionOrder(
  */
 export async function reviewProductionOrder(id: string, input: ReviewProductionOrderInput): Promise<{ success: boolean; status: string }> {
   return apiClient.put<{ success: boolean; status: string }>(`/production-orders/${id}/review`, input);
+}
+
+/**
+ * `POST /production-orders/:id/items` — Production (or Super Admin) adds a line
+ * the branch never asked for to a still-'pending' demand, before submitting it.
+ * The server refuses once the order has left 'pending'.
+ */
+export async function addProductionOrderItem(
+  id: string,
+  input: { productId: string; qty: number; remarks?: string },
+): Promise<{ success: boolean }> {
+  return apiClient.post<{ success: boolean }>(`/production-orders/${id}/items`, { ...input, remarks: input.remarks ?? '' });
 }
 
 /** `PUT /production-orders/:id/final-approve` — only once the branch has verified. */

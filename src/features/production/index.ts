@@ -1,6 +1,8 @@
 export { NewProductionReturnScreen } from './screens/NewProductionReturnScreen';
 export { ProductionBranchStockScreen } from './screens/ProductionBranchStockScreen';
 export { ProductionDashboardScreen } from './screens/ProductionDashboardScreen';
+// Reused by the Super Admin dashboard's Live Production section.
+export { ProductionDualLineChart, ProductionPlanList } from './components';
 export { ProductionDiscountDetailScreen } from './screens/ProductionDiscountDetailScreen';
 export { ProductionDiscountsListScreen } from './screens/ProductionDiscountsListScreen';
 export { ProductionEventDemandScreen } from './screens/ProductionEventDemandScreen';

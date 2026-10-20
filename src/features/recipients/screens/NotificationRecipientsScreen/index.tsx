@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { Alert, FlatList, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import {
   getBusinessDate,
   useBranches,
   useClosingRecipients,
+  useDeleteRecipient,
   useMessagingProvider,
   useRecentNotificationLogs,
   useUpdateRecipient,
@@ -48,6 +49,7 @@ export function NotificationRecipientsScreen() {
   const branchesQ = useBranches();
   const logsQ = useRecentNotificationLogs();
   const toggle = useUpdateRecipient();
+  const remove = useDeleteRecipient();
 
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search).trim();
@@ -94,6 +96,21 @@ export function NotificationRecipientsScreen() {
     formRef.current?.present();
   };
 
+  /** The web row's Remove, with its confirm and toast wording. */
+  const confirmRemove = (r: NotificationRecipient) =>
+    Alert.alert('Remove Recipient', `Remove ${r.recipientName} (${r.mobileNumber}) from the closing summary list?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          remove.mutate(r.id, {
+            onSuccess: () => Alert.alert('Removed', 'Recipient removed'),
+            onError: (e) => Alert.alert('Failed to Remove', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
+
   const refresh = () => {
     void recipientsQ.refetch();
     void providerQ.refetch();
@@ -105,7 +122,7 @@ export function NotificationRecipientsScreen() {
     <Screen>
       <AppHeader
         title="Notification Recipients"
-        subtitle="Who gets the 2:00 AM closing summary."
+        subtitle="Who receives the 2:00 AM closing summary. Each branch number gets only that branch's figures."
         actions={[
           { icon: 'list-indent', onPress: () => navigation.navigate(Routes.RECIPIENTS_DELIVERY_LOG), accessibilityLabel: 'Delivery log' },
           ...(showingCache ? [] : [{ icon: 'transfer' as const, onPress: () => sendRef.current?.present(), accessibilityLabel: live ? 'Send summaries now' : 'Log a test send' }]),
@@ -124,7 +141,7 @@ export function NotificationRecipientsScreen() {
               </Text>
             ) : null}
             {branches.length > 0 ? <CoverageStrip coverage={coverage} /> : null}
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Name, number or branch…" />
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search recipients…" />
             {showingCache ? null : <PrimaryButton label="+ Add Recipient" onPress={() => openForm()} />}
             {recipientsQ.isLoading ? <LoadingSkeleton height={120} /> : null}
             {recipientsQ.error && !showingCache ? <ErrorState message={mapErrorToMessage(recipientsQ.error)} onRetry={refresh} /> : null}
@@ -135,8 +152,12 @@ export function NotificationRecipientsScreen() {
             recipient={item}
             lastLog={lastLogs.get(item.id)}
             toggling={toggle.isPending || showingCache}
-            onToggleActive={(active) => toggle.mutate({ id: item.id, input: { active } })}
+            onToggleActive={(active) =>
+              toggle.mutate({ id: item.id, input: { active } }, { onError: (e) => Alert.alert('Could Not Update the Recipient', mapErrorToMessage(e)) })
+            }
             onEdit={() => (showingCache ? undefined : openForm(item))}
+            onRemove={showingCache ? undefined : () => confirmRemove(item)}
+            removing={remove.isPending && remove.variables === item.id}
           />
         )}
         ListEmptyComponent={

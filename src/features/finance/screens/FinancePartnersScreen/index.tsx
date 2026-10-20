@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
-  financeCan,
   useApprovePartnerExpense,
   useFinancePartners,
   usePartnerExpenses,
@@ -15,7 +14,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton, StatCard, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { EditPartnerProfileSheetContent } from './EditPartnerProfileSheetContent';
 import { NewPartnerExpenseSheetContent } from './NewPartnerExpenseSheetContent';
 import { styles } from './styles';
@@ -35,10 +34,10 @@ const STATUS_VARIANT: Record<string, StatusVariant> = {
 /** mountainbakesFinance.html screen 12 — Partner Transactions: advances/draws, the profit-share summary, and the partner master. */
 export function FinancePartnersScreen() {
   const theme = useAppTheme();
-  const role = useAuthStore((state) => state.user?.role);
-  const canCreate = financeCan(role, 'create');
-  const canApprove = financeCan(role, 'approve');
-  const canConfigure = financeCan(role, 'configure');
+  const can = useFinanceCan();
+  const canCreate = can('create');
+  const canApprove = can('approve');
+  const canConfigure = can('configure');
 
   const [tab, setTab] = useState<(typeof TABS)[number]>('advance');
   const [editingPartner, setEditingPartner] = useState<FinancePartner | null>(null);

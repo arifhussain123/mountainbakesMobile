@@ -4,7 +4,6 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  financeCan,
   useAdvances,
   useApproveEmployeeAdvance,
   useApproveSalaryPayment,
@@ -20,7 +19,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { AddEmployeeSheetContent } from './AddEmployeeSheetContent';
 import { NewEmployeeAdvanceSheetContent } from './NewEmployeeAdvanceSheetContent';
 import { NewSalaryPaymentSheetContent } from './NewSalaryPaymentSheetContent';
@@ -35,9 +34,9 @@ export function FinancePayrollListScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<FinancePayrollStackParamList>>();
-  const role = useAuthStore((state) => state.user?.role);
-  const canConfigure = financeCan(role, 'configure');
-  const canApprove = financeCan(role, 'approve');
+  const can = useFinanceCan();
+  const canConfigure = can('configure');
+  const canApprove = can('approve');
 
   const [tab, setTab] = useState<(typeof TABS)[number]>('salaries');
   const newPayslipRef = useRef<BottomSheetModal>(null);

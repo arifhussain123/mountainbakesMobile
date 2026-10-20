@@ -27,6 +27,7 @@ export type IconName =
   | 'clock'
   | 'user'
   | 'file-spreadsheet'
+  | 'copy'
   | 'printer'
   | 'home'
   | 'orders'
@@ -286,6 +287,14 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6" {...common} strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'copy':
+      // Reset Password's "Copy password" button (web lucide `Copy`).
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={9} y={9} width={12} height={12} rx={2} {...common} />
+          <Path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" {...common} strokeLinejoin="round" />
         </Svg>
       );
     case 'printer':

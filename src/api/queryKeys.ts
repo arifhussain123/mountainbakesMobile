@@ -15,6 +15,12 @@ export const queryKeys = {
   salesData: (params: { businessDate: string; search?: string; paymentMethod?: string; sort?: string }) => ['salesData', params] as const,
   appSettings: () => ['appSettings'] as const,
   productionOrders: () => ['productionOrders'] as const,
+  // Under the `productionOrders` root so a review/verify invalidation refreshes the paged list too.
+  productionOrdersData: (params: Record<string, string | undefined>) => ['productionOrders', 'data', params] as const,
+  // Under the `stock` root, so every stock invalidation also refreshes the admin's per-branch ledger.
+  branchStock: (branchId: string, date: string) => ['stock', 'branch', branchId, date] as const,
+  branchStockHistorySeries: (branchId: string, days: number) => ['stockHistorySeries', days, branchId] as const,
+  allBranchesStockSummary: (days: number) => ['stockHistoryBranches', days] as const,
   productionOrder: (id: string) => ['productionOrder', id] as const,
   packingMaterials: () => ['packingMaterials'] as const,
   // Keyed by the whole filter (window, product, status, search, sort, page) — each is a different server answer.
@@ -51,6 +57,11 @@ export const queryKeys = {
   eventDemands: (eventId: string) => ['eventDemands', eventId] as const,
   consolidatedDemand: (eventId: string) => ['consolidatedDemand', eventId] as const,
   eventProductionStatus: (eventId: string) => ['eventProductionStatus', eventId] as const,
+  adminSpecialEvents: (year: number, category: string | null, status: string | null) =>
+    ['specialEvents', year, 'admin', category ?? 'all', status ?? 'all'] as const,
+  specialEvent: (eventId: string) => ['specialEvent', eventId] as const,
+  eventCalendar: (year: number, month: number) => ['eventCalendar', year, month] as const,
+  eventNotifications: (eventId: string) => ['eventNotifications', eventId] as const,
   financeDashboard: (params?: { from?: string; to?: string; branchId?: string | null }) => ['financeDashboard', params ?? {}] as const,
   // Under the 'financeDashboard' root so every invalidation of it refreshes these too.
   financeMonthlyDashboard: (query: unknown) => ['financeDashboard', 'monthly', query] as const,
@@ -58,6 +69,7 @@ export const queryKeys = {
   pendingApprovals: () => ['pendingApprovals'] as const,
   financeSettings: () => ['financeSettings'] as const,
   ledgerPage: (query: unknown) => ['ledgerPage', query] as const,
+  ledgerPages: (query: unknown) => ['ledgerPages', query] as const,
   ledgerSummary: (params: unknown) => ['ledgerSummary', params] as const,
   ledgerEntry: (id: string) => ['ledgerEntry', id] as const,
   ledgerHeads: (opts?: unknown) => ['ledgerHeads', opts ?? {}] as const,
@@ -89,7 +101,21 @@ export const queryKeys = {
   financeTicket: (id: string) => ['financeTicket', id] as const,
   dailySaleRecords: (params?: { from?: string; to?: string }) => ['dailySaleRecords', params ?? {}] as const,
   packingUsage: (from: string, to: string) => ['packingUsage', from, to] as const,
+  // Super Admin Reports / Daily Sale Records / Customers (web /reports, /daily-sale-records, /customers).
+  adminReportSummary: (period: ReportPeriod) => ['reportSummary', 'adminFull', period] as const,
+  packingUsagePages: (query: unknown) => ['packingUsage', 'pages', query] as const,
+  // Under ['dailySaleRecords'] so any record write's invalidation also refreshes an open detail.
+  dailySaleRecord: (id: string) => ['dailySaleRecords', 'detail', id] as const,
+  // Also under ['dailySaleRecords'], so a lock change or a feed refreshes it.
+  dailySaleLocks: (branchId: string) => ['dailySaleRecords', 'locks', branchId] as const,
+  adminCustomersData: (query: unknown) => ['adminCustomers', 'data', query] as const,
   supportTickets: () => ['supportTickets'] as const,
+  adminSupportTickets: (query: unknown) => ['adminSupportTickets', query] as const,
+  supportStats: () => ['supportStats'] as const,
+  supportLiveReference: (ref: string, scope: string) => ['supportLiveReference', ref, scope] as const,
+  // Active products (`/products?isActive=true`) for the Support Center's sale / demand line editors.
+  supportProducts: () => ['supportProducts'] as const,
+  financeTicketsPaged: (query: unknown) => ['financeTickets', 'paged', query] as const,
   productionStock: (date?: string) => ['productionStock', date ?? 'today'] as const,
   productionSales: (params?: { from?: string; to?: string }) => ['productionSales', params ?? {}] as const,
   productionReturns: (params?: { status?: string; search?: string }) => ['productionReturns', params ?? {}] as const,
@@ -112,6 +138,9 @@ export const queryKeys = {
   // The web dashboard's Branch-wise and Current stock sections. Own roots: the
   // branch list ignores the branch filter, and current stock ignores the period.
   productionBranchSummary: (period: string) => ['productionBranchSummary', period] as const,
+  /** The web dashboard's received-demand / repaired-stock / return-stock sections. */
+  productionDashboardSection: (section: string, period: string, branchId: string | null) =>
+    ['productionDashboardSection', section, period, branchId ?? 'all'] as const,
   productionCurrentStock: (branchId: string | null) => ['productionCurrentStock', branchId] as const,
   productionBranchStock: () => ['productionBranchStock'] as const,
   productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
@@ -125,4 +154,36 @@ export const queryKeys = {
   closingNotificationLogs: (query: unknown) => ['closingNotificationLogs', query] as const,
   backupHealth: () => ['backupHealth'] as const,
   suspiciousSignInCount: (from: string) => ['suspiciousSignInCount', from] as const,
+  adminCustomers: (search: string) => ['adminCustomers', search] as const,
+  productCategories: () => ['productCategories'] as const,
+  adminBranches: () => ['adminBranches'] as const,
+  branchLocations: () => ['branchLocations'] as const,
+  adminProductPages: (query: unknown) => ['adminProductPages', query] as const,
+  allPackingMaterials: () => ['packingMaterials', 'all'] as const,
+  activeAdminBranches: () => ['adminBranches', 'active'] as const,
+  adminUsers: () => ['adminUsers'] as const,
+  loginSessions: (suspiciousOnly: boolean) => ['loginSessions', suspiciousOnly] as const,
+  // Admin Dashboard
+  adminTodaySummary: (branchId: string | null) => ['reportSummary', 'adminToday', branchId] as const,
+  adminSalesAnalytics: (query: unknown) => ['salesAnalytics', 'admin', query] as const,
+  branchSales: (from: string, to: string) => ['branchSales', from, to] as const,
+  loginHistoryPage: (query: unknown) => ['loginSessions', 'history', query] as const,
+  backupJobs: () => ['backupJobs'] as const,
+  // Super Admin — Users, Security, Database Backup, Restriction Rules
+  usersData: (query: unknown) => ['adminUsers', 'data', query] as const,
+  userActivity: () => ['adminUsers', 'activity'] as const,
+  securitySessions: (query: unknown) => ['loginSessions', 'security', query] as const,
+  activeSessions: () => ['loginSessions', 'active'] as const,
+  loginFilterOptions: () => ['loginSessions', 'filterOptions'] as const,
+  securitySession: (id: string) => ['loginSessions', 'detail', id] as const,
+  loginAttempts: (query: unknown) => ['loginAttempts', query] as const,
+  backupStatus: () => ['backupStatus'] as const,
+  latestRestoreTest: () => ['backupStatus', 'restoreTest'] as const,
+  backupHistory: () => ['backupJobs', 'all'] as const,
+  restrictionRules: () => ['restrictions', 'rules'] as const,
+  restrictionRequests: (type: string | null) => ['restrictions', 'requests', type] as const,
+  restrictionMonitor: () => ['restrictions', 'monitor'] as const,
+  restrictionEvents: (ruleCode: string | null) => ['restrictions', 'events', ruleCode] as const,
+  // Global Search (web header Ctrl+K) — one answer per trimmed term.
+  globalSearch: (q: string) => ['globalSearch', q] as const,
 };

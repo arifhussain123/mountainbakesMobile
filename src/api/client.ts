@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import { env } from '@/config/env';
 import { logger } from '@/shared/utils';
 import { GEO_POSITION_HEADER, encodeGeoPosition, type GeoPosition } from './geo';
@@ -102,14 +103,65 @@ export function generateIdempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now()}-${random}`;
 }
 
-export const apiClient = {
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+/** Same fallback wording `toApiError` uses, for a file download's non-JSON failure. */
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
+/**
+ * `GET url` straight into a file at `path` — a server-built Excel / PDF / CSV.
+ * Axios can't hand a binary body to the file system, so this goes through
+ * react-native-blob-util with the same bearer token and the same
+ * refresh-once-on-401 rule as the interceptors above.
+ */
+async function downloadToFile(url: string, path: string, timeout: number): Promise<string> {
+  const fetchOnce = () => {
+    const token = getAccessToken();
+    return ReactNativeBlobUtil.config({ path, timeout }).fetch('GET', url, token ? { Authorization: `Bearer ${token}` } : {});
+  };
+  let response;
+  try {
+    response = await fetchOnce();
+    if (response.info().status === 401) {
+      if (await refreshTokens()) response = await fetchOnce();
+      else onSessionExpired();
+    }
+  } catch (error) {
+    logger.error('file download failed', error);
+    throw { status: null, message: 'No internet connection. Please check your network and try again.' } satisfies ApiError;
+  }
+  const status = response.info().status;
+  if (status >= 400) {
+    // The error body landed in the file — the server's `{ error, code }` JSON.
+    let body: { error?: string; code?: string; details?: unknown } = {};
     try {
-      const response = await axiosInstance.get<T>(url, { params });
+      body = JSON.parse(await ReactNativeBlobUtil.fs.readFile(path, 'utf8'));
+    } catch {
+      // not JSON — keep the generic message
+    }
+    await ReactNativeBlobUtil.fs.unlink(path).catch(() => undefined);
+    throw { status, message: body.error ?? GENERIC_ERROR, code: body.code, details: body.details } satisfies ApiError;
+  }
+  return path;
+}
+
+export const apiClient = {
+  /** `config.timeout` (ms) lifts the 20 s default for a request the server legitimately takes longer over — a file export. */
+  async get<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number }): Promise<T> {
+    try {
+      const response = await axiosInstance.get<T>(url, { params, ...(config?.timeout ? { timeout: config.timeout } : {}) });
       return response.data;
     } catch (error) {
       throw toApiError(error);
     }
+  },
+  /**
+   * Saves the response body as `fileName` in the app's cache and returns its
+   * local path — for the web's Excel / PDF downloads. Default timeout 120 s,
+   * the time a big server-built export can take.
+   */
+  async download(url: string, params: Record<string, unknown> | undefined, fileName: string, config?: { timeout?: number }): Promise<string> {
+    const fullUrl = axiosInstance.getUri({ url, params });
+    const path = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/${fileName.replace(/[\\/:*?"<>|]/g, '-')}`;
+    return downloadToFile(fullUrl, path, config?.timeout ?? 120_000);
   },
   async post<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
     try {

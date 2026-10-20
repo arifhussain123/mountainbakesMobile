@@ -1,12 +1,53 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryKeys';
 import { specialEventService } from '../services';
-import type { EventProductionStage, ReviewEventDemandInput, SaveEventDemandInput, UpdateEventStageInput } from '../types';
+import type {
+  EventCategory,
+  EventProductionStage,
+  EventStatus,
+  ReviewEventDemandInput,
+  SaveEventDemandInput,
+  UpdateEventStageInput,
+} from '../types';
 
 export function useSpecialEvents(year?: number) {
   return useQuery({
     queryKey: queryKeys.specialEvents(year),
     queryFn: () => specialEventService.listSpecialEvents(year),
+  });
+}
+
+/** Super Admin's filtered list — the web /special-events Year / Category / Status selects. */
+export function useAdminSpecialEvents(year: number, category: EventCategory | null, status: EventStatus | null) {
+  return useQuery({
+    queryKey: queryKeys.adminSpecialEvents(year, category, status),
+    queryFn: () => specialEventService.listSpecialEvents(year, { category, status }),
+  });
+}
+
+/** One event + its stage rows — the web /special-events/[id] header and cards. */
+export function useSpecialEvent(eventId: string) {
+  return useQuery({
+    queryKey: queryKeys.specialEvent(eventId),
+    queryFn: () => specialEventService.getSpecialEvent(eventId),
+    enabled: !!eventId,
+  });
+}
+
+/** One calendar month's events (1-based month). */
+export function useEventCalendar(year: number, month: number) {
+  return useQuery({
+    queryKey: queryKeys.eventCalendar(year, month),
+    queryFn: () => specialEventService.getEventCalendar(year, month),
+  });
+}
+
+/** One event's reminder schedule — super_admin only. */
+export function useEventNotifications(eventId: string) {
+  return useQuery({
+    queryKey: queryKeys.eventNotifications(eventId),
+    queryFn: () => specialEventService.listEventNotifications(eventId),
+    enabled: !!eventId,
   });
 }
 

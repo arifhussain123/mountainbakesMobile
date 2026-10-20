@@ -59,6 +59,14 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   login: (identifier: string, password: string, rememberEmail: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * After the forced password change succeeds: re-issue this session so the
+   * cleared `mustChangePassword` comes back from the server (the web's
+   * `refreshToken()` after `/change-password`), which lifts RootNavigator's
+   * gate. If the refresh itself fails, the flag is cleared locally — the
+   * server already cleared it, and it enforces the gate on every request anyway.
+   */
+  completePasswordChange: () => Promise<void>;
 }
 
 async function readRememberedEmail(): Promise<string | null> {
@@ -160,6 +168,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // every sign-out, including an accidental one.
     queryClient.clear();
     set({ status: 'signedOut', user: null, accessToken: null });
+  },
+
+  completePasswordChange: async () => {
+    try {
+      const refreshToken = await readRefreshToken();
+      if (refreshToken) {
+        const session = await authService.refresh(refreshToken);
+        await storeRefreshToken(session.refreshToken);
+        set({ status: 'signedIn', user: session.user, accessToken: session.accessToken });
+        return;
+      }
+    } catch (error) {
+      logger.warn('session refresh after password change failed', { error });
+    }
+    const user = get().user;
+    if (user) set({ user: { ...user, mustChangePassword: false } });
   },
 }));
 
