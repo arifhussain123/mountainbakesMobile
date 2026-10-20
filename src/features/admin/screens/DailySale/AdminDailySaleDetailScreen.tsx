@@ -1,13 +1,16 @@
 import { useState, type ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { useDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
+import { useDailySaleRecord, useLockDailySaleRecord, useVerifyDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
 import { Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { AppHeader, Card, ErrorState, FilterChipRow, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { dailySaleRowActions } from '../../utils/dailySaleActions';
+import { useDailySaleSheet } from './dailySaleSheets';
 import {
+  ActionChip,
   DAILY_SALE_AUDIT_LABELS,
   DAILY_SALE_FIELD_LABELS,
   DifferenceBadge,
@@ -171,7 +174,10 @@ function HistoryTab({ audits }: { audits: DailySaleAudit[] }) {
  * branch and business date, status, the payment-breakdown mismatch warning,
  * then Summary (System Sales, Counted / Received, Difference, Sign-off) and
  * History (the audit trail, newest first). One fetch: `GET /daily-sale-records/:id`.
- * Read-only — Print, Manual Feed, Verify, Lock, Unlock and Amend are not offered.
+ *
+ * The web row's actions, each shown only where the status allows it: Manual
+ * Feed and Verify while open; Amend once closed with a counted figure; Lock on
+ * a verified or amended record; Unlock on any closed one. Print stays on the web.
  */
 export function AdminDailySaleDetailScreen() {
   const theme = useAppTheme();
@@ -179,6 +185,19 @@ export function AdminDailySaleDetailScreen() {
   const { recordId } = useRoute<RouteProp<SuperAdminDailySaleStackParamList, typeof Routes.SUPER_ADMIN_DAILY_SALE_DETAIL>>().params;
   const q = useDailySaleRecord(recordId);
   const [tab, setTab] = useState<Tab>('summary');
+  const verify = useVerifyDailySaleRecord();
+  const lock = useLockDailySaleRecord();
+  const sheet = useDailySaleSheet();
+  const busy = verify.isPending || lock.isPending;
+
+  const decide = (r: DailySaleRecord, action: 'verify' | 'lock') => {
+    if (!r.id) return;
+    const mutation = action === 'verify' ? verify : lock;
+    mutation.mutate(r.id, {
+      onSuccess: () => Alert.alert(action === 'verify' ? 'Verified' : 'Locked', action === 'verify' ? 'Record verified.' : 'Record locked.'),
+      onError: (e) => Alert.alert('Could Not Update the Record', mapErrorToMessage(e)),
+    });
+  };
 
   const detail = q.data;
   const audits = detail?.audits ?? [];
@@ -228,11 +247,28 @@ export function AdminDailySaleDetailScreen() {
               </View>
             ) : null}
 
+            {(() => {
+              const can = dailySaleRowActions(record);
+              if (!can.feed && !can.verify && !can.amend && !can.lock && !can.unlock) return null;
+              return (
+                <View style={styles.actions}>
+                  {can.feed ? <ActionChip icon="plus" label="Manual Feed" onPress={() => sheet.open({ kind: 'feed', record })} /> : null}
+                  {can.verify ? (
+                    <ActionChip icon="check" label="Verify" primary onPress={() => decide(record, 'verify')} loading={verify.isPending} disabled={busy} />
+                  ) : null}
+                  {can.amend ? <ActionChip icon="pencil" label="Amend" onPress={() => sheet.open({ kind: 'amend', record })} /> : null}
+                  {can.lock ? <ActionChip icon="lock" label="Lock" primary onPress={() => decide(record, 'lock')} loading={lock.isPending} disabled={busy} /> : null}
+                  {can.unlock ? <ActionChip icon="rotate-ccw" label="Unlock" onPress={() => sheet.open({ kind: 'unlock', record })} /> : null}
+                </View>
+              );
+            })()}
+
             <FilterChipRow options={tabs} value={tab} onChange={setTab} />
             {tab === 'summary' ? <SummaryTab record={record} /> : <HistoryTab audits={audits} />}
           </>
         ) : null}
       </ScrollView>
+      {sheet.element}
     </Screen>
   );
 }
@@ -241,6 +277,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 5 },
   sectionTitle: { letterSpacing: 1, paddingBottom: 6, marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   warning: { borderWidth: 1, padding: 12, flexDirection: 'row' },
   audit: { paddingVertical: 10 },
   auditHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },

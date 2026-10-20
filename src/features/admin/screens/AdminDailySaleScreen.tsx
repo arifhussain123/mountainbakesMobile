@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getBusinessDate, getBusinessMonthStart, useBranches, useDailySaleRecords, type DailySaleRecord } from '@/api';
+import { getBusinessDate, getBusinessMonthStart, useAdminGenerateDailySaleRecord, useBranches, useDailySaleRecords, type DailySaleRecord } from '@/api';
 import { openDrawer, Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
 import { dailySaleAllBeforeStartEmpty, dailySaleBeforeStartNotice, resolveDailySaleWindow } from '@/features/closing/dailySaleWindow';
 import { KpiGrid, type KpiItem } from '@/features/reports/components';
@@ -24,7 +24,10 @@ import {
 } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { FieldGrid, type FieldGridItem } from '../components';
+import { canGenerateToday, findTodayRow } from '../utils/dailySaleActions';
+import { useDailySaleSheet } from './DailySale/dailySaleSheets';
 import {
+  ActionChip,
   DAILY_SALE_MAX_WINDOW_DAYS,
   DSR_STATUS_LABEL,
   DifferenceBadge,
@@ -62,8 +65,12 @@ function figureItems(r: Pick<DailySaleRecord, 'autoTotalSale' | 'companyShare' |
  * The day's takings per payment method against what was counted, for every
  * branch or one. Every figure — rows, tiles, notices — is the server's
  * (`GET /daily-sale-records`); the only sums here are the filtered rows'
- * totals, which the web table also adds in its footer. Read-only this phase:
- * Generate / Manual Feed / Verify / Lock / Amend are not offered.
+ * totals, which the web table also adds in its footer.
+ *
+ * Actions (the web's): Manual Entry Locks for the picked branch, Generate
+ * Today while today has no record, Manual Feed for today, and Generate on a
+ * day with sales but no stored record. Verify / Lock / Unlock / Amend live on
+ * the record's View screen. Print stays on the web.
  */
 export function AdminDailySaleScreen() {
   const theme = useAppTheme();
@@ -76,6 +83,8 @@ export function AdminDailySaleScreen() {
   const [search, setSearch] = useState('');
 
   const branchesQ = useBranches();
+  const generate = useAdminGenerateDailySaleRecord();
+  const sheet = useDailySaleSheet();
   const branchOptions = useMemo<DropdownOption[]>(
     () => [{ value: ALL, label: 'All branches' }, ...(branchesQ.data?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))],
     [branchesQ.data],
@@ -140,6 +149,30 @@ export function AdminDailySaleScreen() {
     },
   ];
 
+  const effectiveBranchId = branchId === ALL ? null : branchId;
+  const branchName = (branchesQ.data?.branches ?? []).find((b) => b.id === effectiveBranchId)?.name ?? null;
+  const todayRow = findTodayRow(fetching ? (q.data?.records ?? []) : [], today, effectiveBranchId);
+  const showGenerateToday = canGenerateToday(todayRow, effectiveBranchId, win.to, today);
+
+  const runGenerate = (businessDate: string, forBranch: string) => {
+    generate.mutate(
+      { businessDate, branchId: forBranch },
+      {
+        onSuccess: () => Alert.alert('Generated', 'Record generated from the day’s sales.'),
+        onError: (e) => Alert.alert('Could Not Generate the Record', mapErrorToMessage(e)),
+      },
+    );
+  };
+
+  const feedToday = () => {
+    if (todayRow) {
+      sheet.open({ kind: 'feed', record: todayRow });
+      return;
+    }
+    // No row for today means no sales and no record yet — nothing to reconcile against.
+    Alert.alert('No Sales Today', 'There are no sales recorded for today yet.');
+  };
+
   const before = dailySaleBeforeStartNotice();
   const allBefore = dailySaleAllBeforeStartEmpty();
   const colors = { danger: theme.colors.danger, success: theme.colors.success };
@@ -169,6 +202,19 @@ export function AdminDailySaleScreen() {
         </View>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date, branch or status…" />
       </Card>
+
+      <View style={styles.actions}>
+        <ActionChip icon="lock" label="Manual Entry Locks" onPress={() => sheet.open({ kind: 'locks', branchId: effectiveBranchId, branchName })} />
+        {showGenerateToday && effectiveBranchId ? (
+          <ActionChip
+            icon="refresh"
+            label={generate.isPending ? 'Generating…' : 'Generate Today'}
+            onPress={() => runGenerate(today, effectiveBranchId)}
+            disabled={generate.isPending}
+          />
+        ) : null}
+        <ActionChip icon="plus" label="Manual Feed" primary onPress={feedToday} disabled={!todayRow && !effectiveBranchId} />
+      </View>
 
       {fetching ? <KpiGrid items={tiles} /> : null}
 
@@ -228,7 +274,10 @@ export function AdminDailySaleScreen() {
                 <Icon name="chevron-right" size={14} color={theme.colors.primary} />
               </>
             ) : (
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>No record — this day has sales but no stored record yet.</Text>
+              <View style={styles.genRow}>
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary, flex: 1 }]}>No record — this day has sales but no stored record yet.</Text>
+                <ActionChip icon="refresh" label="Generate" onPress={() => runGenerate(item.businessDate, item.branchId)} disabled={generate.isPending} />
+              </View>
             )}
           </View>
         </Card>
@@ -288,6 +337,7 @@ export function AdminDailySaleScreen() {
         }}
         onRequestClose={() => rangeSheetRef.current?.dismiss()}
       />
+      {sheet.element}
     </Screen>
   );
 }
@@ -297,5 +347,7 @@ const styles = StyleSheet.create({
   dateField: { flex: 1, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
   dateValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTop: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  genRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
 });

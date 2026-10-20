@@ -151,7 +151,19 @@ export {
   useRequestReopenFinanceTicket,
   useSubmitFinanceTicket,
 } from './useFinanceTicketsApi';
-export { useDailySaleRecord, useDailySaleRecords, useFeedDailySaleRecord, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from './useDailySaleApi';
+export {
+  useAdminGenerateDailySaleRecord,
+  useAmendDailySaleRecord,
+  useDailySaleLocks,
+  useDailySaleRecord,
+  useDailySaleRecords,
+  useFeedDailySaleRecord,
+  useGenerateDailySaleRecord,
+  useLockDailySaleRecord,
+  useSetPaymentMethodLock,
+  useUnlockDailySaleRecord,
+  useVerifyDailySaleRecord,
+} from './useDailySaleApi';
 export { useApproveSpecialOrder, usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {
   useProductionBranchStock,

@@ -106,6 +106,8 @@ export const queryKeys = {
   packingUsagePages: (query: unknown) => ['packingUsage', 'pages', query] as const,
   // Under ['dailySaleRecords'] so any record write's invalidation also refreshes an open detail.
   dailySaleRecord: (id: string) => ['dailySaleRecords', 'detail', id] as const,
+  // Also under ['dailySaleRecords'], so a lock change or a feed refreshes it.
+  dailySaleLocks: (branchId: string) => ['dailySaleRecords', 'locks', branchId] as const,
   adminCustomersData: (query: unknown) => ['adminCustomers', 'data', query] as const,
   supportTickets: () => ['supportTickets'] as const,
   adminSupportTickets: (query: unknown) => ['adminSupportTickets', query] as const,

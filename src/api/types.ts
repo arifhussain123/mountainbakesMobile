@@ -1646,6 +1646,9 @@ export interface PaymentMethodLock {
   isLocked: boolean;
   source: 'default' | 'configured';
   reason: string | null;
+  /** Who last set it — the server sends these; absent on an older echo. */
+  updatedByName?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface DailySaleSummary {
@@ -1708,9 +1711,27 @@ export interface DailySaleAudit {
 
 export interface FeedDailySaleRecordInput {
   businessDate: string;
+  /** Super admin only — names the branch; a branch role sends none and the API reads its JWT. */
+  branchId?: string;
   cash?: number;
   easypaisa?: number;
   bank?: number;
+}
+
+/** The counted figures an admin may amend on a closed record — never an auto figure. */
+export type DailySaleAmendField = 'manual_cash' | 'manual_easypaisa' | 'manual_bank';
+
+export interface AmendDailySaleRecordInput {
+  field: DailySaleAmendField;
+  amount: number;
+  reason: string;
+}
+
+export interface SetPaymentMethodLockInput {
+  branchId: string;
+  paymentMethod: 'cash' | 'easypaisa' | 'foodpanda' | 'bank_account';
+  isLocked: boolean;
+  reason?: string;
 }
 
 // ─── Reports → Packing usage ────────────────────────────────────────────────
