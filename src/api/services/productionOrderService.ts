@@ -29,6 +29,8 @@ export interface ProductionOrdersDataQuery {
   /** Required-date window, 'YYYY-MM-DD'. */
   requiredFrom?: string;
   requiredTo?: string;
+  /** The Data Engine's `sort=field:dir` (a web column header); absent = newest business date first. */
+  sort?: string;
 }
 
 /**
@@ -40,7 +42,7 @@ export interface ProductionOrdersDataQuery {
 export async function listProductionOrdersData(
   query: ProductionOrdersDataQuery & { page?: number; pageSize?: number },
 ): Promise<DataEnginePage<ProductionOrder>> {
-  const { page = 1, pageSize = 20, search, status, branchId, dateFrom, dateTo, requiredFrom, requiredTo } = query;
+  const { page = 1, pageSize = 20, search, status, branchId, dateFrom, dateTo, requiredFrom, requiredTo, sort } = query;
   return apiClient.get<DataEnginePage<ProductionOrder>>('/data/productionOrders', {
     page,
     pageSize,
@@ -51,6 +53,7 @@ export async function listProductionOrdersData(
     ...(dateTo ? { 'businessDate.lte': dateTo } : {}),
     ...(requiredFrom ? { 'requiredDate.gte': requiredFrom } : {}),
     ...(requiredTo ? { 'requiredDate.lte': requiredTo } : {}),
+    ...(sort ? { sort } : {}),
   });
 }
 

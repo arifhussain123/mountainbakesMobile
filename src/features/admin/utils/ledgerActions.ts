@@ -1,4 +1,6 @@
-import type { ApproveCashTransferInput, FinanceSettings } from '@/api';
+import type { ApproveCashTransferInput, FinancePendingApprovalKind, FinanceSettings } from '@/api';
+// Direct file import, not the `@/navigation` barrel (it pulls in every screen).
+import { Routes } from '@/navigation/routes';
 
 /**
  * Pure rules behind Super Admin's Daily Ledger actions — the web's
@@ -45,3 +47,28 @@ export function approveSuccessMessage(transferNo: string, ledgerEntry: { voucher
 export function rejectSuccessMessage(transferNo: string): string {
   return `Rejected ${transferNo} — the branch has been told why`;
 }
+
+/** A drawer screen of the Super Admin shell, optionally one screen of its stack. */
+export interface LedgerLinkTarget {
+  stack: string;
+  screen?: string;
+}
+
+/** Web `PendingCashTransfersPanel`'s "Open Cash Transfers" link (`/finance-cash-transfers`). */
+export const OPEN_CASH_TRANSFERS_TARGET: LedgerLinkTarget = {
+  stack: Routes.FINANCE_CASH_TRANSFERS_STACK,
+  screen: Routes.FINANCE_CASH_TRANSFERS_LIST,
+};
+
+/**
+ * Web `PendingApprovalsPanel`'s REVIEW_ROUTE — each row's "Review" opens the
+ * working screen that decides that kind of document, not the read-only ledger
+ * of the same subject: `/finance-entries`, `/finance-partner-transactions`,
+ * `/finance-payroll` (salaries and advances alike).
+ */
+export const PENDING_REVIEW_TARGET: Record<FinancePendingApprovalKind, LedgerLinkTarget> = {
+  transaction: { stack: Routes.SUPER_ADMIN_FINANCE_ENTRIES },
+  partner_expense: { stack: Routes.FINANCE_PARTNERS_STACK },
+  salary: { stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, screen: Routes.FINANCE_PAYROLL_LIST },
+  advance: { stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, screen: Routes.FINANCE_PAYROLL_LIST },
+};

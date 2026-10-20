@@ -8,6 +8,7 @@ import { useAppTheme } from '@/shared/theme';
 import {
   AppHeader,
   Card,
+  DateField,
   Dropdown,
   EmptyState,
   ErrorState,
@@ -15,7 +16,6 @@ import {
   LoadingSkeleton,
   Screen,
   SecondaryButton,
-  TextField,
   type FilterChipOption,
 } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
@@ -191,14 +191,7 @@ export function SpecialEventDetailAdminScreen() {
 
         <Card style={{ padding: theme.spacing.md, gap: 6 }}>
           <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>Admin Controls</Text>
-          <TextField
-            label="Confirmed date"
-            value={confirmInput}
-            onChangeText={setConfirmInput}
-            placeholder="YYYY-MM-DD"
-            keyboardType="numbers-and-punctuation"
-            autoCapitalize="none"
-          />
+          <DateField label="Confirmed date" value={confirmInput} onChange={setConfirmInput} onClear={() => setConfirmInput('')} />
           <View style={styles.badges}>
             <ActionChip
               icon="calendar-check"

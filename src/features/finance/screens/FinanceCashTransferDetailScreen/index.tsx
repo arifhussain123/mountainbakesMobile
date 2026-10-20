@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
-  financeCan,
   useFinanceCashTransfer,
   useFinanceCashTransfers,
   useFinanceDailySales,
@@ -18,6 +17,7 @@ import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAuthStore } from '@/state';
 import { approvalPostings, useCashTransferDecision } from '../../hooks/useCashTransferDecision';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import {
   NOTE_CHANNEL_LABEL,
   NOTE_CHANNELS,
@@ -115,7 +115,11 @@ export function FinanceCashTransferDetailScreen() {
   const route = useRoute<RouteProp<FinanceCashTransfersStackParamList, 'FinanceCashTransferDetail'>>();
   const { transferId } = route.params;
   const role = useAuthStore((state) => state.user?.role);
-  const canApprove = financeCan(role, 'approve');
+  const can = useFinanceCan();
+  const canApprove = can('approve');
+  // Super Admin reaches this screen from its own shell, where the Daily Ledger is
+  // its own stack and `POST /support` (Report an issue) refuses super_admin.
+  const isSuperAdmin = role === 'super_admin';
 
   const { data: transfer, isLoading, error, refetch } = useFinanceCashTransfer(transferId);
   const decision = useCashTransferDecision(transferId);
@@ -347,9 +351,9 @@ export function FinanceCashTransferDetailScreen() {
         {/* ── 5. Links ── */}
         <Section title="Related">
           <LinkRow label="Daily Closing (Daily Sale Record)" onPress={() => navigateToRecord(Routes.FINANCE_CLOSING_STACK, {})} />
-          {t.voucherNo ? <LinkRow label={`Daily Ledger · ${t.voucherNo}`} onPress={() => navigateToRecord(Routes.FINANCE_LEDGER_TAB, {})} /> : null}
+          {t.voucherNo ? <LinkRow label={`Daily Ledger · ${t.voucherNo}`} onPress={() => navigateToRecord(isSuperAdmin ? Routes.SUPER_ADMIN_LEDGER_STACK : Routes.FINANCE_LEDGER_TAB, {})} /> : null}
           <LinkRow label="Audit Trail" onPress={() => navigateToRecord(Routes.FINANCE_AUDIT_TRAIL_STACK, {})} />
-          <LinkRow label="Report an issue" onPress={() => openNewQuery(t.transferNo)} />
+          {isSuperAdmin ? null : <LinkRow label="Report an issue" onPress={() => openNewQuery(t.transferNo)} />}
         </Section>
       </ScrollView>
 

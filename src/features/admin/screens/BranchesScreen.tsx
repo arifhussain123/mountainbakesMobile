@@ -6,9 +6,19 @@ import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import { Card, SearchBar, StatusBadge } from '@/shared/ui';
 import { includesTerm } from '@/shared/utils';
-import { ActionChip, AdminListScreen, FieldGrid } from '../components';
+import { ActionChip, AdminListScreen, FieldGrid, SortControl } from '../components';
 import { resolveShareSplit } from '../utils/catalogFormat';
+import { sortRows, type SortField, type SortState } from '../utils/listControls';
 import { useBranchSheet } from './Branches/branchSheets';
+
+/** The web table's sortable columns, sorted on the device as the web table does. */
+const SORT_FIELDS: SortField<AdminBranch>[] = [
+  { key: 'name', label: 'Branch Name', kind: 'text', value: (b) => b.name },
+  { key: 'location', label: 'Location', kind: 'text', value: (b) => b.location },
+  { key: 'managerName', label: 'Manager', kind: 'text', value: (b) => b.managerName },
+  { key: 'phone', label: 'Phone', kind: 'text', value: (b) => b.phone },
+  { key: 'isActive', label: 'Status', kind: 'text', value: (b) => (b.isActive ? 'Active' : 'Inactive') },
+];
 
 /** The web's fallback when Finance Settings cannot be read. */
 const DEFAULT_COMPANY_PCT = 75;
@@ -21,7 +31,8 @@ const DEFAULT_COMPANY_PCT = 75;
  *
  * Actions (the web's): Add Branch, Edit (name, location, phone, address, city,
  * budgets and the company share — blank puts the branch back on the global
- * split), and Deactivate after a confirm. The web has no reactivate.
+ * split), and Deactivate after a confirm. The web has no reactivate. The
+ * web table's columns sort, both ways, on the device.
  */
 export function BranchesScreen() {
   const theme = useAppTheme();
@@ -34,16 +45,21 @@ export function BranchesScreen() {
 
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim().toLowerCase());
+  const [sort, setSort] = useState<SortState | null>(null);
 
   const branches = useMemo(() => q.data?.branches ?? [], [q.data]);
   const rows = useMemo(
     () =>
-      term
-        ? branches.filter((b) =>
-            [b.name, b.location, b.managerName, b.phone, b.address, b.city].some((v) => includesTerm(v ?? '', term)),
-          )
-        : branches,
-    [branches, term],
+      sortRows(
+        term
+          ? branches.filter((b) =>
+              [b.name, b.location, b.managerName, b.phone, b.address, b.city].some((v) => includesTerm(v ?? '', term)),
+            )
+          : branches,
+        sort,
+        SORT_FIELDS,
+      ),
+    [branches, term, sort],
   );
 
   const confirmDeactivate = (b: AdminBranch) =>
@@ -134,6 +150,7 @@ export function BranchesScreen() {
               <ActionChip icon="plus" label="Add Branch" primary onPress={() => sheet.open(null)} />
             </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search branches…" />
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} />
           </>
         }
       />

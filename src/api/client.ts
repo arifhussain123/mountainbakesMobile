@@ -103,9 +103,10 @@ export function generateIdempotencyKey(prefix: string): string {
 }
 
 export const apiClient = {
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  /** `config.timeout` (ms) lifts the 20 s default for a request the server legitimately takes longer over — a file export. */
+  async get<T>(url: string, params?: Record<string, unknown>, config?: { timeout?: number }): Promise<T> {
     try {
-      const response = await axiosInstance.get<T>(url, { params });
+      const response = await axiosInstance.get<T>(url, { params, ...(config?.timeout ? { timeout: config.timeout } : {}) });
       return response.data;
     } catch (error) {
       throw toApiError(error);

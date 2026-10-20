@@ -1,25 +1,28 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View, type KeyboardTypeOptions } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View, type KeyboardTypeOptions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAppSettings, useUpdateAppSettings, type AppSettings } from '@/api';
-import { openDrawer, Routes } from '@/navigation';
+import { Routes } from '@/navigation';
 import type { SuperAdminSettingsStackParamList } from '@/navigation/types';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, Icon, PrimaryButton, Screen, TextField } from '@/shared/ui';
+import { AppHeader, Card, DateField, ErrorState, Icon, PrimaryButton, Screen, TextField } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { settingsFormFrom, settingsFormProblem, settingsPayload, type SettingsForm } from '../utils/adminSettingsActions';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
+import { SettingsLogoField } from './settings/SettingsLogoField';
 
 /**
  * Settings — the web `/settings` page: the Restriction Rules card, then
  * Company, Finance & Tax, Business Hours and Geofencing with the web's own
  * labels and hints, edited in place and sent together by "Save Settings"
  * (`PUT /api/settings`, the whole loaded object as the web sends it). The
- * logo is shown but uploaded on the web — the phone has no logo picker. The
+ * logo uploads the moment one is picked (`SettingsLogoField`). The
  * web's Appearance card is a per-device preference; the phone has its own
  * Appearance setting, so it is not repeated here.
  */
 export function AdminSettingsScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<SuperAdminSettingsStackParamList>>();
   const q = useAppSettings();
@@ -27,7 +30,7 @@ export function AdminSettingsScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Settings" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title="Settings" actions={headerActions} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: theme.spacing.lg, gap: 12, paddingBottom: theme.spacing.xl * 3 }}
@@ -81,13 +84,7 @@ function SettingsFormCards({ s }: { s: AppSettings }) {
     <>
       <Section title="Company">
         <Field label="Company Name" value={form.companyName} onChange={set('companyName')} placeholder="Mountain Bakes" />
-        <View style={{ gap: 6, marginTop: 12 }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>Logo</Text>
-          {s.logoUrl ? (
-            <Image source={{ uri: s.logoUrl }} style={[styles.logo, { borderColor: theme.colors.border }]} resizeMode="contain" accessibilityLabel="Company logo" />
-          ) : null}
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Upload a new logo from the web Settings page.</Text>
-        </View>
+        <SettingsLogoField logoUrl={s.logoUrl} />
         <Field label="Receipt Footer" value={form.receiptFooter} onChange={set('receiptFooter')} placeholder="Thank you for choosing Mountain Bakes!" />
       </Section>
 
@@ -103,10 +100,10 @@ function SettingsFormCards({ s }: { s: AppSettings }) {
           The bakery day runs 8:00 AM → 2:00 AM (next day). Production orders can be submitted only inside the order window, and the business day is archived
           automatically at 2:00 AM. Times are 24-hour, Asia/Karachi.
         </Text>
-        <Field label="Business Start Time" value={form.businessStartTime} onChange={set('businessStartTime')} placeholder="HH:mm" keyboardType="numbers-and-punctuation" />
-        <Field label="Business Closing Time" value={form.businessClosingTime} onChange={set('businessClosingTime')} placeholder="HH:mm" keyboardType="numbers-and-punctuation" />
-        <Field label="Order Start Time" value={form.orderStartTime} onChange={set('orderStartTime')} placeholder="HH:mm" keyboardType="numbers-and-punctuation" />
-        <Field label="Order End Time" value={form.orderEndTime} onChange={set('orderEndTime')} placeholder="HH:mm" keyboardType="numbers-and-punctuation" />
+        <TimeField label="Business Start Time" value={form.businessStartTime} onChange={set('businessStartTime')} />
+        <TimeField label="Business Closing Time" value={form.businessClosingTime} onChange={set('businessClosingTime')} />
+        <TimeField label="Order Start Time" value={form.orderStartTime} onChange={set('orderStartTime')} />
+        <TimeField label="Order End Time" value={form.orderEndTime} onChange={set('orderEndTime')} />
         <Toggle label="Auto Close Business Day" hint="Archive sales, expenses & production at 2:00 AM." value={form.autoCloseBusiness} onChange={set('autoCloseBusiness')} />
         <Toggle label="Auto Stock Closing" hint="Snapshot each branch's balance stock and carry it forward." value={form.autoStockClosing} onChange={set('autoStockClosing')} />
         <Toggle
@@ -192,6 +189,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** One text setting: the web's label over the input, its hint under it. */
+/** A 24-hour `HH:mm` picked from the time picker (the web's time input), never typed. */
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={{ marginTop: 16 }}>
+      <DateField label={label} mode="time" value={value} onChange={onChange} placeholder="Pick a time" />
+    </View>
+  );
+}
+
 function Field({
   label,
   hint,
@@ -238,6 +244,4 @@ function Toggle({ label, hint, value, onChange }: { label: string; hint?: string
 
 const styles = StyleSheet.create({
   linkCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  logo: { width: 56, height: 56, borderRadius: 8, borderWidth: 1 },
-});
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },});

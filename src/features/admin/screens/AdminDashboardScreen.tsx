@@ -12,7 +12,6 @@ import {
   useProductionOverview,
 } from '@/api';
 import type { FinanceDashboardMetric, FinanceMonthlyDashboardQuery } from '@/api/types';
-import { useAppearanceHeaderActions } from '@/features/appearance';
 import {
   branchNamer,
   daysInMonth,
@@ -22,8 +21,7 @@ import {
   type FinanceDrillTarget,
   type FinanceGranularity,
 } from '@/features/finance';
-import { useNotificationBellAction } from '@/features/notifications';
-import { Routes, openDrawer, useTabBarHeight } from '@/navigation';
+import { Routes, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, LoadingSkeleton, Screen } from '@/shared/ui';
 import {
@@ -43,6 +41,8 @@ import {
   type DashboardFilterChange,
   type TopLimit,
 } from '../components/dashboard';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
+import { useAdminDashboardExport } from '../components/AdminDashboardExport';
 import { pad2 } from '../utils/dashboardModel';
 
 type Navigate = (name: string, params?: unknown) => void;
@@ -65,8 +65,6 @@ type Navigate = (name: string, params?: unknown) => void;
 export function AdminDashboardScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
-  const appearanceActions = useAppearanceHeaderActions();
-  const bellAction = useNotificationBellAction();
   const navigation = useNavigation();
   const go = navigation.navigate as unknown as Navigate;
   const qc = useQueryClient();
@@ -148,15 +146,36 @@ export function AdminDashboardScreen() {
     void stockQ.refetch();
     void qc.invalidateQueries({ queryKey: ['branchSales'] });
     void qc.invalidateQueries({ queryKey: ['productionOverview'] });
+    void qc.invalidateQueries({ queryKey: ['productionDashboardSection'] });
+    void qc.invalidateQueries({ queryKey: ['productionBranchSummary'] });
     void qc.invalidateQueries({ queryKey: queryKeys.financeDashboard({ from: today, to: today }) });
   };
+
+  // The web heading's Print and Export CSV, as one header button.
+  const exportUi = useAdminDashboardExport({
+    data,
+    sales,
+    isEmpty,
+    context,
+    month,
+    branchLabel: branchId ? scopeLabel : null,
+    range: fullMonth ? null : { from: f, to: t },
+    incGran,
+    expGran,
+    businessDate: today,
+    scopeLabel,
+    today: todayQ.data,
+    production: prodToday.data,
+    stock: stockQ.data,
+  });
+  const headerActions = useAdminHeaderActions({ extras: [exportUi.action] });
 
   return (
     <Screen>
       <AppHeader
         title="Admin Dashboard"
         subtitle={`Sales, branch, production & finance summary · ${context}`}
-        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.xl, paddingBottom: theme.spacing.lg + tabBarHeight }}
@@ -259,6 +278,7 @@ export function AdminDashboardScreen() {
       </ScrollView>
 
       <RecordsSheet target={drill} dashboardBranchId={branchId || null} onClose={() => setDrill(null)} />
+      {exportUi.element}
     </Screen>
   );
 }

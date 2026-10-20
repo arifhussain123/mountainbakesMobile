@@ -10,8 +10,20 @@ import {
   SecurityScreen,
   UsersScreen,
 } from '@/features/admin';
+import {
+  FinanceAuditTrailScreen,
+  FinanceClosingScreen,
+  FinanceCompanyTransactionDetailsScreen,
+  FinanceIncomeExpenseListScreen,
+  FinanceLedgerHeadsScreen,
+  FinancePartnersScreen,
+  FinanceReportsScreen,
+  FinanceSettingsScreen,
+} from '@/features/finance';
 import { ProfileScreen } from '@/features/profile';
 import { DrawerContent } from '../DrawerNavigator/DrawerContent';
+import { FinanceCashTransfersStackNavigator } from '../FinanceCashTransfersStackNavigator';
+import { FinancePayrollStackNavigator } from '../FinancePayrollStackNavigator';
 import { PriceHistoryStackNavigator } from '../PriceHistoryStackNavigator';
 import { RecipientsStackNavigator } from '../RecipientsStackNavigator';
 import { Routes } from '../routes';
@@ -32,7 +44,10 @@ const Drawer = createDrawerNavigator<SuperAdminDrawerParamList>();
  * `DrawerMenu`), with `SUPER_ADMIN_NAV_ITEMS` through the role's shell and its
  * sections folding (`collapsibleSections`). Every screen behind it is Super
  * Admin's own (`features/admin`), built to show what the web Super Admin
- * page shows.
+ * page shows — plus the web's other finance pages a super_admin may open
+ * (`canAccessFinance`), which are the Finance role's own screens: they read
+ * Finance Settings' "Allow Super Admin to modify" (`useFinanceCan`), so they
+ * are read-only for super_admin until that toggle is on, as on the web.
  */
 export function SuperAdminDrawerNavigator() {
   const screenOptions = useDrawerScreenOptions();
@@ -51,6 +66,16 @@ export function SuperAdminDrawerNavigator() {
       <Drawer.Screen name={Routes.SUPER_ADMIN_BRANCH_LOCATIONS} component={BranchLocationsScreen} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_EVENTS_STACK} component={SuperAdminEventsStackNavigator} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_LEDGER_STACK} component={SuperAdminLedgerStackNavigator} />
+      <Drawer.Screen name={Routes.FINANCE_CASH_TRANSFERS_STACK} component={FinanceCashTransfersStackNavigator} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_FINANCE_ENTRIES} component={FinanceIncomeExpenseListScreen} />
+      <Drawer.Screen name={Routes.FINANCE_CLOSING_STACK} component={FinanceClosingScreen} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK} component={FinancePayrollStackNavigator} />
+      <Drawer.Screen name={Routes.FINANCE_PARTNERS_STACK} component={FinancePartnersScreen} />
+      <Drawer.Screen name={Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK} component={FinanceCompanyTransactionDetailsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_LEDGER_HEADS_STACK} component={FinanceLedgerHeadsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_REPORTS_STACK} component={FinanceReportsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_AUDIT_TRAIL_STACK} component={FinanceAuditTrailScreen} />
+      <Drawer.Screen name={Routes.FINANCE_SETTINGS_STACK} component={FinanceSettingsScreen} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_SUPPORT_STACK} component={SuperAdminSupportStackNavigator} />
       <Drawer.Screen name={Routes.RECIPIENTS_STACK} component={RecipientsStackNavigator} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_USERS} component={UsersScreen} />

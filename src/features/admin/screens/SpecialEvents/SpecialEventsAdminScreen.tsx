@@ -14,17 +14,19 @@ import {
   type EventStatus,
   type SpecialEvent,
 } from '@/api';
-import { openDrawer, Routes, type SuperAdminEventsStackParamList } from '@/navigation';
+import { Routes, type SuperAdminEventsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, Screen, SearchBar, type FilterChipOption } from '@/shared/ui';
 import { formatCount, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { ActionChip, SummaryTiles } from '../../components';
+import { ActionChip, SortControl, SummaryTiles } from '../../components';
 import { deleteEventPrompt } from '../../utils/eventActions';
+import { sortRows, type SortField, type SortState } from '../../utils/listControls';
 import { EventCalendarView } from './EventCalendarView';
 import { EventListCard, EventTimelineRow } from './EventRows';
 import { useEventSheet } from './eventSheets';
 import { groupTimeline, matchesEventSearch } from './eventModel';
+import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
 
 type Tab = 'calendar' | 'timeline' | 'list';
 const TAB_OPTIONS: FilterChipOption<Tab>[] = [
@@ -46,6 +48,19 @@ const STATUS_OPTIONS: FilterChipOption<EventStatus | typeof ALL>[] = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+/** The web List table's sortable columns (EventListTable), sorted on the device by the raw values, as the web table sorts. */
+const LIST_SORT_FIELDS: SortField<SpecialEvent>[] = [
+  { key: 'name', label: 'Event', kind: 'text', value: (e) => e.name },
+  { key: 'eventDate', label: 'Date', kind: 'date', value: (e) => e.eventDate },
+  { key: 'category', label: 'Category', kind: 'text', value: (e) => e.category },
+  { key: 'priority', label: 'Demand Level', kind: 'text', value: (e) => e.priority },
+  { key: 'status', label: 'Status', kind: 'text', value: (e) => e.status },
+  { key: 'daysRemaining', label: 'Days Remaining', kind: 'number', value: (e) => e.daysRemaining },
+  { key: 'demandDueDate', label: 'Demand Due', kind: 'date', value: (e) => e.demandDueDate },
+  { key: 'readinessPercentage', label: 'Readiness', kind: 'number', value: (e) => e.readinessPercentage },
+  { key: 'eventNumber', label: 'No.', kind: 'text', value: (e) => e.eventNumber },
+];
+
 /**
  * Web /special-events for Super Admin: eight summary tiles, the "Next up"
  * strip, Year / Category / Status filters, then Calendar / Timeline / List
@@ -53,9 +68,10 @@ const STATUS_OPTIONS: FilterChipOption<EventStatus | typeof ALL>[] = [
  * (the catalogue's Islamic / national / international events are
  * auto-detected, so a new one is for what no calendar derives), and Edit /
  * Delete on each List row. Delete is the server's soft delete and cancels the
- * pending reminders.
+ * pending reminders. The List sorts by any web column, both ways.
  */
 export function SpecialEventsAdminScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<SuperAdminEventsStackParamList>>();
   const today = getBusinessDate();
@@ -67,6 +83,7 @@ export function SpecialEventsAdminScreen() {
   const [tab, setTab] = useState<Tab>('calendar');
   const [calendarMonth, setCalendarMonth] = useState({ year: thisYear, month: thisMonth });
   const [search, setSearch] = useState('');
+  const [listSort, setListSort] = useState<SortState | null>(null);
 
   const summaryQ = useEventsSummary();
   const eventsQ = useAdminSpecialEvents(year, category === ALL ? null : category, status === ALL ? null : status);
@@ -77,8 +94,13 @@ export function SpecialEventsAdminScreen() {
   const events = useMemo(() => eventsQ.data?.events ?? [], [eventsQ.data]);
   const timeline = useMemo(() => groupTimeline(events), [events]);
   const listed = useMemo(
-    () => events.filter((e) => matchesEventSearch(e, search, EVENT_CATEGORY_LABELS[e.category] ?? '', EVENT_PRIORITY_LABELS[e.priority] ?? '')),
-    [events, search],
+    () =>
+      sortRows(
+        events.filter((e) => matchesEventSearch(e, search, EVENT_CATEGORY_LABELS[e.category] ?? '', EVENT_PRIORITY_LABELS[e.priority] ?? '')),
+        listSort,
+        LIST_SORT_FIELDS,
+      ),
+    [events, search, listSort],
   );
 
   const yearOptions = useMemo<FilterChipOption<string>[]>(
@@ -114,7 +136,7 @@ export function SpecialEventsAdminScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Special Events" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title="Special Events" actions={headerActions} />
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 3, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}>
@@ -200,6 +222,7 @@ export function SpecialEventsAdminScreen() {
         ) : (
           <View style={{ gap: 8 }}>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search events…" />
+            <SortControl fields={LIST_SORT_FIELDS} value={listSort} onChange={setListSort} />
             {listed.length === 0 ? (
               <EmptyState title="No events found" message="Adjust the filters, or add an event to start planning." />
             ) : (

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
+  productsExportParams,
   useAdminProductPages,
   useAllPackingMaterials,
   useDeactivateProduct,
@@ -28,8 +29,10 @@ import {
   type FilterChipOption,
 } from '@/shared/ui';
 import { includesTerm } from '@/shared/utils';
-import { ActionChip, AdminListScreen, DetailRow, FieldGrid, MONO_FONT } from '../components';
+import { ActionChip, ActiveFilterChips, AdminListScreen, DetailRow, FieldGrid, MONO_FONT, SortControl } from '../components';
+import { useDataTableExport } from '../components/ExportSheet';
 import { formatRsCompact, karachiDisplayDate } from '../utils/catalogFormat';
+import { activeChips, chipLabel, rangeSideChips, searchChipLabel, sortRows, type SortField, type SortState } from '../utils/listControls';
 import { deletePackingMaterialPrompt, packingToggleCopy, productRowActions, removeProductPrompt } from '../utils/productsActions';
 import { useProductsSheet, type ProductsSheet } from './Products/productsSheets';
 
@@ -46,7 +49,8 @@ type OpenSheet = (sheet: ProductsSheet) => void;
  * (priced, sold) and packing materials (service items supplied with a demand).
  * With the web's actions: Add / Edit / Change Price / Deactivate / Activate a
  * product, and Add / Edit / Disable / Enable / Delete a packing material.
- * Each tab owns its own Add, as on the web.
+ * Each tab owns its own Add, as on the web. Products show the web's
+ * active-filter chips; packing materials sort by any web column.
  */
 export function ProductsScreen() {
   const [tab, setTab] = useState<Tab>('products');
@@ -121,12 +125,48 @@ function ProductsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: OpenShee
   const categoriesQ = useProductCategories();
   const rows = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
   const total = q.data?.pages[0]?.total;
+  const exportUi = useDataTableExport(
+    {
+      resource: 'products',
+      fileName: 'mountain-bakes-products',
+      params: productsExportParams(query),
+      pageSize: 50,
+      loadedPages: q.data?.pages.length ?? 0,
+      loadedRows: rows.length,
+      total,
+    },
+    'Export Products',
+  );
 
   const categoryOptions = useMemo<DropdownOption[]>(
     () => [{ value: ALL, label: 'All Categories' }, ...(categoriesQ.data?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))],
     [categoriesQ.data],
   );
   const moreActive = (parsePrice(min) !== undefined ? 1 : 0) + (parsePrice(max) !== undefined ? 1 : 0) + (sort !== 'name:asc' ? 1 : 0);
+
+  // The web's chips for what is filtering the list (the sort is not a filter).
+  const chips = activeChips([
+    !!term && { key: 'search', label: searchChipLabel(term), onRemove: () => setSearch('') },
+    categoryId !== ALL && {
+      key: 'categoryId',
+      label: chipLabel('Category', categoryOptions.find((o) => o.value === categoryId)?.label ?? 'Category'),
+      onRemove: () => setCategoryId(ALL),
+    },
+    status !== 'all' && { key: 'isActive', label: chipLabel('Status', status === 'active' ? 'Active' : 'Inactive'), onRemove: () => setStatus('all') },
+    rangeSideChips(
+      'price',
+      'Price (Rs.)',
+      { from: parsePrice(min) !== undefined ? min : '', to: parsePrice(max) !== undefined ? max : '' },
+      { from: () => setMinText(''), to: () => setMaxText('') },
+    ),
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setCategoryId(ALL);
+    setStatus('all');
+    setMinText('');
+    setMaxText('');
+  };
 
   return (
     <AdminListScreen<CatalogProduct>
@@ -151,11 +191,14 @@ function ProductsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: OpenShee
         <>
           {tabs}
           <View style={styles.actions}>
+            {exportUi.chip}
             <ActionChip icon="plus" label="Add Product" primary onPress={() => openSheet({ kind: 'product', product: null })} />
           </View>
+          {exportUi.element}
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search products, SKU, code…" />
           <Dropdown options={categoryOptions} value={categoryId} onChange={setCategoryId} loading={categoriesQ.isLoading} />
           <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          <ActiveFilterChips chips={chips} onClearAll={clearAll} />
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: moreOpen }}
@@ -272,6 +315,15 @@ function ProductCard({ product, openSheet }: { product: CatalogProduct; openShee
 
 // ─── Packing Materials ───────────────────────────────────────────────────────
 
+/** The web Packing Materials table's sortable columns, sorted on the device as the web table does. */
+const PACKING_SORT_FIELDS: SortField<PackingMaterial>[] = [
+  { key: 'materialCode', label: 'Code', kind: 'text', value: (m) => m.materialCode },
+  { key: 'materialName', label: 'Packing Material', kind: 'text', value: (m) => m.materialName },
+  { key: 'category', label: 'Category', kind: 'text', value: (m) => m.category },
+  { key: 'isActive', label: 'Status', kind: 'text', value: (m) => (m.isActive ? 'Active' : 'Inactive') },
+  { key: 'createdAt', label: 'Created Date', kind: 'date', value: (m) => m.createdAt },
+];
+
 /**
  * The admin catalogue for packing materials — disabled ones included, no
  * Price or Cost (service items, never sold). Tap a card for the web's View.
@@ -283,18 +335,23 @@ function PackingMaterialsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: 
   const q = useAllPackingMaterials();
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim().toLowerCase());
+  const [sort, setSort] = useState<SortState | null>(null);
   const [viewing, setViewing] = useState<PackingMaterial | null>(null);
   const sheetRef = useRef<BottomSheetModal>(null);
 
   const materials = useMemo(() => q.data?.packingMaterials ?? [], [q.data]);
   const rows = useMemo(
     () =>
-      term
-        ? materials.filter(
-            (m) => includesTerm(m.materialName, term) || includesTerm(m.materialCode, term) || includesTerm(m.category ?? '', term),
-          )
-        : materials,
-    [materials, term],
+      sortRows(
+        term
+          ? materials.filter(
+              (m) => includesTerm(m.materialName, term) || includesTerm(m.materialCode, term) || includesTerm(m.category ?? '', term),
+            )
+          : materials,
+        sort,
+        PACKING_SORT_FIELDS,
+      ),
+    [materials, term, sort],
   );
   const n = materials.length;
 
@@ -350,6 +407,7 @@ function PackingMaterialsTab({ tabs, openSheet }: { tabs: ReactNode; openSheet: 
               <ActionChip icon="plus" label="Add Packing Material" primary onPress={() => openSheet({ kind: 'material', material: null })} />
             </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search packing materials, code…" />
+            <SortControl fields={PACKING_SORT_FIELDS} value={sort} onChange={setSort} />
           </>
         }
       />

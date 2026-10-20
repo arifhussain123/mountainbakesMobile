@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { exportPriceListCsv } from '@/api';
-import { openDrawer } from '@/navigation';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, Screen, SecondaryButton } from '@/shared/ui';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
+import { EXCEL_ON_WEB } from '../utils/exports';
 
 type ExportKind = 'list' | 'category';
 
@@ -15,6 +16,7 @@ type ExportKind = 'list' | 'category';
  * stays on the web for now.
  */
 export function PriceListScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const [exporting, setExporting] = useState<ExportKind | null>(null);
 
@@ -35,18 +37,34 @@ export function PriceListScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Price List" actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title="Price List" actions={headerActions} />
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 3, gap: 12 }}>
         <Card style={styles.card}>
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Export Price List</Text>
           <Text style={muted}>Download the current price list — edit it and re-import to bulk-update.</Text>
-          <SecondaryButton label="Export CSV" onPress={() => void exportCsv('list')} loading={exporting === 'list'} disabled={exporting !== null} />
+          <View style={styles.pair}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Export Excel" onPress={() => undefined} disabled />
+            </View>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Export CSV" onPress={() => void exportCsv('list')} loading={exporting === 'list'} disabled={exporting !== null} />
+            </View>
+          </View>
+          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{EXCEL_ON_WEB}.</Text>
         </Card>
 
         <Card style={styles.card}>
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Export by Category</Text>
           <Text style={muted}>Same columns, grouped and sorted by category — still a valid re-import template.</Text>
-          <SecondaryButton label="Export CSV" onPress={() => void exportCsv('category')} loading={exporting === 'category'} disabled={exporting !== null} />
+          <View style={styles.pair}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Export Excel" onPress={() => undefined} disabled />
+            </View>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Export CSV" onPress={() => void exportCsv('category')} loading={exporting === 'category'} disabled={exporting !== null} />
+            </View>
+          </View>
+          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{EXCEL_ON_WEB}.</Text>
         </Card>
 
         <Card style={styles.card}>
@@ -59,8 +77,6 @@ export function PriceListScreen() {
             <Text style={muted}>Importing is done on the web for now.</Text>
           </View>
         </Card>
-
-        <Text style={[muted, { textAlign: 'center' }]}>Excel export is available on the web.</Text>
       </ScrollView>
     </Screen>
   );
@@ -69,4 +85,5 @@ export function PriceListScreen() {
 const styles = StyleSheet.create({
   card: { padding: 16, gap: 10 },
   note: { borderWidth: 1, padding: 10 },
+  pair: { flexDirection: 'row', gap: 10 },
 });

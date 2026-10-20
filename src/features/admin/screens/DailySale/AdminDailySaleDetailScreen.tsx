@@ -1,13 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { useDailySaleRecord, useLockDailySaleRecord, useVerifyDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
+import { useAppSettings, useDailySaleRecord, useLockDailySaleRecord, useVerifyDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
 import { Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { AppHeader, Card, ErrorState, FilterChipRow, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { ActionChip } from '../../components';
+import { shareText } from '../../components/ExportSheet';
+import { buildDailySalePrintText } from '../../utils/exports';
 import { dailySaleRowActions } from '../../utils/dailySaleActions';
 import { useDailySaleSheet } from './dailySaleSheets';
 import {
@@ -177,7 +179,8 @@ function HistoryTab({ audits }: { audits: DailySaleAudit[] }) {
  *
  * The web row's actions, each shown only where the status allows it: Manual
  * Feed and Verify while open; Amend once closed with a counted figure; Lock on
- * a verified or amended record; Unlock on any closed one. Print stays on the web.
+ * a verified or amended record; Unlock on any closed one. Print (the web's
+ * A4 `DailySalePrintSheet`) shares the record as a text document.
  */
 export function AdminDailySaleDetailScreen() {
   const theme = useAppTheme();
@@ -188,7 +191,17 @@ export function AdminDailySaleDetailScreen() {
   const verify = useVerifyDailySaleRecord();
   const lock = useLockDailySaleRecord();
   const sheet = useDailySaleSheet();
+  const settingsQ = useAppSettings();
   const busy = verify.isPending || lock.isPending;
+
+  const print = () => {
+    const d = q.data;
+    if (!d) return;
+    const text = buildDailySalePrintText(d, { companyName: settingsQ.data?.companyName || 'Mountain Bakes', currencySymbol: settingsQ.data?.currencySymbol || 'Rs.' });
+    shareText(`Daily Sale Record — ${d.branch?.name ?? d.record.branchName} ${d.record.businessDate}`, text).catch((e: unknown) =>
+      Alert.alert('Could Not Print', mapErrorToMessage(e)),
+    );
+  };
 
   const decide = (r: DailySaleRecord, action: 'verify' | 'lock') => {
     if (!r.id) return;
@@ -249,9 +262,9 @@ export function AdminDailySaleDetailScreen() {
 
             {(() => {
               const can = dailySaleRowActions(record);
-              if (!can.feed && !can.verify && !can.amend && !can.lock && !can.unlock) return null;
               return (
                 <View style={styles.actions}>
+                  <ActionChip icon="printer" label="Print" onPress={print} />
                   {can.feed ? <ActionChip icon="plus" label="Manual Feed" onPress={() => sheet.open({ kind: 'feed', record })} /> : null}
                   {can.verify ? (
                     <ActionChip icon="check" label="Verify" primary onPress={() => decide(record, 'verify')} loading={verify.isPending} disabled={busy} />

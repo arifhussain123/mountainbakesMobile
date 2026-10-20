@@ -255,6 +255,17 @@ export type SuperAdminDrawerParamList = {
   [Routes.SUPER_ADMIN_SECURITY]: undefined;
   [Routes.SUPER_ADMIN_BACKUP]: undefined;
   [Routes.SUPER_ADMIN_SETTINGS]: NavigatorScreenParams<SuperAdminSettingsStackParamList> | undefined;
+  // The Finance role's screens, as the web lets super_admin open them.
+  [Routes.FINANCE_CASH_TRANSFERS_STACK]: NavigatorScreenParams<FinanceCashTransfersStackParamList> | undefined;
+  [Routes.SUPER_ADMIN_FINANCE_ENTRIES]: undefined;
+  [Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK]: NavigatorScreenParams<FinancePayrollStackParamList> | undefined;
+  [Routes.FINANCE_PARTNERS_STACK]: undefined;
+  [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
+  [Routes.FINANCE_LEDGER_HEADS_STACK]: undefined;
+  [Routes.FINANCE_CLOSING_STACK]: undefined;
+  [Routes.FINANCE_REPORTS_STACK]: undefined;
+  [Routes.FINANCE_AUDIT_TRAIL_STACK]: undefined;
+  [Routes.FINANCE_SETTINGS_STACK]: undefined;
   [Routes.PROFILE]: undefined;
 };
 
@@ -273,4 +284,6 @@ export type RootStackParamList = {
   [Routes.QUERY_DETAIL]: { ticketId: string };
   [Routes.NEW_QUERY]: { prefillReferenceId?: string } | undefined;
   [Routes.NOTIFICATIONS]: undefined;
+  [Routes.GLOBAL_SEARCH]: undefined;
+  [Routes.CHANGE_PASSWORD]: undefined;
 };

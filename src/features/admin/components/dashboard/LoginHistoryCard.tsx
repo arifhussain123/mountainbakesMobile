@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate, useLoginHistoryPage } from '@/api';
 import type { LoginSessionRow } from '@/api/types';
 import { karachiTime } from '@/features/finance';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
-import { Card, Dropdown, Icon, LoadingSkeleton, SearchBar, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Card, Dropdown, FormBottomSheet, Icon, LoadingSkeleton, SearchBar, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import {
   LOGIN_DATE_OPTIONS,
@@ -16,6 +17,7 @@ import {
   loginDateWindow,
   type LoginDatePreset,
 } from '../../utils/dashboardModel';
+import { SessionDetail } from '../../screens/security/SessionDetail';
 import { SmallButton } from './parts';
 
 const PAGE_SIZE = 20;
@@ -44,7 +46,9 @@ function location(s: LoginSessionRow): string | null {
  * Login History — who signed in, from where. Collapsed by default and silent
  * while collapsed: opening the card is what asks for the history. Paged,
  * searched and filtered by the API (role, business-date window), as the web
- * card does. Ending a session stays on the Security screen.
+ * card does. A row's View opens the Security screen's Session detail
+ * (`GET /api/login-history/:id`); as on the web card it offers no Sign out —
+ * ending a session stays on the Security screen.
  */
 export function LoginHistoryCard({ onOpenSecurity }: { onOpenSecurity?: () => void }) {
   const theme = useAppTheme();
@@ -63,6 +67,12 @@ export function LoginHistoryCard({ onOpenSecurity }: { onOpenSecurity?: () => vo
   const data = historyQ.data;
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
   const failed = !!historyQ.error && !data;
+  const [viewId, setViewId] = useState<string | null>(null);
+  const detailSheet = useRef<BottomSheetModal>(null);
+  const onView = (id: string) => {
+    setViewId(id);
+    detailSheet.current?.present();
+  };
 
   return (
     <Card style={{ padding: 0, overflow: 'hidden' }}>
@@ -138,7 +148,7 @@ export function LoginHistoryCard({ onOpenSecurity }: { onOpenSecurity?: () => vo
                     {data.total.toLocaleString('en-US')} {data.total === 1 ? 'sign-in' : 'sign-ins'}
                   </Text>
                   {data.sessions.map((s) => (
-                    <SessionRow key={s.id} s={s} />
+                    <SessionRow key={s.id} s={s} onView={() => onView(s.id)} />
                   ))}
                 </View>
               )}
@@ -156,11 +166,14 @@ export function LoginHistoryCard({ onOpenSecurity }: { onOpenSecurity?: () => vo
           )}
         </View>
       ) : null}
+      <FormBottomSheet ref={detailSheet} title="Session detail" onRequestClose={() => detailSheet.current?.dismiss()} onDismiss={() => setViewId(null)}>
+        {viewId ? <SessionDetail sessionId={viewId} /> : null}
+      </FormBottomSheet>
     </Card>
   );
 }
 
-function SessionRow({ s }: { s: LoginSessionRow }) {
+function SessionRow({ s, onView }: { s: LoginSessionRow; onView: () => void }) {
   const theme = useAppTheme();
   const date = karachiDate(s.loginAt);
   const loc = location(s);
@@ -209,6 +222,9 @@ function SessionRow({ s }: { s: LoginSessionRow }) {
         {field('Duration', formatDuration(s.durationMs))}
         {field('Login Status', s.loginStatus === 'SUCCESS' ? 'Success' : '—')}
       </View>
+      <View style={styles.viewRow}>
+        <SmallButton label="View" onPress={onView} />
+      </View>
     </View>
   );
 }
@@ -224,5 +240,6 @@ const styles = StyleSheet.create({
   rowHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   fields: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 8 },
   field: { width: '50%', paddingRight: 8 },
+  viewRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   fieldLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
 });

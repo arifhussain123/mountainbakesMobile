@@ -10,6 +10,9 @@ export type { CheckboxProps } from './Checkbox';
 export { DateFilter } from './DateFilter';
 export type { DateFilterProps, DatePeriod } from './DateFilter';
 
+export { DateField, clampYmd, dateToHm, dateToYmd, hmToDate, ymdToDate } from './DateField';
+export type { DateFieldProps } from './DateField';
+
 export { DateRangeSheet } from './DateRangeSheet';
 export type { DateRangeSheetProps } from './DateRangeSheet';
 

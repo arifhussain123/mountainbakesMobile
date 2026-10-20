@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
-import { financeCan, generateIdempotencyKey, useApproveFinanceTransaction, useRejectFinanceTransaction, type FinanceTransaction } from '@/api';
+import { generateIdempotencyKey, useApproveFinanceTransaction, useRejectFinanceTransaction, type FinanceTransaction } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { PhotoViewer, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { useReviewGate } from '../../hooks/useReviewGate';
 import { styles } from './styles';
 
@@ -26,10 +26,10 @@ function Row({ label, value }: { label: string; value: string | null }) {
  */
 export function FinanceTransactionDetailSheet({ entry, onClose, reachedEnd = false }: { entry: FinanceTransaction; onClose: () => void; reachedEnd?: boolean }) {
   const theme = useAppTheme();
-  const role = useAuthStore((state) => state.user?.role);
+  const can = useFinanceCan();
   const approve = useApproveFinanceTransaction();
   const reject = useRejectFinanceTransaction();
-  const canApprove = financeCan(role, 'approve');
+  const canApprove = can('approve');
   const [rejectReason, setRejectReason] = useState('');
   // Keyed on entry.id (not a mount-time ref) — this component is reused across
   // different entries as the list screen's `selected` state changes, not remounted.

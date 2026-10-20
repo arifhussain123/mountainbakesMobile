@@ -11,7 +11,7 @@ import {
   useLedgerPages,
   type LedgerQuery,
 } from '@/api';
-import { openDrawer } from '@/navigation';
+import { navigateToRecord } from '@/navigation/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
@@ -29,9 +29,13 @@ import {
 } from './LedgerPanels';
 import { parseAmount, toDisplayEntries, type DisplayEntry } from './ledgerDisplay';
 import { useLedgerSheet } from './ledgerSheets';
-import { canDecideCashTransfers } from '../../utils/ledgerActions';
+import { canDecideCashTransfers, OPEN_CASH_TRANSFERS_TARGET, PENDING_REVIEW_TARGET, type LedgerLinkTarget } from '../../utils/ledgerActions';
+import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
 
 const PAGE_SIZE = 20;
+
+/** Opens one of the finance screens mounted in the Super Admin drawer. */
+const openLedgerLink = (target: LedgerLinkTarget) => navigateToRecord(target.stack, target.screen ? { screen: target.screen } : {});
 
 /**
  * Web "/finance-ledger" — the Daily Ledger (cash book) as Super Admin reads
@@ -43,10 +47,14 @@ const PAGE_SIZE = 20;
  * Reject (`PUT /finance/cash-transfers/:id/approve|reject`), offered only when
  * Finance Settings "Allow Super Admin to modify" is on — the server's
  * `requireFinance('approve')` refuses super_admin otherwise. Row Edit / Delete
- * are switched off on the web for every role, "Pending approval" rows only
- * link to their own screens, and PDF / Excel export stays on the web.
+ * are switched off on the web for every role, and PDF / Excel export stays on
+ * the web. The panels' "Open Cash Transfers" and per-row "Review" links open
+ * the Finance screens mounted in this shell (`ledgerActions.ts` targets), as
+ * the web's links open /finance-cash-transfers, -entries, -partner-transactions
+ * and -payroll.
  */
 export function AdminDailyLedgerScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const today = useMemo(() => getBusinessDate(), []);
   const [filters, setFilters] = useState<LedgerFilterState>(() => defaultLedgerFilters(today));
@@ -118,7 +126,7 @@ export function AdminDailyLedgerScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Daily Ledger" subtitle={canDecide ? 'Finance' : 'Finance · read-only'} actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title="Daily Ledger" subtitle={canDecide ? 'Finance' : 'Finance · read-only'} actions={headerActions} />
       <FlatList<DisplayEntry>
         data={ledgerQ.isLoading || ledgerError ? [] : entries}
         keyExtractor={(e) => e.id}
@@ -134,8 +142,9 @@ export function AdminDailyLedgerScreen() {
               canDecide={canDecide}
               onApprove={(transfer) => decision.open({ kind: 'approve', transfer })}
               onReject={(transfer) => decision.open({ kind: 'reject', transfer })}
+              onOpenCashTransfers={() => openLedgerLink(OPEN_CASH_TRANSFERS_TARGET)}
             />
-            <PendingApprovalsPanel />
+            <PendingApprovalsPanel onReview={(kind) => openLedgerLink(PENDING_REVIEW_TARGET[kind])} />
             <LedgerSummaryTiles date={filters.range.to} branchId={query.branchId} />
             <LedgerFilters
               value={filters}

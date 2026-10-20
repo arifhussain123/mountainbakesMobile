@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native
 import type { NotificationLog, NotificationRecipient } from '@/api';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
+import { ActionChip } from '@/features/admin/components';
 import { formatPkMobile, spokenPhone } from '../utils/phone';
 import { CHANNEL_LABEL, channelFlags, deliveryLabel, receivesLine } from '../utils/recipientRules';
 
@@ -12,9 +13,12 @@ export interface RecipientCardProps {
   toggling: boolean;
   onToggleActive: (active: boolean) => void;
   onEdit: () => void;
+  /** The web row's Remove (trash) button; the screen confirms first. Absent = not offered (offline copy). */
+  onRemove?: () => void;
+  removing?: boolean;
 }
 
-export const RecipientCard = memo(function RecipientCard({ recipient: r, lastLog, toggling, onToggleActive, onEdit }: RecipientCardProps) {
+export const RecipientCard = memo(function RecipientCard({ recipient: r, lastLog, toggling, onToggleActive, onEdit, onRemove, removing }: RecipientCardProps) {
   const theme = useAppTheme();
   const flags = channelFlags(r.channel);
   const channels = (['sms', 'whatsapp'] as const).filter((c) => flags[c]);
@@ -60,7 +64,10 @@ export const RecipientCard = memo(function RecipientCard({ recipient: r, lastLog
           </View>
         ))}
       </View>
-      <Text style={[theme.typography.label, { color: lastColor, marginTop: 8 }]}>Last: {last}</Text>
+      <View style={styles.foot}>
+        <Text style={[theme.typography.label, { color: lastColor, flex: 1 }]}>Last: {last}</Text>
+        {onRemove ? <ActionChip icon="trash" label="Remove" danger onPress={onRemove} loading={removing} /> : null}
+      </View>
     </Card>
   );
 });
@@ -72,4 +79,5 @@ const styles = StyleSheet.create({
   phone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, minHeight: 32, alignSelf: 'flex-start' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   chip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  foot: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
 });

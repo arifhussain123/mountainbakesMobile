@@ -1,8 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
-  exportUsersCsv,
   getBusinessDate,
   useActivateUser,
   useBranches,
@@ -10,6 +9,7 @@ import {
   useDeleteUser,
   useUserActivity,
   useUsersDataPages,
+  usersExportParams,
   type AdminUser,
   type AdminUserStatus,
   type UserAuditLog,
@@ -19,9 +19,11 @@ import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { Card, DateRangeSheet, FilterChipRow, FormBottomSheet, SearchBar, type FilterChipOption } from '@/shared/ui';
-import { resolveDateRangePreset, type DateRange } from '@/shared/utils';
+import { formatDisplayDate, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { format, isValid, parseISO } from 'date-fns';
-import { ActionChip, AdminListScreen } from '../components';
+import { ActionChip, ActiveFilterChips, AdminListScreen, SortControl } from '../components';
+import { useDataTableExport } from '../components/ExportSheet';
+import { activeChips, chipLabel, rangeChipLabel, searchChipLabel, toSortParam, type SortField, type SortState } from '../utils/listControls';
 import { deactivatePrompt, deletePrompt, userToggleAction } from '../utils/systemActions';
 import { useUserSheet } from './users/userSheets';
 import {
@@ -53,6 +55,14 @@ const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
   { value: 'suspended', label: 'Suspended' },
+];
+
+/** The web table's sortable columns (User, Role, Branch, Status — Username and Phone do not sort), sorted by the server. */
+const SORT_FIELDS: SortField<AdminUser>[] = [
+  { key: 'displayName', label: 'User', kind: 'text' },
+  { key: 'role', label: 'Role', kind: 'text' },
+  { key: 'branchName', label: 'Branch', kind: 'text' },
+  { key: 'status', label: 'Status', kind: 'text' },
 ];
 
 /** The web's role colours: Super Admin primary, Branch Manager secondary, Production blue, every finance role one green. */
@@ -95,7 +105,8 @@ function activityWhen(iso: string): string {
  * (`/api/data/users`: searched, filtered and paged by the server) as cards;
  * tapping one opens the web's "User details", which carries the web row
  * menu: Edit, Reset Password, Change Email Address, Deactivate / Activate and
- * Delete. "+ Add User" sits above the list. "User Activity" is the audit feed.
+ * Delete. "+ Add User" sits above the list; the web's sortable columns and
+ * active-filter chips sit under the filters. "User Activity" is the audit feed.
  */
 export function UsersScreen() {
   const [tab, setTab] = useState<Tab>('all');
@@ -111,9 +122,9 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
   const [status, setStatus] = useState<StatusFilter>(ALL);
   const [branchId, setBranchId] = useState<string>(ALL);
   const [lastLogin, setLastLogin] = useState<DateRange | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [selected, setSelected] = useState<AdminUser | null>(null);
-  const [exporting, setExporting] = useState(false);
   const dateSheet = useRef<BottomSheetModal>(null);
   const detailSheet = useRef<BottomSheetModal>(null);
   const forms = useUserSheet();
@@ -130,8 +141,9 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
       branchId: branchId === ALL ? undefined : branchId,
       lastLoginFrom: lastLogin?.from,
       lastLoginTo: lastLogin?.to,
+      sort: toSortParam(sort),
     }),
-    [term, role, status, branchId, lastLogin],
+    [term, role, status, branchId, lastLogin, sort],
   );
   const q = useUsersDataPages(query);
   const branchesQ = useBranches();
@@ -139,6 +151,33 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
   const total = q.data?.pages[0]?.total;
   const branchOptions = useMemo(() => (branchesQ.data?.branches ?? []).map((b) => ({ value: b.id, label: b.name })), [branchesQ.data]);
   const filtered = !!(term || role !== ALL || status !== ALL || branchId !== ALL || lastLogin);
+
+  const chips = activeChips([
+    !!term && { key: 'search', label: searchChipLabel(term), onRemove: () => setSearch('') },
+    role !== ALL && { key: 'role', label: chipLabel('Role', role.replace(/_/g, ' ')), onRemove: () => setRole(ALL) },
+    status !== ALL && {
+      key: 'status',
+      label: chipLabel('Status', STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status),
+      onRemove: () => setStatus(ALL),
+    },
+    branchId !== ALL && {
+      key: 'branchId',
+      label: chipLabel('Branch', branchOptions.find((o) => o.value === branchId)?.label ?? 'Branch'),
+      onRemove: () => setBranchId(ALL),
+    },
+    !!lastLogin && {
+      key: 'lastLoginAt',
+      label: rangeChipLabel('Last login', lastLogin.from, lastLogin.to, formatDisplayDate),
+      onRemove: () => setLastLogin(null),
+    },
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setRole(ALL);
+    setStatus(ALL);
+    setBranchId(ALL);
+    setLastLogin(null);
+  };
 
   const open = (u: AdminUser) => {
     setSelected(u);
@@ -195,18 +234,19 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
     ]);
   };
 
-  const handleExport = async () => {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      const csv = await exportUsersCsv(query);
-      await Share.share({ title: 'mountain-bakes-users', message: csv });
-    } catch (e) {
-      Alert.alert('Could Not Export', mapErrorToMessage(e));
-    } finally {
-      setExporting(false);
-    }
-  };
+  // The web table's Export menu: CSV of the loaded rows or of every result (the server caps "all").
+  const exportUi = useDataTableExport(
+    {
+      resource: 'users',
+      fileName: 'mountain-bakes-users',
+      params: usersExportParams(query),
+      pageSize: 20,
+      loadedPages: q.data?.pages.length ?? 0,
+      loadedRows: users.length,
+      total,
+    },
+    'Export Users',
+  );
 
   return (
     <>
@@ -229,8 +269,9 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
         header={
           <>
             {tabs}
-            <View style={{ alignSelf: 'flex-start' }}>
+            <View style={{ alignSelf: 'flex-start', flexDirection: 'row', gap: 8 }}>
               <ActionChip icon="plus" label="Add User" primary onPress={() => forms.open({ kind: 'create' })} />
+              {exportUi.chip}
             </View>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, email, username, code…" />
             <FilterSelect<UserRole> label="Role" allLabel="All Roles" options={ROLE_OPTIONS} value={role} onChange={(v) => setRole(v as UserRole | typeof ALL)} />
@@ -242,14 +283,12 @@ function AllUsers({ tabs }: { tabs: ReactNode }) {
               <FilterSelect label="Branch" allLabel="All Branches" options={branchOptions} value={branchId} onChange={setBranchId} />
               <DateRangeField label="Last login" range={lastLogin} placeholder="Any time" onPress={() => dateSheet.current?.present()} onClear={() => setLastLogin(null)} />
             </MoreFilters>
-            <Pressable accessibilityRole="button" onPress={() => void handleExport()} disabled={exporting || users.length === 0} style={{ alignSelf: 'flex-start' }}>
-              <Text style={[theme.typography.label, { color: exporting || users.length === 0 ? theme.colors.textFaint : theme.colors.primary, fontWeight: '700' }]}>
-                {exporting ? 'Preparing export…' : 'Export CSV (all rows)'}
-              </Text>
-            </Pressable>
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel="Newest first" />
+            <ActiveFilterChips chips={chips} onClearAll={clearAll} />
           </>
         }
       />
+      {exportUi.element}
       <DateRangeSheet
         ref={dateSheet}
         today={today}

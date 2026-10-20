@@ -19,7 +19,7 @@ import {
 } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Checkbox, Dropdown, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, SecondaryButton, TextField } from '@/shared/ui';
+import { Checkbox, DateField, Dropdown, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, SecondaryButton, TextField } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import {
   CALENDAR_SYSTEMS,
@@ -227,14 +227,9 @@ function EventForm({ event, onClose }: { event: AdminSpecialEvent | null; onClos
         ) : null}
       </View>
 
-      <TextField
-        label="Confirmed Date (optional)"
-        value={v.confirmedDate}
-        onChangeText={(t) => set('confirmedDate', t)}
-        placeholder="YYYY-MM-DD"
-        keyboardType="numbers-and-punctuation"
-        autoCapitalize="none"
-      />
+      <View style={{ marginTop: 16 }}>
+        <DateField label="Confirmed Date (optional)" value={v.confirmedDate} onChange={(t) => set('confirmedDate', t)} onClear={() => set('confirmedDate', '')} placeholder="Not confirmed" />
+      </View>
       <Hint text="Overrides the estimate everywhere." />
       <TextField label="Duration (days)" value={v.durationDays} onChangeText={(t) => set('durationDays', t)} {...num} />
       <TextField label="First Reminder (days before)" value={v.reminderLeadDays} onChangeText={(t) => set('reminderLeadDays', t)} {...num} />

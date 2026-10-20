@@ -1,3 +1,4 @@
+export { ChangePasswordScreen } from './screens/ChangePasswordScreen';
 export { ForgotPasswordScreen } from './screens/ForgotPasswordScreen';
 export { LoginScreen } from './screens/LoginScreen';
 export { ONBOARDING_SEEN_KEY, OnboardingScreen } from './screens/OnboardingScreen';

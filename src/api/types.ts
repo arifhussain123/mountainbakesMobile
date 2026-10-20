@@ -661,6 +661,8 @@ export interface ProductionOrder {
   approvedByName: string | null;
   approvedAt: string | null;
   cancelReason?: string | null;
+  cancelledByName?: string | null;
+  cancelledAt?: string | null;
   /**
    * Stamped by `PUT /production-orders/:id/verify`. Gates `isVerified()`
    * (`utils/demandLines.ts`) rather than `status === 'verified'` — an order
@@ -3894,13 +3896,78 @@ export interface ProductionBranchSummaryRow {
   returned: number;
   /** delivered ÷ demanded, %; null with no demand. */
   fulfilment: number | null;
+  /** The branch's latest demand submission, ever; null when it has never sent one. */
+  lastSubmittedAt?: string | null;
+  /** Units demanded per bucket of the window (the card's sparkline). */
+  spark?: number[];
 }
 
 /** `GET /production/dashboard/branch-summary?period=` — every active branch, highest demand first. */
 export interface ProductionBranchSummarySection {
   window: { period: ProductionDashboardPeriod; from: string; to: string };
   series: ProductionBranchSummaryRow[];
+  bucket?: ProductionDashboardBucket;
+  kpis?: Record<'activeBranches' | 'branchesWithDemand' | 'demanded' | 'delivered' | 'fulfilment', number | null>;
+  comparePrevious?: Record<'activeBranches' | 'branchesWithDemand' | 'demanded' | 'delivered' | 'fulfilment', ProductionDashboardDelta | null>;
 }
+
+/** A section's series granularity: hourly for Today, daily otherwise. */
+export type ProductionDashboardBucket = 'hour' | 'day' | 'week';
+
+/** Change against the same stretch of the previous period (backend `pctDelta` / `ptsDelta`). */
+export interface ProductionDashboardDelta {
+  value: number;
+  unit: '%' | 'pts';
+}
+
+/** The frame every `/production/dashboard/*` period section shares (backend `DashboardSection`). */
+export interface ProductionDashboardSectionBase<K extends string, S, B> {
+  window: { period: ProductionDashboardPeriod; from: string; to: string; prevFrom: string; prevTo: string };
+  bucket: ProductionDashboardBucket;
+  kpis: Record<K, number | null>;
+  previous: Record<K, number | null>;
+  comparePrevious: Record<K, ProductionDashboardDelta | null>;
+  series: S[];
+  breakdown: B;
+  generatedAt: string;
+}
+
+export type ProductionDemandStatus = 'pending' | 'awaiting_verification' | 'verified' | 'approved' | 'rejected';
+
+export interface ProductionProductUnits {
+  productId: string | null;
+  productName: string;
+  units: number;
+}
+
+/** `GET /production/dashboard/received-demand?period=&branchId=`. */
+export type ProductionReceivedDemandSection = ProductionDashboardSectionBase<
+  'units' | 'orders' | 'avgUnits' | 'pendingVerification' | 'rejected',
+  { bucket: string; units: number; orders: number; byStatus: Record<ProductionDemandStatus, { units: number; orders: number }> },
+  { topProducts: ProductionProductUnits[] }
+>;
+
+/** `GET /production/dashboard/repaired-stock?period=&branchId=`. */
+export type ProductionRepairedStockSection = ProductionDashboardSectionBase<
+  'repaired' | 'repairRate' | 'backToStock',
+  { bucket: string; repaired: number; returned: number },
+  { topProducts: ProductionProductUnits[]; topProduct: ProductionProductUnits | null }
+>;
+
+export type ProductionReturnReason = 'expired' | 'damaged' | 'unsold' | 'other' | 'none';
+
+/** `GET /production/dashboard/return-stock?period=&branchId=`. */
+export type ProductionReturnStockSection = ProductionDashboardSectionBase<
+  'returned' | 'returnRate' | 'onHand',
+  { bucket: string; returned: number },
+  {
+    byReason: { reason: ProductionReturnReason; label: string; units: number }[];
+    byBranch: { branchId: string; branchName: string; units: number }[];
+    topBranch: { branchId: string; branchName: string; units: number } | null;
+    topProduct: ProductionProductUnits | null;
+    heat: ProductionHeatmap;
+  }
+>;
 
 export type ProductionStockState = 'ok' | 'low' | 'out';
 
@@ -3922,6 +3989,7 @@ export interface ProductionCurrentStockSection {
   series: ProductionCurrentStockRow[];
   breakdown: { threshold: number; products: number };
   branchId: string | null;
+  generatedAt?: string;
 }
 
 // ─── Super Admin nav signals ──────────────────────────────────────────────
@@ -4271,6 +4339,8 @@ export interface UsersDataQuery {
   /** Last-login window, business dates inclusive. */
   lastLoginFrom?: string;
   lastLoginTo?: string;
+  /** The Data Engine's `sort=field:dir` (a web column header); absent = newest first. */
+  sort?: string;
 }
 
 /** `GET /api/users/activity` — one audit row. */
@@ -4432,7 +4502,12 @@ export interface LoginAttemptQuery {
   country?: string;
   from?: string;
   to?: string;
+  /** The web table's sortable headers; absent = newest attempt first. */
+  sortBy?: LoginAttemptSortKey;
+  sortDir?: 'asc' | 'desc';
 }
+
+export type LoginAttemptSortKey = 'attemptedAt' | 'email' | 'country' | 'city' | 'ipAddress' | 'reason';
 
 export interface LoginAttemptsPage {
   attempts: LoginAttempt[];

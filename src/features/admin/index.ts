@@ -12,6 +12,7 @@ export { BranchesScreen } from './screens/BranchesScreen';
 export { BranchLocationsScreen } from './screens/BranchLocationsScreen';
 export { CategoriesScreen } from './screens/CategoriesScreen';
 export { CustomersScreen } from './screens/CustomersScreen';
+export { GlobalSearchScreen } from './screens/GlobalSearchScreen';
 export { PriceListScreen } from './screens/PriceListScreen';
 export { ProductsScreen } from './screens/ProductsScreen';
 export { RestrictionRulesScreen } from './screens/settings/RestrictionRulesScreen';

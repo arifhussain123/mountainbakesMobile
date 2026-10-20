@@ -138,6 +138,9 @@ export const queryKeys = {
   // The web dashboard's Branch-wise and Current stock sections. Own roots: the
   // branch list ignores the branch filter, and current stock ignores the period.
   productionBranchSummary: (period: string) => ['productionBranchSummary', period] as const,
+  /** The web dashboard's received-demand / repaired-stock / return-stock sections. */
+  productionDashboardSection: (section: string, period: string, branchId: string | null) =>
+    ['productionDashboardSection', section, period, branchId ?? 'all'] as const,
   productionCurrentStock: (branchId: string | null) => ['productionCurrentStock', branchId] as const,
   productionBranchStock: () => ['productionBranchStock'] as const,
   productionReportSummary: (query: unknown) => ['productionReportSummary', query] as const,
@@ -181,4 +184,6 @@ export const queryKeys = {
   restrictionRequests: (type: string | null) => ['restrictions', 'requests', type] as const,
   restrictionMonitor: () => ['restrictions', 'monitor'] as const,
   restrictionEvents: (ruleCode: string | null) => ['restrictions', 'events', ruleCode] as const,
+  // Global Search (web header Ctrl+K) — one answer per trimmed term.
+  globalSearch: (q: string) => ['globalSearch', q] as const,
 };

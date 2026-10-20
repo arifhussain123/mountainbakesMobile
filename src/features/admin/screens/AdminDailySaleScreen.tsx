@@ -4,7 +4,7 @@ import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getBusinessDate, getBusinessMonthStart, useAdminGenerateDailySaleRecord, useBranches, useDailySaleRecords, type DailySaleRecord } from '@/api';
-import { openDrawer, Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
+import { Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
 import { dailySaleAllBeforeStartEmpty, dailySaleBeforeStartNotice, resolveDailySaleWindow } from '@/features/closing/dailySaleWindow';
 import { KpiGrid, type KpiItem } from '@/features/reports/components';
 import { useAppTheme } from '@/shared/theme';
@@ -23,8 +23,9 @@ import {
   type DropdownOption,
 } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
-import { ActionChip, FieldGrid, type FieldGridItem } from '../components';
+import { ActionChip, FieldGrid, SortControl, type FieldGridItem } from '../components';
 import { canGenerateToday, findTodayRow } from '../utils/dailySaleActions';
+import { sortRows, type SortField, type SortState } from '../utils/listControls';
 import { useDailySaleSheet } from './DailySale/dailySaleSheets';
 import {
   DAILY_SALE_MAX_WINDOW_DAYS,
@@ -38,6 +39,7 @@ import {
   paisaMoney,
   rowDifference,
 } from './DailySale/dailySaleBits';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
 
 const ALL = 'all';
 
@@ -59,12 +61,39 @@ function figureItems(r: Pick<DailySaleRecord, 'autoTotalSale' | 'companyShare' |
   ];
 }
 
+const fig = (key: string, label: string, pick: (r: DailySaleRecord) => number): SortField<DailySaleRecord> => ({
+  key,
+  label,
+  kind: 'number',
+  // The web column sorts a figure the API did not send as 0.
+  value: (r) => (Number.isFinite(pick(r)) ? pick(r) : 0),
+});
+
+/** The web board's sortable columns (columns.tsx), sorted on the device as the web table sorts its rows. */
+const SORT_FIELDS: SortField<DailySaleRecord>[] = [
+  { key: 'date', label: 'Date', kind: 'date', value: (r) => r.businessDate },
+  { key: 'time', label: 'Time', kind: 'date', value: (r) => r.generatedAt },
+  fig('totalSale', 'Total Sale', (r) => r.autoTotalSale),
+  fig('companyShare', 'Company Share', (r) => r.companyShare),
+  fig('cash', 'Cash', (r) => r.autoCash),
+  fig('easypaisa', 'Easypaisa', (r) => r.autoEasypaisa),
+  fig('foodpanda', 'Foodpanda', (r) => r.autoFoodpanda),
+  fig('bank', 'Bank', (r) => r.autoBank),
+  fig('cashExpense', 'Cash Expense', (r) => r.cashExpense),
+  fig('cashOnTable', 'Cash on Table', (r) => r.expectedCashInHand),
+  fig('discount', 'Discount', (r) => r.discount),
+  { key: 'difference', label: 'Difference', kind: 'number', value: (r) => r.overallDifference },
+  { key: 'status', label: 'Status', kind: 'text', value: (r) => r.status },
+  fig('branchShare', 'Branch Share', (r) => r.branchShare),
+];
+
 /**
  * Super Admin → Daily Sale Records (web /daily-sale-records, `DailySaleRecordPage admin`).
  * The day's takings per payment method against what was counted, for every
  * branch or one. Every figure — rows, tiles, notices — is the server's
  * (`GET /daily-sale-records`); the only sums here are the filtered rows'
- * totals, which the web table also adds in its footer.
+ * totals, which the web table also adds in its footer. Every web column
+ * sorts, both ways, on the rows already loaded — as the web table does.
  *
  * Actions (the web's): Manual Entry Locks for the picked branch, Generate
  * Today while today has no record, Manual Feed for today, and Generate on a
@@ -72,6 +101,7 @@ function figureItems(r: Pick<DailySaleRecord, 'autoTotalSale' | 'companyShare' |
  * the record's View screen. Print stays on the web.
  */
 export function AdminDailySaleScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const navigation = useNavigation<Nav>();
   const rangeSheetRef = useRef<BottomSheetModal>(null);
@@ -80,6 +110,7 @@ export function AdminDailySaleScreen() {
   const [range, setRange] = useState(() => ({ from: getBusinessMonthStart(), to: today }));
   const [branchId, setBranchId] = useState<string>(ALL);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortState | null>(null);
 
   const branchesQ = useBranches();
   const generate = useAdminGenerateDailySaleRecord();
@@ -113,6 +144,7 @@ export function AdminDailySaleScreen() {
         .includes(term),
     );
   }, [fetching, q.data, search]);
+  const sorted = useMemo(() => sortRows(records, sort, SORT_FIELDS), [records, sort]);
 
   const totals = useMemo(() => {
     const sum = (pick: (r: DailySaleRecord) => number) =>
@@ -200,6 +232,7 @@ export function AdminDailySaleScreen() {
           <Dropdown options={branchOptions} value={branchId} onChange={setBranchId} placeholder="All branches" loading={branchesQ.isLoading} />
         </View>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date, branch or status…" />
+        <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} />
       </Card>
 
       <View style={styles.actions}>
@@ -299,10 +332,10 @@ export function AdminDailySaleScreen() {
       <AppHeader
         title="Daily Sale Records"
         subtitle="The day's takings against what was physically counted. Sales and expenses are never changed by this screen."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <FlatList
-        data={isLoading || (fetching && q.error) ? [] : records}
+        data={isLoading || (fetching && q.error) ? [] : sorted}
         keyExtractor={(r) => `${r.branchId}:${r.businessDate}`}
         renderItem={renderItem}
         contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 3, gap: 8 }}

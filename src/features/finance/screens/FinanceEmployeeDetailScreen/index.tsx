@@ -3,7 +3,6 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import {
   RESIGNATION_REASONS,
-  financeCan,
   generateIdempotencyKey,
   getBusinessDate,
   useCancelResignation,
@@ -15,7 +14,7 @@ import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAuthStore } from '@/state';
+import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { styles } from '../FinancePayrollListScreen/styles';
 
 function Row({ label, value }: { label: string; value: string | null }) {
@@ -35,8 +34,8 @@ export function FinanceEmployeeDetailScreen() {
   const tabBarHeight = useTabBarHeight();
   const route = useRoute<RouteProp<FinancePayrollStackParamList, 'FinanceEmployeeDetail'>>();
   const { employeeId } = route.params;
-  const role = useAuthStore((state) => state.user?.role);
-  const canConfigure = financeCan(role, 'configure');
+  const can = useFinanceCan();
+  const canConfigure = can('configure');
 
   const { data: profile, isLoading, error, refetch } = useEmployeeProfile(employeeId);
   const recordResignation = useRecordResignation();

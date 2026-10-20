@@ -9,12 +9,13 @@ import {
   useBranches,
   type StockRow,
 } from '@/api';
-import { openDrawer, useTabBarHeight } from '@/navigation';
+import { useTabBarHeight } from '@/navigation';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import {
   AppHeader,
   Card,
+  DateField,
   Dropdown,
   EmptyState,
   ErrorState,
@@ -43,6 +44,7 @@ import {
 } from '../utils/branchStockActions';
 import { addDays, filterStockRows, formatDay, toActivityFigures, totalBranchSummary } from '../utils/stockActivity';
 import { useBranchStockSheet } from './BranchStock/branchStockSheets';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
 
 /** The picker value meaning "every branch at once" — never a uuid, so it cannot collide with one. */
 const ALL_BRANCHES = 'all';
@@ -124,8 +126,15 @@ function LedgerCard({
   );
 }
 
-/** Business date, a day at a time — no date-picker library in this app. Never past today. */
+/**
+ * Business date, a day at a time with the arrows, or any past day from the
+ * calendar button (the date picker). Never past today.
+ */
 function DateStepper({ date, today, onChange }: { date: string; today: string; onChange: (date: string) => void }) {
+  return <DateField value={date} onChange={onChange} maximumDate={today} renderTrigger={(open) => <StepperRow date={date} today={today} onChange={onChange} onPick={open} />} />;
+}
+
+function StepperRow({ date, today, onChange, onPick }: { date: string; today: string; onChange: (date: string) => void; onPick: () => void }) {
   const theme = useAppTheme();
   const atToday = date >= today;
   return (
@@ -152,6 +161,9 @@ function DateStepper({ date, today, onChange }: { date: string; today: string; o
         hitSlop={6}>
         <Icon name="chevron-right" size={16} color={theme.colors.text} />
       </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Pick a date" onPress={onPick} style={styles.stepBtn} hitSlop={6}>
+        <Icon name="calendar" size={16} color={theme.colors.primary} />
+      </Pressable>
     </View>
   );
 }
@@ -167,6 +179,7 @@ function DateStepper({ date, today, onChange }: { date: string; today: string; o
  * no editing (a correction targets one branch's ledger).
  */
 export function AdminBranchStockScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
   const today = getBusinessDate();
@@ -367,7 +380,7 @@ export function AdminBranchStockScreen() {
       <AppHeader
         title="Branch Stock Control"
         subtitle={single ? shortBranch(branchName) : branchId === ALL_BRANCHES ? 'All branches' : undefined}
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <FlatList
         data={showLedger ? visible : []}

@@ -1,22 +1,35 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { getBusinessDate, useLoginAttemptPages, useLoginFilterOptions, type LoginAttempt, type LoginAttemptReason } from '@/api';
+import { getBusinessDate, useLoginAttemptPages, useLoginFilterOptions, type LoginAttempt, type LoginAttemptReason, type LoginAttemptSortKey } from '@/api';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { Card, DateRangeSheet, EmptyState, ErrorState, LoadingSkeleton, SearchBar } from '@/shared/ui';
-import { formatCount, type DateRange } from '@/shared/utils';
+import { formatCount, formatDisplayDate, type DateRange } from '@/shared/utils';
+import { ActiveFilterChips, SortControl } from '../../components';
+import { activeChips, chipLabel, rangeChipLabel, searchChipLabel, toSortPair, type SortField, type SortState } from '../../utils/listControls';
 import { ALL, DateRangeField, FilterSelect, MONO, NoticeBox, Pill, formatClock, formatDateOnly } from '../../components/AdminDetail';
 import { QUICK_RANGES, ToggleRow, isQuickRange, quickRange } from './quickRanges';
 import { LOGIN_ATTEMPT_REASON_LABELS, formatBrowser, formatPlatform } from './sessionFormat';
 
 const REASONS = Object.keys(LOGIN_ATTEMPT_REASON_LABELS) as LoginAttemptReason[];
 
+/** The web table's sortable headers (Date and Time are one key), each both ways, sorted by the server. */
+const SORT_FIELDS: SortField<LoginAttempt>[] = [
+  { key: 'attemptedAt', label: 'Date', kind: 'date' },
+  { key: 'email', label: 'Email typed', kind: 'text' },
+  { key: 'country', label: 'Country', kind: 'text' },
+  { key: 'city', label: 'City', kind: 'text' },
+  { key: 'ipAddress', label: 'IP address', kind: 'text' },
+  { key: 'reason', label: 'Reason', kind: 'text' },
+];
+
 /**
  * Security → Failed Logins (`GET /api/login-attempts`, super_admin only):
- * every refused sign-in, newest first. Each row is the address that was
- * typed — not an account. No actions on rows, as on the web.
+ * every refused sign-in, newest first unless a web column's sort is picked.
+ * Each row is the address that was typed — not an account. No actions on
+ * rows, as on the web.
  */
 export function FailedLoginsTab({ header }: { header: ReactNode }) {
   const theme = useAppTheme();
@@ -27,6 +40,7 @@ export function FailedLoginsTab({ header }: { header: ReactNode }) {
   const [reason, setReason] = useState<LoginAttemptReason | typeof ALL>(ALL);
   const [country, setCountry] = useState<string>(ALL);
   const [range, setRange] = useState<DateRange | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
 
   const query = useMemo(
     () => ({
@@ -35,14 +49,28 @@ export function FailedLoginsTab({ header }: { header: ReactNode }) {
       country: country === ALL ? undefined : country,
       from: range?.from,
       to: range?.to,
+      ...toSortPair<LoginAttemptSortKey>(sort),
     }),
-    [term, reason, country, range],
+    [term, reason, country, range, sort],
   );
   const q = useLoginAttemptPages(query);
   const optionsQ = useLoginFilterOptions();
   const rows = useMemo(() => q.data?.pages.flatMap((p) => p.attempts) ?? [], [q.data]);
   const total = q.data?.pages[0]?.total;
   const active = !!(term || reason !== ALL || country !== ALL || range);
+
+  const chips = activeChips([
+    !!term && { key: 'search', label: searchChipLabel(term), onRemove: () => setSearch('') },
+    reason !== ALL && { key: 'reason', label: chipLabel('Reason', LOGIN_ATTEMPT_REASON_LABELS[reason] ?? reason), onRemove: () => setReason(ALL) },
+    country !== ALL && { key: 'country', label: chipLabel('Country', country), onRemove: () => setCountry(ALL) },
+    !!range && { key: 'businessDate', label: rangeChipLabel('Date', range.from, range.to, formatDisplayDate), onRemove: () => setRange(null) },
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setReason(ALL);
+    setCountry(ALL);
+    setRange(null);
+  };
 
   return (
     <>
@@ -87,6 +115,8 @@ export function FailedLoginsTab({ header }: { header: ReactNode }) {
               onChange={setCountry}
             />
             <DateRangeField label="Date" range={range} placeholder="Any date" onPress={() => dateSheet.current?.present()} onClear={() => setRange(null)} />
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel="Newest first" />
+            <ActiveFilterChips chips={chips} onClearAll={clearAll} />
             {total !== undefined ? (
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
                 {formatCount(total)} {total === 1 ? 'refused sign-in' : 'refused sign-ins'}

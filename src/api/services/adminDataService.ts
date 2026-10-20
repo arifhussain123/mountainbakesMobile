@@ -147,6 +147,7 @@ export async function listUsersData(query: UsersDataQuery): Promise<DataEnginePa
       branchId: query.branchId,
       'lastLoginAt.gte': query.lastLoginFrom,
       'lastLoginAt.lte': query.lastLoginTo,
+      sort: query.sort,
     }),
   );
   return { ...res, total: Number(res.total ?? 0), data: res.data ?? [] };
@@ -239,6 +240,8 @@ export async function listLoginAttempts(query: LoginAttemptQuery): Promise<Login
       country: query.country,
       from: query.from,
       to: query.to,
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
     }),
   );
   return { ...res, total: Number(res.total ?? 0), attempts: res.attempts ?? [] };

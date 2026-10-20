@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   getBusinessDate,
@@ -10,8 +10,8 @@ import {
   useBranches,
   usePackingUsagePages,
   type PackingUsageRow,
+  type PackingUsageSortKey,
 } from '@/api';
-import { openDrawer } from '@/navigation';
 import { KpiGrid, type KpiItem } from '@/features/reports/components';
 import { useAppTheme } from '@/shared/theme';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -30,7 +30,11 @@ import {
   type FilterChipOption,
 } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
-import { FieldGrid } from '../../components';
+import { ActiveFilterChips, FieldGrid, SortControl } from '../../components';
+import { activeChips, chipLabel, rangeChipLabel, toSortPair, type SortField, type SortState } from '../../utils/listControls';
+import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
+import { shareText, useExportSheet } from '../../components/ExportSheet';
+import { EXCEL_ON_WEB, PDF_ON_WEB, buildReportsPrintText } from '../../utils/exports';
 import { BranchPerformanceCard, DailySalesChartCard, PaymentMethodsSummaryCard, TopProductsDonutCard, TopTenProductsCard } from './reportCharts';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -51,6 +55,17 @@ const TABS: FilterChipOption<Tab>[] = [
 ];
 
 const ALL = 'all';
+
+/** The web Packing Materials table's sortable columns, sorted by the server (`sortBy` / `sortDir`). */
+const PACKING_SORT_FIELDS: SortField<PackingUsageRow>[] = [
+  { key: 'date', label: 'Date', kind: 'date' },
+  { key: 'materialName', label: 'Packing Material', kind: 'text' },
+  { key: 'branchName', label: 'Branch', kind: 'text' },
+  { key: 'requestedQty', label: 'Requested Qty', kind: 'number' },
+  { key: 'approvedQty', label: 'Approved Qty', kind: 'number' },
+  { key: 'deliveredQty', label: 'Delivered Qty', kind: 'number' },
+];
+
 const rs = (n: number) => `Rs.${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 
 /**
@@ -58,8 +73,9 @@ const rs = (n: number) => `Rs.${Math.round(Number(n) || 0).toLocaleString('en-US
  * Every figure on the page comes from ONE call — `GET /reports/summary?period=`
  * without `fields=basic` — across all branches. The Packing Materials tab has
  * its own date range, branch and material filters and its own server-paged
- * call (`GET /reports/packing-usage`), as on the web. Read-only; the CSV
- * export is shared as text (this app has no file module for PDF/Excel).
+ * call (`GET /reports/packing-usage`), with the web table's sortable columns
+ * and active-filter chips. Read-only; the CSV export and Print are shared as
+ * text (this app has no file module for PDF/Excel, which stay listed, disabled).
  *
  * Kept separate from the branch manager's `ReportsScreen`, which reads a
  * different shape (`/sales-analytics`) for one branch.
@@ -71,13 +87,14 @@ export function AdminReportsScreen() {
 
   const [period, setPeriod] = useState<Period>('monthly');
   const [tab, setTab] = useState<Tab>('sales');
-  const [exporting, setExporting] = useState(false);
 
   const q = useAdminReportSummary(period);
   const s = q.data;
 
   // ── Packing Materials: own filters, default month to date ──
-  const [packRange, setPackRange] = useState(() => ({ from: getBusinessMonthStart(), to: today }));
+  const defaultPackRange = { from: getBusinessMonthStart(), to: today };
+  const [packRange, setPackRange] = useState(defaultPackRange);
+  const [packSort, setPackSort] = useState<SortState | null>(null);
   const [packBranch, setPackBranch] = useState<string>(ALL);
   const [packMaterial, setPackMaterial] = useState<string>(ALL);
   const branchesQ = useBranches();
@@ -98,22 +115,86 @@ export function AdminReportsScreen() {
     to: packRange.to,
     branchId: packBranch === ALL ? null : packBranch,
     packingMaterialId: packMaterial === ALL ? null : packMaterial,
+    ...toSortPair<PackingUsageSortKey>(packSort),
   });
   const packRows = useMemo(() => packing.data?.pages.flatMap((p) => p.usage) ?? [], [packing.data]);
   const packTotals = packing.data?.pages[0]?.totals ?? { requested: 0, approved: 0, delivered: 0 };
   const packTotal = packing.data?.pages[0]?.pagination?.total ?? packing.data?.pages[0]?.total ?? 0;
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const csv = await getReportExportCsv(period);
-      await Share.share({ title: `mountain-bakes-report-${period}.csv`, message: csv });
-    } catch (error) {
-      Alert.alert('Export failed', mapErrorToMessage(error));
-    } finally {
-      setExporting(false);
-    }
+  // The web's chips name only what differs from the defaults — month to date is not a chip.
+  const packDateChanged = packRange.from !== defaultPackRange.from || packRange.to !== defaultPackRange.to;
+  const packChips = activeChips([
+    packDateChanged && {
+      key: 'businessDate',
+      label: rangeChipLabel('Date', packRange.from, packRange.to, formatDisplayDate),
+      onRemove: () => setPackRange(defaultPackRange),
+    },
+    packBranch !== ALL && {
+      key: 'branchId',
+      label: chipLabel('Branch', branchOptions.find((o) => o.value === packBranch)?.label ?? 'Branch'),
+      onRemove: () => setPackBranch(ALL),
+    },
+    packMaterial !== ALL && {
+      key: 'packingMaterialId',
+      label: chipLabel('Packing Material', materialOptions.find((o) => o.value === packMaterial)?.label ?? 'Packing Material'),
+      onRemove: () => setPackMaterial(ALL),
+    },
+  ]);
+  const clearPackFilters = () => {
+    setPackRange(defaultPackRange);
+    setPackBranch(ALL);
+    setPackMaterial(ALL);
   };
+
+  // The web's PDF · Excel · CSV · Print buttons, in one sheet. PDF and Excel
+  // are binary files the phone cannot share; CSV is the server's own file;
+  // Print is the page (stats, payment methods, the open tab) as text.
+  const exportSheet = useExportSheet();
+  const openExport = () =>
+    exportSheet.open({
+      title: 'Reports & Analytics',
+      subtitle: s ? `${s.from.slice(0, 10)} – ${s.to.slice(0, 10)}` : undefined,
+      options: [
+        { key: 'pdf', section: 'Export', label: 'PDF', icon: 'file-list', hint: PDF_ON_WEB, disabled: true },
+        { key: 'excel', section: 'Export', label: 'Excel', hint: EXCEL_ON_WEB, disabled: true },
+        {
+          key: 'csv',
+          section: 'Export',
+          label: 'CSV',
+          hint: 'The period’s report, shared as text',
+          errorTitle: 'Export failed',
+          run: async () => shareText(`mountain-bakes-report-${period}.csv`, await getReportExportCsv(period)),
+        },
+        {
+          key: 'print',
+          section: 'Print',
+          label: 'Print',
+          icon: 'printer',
+          hint: 'This page as a text document — route it to a print service',
+          disabled: !s,
+          errorTitle: 'Could Not Print',
+          run: async () =>
+            s &&
+            shareText(
+              `Reports & Analytics ${s.from.slice(0, 10)} – ${s.to.slice(0, 10)}`,
+              buildReportsPrintText(
+                s,
+                tab,
+                tab === 'packing'
+                  ? {
+                      rangeText: `${formatDisplayDate(packRange.from)} – ${formatDisplayDate(packRange.to)}`,
+                      branchLabel: branchOptions.find((o) => o.value === packBranch)?.label ?? 'All branches',
+                      materialLabel: materialOptions.find((o) => o.value === packMaterial)?.label ?? 'All packing materials',
+                      totals: packTotals,
+                      rows: packRows,
+                      total: packTotal,
+                    }
+                  : undefined,
+              ),
+            ),
+        },
+      ],
+    });
 
   const tiles: KpiItem[] = s
     ? [
@@ -167,7 +248,9 @@ export function AdminReportsScreen() {
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginBottom: 4 }]}>Packing Material</Text>
             <Dropdown options={materialOptions} value={packMaterial} onChange={setPackMaterial} loading={materialsQ.isLoading} />
           </View>
+          <SortControl fields={PACKING_SORT_FIELDS} value={packSort} onChange={setPackSort} defaultLabel="Newest date first" />
         </Card>
+        <ActiveFilterChips chips={packChips} onClearAll={clearPackFilters} />
 
         {/* Summed server-side over the WHOLE filtered range, never just the pages loaded. */}
         <View style={styles.totals}>
@@ -241,16 +324,16 @@ export function AdminReportsScreen() {
   );
 
   const showPackingRows = tab === 'packing' && !packing.isLoading && !packing.error;
+  const headerActions = useAdminHeaderActions({
+    extras: [{ icon: 'file-spreadsheet', onPress: openExport, accessibilityLabel: 'Export or print' }],
+  });
 
   return (
     <Screen>
       <AppHeader
         title="Reports & Analytics"
         subtitle={s ? `${s.from.slice(0, 10)} – ${s.to.slice(0, 10)}` : 'Loading…'}
-        actions={[
-          { icon: 'file-spreadsheet', onPress: () => void handleExport(), accessibilityLabel: exporting ? 'Exporting CSV' : 'Export CSV' },
-          { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
-        ]}
+        actions={headerActions}
       />
       <FlatList
         data={showPackingRows ? packRows : []}
@@ -283,6 +366,7 @@ export function AdminReportsScreen() {
         onApply={setPackRange}
         onRequestClose={() => rangeSheetRef.current?.dismiss()}
       />
+      {exportSheet.element}
     </Screen>
   );
 }

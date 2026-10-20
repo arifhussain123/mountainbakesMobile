@@ -14,9 +14,10 @@ import {
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Card, DateRangeSheet, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, SearchBar, type DropdownOption, type FilterChipOption } from '@/shared/ui';
-import { formatCount, type DateRange } from '@/shared/utils';
-import { ActionChip } from '../../components';
+import { Card, DateRangeSheet, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, SearchBar, type FilterChipOption } from '@/shared/ui';
+import { formatCount, formatDisplayDate, type DateRange } from '@/shared/utils';
+import { ActionChip, ActiveFilterChips, SortControl } from '../../components';
+import { activeChips, chipLabel, rangeChipLabel, searchChipLabel, toSortPair, type SortField, type SortState } from '../../utils/listControls';
 import { ALL, DateRangeField, FilterSelect, MONO, MoreFilters, NoticeBox, Pill, formatClock, formatDateOnly } from '../../components/AdminDetail';
 import { QUICK_RANGES, ToggleRow, isQuickRange, quickRange } from './quickRanges';
 import {
@@ -34,25 +35,33 @@ const STATES = Object.keys(STATE_LABELS) as SessionState[];
 const DEVICE_TYPES: SessionDeviceType[] = ['desktop', 'mobile', 'tablet', 'bot', 'unknown'];
 const ROLES = ['super_admin', 'branch_manager', 'production_user', 'finance_admin', 'finance_manager', 'accountant', 'finance_auditor'];
 
-type Flagged = 'all' | 'flagged';
+/**
+ * The web's Flagged filter. "Not flagged" is offered because the web offers
+ * it, with the web's real effect: its query sends `suspiciousOnly` only when
+ * true, so "Not flagged" narrows nothing — every sign-in is listed, flagged or
+ * not — and only shows as a chip.
+ */
+type Flagged = 'all' | 'flagged' | 'unflagged';
 const FLAGGED_OPTIONS: FilterChipOption<Flagged>[] = [
   { value: 'all', label: 'All' },
   { value: 'flagged', label: 'Flagged only' },
+  { value: 'unflagged', label: 'Not flagged' },
 ];
 
-/** The web table's sortable columns, as one picker. `default` = the server's newest sign-in first. */
-const SORTS: DropdownOption<string>[] = [
-  { value: 'default', label: 'Newest sign-in first' },
-  { value: 'loginAt:asc', label: 'Oldest sign-in first' },
-  { value: 'userName:asc', label: 'Mountain Bakes ID, A–Z' },
-  { value: 'browserEmail:asc', label: 'Browser email, A–Z' },
-  { value: 'country:asc', label: 'Country, A–Z' },
-  { value: 'city:asc', label: 'City, A–Z' },
-  { value: 'browser:asc', label: 'Browser, A–Z' },
-  { value: 'browserVersion:desc', label: 'Browser version, newest' },
-  { value: 'os:asc', label: 'Operating system, A–Z' },
-  { value: 'deviceType:asc', label: 'Device, A–Z' },
-  { value: 'ipAddress:asc', label: 'IP address' },
+/**
+ * The web table's sortable headers (Location, Duration and the two statuses
+ * have no single stored value to sort by), each both ways, sorted by the
+ * server. Unset = the server's newest sign-in first.
+ */
+const SORT_FIELDS: SortField<SecuritySession>[] = [
+  { key: 'browserEmail', label: 'Browser email', kind: 'text' },
+  { key: 'userName', label: 'Mountain Bakes ID', kind: 'text' },
+  { key: 'loginAt', label: 'Login date', kind: 'date' },
+  { key: 'browser', label: 'Browser', kind: 'text' },
+  { key: 'browserVersion', label: 'Browser version', kind: 'text' },
+  { key: 'os', label: 'Operating system', kind: 'text' },
+  { key: 'deviceType', label: 'Device', kind: 'text' },
+  { key: 'ipAddress', label: 'IP address', kind: 'text' },
 ];
 
 /** A filter's value, or nothing when it is on "All". */
@@ -89,10 +98,10 @@ export function LoginHistoryTab({
   const [city, setCity] = useState<string>(ALL);
   const [browser, setBrowser] = useState<string>(ALL);
   const [deviceType, setDeviceType] = useState<SessionDeviceType | typeof ALL>(ALL);
-  const [sort, setSort] = useState('default');
+  const [sort, setSort] = useState<SortState | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const [sortBy, sortDir] = sort === 'default' ? [undefined, undefined] : (sort.split(':') as [SecuritySessionSortKey, 'asc' | 'desc']);
+  const { sortBy, sortDir } = toSortPair<SecuritySessionSortKey>(sort);
   const query = useMemo(
     () => ({
       search: term || undefined,
@@ -120,6 +129,36 @@ export function LoginHistoryTab({
 
   const toOptions = (values: string[] | undefined) => (values ?? []).map((v) => ({ value: v, label: v }));
   const moreCount = [branchId, role, city, browser, deviceType].filter((v) => v !== ALL).length;
+  const branchName = (branchesQ.data?.branches ?? []).find((b) => b.id === branchId)?.name ?? 'Branch';
+
+  const chips = activeChips([
+    !!term && { key: 'search', label: searchChipLabel(term), onRemove: () => setSearch('') },
+    state !== ALL && { key: 'state', label: chipLabel('Status', STATE_LABELS[state] ?? state), onRemove: () => setState(ALL) },
+    country !== ALL && { key: 'country', label: chipLabel('Country', country), onRemove: () => setCountry(ALL) },
+    !!range && { key: 'businessDate', label: rangeChipLabel('Date', range.from, range.to, formatDisplayDate), onRemove: () => setRange(null) },
+    flagged !== 'all' && {
+      key: 'suspiciousOnly',
+      label: chipLabel('Flagged', FLAGGED_OPTIONS.find((o) => o.value === flagged)?.label ?? flagged),
+      onRemove: () => setFlagged('all'),
+    },
+    branchId !== ALL && { key: 'branchId', label: chipLabel('Branch', branchName), onRemove: () => setBranchId(ALL) },
+    role !== ALL && { key: 'role', label: chipLabel('Role', role.replace(/_/g, ' ')), onRemove: () => setRole(ALL) },
+    city !== ALL && { key: 'city', label: chipLabel('City', city), onRemove: () => setCity(ALL) },
+    browser !== ALL && { key: 'browser', label: chipLabel('Browser', browser), onRemove: () => setBrowser(ALL) },
+    deviceType !== ALL && { key: 'deviceType', label: chipLabel('Device', deviceType), onRemove: () => setDeviceType(ALL) },
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setState(ALL);
+    setCountry(ALL);
+    setRange(null);
+    setFlagged('all');
+    setBranchId(ALL);
+    setRole(ALL);
+    setCity(ALL);
+    setBrowser(ALL);
+    setDeviceType(ALL);
+  };
 
   return (
     <>
@@ -173,10 +212,8 @@ export function LoginHistoryTab({
               <FilterSelect label="Browser" allLabel="All" options={toOptions(optionsQ.data?.browsers)} value={browser} onChange={setBrowser} />
               <FilterSelect<SessionDeviceType> label="Device" allLabel="All" options={DEVICE_TYPES.map((d) => ({ value: d, label: d }))} value={deviceType} onChange={setDeviceType} />
             </MoreFilters>
-            <View style={{ gap: 4 }}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Sort</Text>
-              <Dropdown options={SORTS} value={sort} onChange={setSort} />
-            </View>
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel="Newest sign-in first" />
+            <ActiveFilterChips chips={chips} onClearAll={clearAll} />
             {total !== undefined ? (
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
                 {formatCount(total)} {total === 1 ? 'sign-in' : 'sign-ins'}

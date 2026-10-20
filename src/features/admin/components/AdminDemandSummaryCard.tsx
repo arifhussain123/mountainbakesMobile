@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon, StatusBadge } from '@/shared/ui';
@@ -8,6 +9,8 @@ export interface AdminDemandSummaryCardProps {
   summary: DemandSummary;
   /** Today's Production Stock balance per product; `null` until the pool has loaded (never read as 0). */
   stockByProduct: Map<string, number> | null;
+  /** Placed immediately before the heading, as the web places "Print for Production". */
+  headerAction?: ReactNode;
 }
 
 function SectionLabel({ children }: { children: string }) {
@@ -59,10 +62,10 @@ function PivotCard({ row, branches, pool }: { row: DemandPivotRow; branches: str
 /**
  * Web "Demand Summary — Waiting Orders" (mobile layout): every demand not yet
  * verified by its branch, pivoted by product and by packing material, with
- * special items listed one by one ahead of both. Read-only — the web's
- * "Print for Production" is not reproduced.
+ * special items listed one by one ahead of both. Read-only; `headerAction`
+ * carries the page's "Print for Production".
  */
-export function AdminDemandSummaryCard({ summary, stockByProduct }: AdminDemandSummaryCardProps) {
+export function AdminDemandSummaryCard({ summary, stockByProduct, headerAction }: AdminDemandSummaryCardProps) {
   const theme = useAppTheme();
   const { rows, packingRows, specialRows, branches, pendingOrders, awaitingOrders } = summary;
   const empty = rows.length === 0 && packingRows.length === 0 && specialRows.length === 0;
@@ -76,6 +79,7 @@ export function AdminDemandSummaryCard({ summary, stockByProduct }: AdminDemandS
 
   return (
     <Card style={{ marginBottom: theme.spacing.lg }}>
+      {headerAction ? <View style={{ alignSelf: 'flex-start', marginBottom: 8 }}>{headerAction}</View> : null}
       <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Demand Summary — Waiting Orders</Text>
       {sub ? <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>{sub}</Text> : null}
 

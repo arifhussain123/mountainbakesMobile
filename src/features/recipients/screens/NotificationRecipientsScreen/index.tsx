@@ -7,6 +7,7 @@ import {
   getBusinessDate,
   useBranches,
   useClosingRecipients,
+  useDeleteRecipient,
   useMessagingProvider,
   useRecentNotificationLogs,
   useUpdateRecipient,
@@ -48,6 +49,7 @@ export function NotificationRecipientsScreen() {
   const branchesQ = useBranches();
   const logsQ = useRecentNotificationLogs();
   const toggle = useUpdateRecipient();
+  const remove = useDeleteRecipient();
 
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search).trim();
@@ -94,6 +96,21 @@ export function NotificationRecipientsScreen() {
     formRef.current?.present();
   };
 
+  /** The web row's Remove, with its confirm and toast wording. */
+  const confirmRemove = (r: NotificationRecipient) =>
+    Alert.alert('Remove Recipient', `Remove ${r.recipientName} (${r.mobileNumber}) from the closing summary list?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          remove.mutate(r.id, {
+            onSuccess: () => Alert.alert('Removed', 'Recipient removed'),
+            onError: (e) => Alert.alert('Failed to Remove', mapErrorToMessage(e)),
+          }),
+      },
+    ]);
+
   const refresh = () => {
     void recipientsQ.refetch();
     void providerQ.refetch();
@@ -139,6 +156,8 @@ export function NotificationRecipientsScreen() {
               toggle.mutate({ id: item.id, input: { active } }, { onError: (e) => Alert.alert('Could Not Update the Recipient', mapErrorToMessage(e)) })
             }
             onEdit={() => (showingCache ? undefined : openForm(item))}
+            onRemove={showingCache ? undefined : () => confirmRemove(item)}
+            removing={remove.isPending && remove.variables === item.id}
           />
         )}
         ListEmptyComponent={

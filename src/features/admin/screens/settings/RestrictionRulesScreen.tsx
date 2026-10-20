@@ -7,18 +7,19 @@ import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, FilterChipRow, LoadingSkeleton, Screen, SecondaryButton, type FilterChipOption } from '@/shared/ui';
 import { MONO } from '../../components/AdminDetail';
+import { PreviewTab } from './PreviewTab';
 import { ApprovalsTab, AuditTab, MonitorTab } from './RestrictionTabs';
 import { RulesTab } from './RulesTab';
 import { restrictionDmy, time12 } from './restrictionFormat';
 
-type Tab = 'rules' | 'approvals' | 'monitor' | 'audit';
+type Tab = 'rules' | 'approvals' | 'monitor' | 'audit' | 'preview';
 
 /**
  * Settings → Restriction Rules — the web `/settings/restriction-rules` page:
  * the rules (edited and saved per group), the approval requests (approved or
- * rejected in place), the live branch monitor and the audit log. The web's
- * "Popup Preview" tab (a design aid built on the device from the saved rules)
- * is not repeated on the phone.
+ * rejected in place), the live branch monitor, the audit log, and the Popup
+ * Preview (each of the 16 situations rendered from the saved rules, as the
+ * branch's popup would show it).
  */
 export function RestrictionRulesScreen() {
   const theme = useAppTheme();
@@ -34,6 +35,7 @@ export function RestrictionRulesScreen() {
     { value: 'approvals', label: 'Approvals', count: pending > 0 ? pending : undefined },
     { value: 'monitor', label: 'Branch Monitor' },
     { value: 'audit', label: 'Audit Log' },
+    { value: 'preview', label: 'Popup Preview' },
   ];
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['restrictions'] });
@@ -74,6 +76,7 @@ export function RestrictionRulesScreen() {
         {state && tab === 'approvals' ? <ApprovalsTab /> : null}
         {state && tab === 'monitor' ? <MonitorTab cashLimit={state.rules.cash.dailyLimit.limit} /> : null}
         {state && tab === 'audit' ? <AuditTab /> : null}
+        {state && tab === 'preview' ? <PreviewTab state={state} /> : null}
       </ScrollView>
     </Screen>
   );

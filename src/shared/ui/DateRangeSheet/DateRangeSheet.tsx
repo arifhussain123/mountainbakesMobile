@@ -4,7 +4,7 @@ import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
 import { DATE_RANGE_PRESETS, isValidDateRange, resolveDateRangePreset, type DateRange, type DateRangePreset } from '@/shared/utils';
 import { FormBottomSheet } from '../FormBottomSheet';
-import { TextField } from '../TextField';
+import { DateField } from '../DateField';
 import { PillButton } from '../PillButton';
 
 export interface DateRangeSheetProps {
@@ -13,16 +13,17 @@ export interface DateRangeSheetProps {
   value: DateRange;
   onApply: (range: DateRange) => void;
   onRequestClose: () => void;
+  /** Latest pickable day for the custom range (e.g. `today`); no limit when absent. */
+  maxDate?: string;
 }
 
 /**
  * A generic "pick a date range" sheet — quick presets (Today/Last 7 days/This
- * month/Last 90 days) plus a manual `YYYY-MM-DD` from/to entry. There is no
- * date-picker library anywhere in this app (every other date-range filter in
- * the codebase is preset-only), so the custom range is plain text fields
- * rather than a calendar widget.
+ * month/Last 90 days) plus a custom from/to, each picked from the platform's
+ * date picker (never typed). "From" cannot pass "To", and neither end can
+ * pass `maxDate` when one is given.
  */
-export const DateRangeSheet = forwardRef<BottomSheetModal, DateRangeSheetProps>(({ today, value, onApply, onRequestClose }, ref) => {
+export const DateRangeSheet = forwardRef<BottomSheetModal, DateRangeSheetProps>(({ today, value, onApply, onRequestClose, maxDate }, ref) => {
   const theme = useAppTheme();
   const [from, setFrom] = useState(value.from);
   const [to, setTo] = useState(value.to);
@@ -74,15 +75,15 @@ export const DateRangeSheet = forwardRef<BottomSheetModal, DateRangeSheetProps>(
       <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: theme.spacing.lg }]}>CUSTOM RANGE</Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <TextField label="From" value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <DateField label="From" value={from} onChange={setFrom} maximumDate={to && (!maxDate || to < maxDate) ? to : maxDate} />
         </View>
         <View style={{ flex: 1 }}>
-          <TextField label="To" value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <DateField label="To" value={to} onChange={setTo} minimumDate={from || undefined} maximumDate={maxDate} />
         </View>
       </View>
       {!valid ? (
         <Text style={[theme.typography.label, { color: theme.colors.danger, marginTop: theme.spacing.sm }]}>
-          Enter two valid dates, with "From" on or before "To".
+          Pick two dates, with "From" on or before "To".
         </Text>
       ) : null}
 

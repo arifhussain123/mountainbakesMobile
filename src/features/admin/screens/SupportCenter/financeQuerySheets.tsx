@@ -25,7 +25,7 @@ import {
 } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Dropdown, FormBottomSheet, TextField, type DropdownOption } from '@/shared/ui';
+import { DateField, Dropdown, FormBottomSheet, TextField, type DropdownOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { ActionChip } from '../../components';
 import {
@@ -158,7 +158,9 @@ function FeedForm({ ticket, mode, onClose, onRecreated }: FormProps & { mode: Qu
       <TextField label="Amount" value={feed.amount} onChangeText={(v) => set('amount', moneyChars(v))} keyboardType="decimal-pad" placeholder="Optional" />
       <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700', marginTop: 14, marginBottom: 6 }]}>Branch</Text>
       <Dropdown options={branchOptions} value={feed.branchId || NONE} onChange={(v) => set('branchId', v === NONE ? '' : v)} loading={branchesQ.isLoading} />
-      <TextField label="Business date" value={feed.businessDate} onChangeText={(v) => set('businessDate', v)} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+      <View style={{ marginTop: 16 }}>
+        <DateField label="Business date" value={feed.businessDate} onChange={(v) => set('businessDate', v)} onClear={() => set('businessDate', '')} placeholder="Optional" />
+      </View>
       <TextField label="Description" value={feed.description} onChangeText={(v) => set('description', v)} multiline placeholder="What looks wrong, and what you expected instead" />
       <TextField
         label="Reference ID"
@@ -651,7 +653,11 @@ function CorrectRecordForm({ ticket, onClose, onReload }: FormProps & { onReload
         } else if (spec.kind === 'text') {
           input = <TextField label={spec.label} value={value} onChangeText={setValue} maxLength={500} />;
         } else if (spec.kind === 'date') {
-          input = <TextField label={spec.label} value={value} onChangeText={setValue} placeholder={`YYYY-MM-DD (up to ${today})`} autoCapitalize="none" />;
+          input = (
+            <View style={{ marginTop: 16 }}>
+              <DateField label={spec.label} value={value} onChange={setValue} maximumDate={today} placeholder={`Up to ${today}`} />
+            </View>
+          );
         } else {
           const options: DropdownOption<string>[] =
             spec.kind === 'select'

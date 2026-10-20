@@ -14,7 +14,7 @@ import {
   type ProductionOrderStatus,
   type ProductionOrdersDataQuery,
 } from '@/api';
-import { Routes, openDrawer, useTabBarHeight } from '@/navigation';
+import { Routes, useTabBarHeight } from '@/navigation';
 import type { SuperAdminOrdersStackParamList } from '@/navigation/types';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -33,13 +33,28 @@ import {
 } from '@/shared/ui';
 import { formatDisplayDate, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { AdminDemandSummaryCard } from '../components/AdminDemandSummaryCard';
+import { useOrdersPageExports } from '../components/OrdersPageExports';
 import { AdminProductionOrderRow } from '../components/AdminProductionOrderRow';
 import { AdminSpecialOrdersCard } from '../components/AdminSpecialOrdersCard';
+import { ActiveFilterChips, SortControl } from '../components';
 import { PRODUCTION_ORDER_STATUS_OPTIONS, buildDemandSummary } from '../utils/productionOrders';
+import { activeChips, chipLabel, rangeChipLabel, searchChipLabel, toSortParam, type SortField, type SortState } from '../utils/listControls';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
 
 const ALL = 'all';
 
 const STATUS_OPTIONS: DropdownOption<string>[] = [{ value: ALL, label: 'All Statuses' }, ...PRODUCTION_ORDER_STATUS_OPTIONS];
+
+/** The web Orders table's sortable columns (registry `productionOrders.sortableFields`), sorted by the server. */
+const SORT_FIELDS: SortField<ProductionOrder>[] = [
+  { key: 'demandNumber', label: 'ID', kind: 'text' },
+  { key: 'businessDate', label: 'Date', kind: 'date' },
+  { key: 'submittedAt', label: 'Time', kind: 'date' },
+  { key: 'requiredDate', label: 'Required Date', kind: 'date' },
+  { key: 'branchName', label: 'Branch', kind: 'text' },
+  { key: 'status', label: 'Status', kind: 'text' },
+  { key: 'cancelReason', label: 'Reason', kind: 'text' },
+];
 
 function RangeChip({ label, range, onPress, onClear }: { label: string; range: DateRange | null; onPress: () => void; onClear: () => void }) {
   const theme = useAppTheme();
@@ -64,10 +79,14 @@ function RangeChip({ label, range, onPress, onClear }: { label: string; range: D
  * Super Admin → Orders: the web `/orders` page ("Production Orders"),
  * read-only. Special Orders, the Demand Summary of every waiting demand
  * (last 7 business days, `/production-orders`), and the full server-paged
- * Orders list (`/data/productionOrders`) with the web's filters. Review,
- * prepare, approve and print stay on the web for now.
+ * Orders list (`/data/productionOrders`) with the web's filters, sortable
+ * columns (server-side `sort=`) and active-filter chips. Review, prepare,
+ * approve and print live on the order's detail screen. The page's own
+ * exports are here: Print for Production on the Demand Summary, and Export
+ * Collections plus the table's Export beside the Orders heading.
  */
 export function AdminOrdersScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<SuperAdminOrdersStackParamList>>();
@@ -91,6 +110,7 @@ export function AdminOrdersScreen() {
   const [branchId, setBranchId] = useState<string>(ALL);
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [requiredRange, setRequiredRange] = useState<DateRange | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
   const dateSheetRef = useRef<BottomSheetModal>(null);
   const requiredSheetRef = useRef<BottomSheetModal>(null);
 
@@ -109,12 +129,48 @@ export function AdminOrdersScreen() {
       dateTo: dateRange?.to,
       requiredFrom: requiredRange?.from,
       requiredTo: requiredRange?.to,
+      sort: toSortParam(sort),
     }),
-    [debouncedSearch, status, branchId, dateRange, requiredRange],
+    [debouncedSearch, status, branchId, dateRange, requiredRange, sort],
   );
+
+  const chips = activeChips([
+    !!search.trim() && { key: 'search', label: searchChipLabel(search), onRemove: () => setSearch('') },
+    status !== ALL && {
+      key: 'status',
+      label: chipLabel('Status', STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status),
+      onRemove: () => setStatus(ALL),
+    },
+    branchId !== ALL && {
+      key: 'branchId',
+      label: chipLabel('Branch', branchOptions.find((o) => o.value === branchId)?.label ?? 'Branch'),
+      onRemove: () => setBranchId(ALL),
+    },
+    !!dateRange && { key: 'businessDate', label: rangeChipLabel('Date', dateRange.from, dateRange.to, formatDisplayDate), onRemove: () => setDateRange(null) },
+    !!requiredRange && {
+      key: 'requiredDate',
+      label: rangeChipLabel('Required Date', requiredRange.from, requiredRange.to, formatDisplayDate),
+      onRemove: () => setRequiredRange(null),
+    },
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setStatus(ALL);
+    setBranchId(ALL);
+    setDateRange(null);
+    setRequiredRange(null);
+  };
   const ordersQ = useProductionOrderPages(query);
   const orders = useMemo(() => ordersQ.data?.pages.flatMap((p) => p.data) ?? [], [ordersQ.data]);
   const total = ordersQ.data?.pages[0]?.total ?? 0;
+  const exportsUi = useOrdersPageExports({
+    waitingOrders: waitingQ.data?.orders ?? [],
+    stockByProduct,
+    query,
+    loadedPages: ordersQ.data?.pages.length ?? 0,
+    loadedRows: orders.length,
+    total: ordersQ.data ? total : null,
+  });
 
   const refreshing = ordersQ.isRefetching || waitingQ.isRefetching || specialQ.isRefetching;
   const onRefresh = useCallback(() => {
@@ -143,7 +199,7 @@ export function AdminOrdersScreen() {
       <AppHeader
         title="Production Orders"
         subtitle="Every branch's demand"
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <FlatList
         data={ordersLoading || ordersError ? [] : orders}
@@ -161,7 +217,7 @@ export function AdminOrdersScreen() {
                 <ErrorState message={mapErrorToMessage(waitingQ.error)} onRetry={() => void waitingQ.refetch()} />
               </View>
             ) : (
-              <AdminDemandSummaryCard summary={summary} stockByProduct={stockByProduct} />
+              <AdminDemandSummaryCard summary={summary} stockByProduct={stockByProduct} headerAction={exportsUi.printChip} />
             )}
 
             <View style={styles.ordersHead}>
@@ -172,6 +228,7 @@ export function AdminOrdersScreen() {
                 </Text>
               ) : null}
             </View>
+            {exportsUi.ordersChips}
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand #, branch, raised by…" />
             <View style={styles.dropdowns}>
               <View style={{ flex: 1 }}>
@@ -195,6 +252,10 @@ export function AdminOrdersScreen() {
                 onPress={() => requiredSheetRef.current?.present()}
                 onClear={() => setRequiredRange(null)}
               />
+            </View>
+            <View style={styles.listControls}>
+              <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel="Newest date first" />
+              <ActiveFilterChips chips={chips} onClearAll={clearAll} />
             </View>
             {ordersLoading ? <LoadingSkeleton height={120} /> : null}
             {ordersError ? <ErrorState message={mapErrorToMessage(ordersError)} onRetry={() => void ordersQ.refetch()} /> : null}
@@ -226,6 +287,7 @@ export function AdminOrdersScreen() {
         onApply={setRequiredRange}
         onRequestClose={() => requiredSheetRef.current?.dismiss()}
       />
+      {exportsUi.element}
     </Screen>
   );
 }
@@ -234,6 +296,7 @@ const styles = StyleSheet.create({
   ordersHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 },
   dropdowns: { flexDirection: 'row', gap: 8, marginTop: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, marginBottom: 10 },
+  listControls: { gap: 8, marginBottom: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, maxWidth: '100%' },
   chipBody: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
 });

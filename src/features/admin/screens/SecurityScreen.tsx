@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import type { SecuritySession } from '@/api';
-import { openDrawer } from '@/navigation';
 import { AppHeader, FilterChipRow, FormBottomSheet, Screen, type FilterChipOption } from '@/shared/ui';
 import { ActiveSessionsTab } from './security/ActiveSessionsTab';
 import { FailedLoginsTab } from './security/FailedLoginsTab';
 import { LoginHistoryTab } from './security/LoginHistoryTab';
 import { SessionDetail } from './security/SessionDetail';
 import { useRevokeSheet } from './security/revokeSheet';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
 
 type Tab = 'active' | 'history' | 'failed';
 const TABS: FilterChipOption<Tab>[] = [
@@ -24,6 +24,7 @@ const TABS: FilterChipOption<Tab>[] = [
  * and one Sign-out sheet serve both session tabs, as on the web.
  */
 export function SecurityScreen() {
+  const headerActions = useAdminHeaderActions();
   const [tab, setTab] = useState<Tab>('active');
   const [viewId, setViewId] = useState<string | null>(null);
   const sheet = useRef<BottomSheetModal>(null);
@@ -42,7 +43,7 @@ export function SecurityScreen() {
       <AppHeader
         title="Security"
         subtitle="Who is signed in, from where, and on what. Locations are resolved from the sign-in IP address and are approximate."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       {tab === 'active' ? <ActiveSessionsTab header={tabs} onView={onView} onRevoke={onRevoke} onRevokeAll={onRevokeAll} /> : null}
       {tab === 'history' ? <LoginHistoryTab header={tabs} onView={onView} onRevoke={onRevoke} /> : null}

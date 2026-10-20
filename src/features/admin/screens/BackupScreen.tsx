@@ -1,13 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   isApiError,
+  useBackupDownloadUrl,
   useBackupHistory,
   useBackupStatus,
   useLatestRestoreTest,
   useRunManualBackup,
   useVerifyBackup,
+  type BackupArchive,
   type BackupJob,
   type BackupStatusResponse,
   type BackupTypeHealth,
@@ -18,8 +20,10 @@ import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import { Card, FormBottomSheet, Icon, LoadingSkeleton, SearchBar } from '@/shared/ui';
 import { includesTerm } from '@/shared/utils';
-import { ActionChip, AdminListScreen } from '../components';
+import { ActionChip, AdminListScreen, SortControl } from '../components';
+import { sortRows, type SortField, type SortState } from '../utils/listControls';
 import { isBackupDone, runBackupConflictMessage, runBackupOutcome, verifyOutcome } from '../utils/systemActions';
+import { backupLinkMessage } from '../utils/adminFilesActions';
 import { DetailRows, NoticeBox, Pill, formatDateTime } from '../components/AdminDetail';
 import {
   HEALTH_LABELS,
@@ -33,16 +37,31 @@ import {
   shortChecksum,
 } from './backup/backupFormat';
 
+/** The web history table's sortable columns, sorted on the device as the web table sorts its 100 rows. */
+const SORT_FIELDS: SortField<BackupJob>[] = [
+  { key: 'date', label: 'Date', kind: 'date', value: (j) => j.startedAt },
+  { key: 'type', label: 'Type', kind: 'text', value: (j) => j.backupType },
+  { key: 'status', label: 'Status', kind: 'text', value: (j) => j.status },
+  { key: 'backupId', label: 'Backup ID', kind: 'text', value: (j) => j.backupId },
+  { key: 'size', label: 'Size', kind: 'number', value: (j) => j.fileSize },
+  { key: 'duration', label: 'Duration', kind: 'number', value: (j) => j.durationMs },
+  { key: 's3Key', label: 'S3 Key', kind: 'text', value: (j) => j.s3Key ?? '' },
+  { key: 'retention', label: 'Retention Until', kind: 'date', value: (j) => j.retentionUntil },
+  { key: 'checksum', label: 'SHA-256', kind: 'text', value: (j) => j.checksumSha256 },
+];
+
 type ScheduledType = 'daily' | 'weekly' | 'monthly';
 const SCHEDULED: ScheduledType[] = ['daily', 'weekly', 'monthly'];
 
 /**
  * Database Backup — the web `/database-backup` page: the three health cards
  * (status, schedule, retention, latest run), the running / failures /
- * restore-test tiles, and the newest 100 runs with search. Tap a run for the
- * web's detail view. "Create backup" (a manual run — nothing here can delete)
- * and Verify are the web's actions; Download stays on the web, since a
- * presigned archive link is no use on a phone.
+ * restore-test tiles, and the newest 100 runs with search and the web
+ * table's column sorts. Tap a run for the
+ * web's detail view. "Create backup" (a manual run — nothing here can delete),
+ * Verify and Download are the web's actions: Download (a run's main archive,
+ * or Main / Auth archive in the detail) asks for the same five-minute signed
+ * link and hands it to the phone's browser, which downloads the file.
  */
 export function BackupScreen() {
   const statusQ = useBackupStatus();
@@ -50,17 +69,19 @@ export function BackupScreen() {
   const restoreQ = useLatestRestoreTest();
   const [search, setSearch] = useState('');
   const term = useDebouncedValue(search.trim().toLowerCase());
+  const [sort, setSort] = useState<SortState | null>(null);
   const [detail, setDetail] = useState<BackupJob | null>(null);
   const sheet = useRef<BottomSheetModal>(null);
   const run = useRunManualBackup();
   const verify = useVerifyBackup();
+  const download = useBackupDownloadUrl();
   const [verifyResult, setVerifyResult] = useState<BackupVerifyResult | null>(null);
   const resultSheet = useRef<BottomSheetModal>(null);
 
   const status = statusQ.data;
   const notConfigured = isApiError(statusQ.error) && statusQ.error.status === 503;
   const jobs = useMemo(() => historyQ.data?.jobs ?? [], [historyQ.data]);
-  const rows = useMemo(
+  const searched = useMemo(
     () =>
       !term
         ? jobs
@@ -75,6 +96,7 @@ export function BackupScreen() {
           ),
     [jobs, term],
   );
+  const rows = useMemo(() => sortRows(searched, sort, SORT_FIELDS), [searched, sort]);
 
   const subtitle = `PostgreSQL dumps of the production database, encrypted in S3${
     status ? ` at s3://${status.storage.bucket}/${status.storage.prefix}/ (${status.schedule.timezone})` : ''
@@ -112,6 +134,23 @@ export function BackupScreen() {
       onError: (e) => Alert.alert('Verification Failed', mapErrorToMessage(e)),
     });
 
+  /** The web opens the link in a new tab; here the phone's browser takes it (and downloads it). */
+  const onDownload = (job: BackupJob, file: BackupArchive) =>
+    download.mutate(
+      { id: job.id, file },
+      {
+        onSuccess: async (res) => {
+          try {
+            await Linking.openURL(res.url);
+            Alert.alert('Download Started', backupLinkMessage(res));
+          } catch (e) {
+            Alert.alert('Could Not Open the Download Link', mapErrorToMessage(e));
+          }
+        },
+        onError: (e) => Alert.alert('Could Not Issue a Download Link', mapErrorToMessage(e)),
+      },
+    );
+
   return (
     <>
       <AdminListScreen<BackupJob>
@@ -119,7 +158,16 @@ export function BackupScreen() {
         subtitle={subtitle}
         data={rows}
         keyExtractor={(j) => j.id}
-        renderItem={({ item }) => <JobCard job={item} onPress={() => open(item)} onVerify={() => onVerify(item)} verifying={verify.isPending} />}
+        renderItem={({ item }) => (
+          <JobCard
+            job={item}
+            onPress={() => open(item)}
+            onVerify={() => onVerify(item)}
+            verifying={verify.isPending}
+            onDownload={() => onDownload(item, 'main')}
+            downloading={download.isPending}
+          />
+        )}
         isLoading={historyQ.isLoading}
         error={notConfigured ? null : historyQ.error}
         refreshing={historyQ.isRefetching || statusQ.isRefetching}
@@ -146,6 +194,7 @@ export function BackupScreen() {
               </>
             ) : null}
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search backups…" />
+            <SortControl fields={SORT_FIELDS} value={sort} onChange={setSort} defaultLabel="Newest first" />
           </>
         }
       />
@@ -158,7 +207,9 @@ export function BackupScreen() {
           <>
             <JobDetail job={detail} />
             {isBackupDone(detail) ? (
-              <View style={{ alignSelf: 'flex-end', marginTop: 12 }}>
+              <View style={styles.detailActions}>
+                <ActionChip icon="arrow-up-right" label="Auth archive" onPress={() => onDownload(detail, 'auth')} disabled={download.isPending} />
+                <ActionChip icon="arrow-up-right" label="Main archive" onPress={() => onDownload(detail, 'main')} disabled={download.isPending} />
                 <ActionChip icon="shield-check" label="Verify" primary onPress={() => onVerify(detail)} loading={verify.isPending} />
               </View>
             ) : null}
@@ -240,7 +291,21 @@ function Tiles({ status, restore }: { status: BackupStatusResponse; restore: { s
   );
 }
 
-function JobCard({ job, onPress, onVerify, verifying }: { job: BackupJob; onPress: () => void; onVerify: () => void; verifying: boolean }) {
+function JobCard({
+  job,
+  onPress,
+  onVerify,
+  verifying,
+  onDownload,
+  downloading,
+}: {
+  job: BackupJob;
+  onPress: () => void;
+  onVerify: () => void;
+  verifying: boolean;
+  onDownload: () => void;
+  downloading: boolean;
+}) {
   const theme = useAppTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${TYPE_LABELS[job.backupType]} backup ${job.backupId}, ${STATUS_LABELS[job.status]}`}>
@@ -266,6 +331,8 @@ function JobCard({ job, onPress, onVerify, verifying }: { job: BackupJob; onPres
           <ActionChip icon="search" label="View" onPress={onPress} />
           {/* Re-checks this backup against S3 — only a completed one. */}
           <ActionChip icon="shield-check" label="Verify" onPress={onVerify} disabled={!isBackupDone(job) || verifying} />
+          {/* The main archive, through a five-minute link — only a completed one. */}
+          <ActionChip icon="arrow-up-right" label="Download" onPress={onDownload} disabled={!isBackupDone(job) || downloading} />
         </View>
       </Card>
     </Pressable>
@@ -329,5 +396,6 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tile: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  detailActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
   check: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
 });

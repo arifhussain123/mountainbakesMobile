@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useFinanceCashTransfers, useLedgerSummary, usePendingApprovals, type CashTransfer, type LedgerPage } from '@/api';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  useFinanceCashTransfers,
+  useLedgerSummary,
+  usePendingApprovals,
+  type CashTransfer,
+  type FinancePendingApprovalKind,
+  type LedgerPage,
+} from '@/api';
 import { formatMoney2 } from '@/features/finance/utils/financeFormat';
 import { useAppTheme } from '@/shared/theme';
 import { Card, LoadingSkeleton, SecondaryButton, StatusBadge, type StatusVariant } from '@/shared/ui';
@@ -19,7 +26,19 @@ const STATUS_VARIANT: Record<DisplayEntry['status'], StatusVariant> = {
 };
 
 /** The amber "waiting to enter the book" box both pending panels share. */
-function AmberPanel({ title, count, right, children }: { title: string; count: number; right?: string; children: ReactNode }) {
+function AmberPanel({
+  title,
+  count,
+  right,
+  link,
+  children,
+}: {
+  title: string;
+  count: number;
+  right?: string;
+  link?: { label: string; onPress: () => void };
+  children: ReactNode;
+}) {
   const theme = useAppTheme();
   return (
     <View
@@ -33,9 +52,20 @@ function AmberPanel({ title, count, right, children }: { title: string; count: n
         {right ? (
           <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700', marginLeft: 'auto' }]}>{right}</Text>
         ) : null}
+        {link ? <TextLink label={link.label} onPress={link.onPress} style={right ? undefined : styles.pushRight} /> : null}
       </View>
       {children}
     </View>
+  );
+}
+
+/** The web's small primary-coloured link ("Open Cash Transfers", "Review"). */
+function TextLink({ label, onPress, style }: { label: string; onPress: () => void; style?: StyleProp<ViewStyle> }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable onPress={onPress} hitSlop={10} accessibilityRole="link" accessibilityLabel={label} style={style}>
+      <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '600' }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -52,17 +82,20 @@ function PanelRow({ refNo, children, last }: { refNo: string; children: ReactNod
 /**
  * Web "Cash transfers awaiting approval" — the oldest pending branch
  * handovers, not yet in the book, with the web's Approve / Reject on each row
- * when `canDecide` (the Finance Settings toggle lets Super Admin modify).
+ * when `canDecide` (the Finance Settings toggle lets Super Admin modify), and
+ * the web's "Open Cash Transfers" link to the full queue.
  * Renders nothing while loading or when the queue is empty, like the web.
  */
 export function PendingCashTransfersPanel({
   canDecide,
   onApprove,
   onReject,
+  onOpenCashTransfers,
 }: {
   canDecide: boolean;
   onApprove: (t: CashTransfer) => void;
   onReject: (t: CashTransfer) => void;
+  onOpenCashTransfers: () => void;
 }) {
   const theme = useAppTheme();
   const { data, isLoading } = useFinanceCashTransfers({ status: 'pending', limit: PANEL_LIMIT, sortBy: 'createdAt', sortDir: 'asc' });
@@ -71,7 +104,7 @@ export function PendingCashTransfersPanel({
   if (isLoading || rows.length === 0) return null;
 
   return (
-    <AmberPanel title="Cash transfers awaiting approval" count={total}>
+    <AmberPanel title="Cash transfers awaiting approval" count={total} link={{ label: 'Open Cash Transfers', onPress: onOpenCashTransfers }}>
       {rows.map((t, i) => (
         <PanelRow key={t.id} refNo={t.transferNo} last={i === rows.length - 1}>
           <View style={styles.rowLine}>
@@ -104,8 +137,9 @@ export function PendingCashTransfersPanel({
 /**
  * Web "Pending approval — not in the ledger yet" — income/expense, partner,
  * salary and advance documents awaiting a decision, whatever their date.
+ * Each row's "Review" opens the screen that decides that kind, like the web.
  */
-export function PendingApprovalsPanel() {
+export function PendingApprovalsPanel({ onReview }: { onReview: (kind: FinancePendingApprovalKind) => void }) {
   const theme = useAppTheme();
   const { data: items = [], isLoading } = usePendingApprovals();
   if (isLoading || items.length === 0) return null;
@@ -118,6 +152,7 @@ export function PendingApprovalsPanel() {
           <View style={styles.rowLine}>
             <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '600' }]}>{PENDING_APPROVAL_LABELS[item.kind]}</Text>
             <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{formatMoney2(item.amount)}</Text>
+            <TextLink label="Review" onPress={() => onReview(item.kind)} style={styles.pushRight} />
           </View>
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
             {[item.description, item.date ? formatDisplayDate(item.date) : '—'].filter(Boolean).join(' · ')}
@@ -257,6 +292,7 @@ const styles = StyleSheet.create({
   panelRow: { paddingVertical: 8, gap: 2 },
   rowLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  pushRight: { marginLeft: 'auto' },
   banner: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
   errorCard: { padding: 16, gap: 8 },
   strip: { borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

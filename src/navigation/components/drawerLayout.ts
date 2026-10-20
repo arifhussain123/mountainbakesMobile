@@ -130,12 +130,16 @@ export interface CollapsibleRowMetrics extends Omit<DrawerRowMetrics, 'showSecti
 /**
  * `rowHeight = clamp(40, available / (rows + 0.6 × headers), 50)` for the
  * rows currently visible. Headers get 0.6 of a row, never under 28dp. Past the
- * 40dp floor the list scrolls.
+ * 40dp floor the list scrolls. The rows then absorb what the headers' rounding
+ * and 28dp floor cost, so a list that fits at that row height is never pushed
+ * a few dp into scrolling by them.
  */
 export function computeCollapsibleRowMetrics(available: number, visibleRows: number, headerCount: number): CollapsibleRowMetrics {
   const units = Math.max(visibleRows + headerCount * SECTION_HEADER_ROW_FRACTION, 1);
-  const rowHeight = clamp(ROW_MIN_HEIGHT, available / units, COLLAPSIBLE_ROW_MAX_HEIGHT);
-  const headerHeight = Math.max(SECTION_HEADER_MIN_HEIGHT, Math.round(rowHeight * SECTION_HEADER_ROW_FRACTION));
+  const baseRow = clamp(ROW_MIN_HEIGHT, available / units, COLLAPSIBLE_ROW_MAX_HEIGHT);
+  const headerHeight = Math.max(SECTION_HEADER_MIN_HEIGHT, Math.round(baseRow * SECTION_HEADER_ROW_FRACTION));
+  const rowHeight =
+    visibleRows > 0 ? clamp(ROW_MIN_HEIGHT, (available - headerCount * headerHeight) / visibleRows, COLLAPSIBLE_ROW_MAX_HEIGHT) : baseRow;
   const iconSize = clamp(ROW_ICON_MIN, rowHeight * 0.42, ROW_ICON_MAX);
   const fontSize = clamp(ROW_FONT_MIN, rowHeight * 0.34, ROW_FONT_MAX);
   return {

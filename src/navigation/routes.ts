@@ -76,6 +76,14 @@ export const Routes = {
   // the bell lives in several module headers, not one stack.
   NOTIFICATIONS: 'Notifications',
 
+  // Global Search (the web header's Ctrl+K) — root-level modal, opened from
+  // the search icon in every Super Admin header.
+  GLOBAL_SEARCH: 'GlobalSearch',
+
+  // Forced password change (web /change-password) — root-level, shown by
+  // RootNavigator in place of the role shell while `mustChangePassword`.
+  CHANGE_PASSWORD: 'ChangePassword',
+
   // Account
   PROFILE: 'Profile',
   SETTINGS: 'Settings',
@@ -207,6 +215,12 @@ export const Routes = {
   // Super Admin — Daily Ledger (web /finance-ledger), read-only this phase.
   SUPER_ADMIN_LEDGER_STACK: 'SuperAdminLedgerStack',
   SUPER_ADMIN_LEDGER_LIST: 'SuperAdminLedgerList',
+  // Super Admin — the web's other finance pages (`canAccessFinance`), mounted
+  // in the Super Admin drawer from the Finance role's own screens. The ones
+  // that are drawer screens in the Finance shell keep their FINANCE_* names
+  // there too; these two are tabs in that shell, so they get drawer names here.
+  SUPER_ADMIN_FINANCE_ENTRIES: 'SuperAdminFinanceEntries',
+  SUPER_ADMIN_FINANCE_PAYROLL_STACK: 'SuperAdminFinancePayrollStack',
   // Super Admin — Daily Sale Records (web /daily-sale-records): the board and
   // one record's read-only View. The stack mounts under SUPER_ADMIN_DAILY_SALE.
   SUPER_ADMIN_DAILY_SALE_LIST: 'SuperAdminDailySaleList',

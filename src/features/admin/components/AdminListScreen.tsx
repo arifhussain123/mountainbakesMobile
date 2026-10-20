@@ -1,9 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
 import { ActivityIndicator, FlatList, View, type ListRenderItem } from 'react-native';
-import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
+import { useAdminHeaderActions } from './useAdminHeaderActions';
 
 export interface AdminListScreenProps<T> {
   title: string;
@@ -48,9 +48,10 @@ export function AdminListScreen<T>({
   errorMessage,
 }: AdminListScreenProps<T>): ReactElement {
   const theme = useAppTheme();
+  const headerActions = useAdminHeaderActions();
   return (
     <Screen>
-      <AppHeader title={title} subtitle={subtitle} actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader title={title} subtitle={subtitle} actions={headerActions} />
       <FlatList
         data={isLoading || error ? [] : data}
         keyExtractor={keyExtractor}

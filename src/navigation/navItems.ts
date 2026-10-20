@@ -45,6 +45,8 @@ export interface NavItem {
     | 'branches'
     | 'planningInsights'
     | 'finance'
+    | 'financePeople'
+    | 'financeSetup'
     | 'admin';
   badgeSource: NavBadgeSource;
   /** Show the badge as an amber dot (a state, not a count) rather than a number. */
@@ -467,7 +469,11 @@ const superAdminItem = (
   label: string,
   icon: IconName,
   group: NavItem['group'],
-  target: { tab: string } | { stack: string } | 'comingSoon',
+  target:
+    | { tab: string }
+    // `screen` opens that screen of the stack; `match` narrows which of its screens mark the row active.
+    | { stack: string; screen?: string; match?: Omit<NavItem['activeMatch'], 'root'> }
+    | 'comingSoon',
   badge: Pick<NavItem, 'badgeSource' | 'badgeDot' | 'badgeTone'> = { badgeSource: null },
 ): NavItem => {
   if (target === 'comingSoon') {
@@ -476,17 +482,29 @@ const superAdminItem = (
   if ('tab' in target) {
     return { key, label, icon, group, ...badge, navigate: goToTab(Routes.SUPER_ADMIN_TABS, target.tab), activeMatch: { root: target.tab } };
   }
-  return { key, label, icon, group, ...badge, navigate: goToStack(target.stack), activeMatch: { root: target.stack } };
+  return {
+    key,
+    label,
+    icon,
+    group,
+    ...badge,
+    navigate: goToStack(target.stack, target.screen),
+    activeMatch: { root: target.stack, ...target.match },
+  };
 };
 
 /**
- * The web's super-admin sidebar, in its order, under eight sections. Twenty
+ * The web's super-admin sidebar, in its order, under eight sections, plus the
+ * finance pages the web lets super_admin open (two more sections). Thirty-one
  * rows can't fit a phone at 40dp, so this shell's drawer collapses sections
  * (`collapsibleSections` in `roleShells.ts`).
  *
- * Every row opens Super Admin's own screen (`features/admin`), built to show
- * what the matching web Super Admin page shows. Editing stays on the web
- * until each screen's actions are added.
+ * The web sidebar's rows open Super Admin's own screens (`features/admin`),
+ * built to show what the matching web Super Admin page shows. The finance
+ * rows after Finance Ledger open the Finance role's screens, which are
+ * read-only for super_admin until Finance Settings' "Allow Super Admin to
+ * modify" is on — the web's `useFinanceAbilities` and the API's
+ * `requireFinance` decide from the same toggle.
  */
 export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   superAdminItem('dashboard', 'Dashboard', 'grid', 'overview', { tab: Routes.SUPER_ADMIN_DASHBOARD_TAB }),
@@ -507,6 +525,31 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   superAdminItem('specialEvents', 'Special Events', 'calendar', 'planningInsights', { stack: Routes.SUPER_ADMIN_EVENTS_STACK }, { badgeSource: 'events' }),
   superAdminItem('reports', 'Reports', 'bar-chart', 'planningInsights', { tab: Routes.SUPER_ADMIN_REPORTS_TAB }),
   superAdminItem('financeLedger', 'Finance Ledger', 'book-open', 'finance', { stack: Routes.SUPER_ADMIN_LEDGER_STACK }, { badgeSource: 'approvals', badgeTone: 'muted' }),
+  // The web's other finance pages (super_admin passes `canAccessFinance`), in
+  // the Finance shell's own grouping and order — three short sections rather
+  // than one of twelve, so an open Finance section still fits a 360×800 phone.
+  superAdminItem('financeCashTransfers', 'Cash Transfers', 'banknote', 'finance', {
+    stack: Routes.FINANCE_CASH_TRANSFERS_STACK,
+    screen: Routes.FINANCE_CASH_TRANSFERS_LIST,
+  }),
+  superAdminItem('financeEntries', 'Income & Expense', 'wallet', 'finance', { stack: Routes.SUPER_ADMIN_FINANCE_ENTRIES }),
+  superAdminItem('financeClosing', 'Daily Closing', 'calendar-check', 'finance', { stack: Routes.FINANCE_CLOSING_STACK }),
+  superAdminItem('financePayroll', 'Payroll', 'user-coin', 'financePeople', {
+    stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK,
+    screen: Routes.FINANCE_PAYROLL_LIST,
+    match: { exceptLeaves: [Routes.FINANCE_SALARY_LEDGER] },
+  }),
+  superAdminItem('financeSalaries', 'Salary Ledger', 'table', 'financePeople', {
+    stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK,
+    screen: Routes.FINANCE_SALARY_LEDGER,
+    match: { leaf: Routes.FINANCE_SALARY_LEDGER },
+  }),
+  superAdminItem('financePartnerTransactions', 'Partner Transactions', 'handshake', 'financePeople', { stack: Routes.FINANCE_PARTNERS_STACK }),
+  superAdminItem('financeCompanyTransactions', 'Company Transactions', 'bank', 'financePeople', { stack: Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK }),
+  superAdminItem('financeHeads', 'Ledger Heads', 'list-indent', 'financeSetup', { stack: Routes.FINANCE_LEDGER_HEADS_STACK }),
+  superAdminItem('financeReports', 'Finance Reports', 'trending-up', 'financeSetup', { stack: Routes.FINANCE_REPORTS_STACK }),
+  superAdminItem('financeAudit', 'Audit Trail', 'clock', 'financeSetup', { stack: Routes.FINANCE_AUDIT_TRAIL_STACK }),
+  superAdminItem('financeSettings', 'Finance Settings', 'settings', 'financeSetup', { stack: Routes.FINANCE_SETTINGS_STACK }),
   superAdminItem('supportCenter', 'Support Center', 'life-buoy', 'support', { stack: Routes.SUPER_ADMIN_SUPPORT_STACK }, { badgeSource: 'supportCenter' }),
   superAdminItem('recipients', 'Recipients', 'send', 'support', { stack: Routes.RECIPIENTS_STACK }, { badgeSource: 'recipientsTestMode', badgeDot: true }),
   superAdminItem('users', 'Users', 'user-group', 'admin', { stack: Routes.SUPER_ADMIN_USERS }, { badgeSource: 'suspiciousSignIns', badgeDot: true, badgeTone: 'danger' }),
@@ -542,6 +585,8 @@ export const GROUP_LABEL: Record<NavItem['group'], string> = {
   branches: 'Branches',
   planningInsights: 'Planning & insights',
   finance: 'Finance',
+  financePeople: 'Payroll & partners',
+  financeSetup: 'Finance setup & review',
   admin: 'Admin',
 };
 

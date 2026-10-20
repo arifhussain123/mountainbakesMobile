@@ -36,6 +36,7 @@ import {
 } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { PhotoStrip } from '../components/PhotoStrip';
+import { OrderPrintActions } from '../components/OrderPrintActions';
 import {
   PRODUCTION_ORDER_STATUS_VARIANT,
   addableProducts,
@@ -495,7 +496,8 @@ function ReturnForm({ order, onDone }: { order: ProductionOrder; onDone: () => v
  *   approved  a done marker, nothing left to act on
  *
  * Every action is the web's own endpoint; the server re-checks stock and status.
- * Printing stays on the web.
+ * Production Check (pending), POP Print and A4 Challan share the web's three
+ * documents as text — see `OrderPrintActions`.
  */
 export function AdminOrderDetailScreen() {
   const theme = useAppTheme();
@@ -630,6 +632,8 @@ export function AdminOrderDetailScreen() {
                 lines={['Stock verification requires a current stock check.', 'Please reconnect to the internet and try again.']}
               />
             ) : null}
+
+            <OrderPrintActions order={order} edits={edits} packingEdits={packingEdits} disabled={busy} />
 
             {order.status === 'pending' ? (
               <View style={{ marginTop: theme.spacing.lg, gap: 10 }}>

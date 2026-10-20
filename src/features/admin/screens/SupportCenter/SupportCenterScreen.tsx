@@ -13,7 +13,7 @@ import {
   type FinanceTicketStatus,
   type SupportTicket,
 } from '@/api';
-import { Routes, openDrawer, type SuperAdminSupportStackParamList } from '@/navigation';
+import { Routes, type SuperAdminSupportStackParamList } from '@/navigation';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
@@ -45,6 +45,7 @@ import {
   queries,
   type SupportSource,
 } from './labels';
+import { useAdminHeaderActions } from '../../components/useAdminHeaderActions';
 
 const PAGE_SIZE = 20;
 const ALL = 'all';
@@ -88,6 +89,7 @@ const PRIORITY_OPTIONS: FilterChipOption<FinanceQueryPriority | typeof ALL>[] = 
  * and the web offers it to Finance roles only.
  */
 export function SupportCenterScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<SuperAdminSupportStackParamList>>();
 
@@ -234,7 +236,7 @@ export function SupportCenterScreen() {
       <AppHeader
         title="Support Center"
         subtitle="Queries raised from branches, production and Finance — all of them land here."
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <FlatList
         data={rows}

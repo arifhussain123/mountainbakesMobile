@@ -13,7 +13,7 @@ import {
 } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
-import { Dropdown, Icon, LoadingSkeleton, SecondaryButton, TextField, type DropdownOption } from '@/shared/ui';
+import { DateField, Dropdown, Icon, LoadingSkeleton, SecondaryButton, TextField, type DropdownOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { ActionChip } from '../../components';
 import {
@@ -632,7 +632,9 @@ export function CashDepositEditor({ ticket, reference, onClose, onDone, onDelete
         </>
       ) : (
         <>
-          <TextField label="Date" value={values.date} onChangeText={(v) => setValues((p) => ({ ...p, date: v }))} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <View style={{ marginTop: 16 }}>
+            <DateField label="Date" value={values.date} onChange={(v) => setValues((p) => ({ ...p, date: v }))} maximumDate={today} />
+          </View>
           {dateChanged && current.date ? <Hint>Was {formatDisplayDate(current.date)}.</Hint> : null}
           {DEPOSIT_FIGURES.map((f) => (
             <View key={f.key}>

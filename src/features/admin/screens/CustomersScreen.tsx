@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
+  customersExportParams,
+  getBusinessDate,
   useAdminCustomersData,
   useBranches,
   useCreateCustomer,
@@ -9,13 +11,13 @@ import {
   type AdminCustomer,
   type AdminCustomersQuery,
 } from '@/api';
-import { openDrawer } from '@/navigation';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
 import {
   AppHeader,
   Card,
+  DateField,
   Dropdown,
   EmptyState,
   ErrorState,
@@ -29,8 +31,12 @@ import {
   TextField,
   type DropdownOption,
 } from '@/shared/ui';
-import { ActionChip, FieldGrid } from '../components';
+import { formatDisplayDate } from '@/shared/utils';
+import { ActionChip, ActiveFilterChips, FieldGrid } from '../components';
+import { useDataTableExport } from '../components/ExportSheet';
 import { customerFormErrors, initialCustomerValues, type CustomerFormValues } from '../utils/catalogActions';
+import { activeChips, chipLabel, rangeSideChips, searchChipLabel } from '../utils/listControls';
+import { useAdminHeaderActions } from '../components/useAdminHeaderActions';
 
 const ALL = 'all';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -68,11 +74,14 @@ const dateOrEmpty = (v: string) => (ISO_DATE.test(v.trim()) ? v.trim() : '');
  * resource: searched (name, phone, email), filtered, sorted and paged in the
  * database, 50 at a time with the next page on scroll. Branch sits in the bar
  * as on the web; Orders, Total spent and Customer since are in the filter
- * sheet. The web's two actions: Add Customer (above the list) and Edit on each
+ * sheet (Customer since picked from the date picker), and every filter that
+ * is on shows as a removable chip, as the web's do. The web's two actions: Add Customer (above the list) and Edit on each
  * card, one form sheet for both — the web has no delete. Saving refetches the
- * list.
+ * list. Export is the web table's menu (CSV of the loaded rows or of every
+ * result, shared as text).
  */
 export function CustomersScreen() {
+  const headerActions = useAdminHeaderActions();
   const theme = useAppTheme();
   const filterSheetRef = useRef<BottomSheetModal>(null);
   const customerSheet = useCustomerSheet();
@@ -104,6 +113,18 @@ export function CustomersScreen() {
   const q = useAdminCustomersData(query);
   const customers = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
   const total = q.data?.pages[0]?.total ?? null;
+  const exportUi = useDataTableExport(
+    {
+      resource: 'customers',
+      fileName: 'mountain-bakes-customers',
+      params: customersExportParams(query),
+      pageSize: 50,
+      loadedPages: q.data?.pages.length ?? 0,
+      loadedRows: customers.length,
+      total,
+    },
+    'Export Customers',
+  );
 
   const secondaryCount = [
     query.ordersMin || query.ordersMax,
@@ -111,6 +132,32 @@ export function CustomersScreen() {
     query.sinceFrom || query.sinceTo,
   ].filter(Boolean).length;
   const filtered = !!term || branchId !== ALL || secondaryCount > 0;
+
+  // The web's chips: one per side of each range ("Orders from 5"), each removable on its own.
+  const clearField = (field: keyof SecondaryFilters) => () => setFilters((f) => ({ ...f, [field]: '' }));
+  const chips = activeChips([
+    !!term && { key: 'search', label: searchChipLabel(term), onRemove: () => setSearch('') },
+    branchId !== ALL && {
+      key: 'branchId',
+      label: chipLabel('Branch', branchOptions.find((o) => o.value === branchId)?.label ?? 'Branch'),
+      onRemove: () => setBranchId(ALL),
+    },
+    rangeSideChips('totalOrders', 'Orders', { from: query.ordersMin, to: query.ordersMax }, { from: clearField('ordersMin'), to: clearField('ordersMax') }),
+    rangeSideChips('totalSpent', 'Total spent (Rs.)', { from: query.spentMin, to: query.spentMax }, { from: clearField('spentMin'), to: clearField('spentMax') }),
+    rangeSideChips(
+      'createdAt',
+      'Customer since',
+      { from: query.sinceFrom, to: query.sinceTo },
+      { from: clearField('sinceFrom'), to: clearField('sinceTo') },
+      formatDisplayDate,
+    ),
+  ]);
+  const clearAll = () => {
+    setSearch('');
+    setBranchId(ALL);
+    setFilters(NO_FILTERS);
+  };
+  const today = getBusinessDate();
 
   const openFilters = () => {
     setDraft(filters);
@@ -148,7 +195,8 @@ export function CustomersScreen() {
 
   const header = (
     <View style={{ gap: 10, marginBottom: theme.spacing.sm }}>
-      <View style={{ alignSelf: 'flex-end' }}>
+      <View style={{ alignSelf: 'flex-end', flexDirection: 'row', gap: 8 }}>
+        {exportUi.chip}
         <ActionChip icon="plus" label="Add Customer" primary onPress={() => customerSheet.open(null)} />
       </View>
       <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, phone, email…" />
@@ -175,11 +223,7 @@ export function CustomersScreen() {
           </Text>
         </Pressable>
       </View>
-      {secondaryCount > 0 ? (
-        <Pressable accessibilityRole="button" onPress={() => setFilters(NO_FILTERS)} style={{ alignSelf: 'flex-start' }}>
-          <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Clear filters</Text>
-        </Pressable>
-      ) : null}
+      <ActiveFilterChips chips={chips} onClearAll={clearAll} />
       {q.isLoading ? <LoadingSkeleton height={160} /> : null}
       {q.error && customers.length === 0 ? <ErrorState message="Couldn’t load this list" onRetry={() => void q.refetch()} /> : null}
     </View>
@@ -190,7 +234,7 @@ export function CustomersScreen() {
       <AppHeader
         title="Customers"
         subtitle={total === null ? 'Loading…' : `${total.toLocaleString('en-US')} ${total === 1 ? 'customer' : 'customers'}`}
-        actions={[{ icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+        actions={headerActions}
       />
       <FlatList
         data={q.isLoading || (q.error && customers.length === 0) ? [] : customers}
@@ -235,23 +279,24 @@ export function CustomersScreen() {
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>Customer since</Text>
         <View style={styles.pair}>
           <View style={{ flex: 1 }}>
-            <TextField
+            <DateField
               label="From"
               value={draft.sinceFrom}
-              onChangeText={(v) => setDraft((d) => ({ ...d, sinceFrom: v }))}
-              placeholder="YYYY-MM-DD"
-              autoCapitalize="none"
-              error={draft.sinceFrom && !ISO_DATE.test(draft.sinceFrom.trim()) ? 'Use YYYY-MM-DD' : undefined}
+              onChange={(v) => setDraft((d) => ({ ...d, sinceFrom: v }))}
+              onClear={() => setDraft((d) => ({ ...d, sinceFrom: '' }))}
+              placeholder="Any"
+              maximumDate={draft.sinceTo || today}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <TextField
+            <DateField
               label="To"
               value={draft.sinceTo}
-              onChangeText={(v) => setDraft((d) => ({ ...d, sinceTo: v }))}
-              placeholder="YYYY-MM-DD"
-              autoCapitalize="none"
-              error={draft.sinceTo && !ISO_DATE.test(draft.sinceTo.trim()) ? 'Use YYYY-MM-DD' : undefined}
+              onChange={(v) => setDraft((d) => ({ ...d, sinceTo: v }))}
+              onClear={() => setDraft((d) => ({ ...d, sinceTo: '' }))}
+              placeholder="Any"
+              minimumDate={draft.sinceFrom || undefined}
+              maximumDate={today}
             />
           </View>
         </View>
@@ -278,6 +323,7 @@ export function CustomersScreen() {
         </View>
       </FormBottomSheet>
       {customerSheet.element}
+      {exportUi.element}
     </Screen>
   );
 }

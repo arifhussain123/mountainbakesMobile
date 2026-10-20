@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO, subDays } from 'date-fns';
 import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { getBusinessDate, useClosingRecipients, useMessagingProvider, useNotificationLogPages, type NotificationLog } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, Screen, StatusBadge, type FilterChipOption } from '@/shared/ui';
+import { AppHeader, Card, DateField, Dropdown, EmptyState, ErrorState, FilterChipRow, LoadingSkeleton, Screen, StatusBadge, type FilterChipOption } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { ProviderBanner } from '../../components/ProviderBanner';
+import { formatPkMobile } from '../../utils/phone';
 import { CHANNEL_LABEL, deliveryLabel, receivesLine } from '../../utils/recipientRules';
 
 type StatusFilter = 'all' | 'pending' | 'sent' | 'failed';
@@ -23,39 +23,30 @@ const CHANNEL_OPTIONS: FilterChipOption<ChannelFilter>[] = [
   { value: 'sms', label: 'SMS' },
 ];
 const ANYONE = 'all';
-/** How many business dates back the "Business date" filter offers. */
-const DATE_CHOICES = 45;
 
 /**
  * Every send of the closing summary, newest first, grouped by business date.
  * One row per message: the retries it took are counted on the row. "Sent"
  * means the provider accepted it — there are no delivery receipts — and a
  * test-mode row was only logged. The message text itself is not stored.
+ * Each row names the number it went to, as the web log does; the business
+ * date filter takes any day from the date picker.
  */
 export function DeliveryLogScreen() {
   const theme = useAppTheme();
   const [status, setStatus] = useState<StatusFilter>('all');
   const [recipientId, setRecipientId] = useState<string>(ANYONE);
   const [channel, setChannel] = useState<ChannelFilter>('all');
-  const [businessDate, setBusinessDate] = useState<string>(ANYONE);
+  /** `''` = any business date. */
+  const [businessDate, setBusinessDate] = useState('');
   const today = getBusinessDate();
-  const dateOptions = useMemo(
-    () => [
-      { value: ANYONE, label: 'Any business date' },
-      ...Array.from({ length: DATE_CHOICES }, (_, i) => {
-        const d = format(subDays(parseISO(today), i), 'yyyy-MM-dd');
-        return { value: d, label: formatDisplayDate(d) };
-      }),
-    ],
-    [today],
-  );
 
   const providerQ = useMessagingProvider();
   const recipientsQ = useClosingRecipients();
   const pagesQ = useNotificationLogPages({
     status: status === 'all' ? undefined : status,
     channel: channel === 'all' ? undefined : channel,
-    businessDate: businessDate === ANYONE ? undefined : businessDate,
+    businessDate: businessDate || undefined,
     recipientId: recipientId === ANYONE ? undefined : recipientId,
   });
   const maxAttempts = providerQ.data?.retry.maxAttempts;
@@ -88,6 +79,7 @@ export function DeliveryLogScreen() {
       deliveryLabel(log),
       [
         `${log.recipientName ?? 'Removed recipient'}${r ? ` · ${receivesLine(r)}` : ''}`,
+        log.mobileNumber ? formatPkMobile(log.mobileNumber) : null,
         `${CHANNEL_LABEL[log.channel]} · ${formatDisplayTime(log.createdAt)}`,
         `Attempts: ${log.retryCount + 1}${maxAttempts ? ` of ${maxAttempts}` : ''}`,
         log.provider === 'log' ? 'Test mode: written to the server log only.' : `Provider: ${log.provider}${log.providerMessageId ? ` · ${log.providerMessageId}` : ''}`,
@@ -114,7 +106,14 @@ export function DeliveryLogScreen() {
         ListHeaderComponent={
           <View style={{ gap: 10, marginBottom: theme.spacing.md }}>
             <ProviderBanner provider={providerQ.data} />
-            <Dropdown options={dateOptions} value={businessDate} onChange={setBusinessDate} />
+            <DateField
+              label="Business date"
+              value={businessDate}
+              onChange={setBusinessDate}
+              onClear={() => setBusinessDate('')}
+              maximumDate={today}
+              placeholder="Any business date"
+            />
             <FilterChipRow options={STATUS_OPTIONS} value={status} onChange={setStatus} />
             <FilterChipRow options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} />
             <Dropdown options={recipientOptions} value={recipientId} onChange={setRecipientId} />
@@ -137,6 +136,11 @@ export function DeliveryLogScreen() {
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{item.recipientName ?? 'Removed recipient'}</Text>
+                    {item.mobileNumber ? (
+                      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontFamily: 'monospace', marginTop: 2 }]}>
+                        {formatPkMobile(item.mobileNumber)}
+                      </Text>
+                    ) : null}
                     <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
                       {r ? receivesLine(r) : '—'} · {CHANNEL_LABEL[item.channel]} · {formatDisplayTime(item.createdAt)} · {item.retryCount + 1}
                       {maxAttempts ? ` of ${maxAttempts}` : ''} {item.retryCount === 0 ? 'attempt' : 'attempts'}
