@@ -23,11 +23,10 @@ import {
   type DropdownOption,
 } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
-import { FieldGrid, type FieldGridItem } from '../components';
+import { ActionChip, FieldGrid, type FieldGridItem } from '../components';
 import { canGenerateToday, findTodayRow } from '../utils/dailySaleActions';
 import { useDailySaleSheet } from './DailySale/dailySaleSheets';
 import {
-  ActionChip,
   DAILY_SALE_MAX_WINDOW_DAYS,
   DSR_STATUS_LABEL,
   DifferenceBadge,

@@ -7,10 +7,10 @@ import { useAppTheme } from '@/shared/theme';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { AppHeader, Card, ErrorState, FilterChipRow, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
+import { ActionChip } from '../../components';
 import { dailySaleRowActions } from '../../utils/dailySaleActions';
 import { useDailySaleSheet } from './dailySaleSheets';
 import {
-  ActionChip,
   DAILY_SALE_AUDIT_LABELS,
   DAILY_SALE_FIELD_LABELS,
   DifferenceBadge,

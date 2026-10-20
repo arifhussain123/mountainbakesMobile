@@ -1,3 +1,4 @@
+export { ActionChip } from './ActionChip';
 export { AdminListScreen } from './AdminListScreen';
 export type { AdminListScreenProps } from './AdminListScreen';
 export { AdminRow, SummaryTiles } from './AdminRow';
