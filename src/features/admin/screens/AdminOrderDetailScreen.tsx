@@ -3,10 +3,12 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   useAddProductionOrderItem,
+  useAddProductionOrderPackingItem,
   useAdminBranches,
   useAppSettings,
   useCreateProductionReturn,
   useFinalApproveProductionOrder,
+  usePackingMaterials,
   usePreviousOrderBalance,
   useProductionOrder,
   useProducts,
@@ -25,6 +27,7 @@ import {
   Card,
   Dropdown,
   ErrorState,
+  FilterChipRow,
   Icon,
   LoadingSkeleton,
   PrimaryButton,
@@ -39,6 +42,7 @@ import { PhotoStrip } from '../components/PhotoStrip';
 import { OrderPrintActions } from '../components/OrderPrintActions';
 import {
   PRODUCTION_ORDER_STATUS_VARIANT,
+  addablePackingMaterials,
   addableProducts,
   productionOrderStatusLabel,
   returnableItems,
@@ -386,39 +390,76 @@ function InfoCard({ title, lines }: { title: string; lines: string[] }) {
   );
 }
 
-/** Add a product the branch never asked for — while the demand is still pending only. */
-function AddProductForm({ order, products, loading, onDone }: { order: ProductionOrder; products: Product[]; loading: boolean; onDone: () => void }) {
+type AddKind = 'product' | 'packing';
+
+const ADD_KIND_OPTIONS: { value: AddKind; label: string }[] = [
+  { value: 'product', label: 'Product' },
+  { value: 'packing', label: 'Packing Material' },
+];
+
+/**
+ * Add a product or packing material the branch never asked for — while the
+ * demand is still pending only. One form with a type switch, matching the web
+ * review's Add Item panel.
+ */
+function AddItemForm({ order, products, loading, onDone }: { order: ProductionOrder; products: Product[]; loading: boolean; onDone: () => void }) {
   const theme = useAppTheme();
   const addItem = useAddProductionOrderItem();
-  const [productId, setProductId] = useState<string | null>(null);
+  const addPacking = useAddProductionOrderPackingItem();
+  // Mounted only while the panel is open, so the catalogue loads only when needed.
+  const materialsQ = usePackingMaterials();
+  const [kind, setKind] = useState<AddKind>('product');
+  const [itemId, setItemId] = useState<string | null>(null);
   const [qty, setQty] = useState<number | null>(null);
-  const options = useMemo(() => addableProducts(products, order).map((p) => ({ value: p.id, label: p.name })), [products, order]);
+  const isPacking = kind === 'packing';
+  const options = useMemo(
+    () =>
+      isPacking
+        ? addablePackingMaterials(materialsQ.data?.packingMaterials ?? [], order).map((m) => ({ value: m.id, label: m.materialName }))
+        : addableProducts(products, order).map((p) => ({ value: p.id, label: p.name })),
+    [isPacking, materialsQ.data, products, order],
+  );
+  const pending = addItem.isPending || addPacking.isPending;
+  const listLoading = isPacking ? materialsQ.isLoading : loading;
+
+  const changeKind = (next: AddKind) => {
+    setKind(next);
+    // The id belongs to the other catalogue — never carry it over.
+    setItemId(null);
+  };
 
   const submit = () => {
-    if (!productId || !qty || qty <= 0) return;
-    addItem.mutate(
-      { id: order.id, productId, qty },
-      {
-        onSuccess: () => {
-          Alert.alert('Product Added', 'Product added to the demand.');
-          onDone();
-        },
-        onError: (e) => Alert.alert('Could Not Add Product', mapErrorToMessage(e)),
+    if (!itemId || !qty || qty <= 0) return;
+    const handlers = {
+      onSuccess: () => {
+        Alert.alert(
+          isPacking ? 'Packing Material Added' : 'Product Added',
+          isPacking ? 'Packing material added to the demand.' : 'Product added to the demand.',
+        );
+        onDone();
       },
-    );
+      onError: (e: unknown) => Alert.alert(isPacking ? 'Could Not Add Packing Material' : 'Could Not Add Product', mapErrorToMessage(e)),
+    };
+    if (isPacking) addPacking.mutate({ id: order.id, packingMaterialId: itemId, qty }, handlers);
+    else addItem.mutate({ id: order.id, productId: itemId, qty }, handlers);
   };
 
   return (
     <Card style={{ marginTop: theme.spacing.lg }}>
-      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Add Product</Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 10, marginBottom: 6 }]}>PRODUCT</Text>
+      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Add Item</Text>
+      <View style={{ marginTop: 10 }}>
+        <FilterChipRow options={ADD_KIND_OPTIONS} value={kind} onChange={changeKind} />
+      </View>
+      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 10, marginBottom: 6 }]}>
+        {isPacking ? 'PACKING MATERIAL' : 'PRODUCT'}
+      </Text>
       <Dropdown
         options={options}
-        value={productId}
-        onChange={setProductId}
-        placeholder={loading ? 'Loading…' : 'Select a product'}
-        loading={loading}
-        emptyLabel="Every product is already on this demand"
+        value={itemId}
+        onChange={setItemId}
+        placeholder={listLoading ? 'Loading…' : isPacking ? 'Select a packing material' : 'Select a product'}
+        loading={listLoading}
+        emptyLabel={isPacking ? 'Every packing material is already on this demand' : 'Every product is already on this demand'}
       />
       <View style={styles.qtyRow}>
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>QTY</Text>
@@ -426,10 +467,10 @@ function AddProductForm({ order, products, loading, onDone }: { order: Productio
       </View>
       <View style={styles.formButtons}>
         <View style={{ flex: 1 }}>
-          <SecondaryButton label="Cancel" onPress={onDone} disabled={addItem.isPending} />
+          <SecondaryButton label="Cancel" onPress={onDone} disabled={pending} />
         </View>
         <View style={{ flex: 1 }}>
-          <PrimaryButton label="Add" onPress={submit} loading={addItem.isPending} disabled={!productId || !qty || qty <= 0} />
+          <PrimaryButton label="Add" onPress={submit} loading={pending} disabled={!itemId || !qty || qty <= 0} />
         </View>
       </View>
     </Card>
@@ -607,7 +648,7 @@ export function AdminOrderDetailScreen() {
         {order ? (
           <>
             {panel === 'add' && order.status === 'pending' ? (
-              <AddProductForm order={order} products={productsQ.data?.products ?? []} loading={productsQ.isLoading} onDone={() => setPanel(null)} />
+              <AddItemForm order={order} products={productsQ.data?.products ?? []} loading={productsQ.isLoading} onDone={() => setPanel(null)} />
             ) : null}
             {panel === 'return' && order.status === 'verified' ? <ReturnForm order={order} onDone={() => setPanel(null)} /> : null}
 
@@ -639,7 +680,7 @@ export function AdminOrderDetailScreen() {
               <View style={{ marginTop: theme.spacing.lg, gap: 10 }}>
                 <View style={styles.formButtons}>
                   <View style={{ flex: 1 }}>
-                    <SecondaryButton label="Add Product" onPress={() => setPanel((p) => (p === 'add' ? null : 'add'))} disabled={busy} />
+                    <SecondaryButton label="Add Item" onPress={() => setPanel((p) => (p === 'add' ? null : 'add'))} disabled={busy} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <SecondaryButton label={editing ? 'Done' : 'Change Quantity'} onPress={() => setEditing((e) => !e)} disabled={busy} />

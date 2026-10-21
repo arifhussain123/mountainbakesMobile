@@ -27,6 +27,7 @@ export { useCatalogProducts, usePriceHistoryPages, useProductPriceHistory } from
 export { useProducts } from './useProductsApi';
 export {
   useAddProductionOrderItem,
+  useAddProductionOrderPackingItem,
   useCancelProductionOrder,
   useCreateProductionOrder,
   useFinalApproveProductionOrder,

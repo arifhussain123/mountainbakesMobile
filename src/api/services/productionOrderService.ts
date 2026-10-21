@@ -124,6 +124,18 @@ export async function addProductionOrderItem(
   return apiClient.post<{ success: boolean }>(`/production-orders/${id}/items`, { ...input, remarks: input.remarks ?? '' });
 }
 
+/**
+ * `POST /production-orders/:id/packing-items` — the packing-material twin of
+ * `/items`: Production adds a material to a still-'pending' demand. The server
+ * refuses an inactive material, one already on the demand, or a submitted order.
+ */
+export async function addProductionOrderPackingItem(
+  id: string,
+  input: { packingMaterialId: string; qty: number },
+): Promise<{ success: boolean }> {
+  return apiClient.post<{ success: boolean }>(`/production-orders/${id}/packing-items`, input);
+}
+
 /** `PUT /production-orders/:id/final-approve` — only once the branch has verified. */
 export async function finalApproveProductionOrder(id: string): Promise<{ success: boolean }> {
   return apiClient.put<{ success: boolean }>(`/production-orders/${id}/final-approve`);
