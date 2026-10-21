@@ -7,6 +7,7 @@ import {
   useFinanceDailySales,
   type CashTransfer,
   type CashTransferStatus,
+  type DepositMatchKind,
 } from '@/api';
 import { ChannelBreakdown } from '@/features/cash/components';
 import { Routes, navigateToRecord, openNewQuery, type FinanceCashTransfersStackParamList } from '@/navigation';
@@ -44,6 +45,13 @@ import { styles } from './styles';
 
 const STATUS_VARIANT: Record<CashTransferStatus, StatusVariant> = { pending: 'warning', approved: 'success', rejected: 'danger' };
 const STATUS_LABEL: Record<CashTransferStatus, string> = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
+/** How the server paired the day's deposit, after the sales day's date. */
+const MATCH_SUFFIX: Record<DepositMatchKind, string> = {
+  amount: ' · same amount',
+  nearest: ' · nearest amount',
+  same_day: ' · same day',
+  none: '',
+};
 const MATCH_VARIANT: Record<ShareMatch['kind'], StatusVariant> = { matches: 'success', over: 'warning', short: 'danger', none: 'neutral' };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -266,7 +274,7 @@ export function FinanceCashTransferDetailScreen() {
               </View>
               {match.day ? (
                 <>
-                  <Row label="Sales day" value={`${shortDay(match.day.businessDate)}${match.day.reconciliation.match === 'nearest' ? ' · nearest deposit' : ' · same amount'}`} />
+                  <Row label="Sales day" value={`${shortDay(match.day.businessDate)}${MATCH_SUFFIX[match.day.reconciliation.match]}`} />
                   <Row label="Total Sale" value={formatCurrency(match.day.autoTotalSale)} />
                   <Row label={`Company Share (${match.day.companySharePct}%)`} value={formatCurrency(match.day.companyShare)} strong />
                   <Row label="Deposited for that day" value={formatCurrency(match.deposited)} />
