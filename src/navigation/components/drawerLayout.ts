@@ -55,7 +55,6 @@ export const ROW_ICON_MAX = 22;
 export const ROW_FONT_MIN = 14;
 export const ROW_FONT_MAX = 16;
 export const ROW_CHEVRON_SIZE = 16;
-export const ROW_ACTIVE_BAR_WIDTH = 3;
 /** System font scale is respected but capped here so a long label can't wrap or outgrow its row. */
 export const ROW_LABEL_MAX_FONT_SCALE = 1.2;
 
