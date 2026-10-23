@@ -3,6 +3,7 @@
  */
 import type { BranchStockSummaryRow, ProductionOrder, SpecialOrder } from '@/api/types';
 import {
+  addablePackingMaterials,
   addableProducts,
   buildDemandSummary,
   openSpecialOrders,
@@ -174,6 +175,17 @@ describe('order review actions', () => {
       ],
     });
     expect(returnableItems(delivered)).toEqual([{ productId: 'p1', productName: 'A' }]);
+  });
+
+  it('offers only active packing materials not already on the demand', () => {
+    const withPacking = order({ packingItems: [{ packingMaterialId: 'm1', materialName: 'Shopper', qty: 5 }] });
+    const materials = [
+      { id: 'm1', isActive: true },
+      { id: 'm2', isActive: true },
+      { id: 'm3', isActive: false },
+    ];
+    expect(addablePackingMaterials(materials, withPacking)).toEqual([{ id: 'm2', isActive: true }]);
+    expect(addablePackingMaterials(materials, order({ packingItems: undefined }))).toHaveLength(2);
   });
 
   it('reads the stock-shortage notice off a 409 and ignores anything else', () => {

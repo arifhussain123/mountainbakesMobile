@@ -35,14 +35,17 @@ import { SuperAdminSettingsStackNavigator } from '../SuperAdminSettingsStackNavi
 import { SuperAdminSupportStackNavigator } from '../SuperAdminSupportStackNavigator';
 import type { SuperAdminDrawerParamList } from '../types';
 import { useDrawerScreenOptions } from '../components';
+import { AdminHubScreen, BranchesHubScreen, CatalogHubScreen, FinanceHubScreen } from './SuperAdminHubScreen';
 import { useSuperAdminNavCounts } from './useSuperAdminNavCounts';
 
 const Drawer = createDrawerNavigator<SuperAdminDrawerParamList>();
 
 /**
  * Super Admin's app shell. Same drawer as every other role (`DrawerContent` →
- * `DrawerMenu`), with `SUPER_ADMIN_NAV_ITEMS` through the role's shell and its
- * sections folding (`collapsibleSections`). Every screen behind it is Super
+ * `DrawerMenu`), with `SUPER_ADMIN_NAV_ITEMS` through the role's shell: the
+ * Branch drawer's flat, labelled list, twelve rows long — Catalog, Branches,
+ * Finance and Admin open `SuperAdminHubScreen`, which lists their pages.
+ * Every screen behind it is Super
  * Admin's own (`features/admin`), built to show what the web Super Admin
  * page shows — plus the web's other finance pages a super_admin may open
  * (`canAccessFinance`), which are the Finance role's own screens: they read
@@ -82,6 +85,10 @@ export function SuperAdminDrawerNavigator() {
       <Drawer.Screen name={Routes.SUPER_ADMIN_SECURITY} component={SecurityScreen} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_BACKUP} component={BackupScreen} />
       <Drawer.Screen name={Routes.SUPER_ADMIN_SETTINGS} component={SuperAdminSettingsStackNavigator} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_CATALOG_HUB} component={CatalogHubScreen} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_BRANCHES_HUB} component={BranchesHubScreen} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_FINANCE_HUB} component={FinanceHubScreen} />
+      <Drawer.Screen name={Routes.SUPER_ADMIN_ADMIN_HUB} component={AdminHubScreen} />
       <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
     </Drawer.Navigator>
   );

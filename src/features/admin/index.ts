@@ -20,3 +20,4 @@ export { SecurityScreen } from './screens/SecurityScreen';
 export { SpecialEventDetailAdminScreen, SpecialEventsAdminScreen } from './screens/SpecialEvents';
 export { FinanceQueryViewScreen, SupportCenterScreen, SupportTicketViewScreen } from './screens/SupportCenter';
 export { UsersScreen } from './screens/UsersScreen';
+export { useAdminHeaderActions } from './components/useAdminHeaderActions';

@@ -116,7 +116,9 @@ export function MonthlyDiscountSummaryCard({
       ) : !showBranches ? (
         <OwnBranchTotal summary={summary} dim={stale} />
       ) : boxes.length === 0 ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>No active branches.</Text>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
+          {summary.branches.length === 0 ? 'No active branches.' : 'No branch discounts this month.'}
+        </Text>
       ) : wrap ? (
         <View style={[styles.grid, stale && styles.dim, { marginTop: theme.spacing.sm }]}>{boxes.map(renderBox)}</View>
       ) : (

@@ -11,8 +11,8 @@ import { useDebouncedValue } from '@/shared/hooks';
 import { Dropdown, ErrorState, Icon, LoadingSkeleton, Screen, SearchBar, type DropdownOption } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { summarizeItemsSold, summarizeOrders } from '../../calculations';
-import { ItemsSoldCard, paymentMethodColor, PaymentMethodTileGrid, SaleCard, SalesDateChipRow, SalesHeroCard, SortSheet, SORT_OPTIONS, type SortField } from '../../components';
+import { summarizeOrders } from '../../calculations';
+import { paymentMethodColor, PaymentMethodTileGrid, SaleCard, SalesDateChipRow, SalesHeroCard, SortSheet, SORT_OPTIONS, type SortField } from '../../components';
 import { styles } from './styles';
 
 const PAYMENT_FILTERS = ['All', 'cash', 'easypaisa', 'foodpanda', 'bank_account'] as const;
@@ -21,6 +21,10 @@ const PAYMENT_FILTER_OPTIONS: DropdownOption<(typeof PAYMENT_FILTERS)[number]>[]
   value,
   label: value === 'All' ? 'All payment methods' : PAYMENT_LABEL[value],
 }));
+
+function isPaymentFilter(value: string): value is (typeof PAYMENT_FILTERS)[number] {
+  return (PAYMENT_FILTERS as readonly string[]).includes(value);
+}
 
 /** Time/Amount read best most-recent/largest-first; ID/Customer/Comment read best alphabetically. */
 const SORT_DIRECTION: Record<SortField, 'asc' | 'desc'> = {
@@ -48,12 +52,11 @@ export function SalesListScreen() {
   const bounds = useMemo(() => getBusinessDayBounds(selectedDate), [selectedDate]);
   const dateLabel = useMemo(() => format(parseISO(selectedDate), 'EEE d MMM yyyy'), [selectedDate]);
 
-  // Daily Summary / Items Sold — the full business-day order list, exactly like
-  // the web's own summary panel (no aggregate endpoint exists for these).
+  // Daily Summary — the full business-day order list, exactly like the web's
+  // own summary panel (no aggregate endpoint exists for it).
   const { data, isLoading, error, refetch, isRefetching } = useOrders({ status: 'delivered', from: bounds.from, to: bounds.to });
   const orders = useMemo(() => data?.orders ?? [], [data]);
   const summary = useMemo(() => summarizeOrders(orders), [orders]);
-  const itemsSold = useMemo(() => summarizeItemsSold(orders), [orders]);
 
   // Sales list — the Data Engine's `business_date`-scoped, server-searched/
   // sorted/paginated feed (the authoritative count; see `DataEnginePage`'s doc comment).
@@ -142,12 +145,14 @@ export function SalesListScreen() {
                     label: PAYMENT_LABEL[method] ?? method,
                     value: formatCurrency(totals.net),
                     dotColor: paymentMethodColor(theme, method),
+                    selected: paymentFilter === method,
                   }))}
-                />
-                <ItemsSoldCard
-                  totalUnits={itemsSold.reduce((sum, i) => sum + i.qty, 0)}
-                  totalProducts={itemsSold.length}
-                  chips={itemsSold.map((i) => ({ key: i.productName, n: i.productName, q: `× ${i.qty}` }))}
+                  // Same filter as the dropdown below; pressing the active tile again
+                  // goes back to all methods.
+                  onPressTile={(method) => {
+                    if (!isPaymentFilter(method)) return;
+                    setPaymentFilter((current) => (current === method ? 'All' : method));
+                  }}
                 />
               </>
             ) : null}

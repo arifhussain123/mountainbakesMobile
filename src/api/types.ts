@@ -1370,12 +1370,12 @@ export interface FinanceCashTransferSummary {
 
 // Finance Daily Closing's deposit check — `GET /api/finance/daily-sales`. Each
 // branch day's Company Share with the deposits the server set against it (by
-// amount, else the nearest; `deposit-reconciliation.ts` server-side). Each row
+// amount, else the nearest within 999, else the same day's; `deposit-reconciliation.ts` server-side). Each row
 // is the branch's own Daily Sale Record plus its reconciliation; the matching
 // panel only reads the `FinanceDailySaleDay` subset.
 
 export type DepositReconStatus = 'nothing_due' | 'not_received' | 'pending' | 'matched' | 'discrepancy';
-export type DepositMatchKind = 'amount' | 'nearest' | 'none';
+export type DepositMatchKind = 'amount' | 'nearest' | 'same_day' | 'none';
 
 export interface BranchDayDeposit {
   id: string;

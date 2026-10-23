@@ -24,11 +24,6 @@ export interface RoleShell {
   computeBadges: () => NavBadges;
   /** The accent line under the drawer header: whose data this user is looking at. */
   contextLine: (user: Pick<SessionUser, 'role' | 'branchName'>) => string;
-  /**
-   * Sections fold to their header (see `drawerSections.ts`). For a menu too
-   * long to fit a phone; the other shells keep the flat, always-open list.
-   */
-  collapsibleSections?: boolean;
 }
 
 const NO_MENU = { navItems: [], tabItems: [], computeBadges: computeNoBadges, contextLine: () => '' };
@@ -80,7 +75,6 @@ export const ROLE_SHELLS: Partial<Record<UserRole, RoleShell>> = {
     tabItems: SUPER_ADMIN_TAB_ITEMS,
     computeBadges: computeSuperAdminBadges,
     contextLine: () => 'All branches',
-    collapsibleSections: true,
   },
 };
 

@@ -9,7 +9,8 @@ import { formatCurrency } from '@/shared/utils/formatters';
  * THE PAIRING IS THE SERVER'S. A deposit carries the date it was handed over,
  * not the sales day it pays for, and Daily Closing already decides which day
  * each deposit belongs to (`GET /api/finance/daily-sales`: by amount within a
- * rupee, else the nearest, over the sale day and the two after it, each deposit
+ * rupee, else the nearest within 999, else the one dated that day, over the
+ * sale day and the two after it, each deposit
  * used once). This file only finds the day that claimed the transfer and reads
  * the figures off it — so the badge on a card and the Deposit Status on Daily
  * Closing can never tell two stories about the same deposit.

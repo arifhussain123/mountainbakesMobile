@@ -4,7 +4,7 @@ import { useAuthStore } from '@/state';
 import { roleLabel } from '@/shared/utils';
 import { Routes } from '../routes';
 import { DrawerMenu, type DrawerMenuRow } from '../components';
-import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive } from '../navItems';
+import { DRAWER_GROUPED, GROUP_LABEL, isNavItemActive, navItemBadge } from '../navItems';
 import { useRoleShell } from '../roleShells';
 import { useNavBadges } from '../useNavBadges';
 
@@ -27,7 +27,7 @@ export function getFocusedChain(state: AnyNavState | undefined): string[] {
  */
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const user = useAuthStore((s) => s.user);
-  const { navItems, contextLine, collapsibleSections } = useRoleShell();
+  const { navItems, contextLine } = useRoleShell();
   const badges = useNavBadges();
 
   const focusedChain = getFocusedChain(state);
@@ -38,9 +38,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     icon: item.icon,
     section: DRAWER_GROUPED ? GROUP_LABEL[item.group] : null,
     active: index === activeIndex,
-    badgeCount: item.badgeSource ? badges[item.badgeSource] : undefined,
-    badgeDot: item.badgeDot,
-    badgeTone: item.badgeTone,
+    ...navItemBadge(item, badges),
     onPress: () => item.navigate(navigation),
   }));
 
@@ -49,7 +47,6 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
       roleLabel={user ? roleLabel(user.role) : ''}
       contextLine={user ? contextLine(user) : ''}
       rows={rows}
-      collapsibleSections={collapsibleSections}
       closeDrawer={navigation.closeDrawer}
       onPressProfile={() => {
         navigation.closeDrawer();

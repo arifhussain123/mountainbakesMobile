@@ -320,6 +320,18 @@ export function addableProducts<P extends { id: string }>(products: P[], order: 
   return products.filter((p) => !onOrder.has(p.id));
 }
 
+/**
+ * Packing materials Production can still add: active, and not already on the
+ * demand — the server keeps one line per material per order.
+ */
+export function addablePackingMaterials<M extends { id: string; isActive: boolean }>(
+  materials: M[],
+  order: Pick<ProductionOrder, 'packingItems'>,
+): M[] {
+  const onOrder = new Set((order.packingItems ?? []).map((it) => it.packingMaterialId));
+  return materials.filter((m) => m.isActive && !onOrder.has(m.id));
+}
+
 /** Return offers only products that actually went out on this delivery. */
 export function returnableItems(order: Pick<ProductionOrder, 'items'>): { productId: string; productName: string }[] {
   return (order.items ?? [])

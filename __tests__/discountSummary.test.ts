@@ -58,25 +58,37 @@ describe('formatStaleNotice', () => {
 
 describe('buildDiscountSummaryBoxes', () => {
   it('shows the APPROVED amount as Total Discount, with pending on its own line', () => {
-    const [, a] = buildDiscountSummaryBoxes(summary());
+    const [a] = buildDiscountSummaryBoxes(summary());
     expect(a!.name).toBe('DHA Branch');
     expect(a!.total).toBe('Rs. 750.5'); // the app-wide formatter, same as the web's
     expect(a!.approvedLine).toBe('2 claims approved');
     expect(a!.pendingLine).toBe('Rs. 300 awaiting review · 1 claim');
   });
 
-  it('a branch with no claims shows Rs. 0 and no pending line', () => {
-    const [bahria] = buildDiscountSummaryBoxes(summary());
+  it('a branch with nothing this month gets no box', () => {
+    expect(buildDiscountSummaryBoxes(summary()).map((b) => b.key)).toEqual(['a']);
+  });
+
+  it('a branch with only claims awaiting review keeps its box, at Rs. 0 approved', () => {
+    const pendingOnly = { ...empty, pending: { amount: 400, count: 2 } };
+    const [bahria] = buildDiscountSummaryBoxes(summary({ branches: [{ branchId: 'd', branchName: 'Bahria Branch', ...pendingOnly }] }));
     expect(bahria!.total).toBe('Rs. 0');
-    expect(bahria!.approvedLine).toBe('0 claims approved');
-    expect(bahria!.pendingLine).toBeNull();
+    expect(bahria!.pendingLine).toBe('Rs. 400 awaiting review · 2 claims');
   });
 
   it('adds All Branches only on Production\'s view with more than one branch', () => {
     expect(buildDiscountSummaryBoxes(summary()).some((b) => b.key === 'all')).toBe(false);
-    const prod = buildDiscountSummaryBoxes(summary(), { showBranches: true });
+    const two = summary({
+      branches: [
+        { branchId: 'd', branchName: 'Bahria Branch', ...dha },
+        { branchId: 'a', branchName: 'Mountain Bakes DHA Branch', ...dha },
+      ],
+    });
+    const prod = buildDiscountSummaryBoxes(two, { showBranches: true });
     expect(prod.map((b) => b.key)).toEqual(['d', 'a', 'all']);
     expect(prod[2]!.emphasis).toBe(true);
+    // One branch with discounts and one at Rs. 0: no All Branches box.
+    expect(buildDiscountSummaryBoxes(summary(), { showBranches: true }).map((b) => b.key)).toEqual(['a']);
     const one = buildDiscountSummaryBoxes(summary({ branches: [{ branchId: 'a', branchName: 'DHA Branch', ...dha }] }), { showBranches: true });
     expect(one.map((b) => b.key)).toEqual(['a']);
   });

@@ -53,16 +53,18 @@ function box(key: string, name: string, totals: DiscountSummaryTotals, emphasis 
 }
 
 /**
- * One box per branch in the server's order (every active branch, Rs. 0 where
- * nothing was claimed), then All Branches on Production's view when there is
- * more than one branch.
+ * One box per branch in the server's order, then All Branches on Production's
+ * view when more than one branch has a box. A branch with nothing this month —
+ * no approved discount and nothing awaiting review — gets no box, as on the
+ * web; one with only claims awaiting review keeps its box.
  */
 export function buildDiscountSummaryBoxes(
   summary: MonthlyDiscountSummary,
   { showBranches = false }: { showBranches?: boolean } = {},
 ): DiscountSummaryBox[] {
-  const boxes = summary.branches.map((b) => box(b.branchId, b.branchName.replace('Mountain Bakes ', ''), b));
-  if (showBranches && summary.branches.length > 1) boxes.push(box('all', 'All Branches', summary.totals, true));
+  const shown = summary.branches.filter((b) => b.approved.amount !== 0 || b.pending.count > 0);
+  const boxes = shown.map((b) => box(b.branchId, b.branchName.replace('Mountain Bakes ', ''), b));
+  if (showBranches && shown.length > 1) boxes.push(box('all', 'All Branches', summary.totals, true));
   return boxes;
 }
 

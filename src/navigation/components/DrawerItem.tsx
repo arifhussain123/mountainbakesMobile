@@ -3,7 +3,6 @@ import { useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 import { NavBadge } from './NavBadge';
 import {
-  ROW_ACTIVE_BAR_WIDTH,
   ROW_CHEVRON_SIZE,
   ROW_HORIZONTAL_PADDING,
   ROW_ICON_LABEL_GAP,
@@ -26,14 +25,15 @@ export interface DrawerItemProps {
   iconSize: number;
   fontSize: number;
   lineHeight: number;
-  /** Hairline under the row, inset to start at the label. Off for the last row and before a section label. */
+  /** Full-width hairline under the row. Off for the last row and before a section label. */
   showDividerBelow: boolean;
 }
 
 /**
- * One drawer row: icon, label, optional badge, trailing chevron. Active rows
- * sit on `colors.surface` with a 3dp accent bar on the left edge and the icon
- * and chevron in the accent; pressed rows show the surface at reduced opacity.
+ * One drawer row: icon, label, optional badge, trailing chevron. The active row
+ * is filled edge to edge with `colors.primary`, its icon, label and chevron in
+ * `primaryText` — the same look as the web app's phone drawer. Pressed rows
+ * show `colors.surface` at reduced opacity.
  */
 export function DrawerItem({
   label,
@@ -52,7 +52,7 @@ export function DrawerItem({
 }: DrawerItemProps) {
   const theme = useAppTheme();
   const badgeLabel = badgeCount ? (badgeDot ? ', needs attention' : `, ${badgeCount} need action`) : '';
-  const accentOrMuted = active ? theme.colors.primary : theme.colors.textMuted;
+  const iconColor = active ? theme.colors.primaryText : theme.colors.textMuted;
 
   return (
     <View>
@@ -64,13 +64,17 @@ export function DrawerItem({
         style={[styles.row, { height: rowHeight, paddingHorizontal: ROW_HORIZONTAL_PADDING, gap: ROW_ICON_LABEL_GAP }]}>
         {({ pressed }) => (
           <>
-            {active || pressed ? (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.surface, opacity: active ? 1 : 0.6 }]} />
+            {active ? (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: pressed ? theme.colors.primaryPressed : theme.colors.primary }]} />
+            ) : pressed ? (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.surface, opacity: 0.6 }]} />
             ) : null}
-            {active ? <View style={[styles.activeBar, { width: ROW_ACTIVE_BAR_WIDTH, backgroundColor: theme.colors.primary }]} /> : null}
-            <Icon name={icon} size={iconSize} color={accentOrMuted} />
+            <Icon name={icon} size={iconSize} color={iconColor} />
             <Text
-              style={[styles.label, { color: theme.colors.text, fontSize, lineHeight, fontWeight: active ? '600' : '400' }]}
+              style={[
+                styles.label,
+                { color: active ? theme.colors.primaryText : theme.colors.text, fontSize, lineHeight, fontWeight: active ? '600' : '400' },
+              ]}
               numberOfLines={1}
               ellipsizeMode="tail"
               maxFontSizeMultiplier={ROW_LABEL_MAX_FONT_SCALE}>
@@ -82,20 +86,15 @@ export function DrawerItem({
               badgeDot ? (
                 <NavBadge count={0} dot dotTone={badgeTone === 'danger' ? 'danger' : 'warning'} />
               ) : (
-                <NavBadge count={badgeCount} tone={badgeTone === 'muted' ? 'muted' : 'accent'} />
+                <NavBadge count={badgeCount} tone={badgeTone === 'muted' ? 'muted' : active ? 'onAccent' : 'accent'} />
               )
             ) : null}
-            <Icon name="chevron-right" size={ROW_CHEVRON_SIZE} color={accentOrMuted} />
+            <Icon name="chevron-right" size={ROW_CHEVRON_SIZE} color={iconColor} />
           </>
         )}
       </Pressable>
       {showDividerBelow ? (
-        <View
-          style={[
-            styles.divider,
-            { marginLeft: ROW_HORIZONTAL_PADDING + iconSize + ROW_ICON_LABEL_GAP, marginRight: ROW_HORIZONTAL_PADDING, backgroundColor: theme.colors.border },
-          ]}
-        />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
       ) : null}
     </View>
   );
@@ -103,7 +102,6 @@ export function DrawerItem({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  activeBar: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   label: { flex: 1, minWidth: 0 },
   divider: { height: StyleSheet.hairlineWidth },
 });

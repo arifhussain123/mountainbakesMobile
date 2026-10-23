@@ -4,25 +4,9 @@
 import { financeCan, getBusinessDate, queryClient, queryKeys } from '@/api';
 import { OPEN_CASH_TRANSFERS_TARGET, PENDING_REVIEW_TARGET } from '@/features/admin/utils/ledgerActions';
 import type { BackupHealth, ProductionOrderListResponse } from '@/api';
-import {
-  SEARCH_FIELD_HEIGHT,
-  computeAvailableListHeight,
-  computeCollapsibleRowMetrics,
-  fitsAtMinimum,
-} from '@/navigation/components/drawerLayout';
-import {
-  collapseSection,
-  effectiveExpanded,
-  expandSection,
-  filterRows,
-  initialExpanded,
-  pinnedSections,
-  sectionOrder,
-  summarizeSection,
-  type SectionRow,
-} from '@/navigation/components/drawerSections';
+import { ROW_MIN_HEIGHT, computeAvailableListHeight, computeDrawerRowMetrics, countSections } from '@/navigation/components/drawerLayout';
 import { computeSuperAdminBadges } from '@/navigation/navBadgeCounts';
-import { GROUP_LABEL, SUPER_ADMIN_NAV_ITEMS, isNavItemActive, type NavItem } from '@/navigation/navItems';
+import { GROUP_LABEL, SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGES, isNavItemActive, navItemBadge, type NavItem } from '@/navigation/navItems';
 import { ROLE_SHELLS, getRoleShell } from '@/navigation/roleShells';
 import { Routes } from '@/navigation/routes';
 
@@ -36,31 +20,18 @@ function targetsOf(item: NavItem): string[] {
   return [name, params?.screen].filter((r): r is string => !!r);
 }
 
-/** The drawer rows as `DrawerContent` builds them, with `activeKey` marked active. */
-function rowsFor(activeKey: string | null): SectionRow[] {
-  return SUPER_ADMIN_NAV_ITEMS.map((i) => ({
-    label: i.label,
-    section: GROUP_LABEL[i.group],
-    active: i.key === activeKey,
-    badgeDot: i.badgeDot,
-    badgeTone: i.badgeTone,
-  }));
-}
-
-// Typical Android 3-button nav insets (24 top / 48 bottom), as drawerLayout.test.ts uses.
-const listHeight = (height: number) => computeAvailableListHeight(height, 24, 48) - SEARCH_FIELD_HEIGHT;
+/** Each drawer row's section label, in menu order — what `DrawerContent` hands `DrawerMenu`. */
+const sections = SUPER_ADMIN_NAV_ITEMS.map((i) => GROUP_LABEL[i.group]);
 
 describe('Super Admin shell', () => {
-  it('gets its own drawer, says "All branches", and is the only shell whose sections fold', () => {
+  it('gets its own drawer and says "All branches"', () => {
     expect(getRoleShell('super_admin').route).toBe(Routes.SUPER_ADMIN_DRAWER);
     expect(shell.contextLine({ role: 'super_admin', branchName: null })).toBe('All branches');
-    expect(shell.collapsibleSections).toBe(true);
-    for (const role of ['branch_manager', 'production_user', 'finance_admin'] as const) expect(ROLE_SHELLS[role]!.collapsibleSections).toBeFalsy();
   });
 
   it('is the 20 web items, in order, under the eight sections, then the web\'s finance pages under two more', () => {
     const bySection: Record<string, string[]> = {};
-    for (const item of SUPER_ADMIN_NAV_ITEMS) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
+    for (const item of SUPER_ADMIN_PAGES) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
     expect(bySection).toEqual({
       Overview: ['Dashboard'],
       'Sales & orders': ['Orders', 'Customers', 'Daily Sale Records'],
@@ -73,13 +44,13 @@ describe('Super Admin shell', () => {
       Support: ['Support Center', 'Recipients'],
       Admin: ['Users', 'Security', 'Database Backup', 'Settings'],
     });
-    expect(Object.keys(bySection)).toEqual(sectionOrder(rowsFor(null)));
-    expect(SUPER_ADMIN_NAV_ITEMS).toHaveLength(31);
-    expect(new Set(SUPER_ADMIN_NAV_ITEMS.map((i) => i.key)).size).toBe(31);
+    expect(Object.keys(bySection)).toEqual([...new Set(SUPER_ADMIN_PAGES.map((i) => GROUP_LABEL[i.group]))]);
+    expect(SUPER_ADMIN_PAGES).toHaveLength(31);
+    expect(new Set(SUPER_ADMIN_PAGES.map((i) => i.key)).size).toBe(31);
   });
 
   it("uses the brief's icons", () => {
-    expect(SUPER_ADMIN_NAV_ITEMS.map((i) => i.icon)).toEqual([
+    expect(SUPER_ADMIN_PAGES.map((i) => i.icon)).toEqual([
       'grid',
       'cart',
       'users',
@@ -165,9 +136,9 @@ describe('Super Admin shell', () => {
       ...SHARED_STACKS,
       ...SUPER_ADMIN_SCREENS,
     ]);
-    for (const item of SUPER_ADMIN_NAV_ITEMS) for (const route of targetsOf(item)) expect(own.has(route)).toBe(true);
+    for (const item of SUPER_ADMIN_PAGES) for (const route of targetsOf(item)) expect(own.has(route)).toBe(true);
     for (const tab of shell.tabItems) if (tab.route) expect(own.has(tab.route)).toBe(true);
-    expect(SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf)).not.toContain(Routes.COMING_SOON);
+    expect(SUPER_ADMIN_PAGES.flatMap(targetsOf)).not.toContain(Routes.COMING_SOON);
   });
 
   it("never reaches another role's menu beyond the shared stacks, and no other role reaches Super Admin's", () => {
@@ -176,7 +147,7 @@ describe('Super Admin shell', () => {
       const other = ROLE_SHELLS[role]!;
       const otherRoutes = other.navItems.flatMap(targetsOf);
       expect(otherRoutes.filter((r) => superAdminOnly.includes(r))).toEqual([]);
-      const mine = SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf).filter((r) => !SHARED_STACKS.includes(r));
+      const mine = SUPER_ADMIN_PAGES.flatMap(targetsOf).filter((r) => !SHARED_STACKS.includes(r));
       expect(mine.filter((r) => otherRoutes.includes(r))).toEqual([]);
     }
   });
@@ -189,7 +160,7 @@ describe('Super Admin shell', () => {
     };
     for (const [key, route] of Object.entries(expected)) {
       const navigate = jest.fn();
-      SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
+      SUPER_ADMIN_PAGES.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
       expect(navigate).toHaveBeenCalledWith(route, undefined);
     }
   });
@@ -198,7 +169,7 @@ describe('Super Admin shell', () => {
 describe('Super Admin finance pages', () => {
   const navigateOf = (key: string) => {
     const navigate = jest.fn();
-    SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
+    SUPER_ADMIN_PAGES.find((i) => i.key === key)!.navigate({ navigate, closeDrawer: jest.fn() } as never);
     return navigate.mock.calls[0];
   };
 
@@ -234,8 +205,8 @@ describe('Super Admin finance pages', () => {
   });
 
   it('marks Payroll active across its stack except on the Salary Ledger, which has its own row', () => {
-    const payroll = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'financePayroll')!;
-    const salaries = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'financeSalaries')!;
+    const payroll = SUPER_ADMIN_PAGES.find((i) => i.key === 'financePayroll')!;
+    const salaries = SUPER_ADMIN_PAGES.find((i) => i.key === 'financeSalaries')!;
     const chain = (leaf: string) => [Routes.SUPER_ADMIN_DRAWER, Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, leaf];
     expect(isNavItemActive(payroll, chain(Routes.FINANCE_PAYROLL_LIST))).toBe(true);
     expect(isNavItemActive(payroll, chain(Routes.FINANCE_EMPLOYEE_DETAIL))).toBe(true);
@@ -253,7 +224,7 @@ describe('Super Admin finance pages', () => {
       advance: { stack: Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, screen: Routes.FINANCE_PAYROLL_LIST },
     });
     // Every target is a row of this drawer, so the screen behind it is mounted.
-    const drawerTargets = new Set(SUPER_ADMIN_NAV_ITEMS.flatMap(targetsOf));
+    const drawerTargets = new Set(SUPER_ADMIN_PAGES.flatMap(targetsOf));
     for (const t of [OPEN_CASH_TRANSFERS_TARGET, ...Object.values(PENDING_REVIEW_TARGET)]) expect(drawerTargets.has(t.stack)).toBe(true);
   });
 
@@ -275,7 +246,7 @@ describe('Super Admin badges', () => {
   afterAll(() => queryClient.clear());
 
   it('maps every item to its badge, tone and dot', () => {
-    const badged = SUPER_ADMIN_NAV_ITEMS.filter((i) => i.badgeSource).map((i) => [i.key, i.badgeSource, i.badgeDot ? 'dot' : 'count', i.badgeTone ?? 'accent']);
+    const badged = SUPER_ADMIN_PAGES.filter((i) => i.badgeSource).map((i) => [i.key, i.badgeSource, i.badgeDot ? 'dot' : 'count', i.badgeTone ?? 'accent']);
     expect(badged).toEqual([
       ['orders', 'orders', 'count', 'accent'],
       ['dailySaleRecords', 'dailySale', 'count', 'muted'],
@@ -340,89 +311,64 @@ describe('Super Admin badges', () => {
   });
 });
 
-describe('collapsible sections', () => {
-  it('pins Overview and the section holding the active screen', () => {
-    expect(pinnedSections(rowsFor(null))).toEqual(['Overview']);
-    expect(pinnedSections(rowsFor('dashboard'))).toEqual(['Overview']);
-    expect(pinnedSections(rowsFor('priceHistory'))).toEqual(['Overview', 'Catalog']);
+describe('drawer', () => {
+  it('is twelve rows like the Branch drawer: daily pages as rows, Catalog, Branches, Finance and Admin as group rows', () => {
+    const bySection: Record<string, string[]> = {};
+    for (const item of SUPER_ADMIN_NAV_ITEMS) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
+    expect(bySection).toEqual({
+      Overview: ['Dashboard'],
+      'Sales & orders': ['Orders', 'Customers', 'Daily Sale Records'],
+      Manage: ['Catalog', 'Branches', 'Special Events', 'Reports'],
+      Money: ['Finance'],
+      Support: ['Support Center', 'Recipients'],
+      Admin: ['Admin'],
+    });
+    const groups = Object.fromEntries(SUPER_ADMIN_NAV_ITEMS.filter((i) => i.children).map((i) => [i.label, i.children!.map((c) => c.label)]));
+    expect(groups).toEqual({
+      Catalog: ['Products', 'Categories', 'Price List', 'Price History'],
+      Branches: ['Branches', 'Branch Locations', 'Branch Stock'],
+      Finance: [
+        'Finance Ledger', 'Cash Transfers', 'Income & Expense', 'Daily Closing',
+        'Payroll', 'Salary Ledger', 'Partner Transactions', 'Company Transactions',
+        'Ledger Heads', 'Finance Reports', 'Audit Trail', 'Finance Settings',
+      ],
+      Admin: ['Users', 'Security', 'Database Backup', 'Settings'],
+    });
   });
 
-  it('opens with the pinned sections plus what the user left open, dropping sections that no longer exist', () => {
-    expect(initialExpanded(rowsFor('priceHistory'), null)).toEqual(['Overview', 'Catalog']);
-    expect(initialExpanded(rowsFor('priceHistory'), ['Admin', 'Gone'])).toEqual(['Overview', 'Catalog', 'Admin']);
+  it('still reaches every one of the 31 pages, each exactly once', () => {
+    const reached = SUPER_ADMIN_NAV_ITEMS.flatMap((i) => i.children ?? [i]).map((i) => i.key);
+    expect([...reached].sort()).toEqual(SUPER_ADMIN_PAGES.map((p) => p.key).sort());
   });
 
-  it('keeps the active section open even when the stored list folded it', () => {
-    expect(effectiveExpanded(rowsFor('recipients'), ['Overview'])).toEqual(['Support', 'Overview']);
+  it('opens a group row on its page listing, and lights it up on any page inside it', () => {
+    const finance = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'financeHub')!;
+    expect(targetsOf(finance)).toEqual([Routes.SUPER_ADMIN_FINANCE_HUB]);
+    expect(isNavItemActive(finance, [Routes.SUPER_ADMIN_FINANCE_HUB])).toBe(true);
+    expect(isNavItemActive(finance, [Routes.SUPER_ADMIN_FINANCE_PAYROLL_STACK, Routes.FINANCE_SALARY_LEDGER])).toBe(true);
+    expect(isNavItemActive(finance, [Routes.SUPER_ADMIN_USERS])).toBe(false);
+    const admin = SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'adminHub')!;
+    expect(isNavItemActive(admin, [Routes.SUPER_ADMIN_USERS])).toBe(true);
   });
 
-  it('never folds a pinned section', () => {
-    expect(collapseSection(['Overview', 'Catalog'], 'Catalog', ['Overview', 'Catalog'])).toEqual(['Overview', 'Catalog']);
-    expect(collapseSection(['Overview', 'Admin'], 'Admin', ['Overview'])).toEqual(['Overview']);
+  it("shows a group row's loudest badge: a red dot, then a count, then an amber dot", () => {
+    const hub = (key: string) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!;
+    expect(navItemBadge(hub('adminHub'), {})).toEqual({});
+    expect(navItemBadge(hub('adminHub'), { restrictionAlert: 1 })).toEqual({ badgeCount: 1, badgeDot: true });
+    expect(navItemBadge(hub('adminHub'), { restrictionAlert: 1, backupAlert: 1 })).toEqual({ badgeCount: 1, badgeDot: true, badgeTone: 'danger' });
+    expect(navItemBadge(hub('financeHub'), { approvals: 3 })).toEqual({ badgeCount: 3, badgeTone: 'muted' });
+    expect(navItemBadge(hub('branchesHub'), { branchStockNegative: 2 })).toEqual({ badgeCount: 1, badgeDot: true, badgeTone: 'danger' });
+    // An ordinary row keeps its own badge.
+    expect(navItemBadge(SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === 'orders')!, { orders: 4 })).toEqual({ badgeCount: 4, badgeDot: undefined, badgeTone: undefined });
   });
 
-  it('folds the least recently opened section once the list no longer fits, never a pinned one or the one just opened', () => {
-    const rows = rowsFor('dashboard');
-    const sections = sectionOrder(rows).length;
-    const count = (open: readonly string[]) => rows.filter((r) => open.includes(r.section!)).length;
-    // Room for every header and 9 rows at 40dp: headers × 28 + 9 × 40.
-    const fits = (open: readonly string[]) => fitsAtMinimum(sections * 28 + 9 * 40, count(open), sections);
-    let open = ['Overview'];
-    open = expandSection(open, 'Sales & orders', ['Overview'], fits); // 1 + 3
-    open = expandSection(open, 'Branches', ['Overview'], fits); // + 3 = 7
-    expect(open).toEqual(['Overview', 'Sales & orders', 'Branches']);
-    open = expandSection(open, 'Admin', ['Overview'], fits); // + 4 = 11 > 9: Sales & orders goes
-    expect(open).toEqual(['Overview', 'Branches', 'Admin']);
-    // + Catalog 4 = 12 > 9: Branches, now the least recent, goes; 1 + 4 + 4 fits.
-    open = expandSection(open, 'Catalog', ['Overview'], fits);
-    expect(open).toEqual(['Overview', 'Admin', 'Catalog']);
-    // Re-opening Admin makes it the most recent, so the next fold takes Catalog.
-    open = expandSection(open, 'Admin', ['Overview'], fits);
-    open = expandSection(open, 'Support', ['Overview'], fits);
-    expect(open).toEqual(['Overview', 'Admin', 'Support']);
-  });
-
-  it('filters rows across folded sections as you type', () => {
-    const rows = rowsFor(null);
-    expect(filterRows(rows, '').length).toBe(31);
-    expect(filterRows(rows, '  branch ').map((r) => r.label)).toEqual(['Branches', 'Branch Locations', 'Branch Stock']);
-    expect(filterRows(rows, 'PRICE').map((r) => r.label)).toEqual(['Price List', 'Price History']);
-    expect(filterRows(rows, 'zzz')).toEqual([]);
-  });
-
-  it("sums a folded section's counts and keeps its loudest dot", () => {
-    const rows = rowsFor(null).map((r) => ({
-      ...r,
-      badgeCount: ({ Users: 1, 'Database Backup': 1, Settings: 1, Orders: 4, 'Daily Sale Records': 3 } as Record<string, number>)[r.label],
-    }));
-    expect(summarizeSection(rows, 'Admin')).toEqual({ itemCount: 4, badgeTotal: 0, dot: 'danger' });
-    expect(summarizeSection(rows, 'Sales & orders')).toEqual({ itemCount: 3, badgeTotal: 7, dot: null });
-    expect(summarizeSection(rows, 'Catalog')).toEqual({ itemCount: 4, badgeTotal: 0, dot: null });
-  });
-});
-
-describe('collapsible drawer sizing', () => {
+  // Typical Android 3-button nav insets (24 top / 48 bottom), as drawerLayout.test.ts uses.
   it.each([
     ['360x800', 800],
     ['412x915', 915],
-  ])('on %s, opens with Overview + the active section expanded and nothing clipped', (_name, height) => {
-    const available = listHeight(height);
-    for (const active of ['dashboard', 'priceHistory', 'databaseBackup', 'dailySaleRecords', 'financeCashTransfers', 'financeSalaries', 'financeSettings']) {
-      const rows = rowsFor(active);
-      const open = initialExpanded(rows, null);
-      const visible = rows.filter((r) => open.includes(r.section!)).length;
-      const m = computeCollapsibleRowMetrics(available, visible, sectionOrder(rows).length);
-      expect(m.needsScroll).toBe(false);
-      expect(m.rowHeight).toBeGreaterThanOrEqual(40);
-      expect(m.rowHeight).toBeLessThanOrEqual(50);
-      expect(m.headerHeight).toBeGreaterThanOrEqual(28);
-    }
-  });
-
-  it('caps rows at 50dp, floors them at 40dp and scrolls past that', () => {
-    expect(computeCollapsibleRowMetrics(1000, 2, 8).rowHeight).toBe(50);
-    const tight = computeCollapsibleRowMetrics(500, 20, 8);
-    expect(tight.rowHeight).toBe(40);
-    expect(tight.needsScroll).toBe(true);
+  ])('on %s, fits without scrolling, rows at least 40dp like Branch', (_name, height) => {
+    const m = computeDrawerRowMetrics(computeAvailableListHeight(height, 24, 48), SUPER_ADMIN_NAV_ITEMS.length, countSections(sections));
+    expect(m.needsScroll).toBe(false);
+    expect(m.rowHeight).toBeGreaterThanOrEqual(ROW_MIN_HEIGHT);
   });
 });

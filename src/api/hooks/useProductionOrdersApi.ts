@@ -91,6 +91,19 @@ export function useAddProductionOrderItem() {
   });
 }
 
+/** Production / Super Admin adds a packing material to a still-'pending' demand. */
+export function useAddProductionOrderPackingItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, packingMaterialId, qty }: { id: string; packingMaterialId: string; qty: number }) =>
+      productionOrderService.addProductionOrderPackingItem(id, { packingMaterialId, qty }),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['productionOrders'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.productionOrder(id) });
+    },
+  });
+}
+
 /** mountainbakesProduction.html screen 03 — "Previous Order Balance" + "Returned since last order". */
 export function usePreviousOrderBalance(orderId: string | undefined) {
   return useQuery({
