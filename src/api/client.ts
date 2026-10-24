@@ -10,14 +10,24 @@ import type { ApiError } from './types';
 // way — so the access token and the refresh/logout actions are injected here by
 // authStore at startup, exactly like the reference app's `setTokenAccessor`.)
 
+/**
+ * What a token refresh came to. Only `rejected` — the API refused the refresh
+ * token (signed out elsewhere, deactivated, spent twice) — ends the session.
+ * `unavailable` — no signal, a timeout, a 5xx, the phone back from the camera
+ * with its sockets dead — leaves the stored session exactly as it was: the
+ * request fails like any offline one and the next request renews instead.
+ * Treating the second like the first signed people out mid-task.
+ */
+export type RefreshOutcome = 'refreshed' | 'rejected' | 'unavailable';
+
 let getAccessToken: () => string | null = () => null;
-let refreshTokens: () => Promise<boolean> = async () => false;
+let refreshTokens: () => Promise<RefreshOutcome> = async () => 'rejected';
 let onSessionExpired: () => void = () => {};
 
 export function setTokenAccessor(fn: () => string | null): void {
   getAccessToken = fn;
 }
-export function setRefreshHandler(fn: () => Promise<boolean>): void {
+export function setRefreshHandler(fn: () => Promise<RefreshOutcome>): void {
   refreshTokens = fn;
 }
 export function setSessionExpiredHandler(fn: () => void): void {
@@ -67,9 +77,9 @@ axiosInstance.interceptors.response.use(
     const isAuthEndpoint = !!original?.url && AUTH_ENDPOINTS.some((path) => original.url!.includes(path));
     if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
       original._retried = true;
-      const refreshed = await refreshTokens();
-      if (refreshed) return axiosInstance.request(original);
-      onSessionExpired();
+      const outcome = await refreshTokens();
+      if (outcome === 'refreshed') return axiosInstance.request(original);
+      if (outcome === 'rejected') onSessionExpired();
     }
     return Promise.reject(error);
   },
@@ -121,8 +131,9 @@ async function downloadToFile(url: string, path: string, timeout: number): Promi
   try {
     response = await fetchOnce();
     if (response.info().status === 401) {
-      if (await refreshTokens()) response = await fetchOnce();
-      else onSessionExpired();
+      const outcome = await refreshTokens();
+      if (outcome === 'refreshed') response = await fetchOnce();
+      else if (outcome === 'rejected') onSessionExpired();
     }
   } catch (error) {
     logger.error('file download failed', error);

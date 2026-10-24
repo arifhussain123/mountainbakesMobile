@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import { create } from 'zustand';
 import { authService } from '@/api/services';
-import { isApiError, setRefreshHandler, setSessionExpiredHandler, setTokenAccessor } from '@/api/client';
+import { isApiError, setRefreshHandler, setSessionExpiredHandler, setTokenAccessor, type RefreshOutcome } from '@/api/client';
 import { queryClient } from '@/api/queryClient';
 import { logger, withTimeout } from '@/shared/utils';
 import type { SessionUser } from '@/api/types';
@@ -136,7 +136,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // error (ApiError.status === null), since the token may still be good
       // and clearing it would force a needless re-login once back online.
       logger.warn('session restore failed/timed out', { error });
-      if (isApiError(error) && error.status !== null) {
+      if (isRefreshRefusal(error)) {
         await clearRefreshToken();
       }
       set({ status: 'signedOut', bootstrapStep: null, bootstrapMessage: null });
@@ -192,18 +192,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // state/ directly; see the folder-structure skill's import direction).
 setTokenAccessor(() => useAuthStore.getState().accessToken);
 
-setRefreshHandler(async () => {
-  const refreshToken = await readRefreshToken();
-  if (!refreshToken) return false;
-  try {
-    const session = await authService.refresh(refreshToken);
-    await storeRefreshToken(session.refreshToken);
-    useAuthStore.setState({ accessToken: session.accessToken, user: session.user, status: 'signedIn' });
-    return true;
-  } catch (error) {
-    logger.warn('token refresh failed', { error });
-    return false;
-  }
+/**
+ * The API refused the refresh token itself (401/403) — the only answer that
+ * ends a session. A 429 or 5xx is the server's trouble, not the session's.
+ */
+function isRefreshRefusal(error: unknown): boolean {
+  return isApiError(error) && (error.status === 401 || error.status === 403);
+}
+
+/**
+ * One refresh at a time. Several screens' requests 401 together when the
+ * access token runs out; each refresh spends the stored token, so parallel ones
+ * would present a token another had just spent. They share this one instead.
+ */
+let refreshing: Promise<RefreshOutcome> | null = null;
+
+setRefreshHandler(() => {
+  refreshing ??= (async (): Promise<RefreshOutcome> => {
+    try {
+      const refreshToken = await readRefreshToken();
+      if (!refreshToken) return 'rejected';
+      const session = await authService.refresh(refreshToken);
+      await storeRefreshToken(session.refreshToken);
+      useAuthStore.setState({ accessToken: session.accessToken, user: session.user, status: 'signedIn' });
+      return 'refreshed';
+    } catch (error) {
+      logger.warn('token refresh failed', { error });
+      return isRefreshRefusal(error) ? 'rejected' : 'unavailable';
+    }
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
 });
 
 setSessionExpiredHandler(() => {
