@@ -1,4 +1,5 @@
 export { apiClient, isApiError, setTokenAccessor, setRefreshHandler, setSessionExpiredHandler, generateIdempotencyKey } from './client';
+export type { RefreshOutcome } from './client';
 export { clearOfflineQueue, enqueueOfflineWrite, flushOfflineQueue, startOfflineQueueRetryWorker } from './offlineQueue';
 export { QUEUED_RETURN_ENDPOINT, isQueuedBranchReturn, queuedReturnPhotoProgress, unavailableAttachmentIds } from './queuedBranchReturn';
 export type { QueuedReturnLine, QueuedReturnPayload } from './queuedBranchReturn';
