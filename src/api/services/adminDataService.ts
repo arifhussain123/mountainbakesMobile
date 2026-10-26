@@ -291,7 +291,7 @@ const DEFAULT_RESTRICTION_RULES: RestrictionRules = {
   },
   sales: { hourly: { enabled: true, threshold: 2 } },
   production: { stockShortage: { enabled: true, allowAdminOverride: true } },
-  cash: { dailyLimit: { enabled: true, limit: 3, allowExceptions: true } },
+  cash: { dailyLimit: { enabled: true, limit: 3, allowExceptions: true }, backdate: { enabled: true, allowedDays: 1 } },
   ledger: { backdate: { enabled: true, allowedDays: 3 } },
   company: { shareIncome: { enabled: true, allowApproval: true } },
 };

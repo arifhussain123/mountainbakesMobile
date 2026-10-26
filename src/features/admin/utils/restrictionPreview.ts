@@ -18,6 +18,7 @@ export type RestrictionCode =
   | 'LOW_SALES_AFTER_CLOSING'
   | 'HOURLY_SALES_LIMIT'
   | 'CASH_DEPOSIT_LIMIT'
+  | 'CASH_DEPOSIT_BACKDATE'
   | 'LEDGER_BACKDATE'
   | 'COMPANY_SHARE_INCOME'
   | 'PRODUCTION_STOCK_SHORTAGE';
@@ -345,6 +346,33 @@ export function evalCashLimit(
   };
 }
 
+export function evalCashBackdate(cfg: RestrictionRules['cash']['backdate'], input: { businessDate: string; today: string }): Restriction | null {
+  if (!cfg.enabled) return null;
+  const daysBack = daysBetweenDateStr(input.businessDate, input.today);
+  if (daysBack <= cfg.allowedDays) return null;
+  const period =
+    cfg.allowedDays === 0 ? 'today only' : cfg.allowedDays === 1 ? 'today or yesterday only' : `up to ${cfg.allowedDays} days back only`;
+  return {
+    code: 'CASH_DEPOSIT_BACKDATE',
+    severity: 'blocking',
+    title: 'Back-dated Cash Deposit',
+    messages: [
+      `This deposit is dated ${restrictionDmy(input.businessDate)}.`,
+      `A cash deposit can be dated ${period}.`,
+      'For an older deposit, please contact Admin.',
+    ],
+    stats: [
+      { label: 'Deposit date', value: restrictionDmy(input.businessDate) },
+      { label: 'Business date', value: restrictionDmy(input.today) },
+      { label: 'Allowed from', value: restrictionDmy(addDaysToDateStr(input.today, -cfg.allowedDays)) },
+      { label: 'Days back', value: String(daysBack) },
+    ],
+    threshold: cfg.allowedDays,
+    currentValue: daysBack,
+    requiresAdminApproval: false,
+  };
+}
+
 export function evalLedgerBackdate(
   cfg: RestrictionRules['ledger']['backdate'],
   input: { entryDate: string; today: string; request: RequestState | null },
@@ -483,6 +511,11 @@ export const PREVIEW_SCENARIOS: PreviewScenario[] = [
         today: s.businessDate,
         request: null,
       }),
+  },
+  {
+    key: 'cashBack', popup: 'Cash Deposit', label: 'Back-dated deposit', endpoint: '/api/cash-transfers', submit: 'Save',
+    fields: (t) => [['Branch', 'DHA Phase 5'], ['Date', `${t} − 1 day over the limit`]],
+    build: (s) => evalCashBackdate(s.rules.cash.backdate, { businessDate: back(s, s.rules.cash.backdate.allowedDays + 1), today: s.businessDate }),
   },
   ...(['none', 'rejected'] as const).map(
     (st): PreviewScenario => ({

@@ -4605,7 +4605,11 @@ export interface RestrictionRules {
   };
   sales: { hourly: { enabled: boolean; threshold: number } };
   production: { stockShortage: { enabled: boolean; allowAdminOverride: boolean } };
-  cash: { dailyLimit: { enabled: boolean; limit: number; allowExceptions: boolean } };
+  cash: {
+    dailyLimit: { enabled: boolean; limit: number; allowExceptions: boolean };
+    /** Days before the business date a deposit may be dated (0 = today only). Off → the 7-day sync window. */
+    backdate: { enabled: boolean; allowedDays: number };
+  };
   ledger: { backdate: { enabled: boolean; allowedDays: number } };
   company: { shareIncome: { enabled: boolean; allowApproval: boolean } };
 }
