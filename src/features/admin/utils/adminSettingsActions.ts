@@ -125,6 +125,9 @@ export function settingsFormProblem(form: SettingsForm): string | null {
 
 // ─── Restriction Rules → Rules (web RulesTab) ───────────────────────────────
 
+/** The most a cash deposit's back-date period can be raised to (the API's CASH_DEPOSIT_MAX_BACKDATE_DAYS). */
+export const CASH_DEPOSIT_MAX_BACKDATE_DAYS = 30;
+
 /**
  * The API's `RestrictionGroupSchemas` (restriction.schemas.ts), copied
  * exactly — the web lights a group's Save only when its schema passes, so a
@@ -143,7 +146,10 @@ export const RESTRICTION_GROUP_SCHEMAS = {
     }),
   sales: z.object({ hourly: z.object({ enabled: z.boolean(), threshold: z.number().int().min(1).max(1000) }) }),
   production: z.object({ stockShortage: z.object({ enabled: z.boolean(), allowAdminOverride: z.boolean() }) }),
-  cash: z.object({ dailyLimit: z.object({ enabled: z.boolean(), limit: z.number().int().min(1).max(100), allowExceptions: z.boolean() }) }),
+  cash: z.object({
+    dailyLimit: z.object({ enabled: z.boolean(), limit: z.number().int().min(1).max(100), allowExceptions: z.boolean() }),
+    backdate: z.object({ enabled: z.boolean(), allowedDays: z.number().int().min(0).max(CASH_DEPOSIT_MAX_BACKDATE_DAYS) }).optional(),
+  }),
   ledger: z.object({ backdate: z.object({ enabled: z.boolean(), allowedDays: z.number().int().min(0).max(365) }) }),
   company: z.object({ shareIncome: z.object({ enabled: z.boolean(), allowApproval: z.boolean() }) }),
 } as const;
@@ -209,6 +215,12 @@ export function pendingLimitError(dp: RestrictionRules['demand']['pendingLimit']
 export function lowSalesError(cs: RestrictionRules['demand']['lowSales']): string | null {
   const p = ruleN(cs.minSoldPercent);
   return p >= 1 && p <= 100 ? null : 'Enter a percentage between 1 and 100.';
+}
+
+export function cashBackdateError(cb: RestrictionRules['cash']['backdate']): string | null {
+  return Number.isNaN(cb.allowedDays) || cb.allowedDays > CASH_DEPOSIT_MAX_BACKDATE_DAYS
+    ? `Enter a number of days from 0 to ${CASH_DEPOSIT_MAX_BACKDATE_DAYS}.`
+    : null;
 }
 
 // ─── Restriction Rules → Approvals (web ApprovalsTab) ───────────────────────

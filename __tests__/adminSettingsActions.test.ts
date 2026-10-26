@@ -11,6 +11,7 @@ import {
   decisionReasonProblem,
   isGroupDirty,
   isGroupValid,
+  cashBackdateError,
   lowSalesError,
   patchRule,
   pendingLimitError,
@@ -60,7 +61,7 @@ const rules = (): RestrictionRules => ({
   },
   sales: { hourly: { enabled: true, threshold: 2 } },
   production: { stockShortage: { enabled: true, allowAdminOverride: true } },
-  cash: { dailyLimit: { enabled: true, limit: 3, allowExceptions: true } },
+  cash: { dailyLimit: { enabled: true, limit: 3, allowExceptions: true }, backdate: { enabled: true, allowedDays: 1 } },
   ledger: { backdate: { enabled: true, allowedDays: 3 } },
   company: { shareIncome: { enabled: true, allowApproval: true } },
 });
@@ -140,6 +141,12 @@ describe('restriction rules draft', () => {
     expect(isGroupValid(patchRule(r, 'demand', 'lowSales', { minSoldPercent: 0 }), 'demand')).toBe(false);
     expect(isGroupValid(patchRule(r, 'sales', 'hourly', { threshold: 1001 }), 'sales')).toBe(false);
     expect(isGroupValid(patchRule(r, 'cash', 'dailyLimit', { limit: Number.NaN }), 'cash')).toBe(false);
+    expect(isGroupValid(patchRule(r, 'cash', 'backdate', { allowedDays: 0 }), 'cash')).toBe(true);
+    expect(isGroupValid(patchRule(r, 'cash', 'backdate', { allowedDays: 30 }), 'cash')).toBe(true);
+    expect(isGroupValid(patchRule(r, 'cash', 'backdate', { allowedDays: 31 }), 'cash')).toBe(false);
+    expect(isGroupValid(patchRule(r, 'cash', 'backdate', { allowedDays: Number.NaN }), 'cash')).toBe(false);
+    expect(cashBackdateError({ enabled: true, allowedDays: 3 })).toBeNull();
+    expect(cashBackdateError({ enabled: true, allowedDays: 31 })).toBe('Enter a number of days from 0 to 30.');
     expect(isGroupValid(patchRule(r, 'ledger', 'backdate', { allowedDays: 0 }), 'ledger')).toBe(true);
     expect(isGroupValid(patchRule(r, 'ledger', 'backdate', { allowedDays: 366 }), 'ledger')).toBe(false);
   });

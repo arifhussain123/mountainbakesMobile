@@ -9,6 +9,7 @@ import { CodeTag, MONO, Pill, formatDateTime } from '../../components/AdminDetai
 import {
   canSaveGroup,
   isGroupDirty,
+  cashBackdateError,
   lowSalesError,
   patchRule,
   pendingLimitError,
@@ -69,13 +70,16 @@ export function RulesTab({ state }: { state: RestrictionRulesState }) {
   const hs = draft.sales.hourly;
   const ps = draft.production.stockShortage;
   const cd = draft.cash.dailyLimit;
+  const cb = draft.cash.backdate;
   const lg = draft.ledger.backdate;
   const co = draft.company.shareIncome;
   const dpErr = pendingLimitError(dp);
   const csErr = lowSalesError(cs);
+  const cbErr = cashBackdateError(cb);
   const closes = time12(state.closingTime);
   const today = restrictionDmy(state.businessDate);
   const lgFrom = restrictionDmy(addDaysToDateStr(state.businessDate, -n(lg.allowedDays)));
+  const cbFrom = restrictionDmy(addDaysToDateStr(state.businessDate, -n(cb.allowedDays)));
 
   return (
     <View style={{ gap: 14 }}>
@@ -175,6 +179,31 @@ export function RulesTab({ state }: { state: RestrictionRulesState }) {
           summary={cd.enabled ? `${n(cd.limit)} deposits per business day${cd.allowExceptions ? ' · Admin exceptions allowed' : ' · no exceptions'}` : OFF}>
           <NumberField label="Maximum per business day" unit="transactions" value={cd.limit} onChange={(v) => patch('cash', 'dailyLimit', { limit: v })} />
           <Option label="Allow one-time Admin exceptions" value={cd.allowExceptions} onChange={(v) => patch('cash', 'dailyLimit', { allowExceptions: v })} />
+        </Rule>
+        <Rule
+          name="Back-date entries"
+          code="CASH_DEPOSIT_BACKDATE"
+          description="How many days before the business date a deposit may be dated. 0 allows today only. Older deposits are refused."
+          enabled={cb.enabled}
+          onEnabled={(v) => patch('cash', 'backdate', { enabled: v })}
+          error={cbErr}
+          summary={
+            cb.enabled
+              ? n(cb.allowedDays) === 0
+                ? 'Today only'
+                : `Up to ${n(cb.allowedDays)} ${n(cb.allowedDays) === 1 ? 'day' : 'days'} back`
+              : 'Disabled — the 7-day sync window applies'
+          }>
+          <NumberField label="Back-date entries" unit="days" value={cb.allowedDays} onChange={(v) => patch('cash', 'backdate', { allowedDays: v })} />
+          <View style={[styles.infoBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border }]}>
+            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>With business date {today}</Text>
+            <Text style={[theme.typography.label, { color: theme.colors.text }]}>
+              <Text style={{ fontWeight: '700' }}>Allowed: </Text>
+              <Text style={MONO}>
+                {cbFrom} → {today}
+              </Text>
+            </Text>
+          </View>
         </Rule>
       </Group>
 

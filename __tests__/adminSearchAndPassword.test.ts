@@ -106,7 +106,7 @@ const state = (over: Partial<RestrictionRulesState['rules']> = {}): RestrictionR
     },
     sales: { hourly: { enabled: true, threshold: 3 } },
     production: { stockShortage: { enabled: true, allowAdminOverride: true } },
-    cash: { dailyLimit: { enabled: true, limit: 2, allowExceptions: true } },
+    cash: { dailyLimit: { enabled: true, limit: 2, allowExceptions: true }, backdate: { enabled: true, allowedDays: 1 } },
     ledger: { backdate: { enabled: true, allowedDays: 3 } },
     company: { shareIncome: { enabled: true, allowApproval: true } },
     ...over,
@@ -119,9 +119,9 @@ const state = (over: Partial<RestrictionRulesState['rules']> = {}): RestrictionR
 });
 
 describe('Popup Preview', () => {
-  it('offers the web’s 16 scenarios, each key once', () => {
-    expect(PREVIEW_SCENARIOS).toHaveLength(16);
-    expect(new Set(PREVIEW_SCENARIOS.map((s) => s.key)).size).toBe(16);
+  it('offers the web’s 17 scenarios, each key once', () => {
+    expect(PREVIEW_SCENARIOS).toHaveLength(17);
+    expect(new Set(PREVIEW_SCENARIOS.map((s) => s.key)).size).toBe(17);
   });
 
   it('blocks a fourth demand with the real numbers, and the server refuses it with a 409', () => {
@@ -179,6 +179,17 @@ describe('Popup Preview', () => {
     expect(r?.messages[0]).toBe('Your 2 allowed cash-deposit transactions for today have already been forwarded.');
     expect(r?.list).toEqual(['CT-000171', 'CT-000172']);
     expect(r?.canRequestApproval).toBe(true);
+  });
+
+  it('refuses a deposit dated past the back-date period', () => {
+    const r = buildPreview('cashBack', state()).restriction;
+    expect(r?.code).toBe('CASH_DEPOSIT_BACKDATE');
+    expect(r?.severity).toBe('blocking');
+    expect(r?.messages[1]).toBe('A cash deposit can be dated today or yesterday only.');
+    expect(r?.stats?.find((s) => s.label === 'Allowed from')?.value).toBe('19-10-2026');
+    const raised = buildPreview('cashBack', state({ cash: { ...state().rules.cash, backdate: { enabled: true, allowedDays: 5 } } })).restriction;
+    expect(raised?.messages[1]).toBe('A cash deposit can be dated up to 5 days back only.');
+    expect(buildPreview('cashBack', state({ cash: { ...state().rules.cash, backdate: { enabled: false, allowedDays: 1 } } })).restriction).toBeNull();
   });
 
   it('holds a ledger entry past the back-entry window for Admin', () => {
