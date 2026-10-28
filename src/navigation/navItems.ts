@@ -492,6 +492,9 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+/** An Accountant has no Daily Ledger, by the owner's order, 2026-10-28 (the web's ACCOUNTANT_NAV). */
+export const ACCOUNTANT_NAV_ITEMS: NavItem[] = FINANCE_NAV_ITEMS.filter((item) => item.key !== 'dailyLedger');
+
 const superAdminItem = (
   key: string,
   label: string,

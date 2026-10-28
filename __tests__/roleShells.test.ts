@@ -67,7 +67,7 @@ describe('role separation', () => {
 
   it('every finance role gets the same Finance menu, which only ever offers Finance screens (or Coming Soon for Approvals)', () => {
     const finance = ROLE_SHELLS.finance_admin!;
-    for (const role of ['finance_manager', 'accountant', 'finance_auditor'] as const) expect(ROLE_SHELLS[role]).toBe(finance);
+    for (const role of ['finance_manager', 'finance_auditor'] as const) expect(ROLE_SHELLS[role]).toBe(finance);
     for (const item of finance.navItems) {
       for (const route of targetsOf(item)) expect(FINANCE_ROUTES.has(route) || route === Routes.COMING_SOON).toBe(true);
     }
@@ -82,6 +82,15 @@ describe('role separation', () => {
     expect(finance.tabItems.at(-1)!.route).toBeNull();
     // Cash Transfers moved behind More; its drawer row keeps the pending count.
     expect(finance.navItems.find((i) => i.key === 'cashTransfers')!.badgeSource).toBe('cashTransfers');
+  });
+
+  it('an Accountant gets the Finance shell without the Daily Ledger, in the drawer or on the tab bar', () => {
+    const finance = ROLE_SHELLS.finance_admin!;
+    const accountant = ROLE_SHELLS.accountant!;
+    expect(accountant.route).toBe(finance.route);
+    expect(accountant.navItems.map((i) => i.key)).toEqual(finance.navItems.map((i) => i.key).filter((k) => k !== 'dailyLedger'));
+    expect(accountant.tabItems.map((t) => t.label)).toEqual(['Dashboard', 'Income', 'Payroll', 'More']);
+    expect(accountant.navItems.flatMap(targetsOf)).not.toContain(Routes.FINANCE_LEDGER_TAB);
   });
 
   it('the two shells share no route at all', () => {

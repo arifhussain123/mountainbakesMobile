@@ -2,9 +2,9 @@ import type { SessionUser, UserRole } from '@/api/types';
 import { branchScopeLabel } from '@/shared/utils';
 import { useAuthStore } from '@/state';
 import { computeBranchBadges, computeFinanceBadges, computeNoBadges, computeProductionBadges, computeSuperAdminBadges, type NavBadges } from './navBadgeCounts';
-import { BRANCH_NAV_ITEMS, FINANCE_NAV_ITEMS, PRODUCTION_NAV_ITEMS, SUPER_ADMIN_NAV_ITEMS, type NavItem } from './navItems';
+import { ACCOUNTANT_NAV_ITEMS, BRANCH_NAV_ITEMS, FINANCE_NAV_ITEMS, PRODUCTION_NAV_ITEMS, SUPER_ADMIN_NAV_ITEMS, type NavItem } from './navItems';
 import { Routes } from './routes';
-import { BRANCH_TAB_ITEMS, FINANCE_TAB_ITEMS, PRODUCTION_TAB_ITEMS, SUPER_ADMIN_TAB_ITEMS, type TabItem } from './tabItems';
+import { ACCOUNTANT_TAB_ITEMS, BRANCH_TAB_ITEMS, FINANCE_TAB_ITEMS, PRODUCTION_TAB_ITEMS, SUPER_ADMIN_TAB_ITEMS, type TabItem } from './tabItems';
 
 /** The root-stack screen holding a role's whole app (its drawer, tabs and stacks). */
 export type ShellRoute =
@@ -36,6 +36,8 @@ const FINANCE_SHELL: RoleShell = {
   computeBadges: computeFinanceBadges,
   contextLine: (user) => `Finance · ${branchScopeLabel(user)}`,
 };
+// The same shell minus the Daily Ledger, which an Accountant does not get.
+const ACCOUNTANT_SHELL: RoleShell = { ...FINANCE_SHELL, navItems: ACCOUNTANT_NAV_ITEMS, tabItems: ACCOUNTANT_TAB_ITEMS };
 const UNSUPPORTED_SHELL: RoleShell = { route: Routes.UNSUPPORTED_ROLE, ...NO_MENU };
 
 /**
@@ -67,7 +69,7 @@ export const ROLE_SHELLS: Partial<Record<UserRole, RoleShell>> = {
   },
   finance_admin: FINANCE_SHELL,
   finance_manager: FINANCE_SHELL,
-  accountant: FINANCE_SHELL,
+  accountant: ACCOUNTANT_SHELL,
   finance_auditor: FINANCE_SHELL,
   super_admin: {
     route: Routes.SUPER_ADMIN_DRAWER,

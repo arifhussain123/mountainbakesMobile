@@ -359,7 +359,7 @@ export function FinanceCashTransferDetailScreen() {
         {/* ── 5. Links ── */}
         <Section title="Related">
           <LinkRow label="Daily Closing (Daily Sale Record)" onPress={() => navigateToRecord(Routes.FINANCE_CLOSING_STACK, {})} />
-          {t.voucherNo ? <LinkRow label={`Daily Ledger · ${t.voucherNo}`} onPress={() => navigateToRecord(isSuperAdmin ? Routes.SUPER_ADMIN_LEDGER_STACK : Routes.FINANCE_LEDGER_TAB, {})} /> : null}
+          {t.voucherNo && role !== 'accountant' ? <LinkRow label={`Daily Ledger · ${t.voucherNo}`} onPress={() => navigateToRecord(isSuperAdmin ? Routes.SUPER_ADMIN_LEDGER_STACK : Routes.FINANCE_LEDGER_TAB, {})} /> : null}
           <LinkRow label="Audit Trail" onPress={() => navigateToRecord(Routes.FINANCE_AUDIT_TRAIL_STACK, {})} />
           {isSuperAdmin ? null : <LinkRow label="Report an issue" onPress={() => openNewQuery(t.transferNo)} />}
         </Section>
