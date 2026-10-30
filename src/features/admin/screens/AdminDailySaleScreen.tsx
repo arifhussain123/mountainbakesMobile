@@ -97,7 +97,7 @@ const SORT_FIELDS: SortField<DailySaleRecord>[] = [
  *
  * Actions (the web's): Manual Entry Locks for the picked branch, Generate
  * Today while today has no record, Manual Feed for today, and Generate on a
- * day with sales but no stored record. Verify / Lock / Unlock / Amend live on
+ * day with sales but no stored record. Lock / Unlock / Amend live on
  * the record's View screen. Print stays on the web.
  */
 export function AdminDailySaleScreen() {

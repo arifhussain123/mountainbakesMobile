@@ -17,7 +17,6 @@ export interface DailySaleRowActions {
   /** A day with sales but no stored record has exactly one action. */
   generate: boolean;
   feed: boolean;
-  verify: boolean;
   /** Only where there is a counted figure to correct — amending nothing is a first entry, i.e. Manual Feed. */
   amend: boolean;
   lock: boolean;
@@ -25,12 +24,11 @@ export interface DailySaleRowActions {
 }
 
 export function dailySaleRowActions(r: Pick<DailySaleRecord, 'id' | 'status' | 'fedAt'>): DailySaleRowActions {
-  if (!r.id) return { generate: true, feed: false, verify: false, amend: false, lock: false, unlock: false };
+  if (!r.id) return { generate: true, feed: false, amend: false, lock: false, unlock: false };
   const open = isDailySaleRecordOpen(r.status);
   return {
     generate: false,
     feed: open,
-    verify: open,
     amend: !open && r.fedAt !== null,
     lock: r.status === 'verified' || r.status === 'amended',
     unlock: !open,

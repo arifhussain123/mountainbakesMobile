@@ -184,7 +184,6 @@ export {
   useLockDailySaleRecord,
   useSetPaymentMethodLock,
   useUnlockDailySaleRecord,
-  useVerifyDailySaleRecord,
 } from './useDailySaleApi';
 export { useApproveSpecialOrder, usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {

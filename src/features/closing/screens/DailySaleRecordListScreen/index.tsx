@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getBusinessDate, getBusinessMonthStart, useDailySaleRecords, useGenerateDailySaleRecord, useVerifyDailySaleRecord } from '@/api';
+import { getBusinessDate, getBusinessMonthStart, useDailySaleRecords, useGenerateDailySaleRecord } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
@@ -115,7 +115,6 @@ export function DailySaleRecordListScreen() {
     { enabled: !dsrWindow.allBeforeStart },
   );
   const generate = useGenerateDailySaleRecord();
-  const verify = useVerifyDailySaleRecord();
 
   const rawRecords = useMemo(() => data?.records ?? [], [data]);
 
@@ -189,10 +188,6 @@ export function DailySaleRecordListScreen() {
       onError: (e) => Alert.alert('Could Not Generate', mapErrorToMessage(e)),
       onSettled: () => setGeneratingDate(null),
     });
-  };
-
-  const handleVerify = (id: string) => {
-    verify.mutate(id, { onError: (e) => Alert.alert('Could Not Verify', mapErrorToMessage(e)) });
   };
 
   const openManualFeed = (businessDate: string) => {
@@ -392,8 +387,6 @@ export function DailySaleRecordListScreen() {
             onGenerate={() => handleGenerate(item.businessDate)}
             onOpenManualFeed={() => openManualFeed(item.businessDate)}
             onOpenDetail={() => navigation.navigate(Routes.DAILY_SALE_DETAIL, { businessDate: item.businessDate })}
-            onVerify={() => item.id && handleVerify(item.id)}
-            isVerifying={verify.isPending}
           />
         )}
         ListFooterComponent={
