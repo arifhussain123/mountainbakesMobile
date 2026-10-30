@@ -72,7 +72,7 @@ describe('the drawer, per server role', () => {
     expect(texts).toContain('7');
   });
 
-  it('a Finance Admin sees the 16 Finance items across all branches — no Branch or Production screens', () => {
+  it('a Finance Admin sees the 17 Finance items across all branches — no Branch or Production screens', () => {
     const texts = renderDrawerFor(user('finance_admin', null));
     expect(texts).toEqual(expect.arrayContaining(['Finance Admin', 'Finance · All branches', 'OVERVIEW', 'BOOKS', 'PEOPLE', 'PARTNERS', 'SETUP & REVIEW']));
     const menu = [
@@ -82,6 +82,7 @@ describe('the drawer, per server role', () => {
       'Cash Transfers',
       'Supplier Payments',
       'Income & Expense',
+      'AI Expense Capture',
       'Daily Closing',
       'Payroll',
       'Salary Ledger',

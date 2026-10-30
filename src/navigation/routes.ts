@@ -178,6 +178,8 @@ export const Routes = {
   FINANCE_SETTINGS_STACK: 'FinanceSettingsStack',
   // Supplier payments and credit raised from WhatsApp Purchasing.
   FINANCE_SUPPLIER_PAYMENTS_STACK: 'FinanceSupplierPaymentsStack',
+  // Receipts read by the AI into Income & Expense entries.
+  FINANCE_AI_CAPTURE_STACK: 'FinanceAiCaptureStack',
 
   // Super Admin catalog — Price History (read-only), mounted by the Super Admin shell.
   PRICE_HISTORY_STACK: 'PriceHistoryStack',

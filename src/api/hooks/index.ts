@@ -98,6 +98,7 @@ export {
   useApproveFinanceCashTransfer,
   useApproveFinanceTransaction,
   useCloseFinanceDay,
+  useAnalyzeReceipts,
   useCreateFinanceTransaction,
   useCreateLedgerHead,
   useDayClosing,

@@ -1,3 +1,4 @@
+export { FinanceAiExpenseCaptureScreen } from './screens/FinanceAiExpenseCaptureScreen';
 export { FinanceAuditTrailScreen } from './screens/FinanceAuditTrailScreen';
 export { FinanceCashTransferDetailScreen } from './screens/FinanceCashTransferDetailScreen';
 export { FinanceCashTransfersListScreen } from './screens/FinanceCashTransfersListScreen';

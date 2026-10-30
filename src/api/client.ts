@@ -98,6 +98,8 @@ export interface MutationOptions {
   signal?: AbortSignal;
   /** Upload progress as a 0–1 fraction, when the platform reports one. Honoured by `post` only. */
   onUploadProgress?: (fraction: number) => void;
+  /** Lifts the 20 s default (ms) for a request the server legitimately takes longer over — the AI reading receipts. Honoured by `post` only. */
+  timeout?: number;
 }
 
 function mutationHeaders(options?: MutationOptions): Record<string, string> {
@@ -180,6 +182,7 @@ export const apiClient = {
       const response = await axiosInstance.post<T>(url, body, {
         headers: mutationHeaders(options),
         signal: options?.signal,
+        ...(options?.timeout ? { timeout: options.timeout } : {}),
         onUploadProgress: onUploadProgress
           ? (event) => {
               if (event.total) onUploadProgress(Math.min(1, event.loaded / event.total));

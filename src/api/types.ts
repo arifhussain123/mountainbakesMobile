@@ -2987,9 +2987,81 @@ export interface CreateFinanceTransactionInput {
   asDraft?: boolean;
   confirmDuplicate?: boolean;
   attachmentIds: string[];
+  /** The AI Expense Capture run the entry was generated from; omitted for an entry keyed by hand. */
+  aiCaptureId?: string | null;
 }
 
-export type UpdateFinanceTransactionInput = Partial<Omit<CreateFinanceTransactionInput, 'asDraft' | 'confirmDuplicate' | 'attachmentIds'>>;
+export type UpdateFinanceTransactionInput = Partial<Omit<CreateFinanceTransactionInput, 'asDraft' | 'confirmDuplicate' | 'attachmentIds' | 'aiCaptureId'>>;
+
+// ─── AI Expense Capture — mirrors backend shared/types/ai-expense-capture.types.ts ──
+
+/** At most this many photos are read in one run. */
+export const AI_CAPTURE_MAX_PHOTOS = 10;
+
+export type AiExpenseIssue = 'missing_date' | 'missing_amount' | 'total_mismatch' | 'future_date' | 'unreadable' | 'low_confidence';
+
+export const AI_EXPENSE_ISSUE_LABELS: Record<AiExpenseIssue, string> = {
+  missing_date: 'No date could be read — enter it',
+  missing_amount: 'No total could be read — enter it',
+  total_mismatch: 'The items do not add up to the bill total',
+  future_date: 'The date read is in the future',
+  unreadable: 'Part of the receipt could not be read',
+  low_confidence: 'The AI is unsure of what it read',
+};
+
+export type AiConfidence = 'high' | 'medium' | 'low';
+
+export interface AiExpenseLineItem {
+  description: string;
+  descriptionEnglish: string | null;
+  quantity: number | null;
+  amount: number | null;
+}
+
+export interface AiExpenseDuplicate {
+  kind: 'reference' | 'amount_date' | 'same_photo' | 'same_batch';
+  message: string;
+  entryId?: string | null;
+  txnNo?: string | null;
+  otherKey?: string | null;
+}
+
+export interface AiExpenseProposal {
+  key: string;
+  photoIds: string[];
+  merchant: string | null;
+  invoiceNo: string | null;
+  businessDate: string | null;
+  currency: string | null;
+  subtotal: number | null;
+  tax: number | null;
+  discount: number | null;
+  total: number | null;
+  description: string;
+  descriptionOriginal: string | null;
+  language: string | null;
+  lineItems: AiExpenseLineItem[];
+  suggestedLedgerHeadId: string | null;
+  confidence: AiConfidence;
+  issues: AiExpenseIssue[];
+  needsReview: boolean;
+  notes: string | null;
+  duplicates: AiExpenseDuplicate[];
+}
+
+export interface AiCapturePhoto {
+  id: string;
+  readable: boolean;
+  note: string | null;
+}
+
+/** `POST /api/finance/ai-capture/analyze` → this. */
+export interface AiCaptureResult {
+  captureId: string;
+  model: string;
+  photos: AiCapturePhoto[];
+  expenses: AiExpenseProposal[];
+}
 
 export interface UpdateFinanceSettingsInput {
   companySharePct?: number;

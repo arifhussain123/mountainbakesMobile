@@ -7,6 +7,7 @@ export { queryClient, LIVE_STALE_TIME_MS, SUMMARY_STALE_TIME_MS, startQueryFocus
 export { queryKeys } from './queryKeys';
 export { getBusinessDate, getBusinessDayBounds, getBusinessMonthStart } from './businessDate';
 export { uploadAttachment, discardAttachment } from './services/attachmentService';
+export { copyReceiptPhoto } from './services/financeService';
 export type { CapturedPhoto, UploadAttachmentOptions } from './services/attachmentService';
 export { downloadServerFile } from './services/fileDownloadService';
 export { lookupSupportReference } from './services/supportService';

@@ -116,17 +116,17 @@ describe('PRODUCTION_NAV_ITEMS', () => {
 });
 
 describe('FINANCE_NAV_ITEMS', () => {
-  it('is the 16 Finance items under Overview / Books / People / Partners / Setup & review', () => {
+  it('is the 17 Finance items under Overview / Books / People / Partners / Setup & review', () => {
     const bySection: Record<string, string[]> = {};
     for (const item of FINANCE_NAV_ITEMS) (bySection[GROUP_LABEL[item.group]] ??= []).push(item.label);
     expect(bySection).toEqual({
       Overview: ['Dashboard', 'Approvals'],
-      Books: ['Daily Ledger', 'Cash Transfers', 'Supplier Payments', 'Income & Expense', 'Daily Closing'],
+      Books: ['Daily Ledger', 'Cash Transfers', 'Supplier Payments', 'Income & Expense', 'AI Expense Capture', 'Daily Closing'],
       People: ['Payroll', 'Salary Ledger'],
       Partners: ['Partner Transactions', 'Company Transactions'],
       'Setup & review': ['Ledger Heads', 'Reports', 'Audit Trail', 'Help Desk', 'Settings'],
     });
-    expect(FINANCE_NAV_ITEMS).toHaveLength(16);
+    expect(FINANCE_NAV_ITEMS).toHaveLength(17);
   });
 
   it('maps each badge, with Daily Closing and Settings as dots rather than counts', () => {
