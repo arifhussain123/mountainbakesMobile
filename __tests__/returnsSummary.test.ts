@@ -7,6 +7,7 @@ import {
   branchReturnAmount,
   buildBranchReturnBoxes,
   buildReturnsSummaryTiles,
+  formatAwaitingLine,
   formatBoxAmount,
   scopedReturnsTotals,
   describeBucket,
@@ -193,6 +194,16 @@ describe('Monthly Return Amount by Branch', () => {
       ['b', 'Gulshan Branch', 'Rs. 0.00'],
       ['a', 'DHA Branch', 'Rs. 12,500.00'],
     ]);
+  });
+
+  it('each box carries its amount awaiting review and claim count', () => {
+    const boxes = buildBranchReturnBoxes(s, branches);
+    expect(boxes.map((b) => formatAwaitingLine(b, 'Awaiting Review'))).toEqual([
+      'Nothing awaiting review',
+      'Nothing awaiting review',
+      'Rs. 400.10 awaiting review · 1 claim',
+    ]);
+    expect(formatAwaitingLine({ awaitingAmount: 1250, awaitingCount: 3 }, 'Pending')).toBe('Rs. 1,250.00 pending · 3 claims');
   });
 
   it('formats box amounts with the paisa', () => {

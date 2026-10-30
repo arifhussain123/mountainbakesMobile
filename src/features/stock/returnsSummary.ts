@@ -154,6 +154,22 @@ export interface BranchReturnBox {
   amount: number;
   /** `formatBoxAmount(amount)` */
   total: string;
+  /** This branch's returns still awaiting review — part of `amount`, not final. */
+  awaitingAmount: number;
+  /** How many claims (return rows) that is. */
+  awaitingCount: number;
+}
+
+/**
+ * The line under a box's amount, as the web words it: "Rs. 400.50 awaiting
+ * review · 1 claim", or "Nothing awaiting review". `label` is the screen's own
+ * name for the pending status.
+ */
+export function formatAwaitingLine(box: Pick<BranchReturnBox, 'awaitingAmount' | 'awaitingCount'>, label: string): string {
+  const name = label.toLowerCase();
+  if (box.awaitingCount === 0) return `Nothing ${name}`;
+  const claims = `${box.awaitingCount.toLocaleString('en-US')} ${box.awaitingCount === 1 ? 'claim' : 'claims'}`;
+  return `${formatBoxAmount(box.awaitingAmount)} ${name} · ${claims}`;
 }
 
 /**
@@ -170,6 +186,13 @@ export function buildBranchReturnBoxes(summary: MonthlyReturnsSummary, branches:
     .map((b) => {
       const entry = byId.get(b.id);
       const amount = entry ? branchReturnAmount(entry) : 0;
-      return { branchId: b.id, name: b.name.replace('Mountain Bakes ', ''), amount, total: formatBoxAmount(amount) };
+      return {
+        branchId: b.id,
+        name: b.name.replace('Mountain Bakes ', ''),
+        amount,
+        total: formatBoxAmount(amount),
+        awaitingAmount: entry?.pending.amount ?? 0,
+        awaitingCount: entry?.pending.count ?? 0,
+      };
     });
 }

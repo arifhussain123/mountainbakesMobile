@@ -7,6 +7,7 @@ import { formatMonthToDateLine } from '@/shared/utils';
 import {
   buildBranchReturnBoxes,
   buildReturnsSummaryTiles,
+  formatAwaitingLine,
   formatReturnsWindow,
   scopedReturnsTotals,
   unpricedNote,
@@ -36,7 +37,8 @@ export interface MonthlyReturnsSummaryCardProps {
  * Return Stock and Production → Product Returns pages show, laid out for a
  * phone: a horizontally scrolling tile strip, then (Production) one box per
  * active branch with its monthly return amount — approved, awaiting review and
- * sent back; rejected excluded. The branch view is the tiles alone: the web
+ * sent back; rejected excluded — and, under it, how much of that still awaits
+ * review and in how many claims. The branch view is the tiles alone: the web
  * dropped its item-wise list there, and this follows it.
  */
 export function MonthlyReturnsSummaryCard({
@@ -125,12 +127,13 @@ export function MonthlyReturnsSummaryCard({
             <View style={[styles.grid, { marginTop: theme.spacing.sm }]}>
               {boxes.map((b) => {
                 const selected = b.branchId === selectedBranchId;
+                const awaiting = formatAwaitingLine(b, statusLabels.pending);
                 return (
                   <View key={b.branchId} style={[styles.cell, { width: `${100 / columns}%` }]}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
-                      accessibilityLabel={`${b.name}: monthly return amount ${b.total}`}
+                      accessibilityLabel={`${b.name}: monthly return amount ${b.total}, ${awaiting}`}
                       disabled={!onSelectBranch}
                       onPress={() => onSelectBranch?.(selected ? null : b.branchId)}
                       style={[
@@ -152,6 +155,15 @@ export function MonthlyReturnsSummaryCard({
                           adjustsFontSizeToFit
                           minimumFontScale={0.7}>
                           {b.total}
+                        </Text>
+                        <Text
+                          style={[
+                            theme.typography.label,
+                            styles.mt2,
+                            b.awaitingCount > 0 ? [styles.bold, { color: theme.colors.warning }] : { color: theme.colors.textFaint },
+                          ]}
+                          numberOfLines={2}>
+                          {awaiting}
                         </Text>
                       </View>
                     </Pressable>
