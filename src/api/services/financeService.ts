@@ -1,6 +1,8 @@
 import { apiClient } from '../client';
 import type {
   AdjustLedgerEntryInput,
+  AiCaptureResult,
+  Attachment,
   ApproveCashTransferInput,
   CashTransfer,
   CashTransferListResponse,
@@ -191,6 +193,19 @@ export async function listFinanceTransactions(query: FinanceTransactionQuery): P
 export async function createFinanceTransaction(input: CreateFinanceTransactionInput, idempotencyKey?: string): Promise<FinanceTransaction> {
   const { entry } = await apiClient.post<{ entry: FinanceTransaction }>('/finance/income/entries', input, { idempotencyKey });
   return entry;
+}
+
+// ─── AI Expense Capture — `/finance/ai-capture` ──
+
+/** Read staged receipt photos with the AI. Writes nothing; each proposal is saved with `createFinanceTransaction`. Up to two minutes for ten photos. */
+export async function analyzeReceipts(attachmentIds: string[]): Promise<AiCaptureResult> {
+  return apiClient.post<AiCaptureResult>('/finance/ai-capture/analyze', { attachmentIds }, { timeout: 120_000 });
+}
+
+/** A staged copy of one of the caller's receipt photos, for a bill split into several entries. */
+export async function copyReceiptPhoto(id: string): Promise<Attachment> {
+  const { attachment } = await apiClient.post<{ attachment: Attachment }>(`/finance/ai-capture/photos/${id}/copy`, undefined, { timeout: 60_000 });
+  return attachment;
 }
 
 /** Only editable while `draft`/`rejected` — `EDITABLE_DOC_STATUSES`. */

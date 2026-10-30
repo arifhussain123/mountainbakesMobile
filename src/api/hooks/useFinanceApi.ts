@@ -161,6 +161,11 @@ export function useCreateFinanceTransaction() {
   });
 }
 
+/** AI Expense Capture: read staged receipt photos. Writes nothing, so nothing to invalidate. */
+export function useAnalyzeReceipts() {
+  return useMutation({ mutationFn: (attachmentIds: string[]) => financeService.analyzeReceipts(attachmentIds) });
+}
+
 export function useUpdateFinanceTransaction() {
   const queryClient = useQueryClient();
   return useMutation({

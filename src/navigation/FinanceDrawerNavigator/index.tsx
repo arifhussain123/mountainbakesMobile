@@ -1,5 +1,6 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import {
+  FinanceAiExpenseCaptureScreen,
   FinanceAuditTrailScreen,
   FinanceClosingScreen,
   FinanceCompanyTransactionDetailsScreen,
@@ -46,6 +47,7 @@ export function FinanceDrawerNavigator() {
       <Drawer.Screen name={Routes.FINANCE_HELP_DESK_STACK} component={FinanceHelpDeskStackNavigator} />
       <Drawer.Screen name={Routes.FINANCE_SETTINGS_STACK} component={FinanceSettingsScreen} />
       <Drawer.Screen name={Routes.FINANCE_SUPPLIER_PAYMENTS_STACK} component={FinanceSupplierPaymentsScreen} />
+      <Drawer.Screen name={Routes.FINANCE_AI_CAPTURE_STACK} component={FinanceAiExpenseCaptureScreen} />
       <Drawer.Screen name={Routes.PROFILE} component={ProfileScreen} />
     </Drawer.Navigator>
   );

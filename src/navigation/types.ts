@@ -212,6 +212,7 @@ export type FinanceDrawerParamList = {
   [Routes.FINANCE_HELP_DESK_STACK]: NavigatorScreenParams<FinanceHelpDeskStackParamList> | undefined;
   [Routes.FINANCE_SETTINGS_STACK]: undefined;
   [Routes.FINANCE_SUPPLIER_PAYMENTS_STACK]: undefined;
+  [Routes.FINANCE_AI_CAPTURE_STACK]: undefined;
   [Routes.PROFILE]: undefined;
 };
 

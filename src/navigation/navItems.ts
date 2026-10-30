@@ -399,6 +399,16 @@ export const FINANCE_NAV_ITEMS: NavItem[] = [
     activeMatch: { root: Routes.FINANCE_INCOME_EXPENSE_TAB },
   },
   {
+    // Receipts read by the AI into Income & Expense entries — beside it, as its quick way in.
+    key: 'aiExpenseCapture',
+    label: 'AI Expense Capture',
+    icon: 'sparkle',
+    group: 'books',
+    badgeSource: null,
+    navigate: goToStack(Routes.FINANCE_AI_CAPTURE_STACK),
+    activeMatch: { root: Routes.FINANCE_AI_CAPTURE_STACK },
+  },
+  {
     key: 'dailyClosing',
     label: 'Daily Closing',
     icon: 'calendar-check',
