@@ -36,6 +36,10 @@ export const queryKeys = {
   // (useDiscountsApi, useDiscountActions). Keyed by business date so a new
   // month is a new key.
   branchDiscountSummary: (businessDate: string) => ['branchDiscountSummary', businessDate] as const,
+  // Product breakdown of one branch-day. Its own root (not under ['branchDiscounts']
+  // — see branchDiscountSummary above for why).
+  discountDayCheck: (side: 'production' | 'branch', branchId: string | null, date: string) =>
+    ['discountDayCheck', side, branchId, date] as const,
   branchDiscountsList: (params: { from: string; to: string; status?: string; search?: string; sortBy?: string; sortDir?: string }) =>
     ['branchDiscountsList', params] as const,
   cashTransfers: (params?: unknown) => ['cashTransfers', params ?? {}] as const,

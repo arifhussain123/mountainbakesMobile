@@ -1,6 +1,6 @@
 import { apiClient } from '../client';
 import { getBusinessDate } from '../businessDate';
-import type { BranchDiscount, BranchDiscountListResponse, CreateBranchDiscountInput, MonthlyDiscountSummary, ReviseBranchDiscountInput } from '../types';
+import type { BranchDiscount, BranchDiscountListResponse, CreateBranchDiscountInput, DiscountDayCheck, MonthlyDiscountSummary, ReviseBranchDiscountInput } from '../types';
 
 export interface ListBranchDiscountsParams {
   status?: string;
@@ -56,4 +56,13 @@ export async function withdrawBranchDiscount(id: string): Promise<{ success: boo
 /** `GET /branch-discounts/summary` — this branch's claims this business month; the server takes the branch from the token. */
 export async function getBranchDiscountSummary(): Promise<MonthlyDiscountSummary> {
   return apiClient.get<MonthlyDiscountSummary>('/branch-discounts/summary');
+}
+
+/**
+ * `GET /branch-discounts/day-check?date=` — the branch's own till discounts that
+ * business day, per product, against its claims for the day. The server pins a
+ * branch role to its token's branch; `branchId` only matters for super_admin.
+ */
+export async function getBranchDiscountDayCheck(date: string, branchId?: string | null): Promise<DiscountDayCheck> {
+  return apiClient.get<DiscountDayCheck>('/branch-discounts/day-check', branchId ? { date, branchId } : { date });
 }

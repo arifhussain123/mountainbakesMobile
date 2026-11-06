@@ -1251,6 +1251,15 @@ export interface BranchDiscount {
   reviewedAt: string | null;
   /** Why Production refused it or sent it back. Null until reviewed. */
   reviewNote: string | null;
+  /**
+   * The branch's own figure, set when Production corrected `amount` from its
+   * Discount Detail (PUT /production-discounts/:id/amount); null while the
+   * amount is still the branch's. Optional: absent from an older API.
+   */
+  originalAmount?: number | null;
+  /** Who at Production last changed the amount, and when. */
+  amountChangedByName?: string | null;
+  amountChangedAt?: string | null;
 }
 
 export interface BranchDiscountListResponse {
@@ -3965,6 +3974,38 @@ export interface MonthlyDiscountSummary {
   /** Every active branch in scope, alphabetical, Rs. 0 where nothing was claimed. */
   branches: BranchDiscountTotals[];
   totals: DiscountSummaryTotals;
+}
+
+// ─── Discount day check ("Product breakdown") ───────────────────────────────
+// GET /api/production-discounts/day-check?branchId=&date= (Production) and
+// GET /api/branch-discounts/day-check?date= (the branch's own day). Mirrors
+// backend shared/types/discount.types.ts — the server sums; this is its shape.
+
+/** One product's till discounts on one branch's business day. */
+export interface DiscountDayProduct {
+  /** Null for an order line whose product has since been deleted. */
+  productId: string | null;
+  productName: string;
+  /** Units sold on discounted lines. */
+  qty: number;
+  /** Money taken off on this product that day. */
+  discount: number;
+}
+
+/**
+ * What the branch's till gave away on a day, per product, against what the
+ * branch claimed for that day. `claimedTotal` leaves rejected claims out.
+ */
+export interface DiscountDayCheck {
+  branchId: string;
+  date: string; // 'YYYY-MM-DD'
+  products: DiscountDayProduct[];
+  actualTotal: number;
+  claimedTotal: number;
+  /** claimedTotal − actualTotal. Positive = the branch claimed more than the till gave. */
+  difference: number;
+  matches: boolean;
+  claims: { id: string; demandNumber: string | null; amount: number; status: BranchDiscountStatus }[];
 }
 
 // ─── Monthly Cash Transfer summary ───────────────────────────────────────────

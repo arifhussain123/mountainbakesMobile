@@ -10,7 +10,7 @@ import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/u
 import { mapErrorToMessage } from '@/shared/helpers';
 import { DISCOUNT_STATUS_LABEL, DISCOUNT_STATUS_VARIANT, discountChangeActionLabel, isDiscountOpen } from '../../utils';
 import { useDiscountActions, useHasPendingDiscountAction } from '../../hooks';
-import { WithdrawConfirmSheet } from '../../components';
+import { AmountChangedNote, DiscountDayBreakdown, WithdrawConfirmSheet } from '../../components';
 import { RequestDiscountSheetContent } from '../RequestDiscountScreen';
 import { styles } from './styles';
 
@@ -100,6 +100,7 @@ export function DiscountDetailScreen() {
             <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Amount</Text>
             <Text style={[theme.typography.cardTitle, { color: theme.colors.primary }]}>{formatCurrency(item.amount)}</Text>
           </View>
+          <AmountChangedNote item={item} />
           <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
             <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Claimed</Text>
             <Text style={[theme.typography.body, { color: theme.colors.text }]}>
@@ -139,6 +140,10 @@ export function DiscountDetailScreen() {
             </Card>
           </>
         ) : null}
+
+        {/* The day's till discounts per product against what was claimed — the
+            same check Production makes before approving (owner's call, 2026-11-06). */}
+        <DiscountDayBreakdown side="branch" branchId={item.branchId} date={item.date} />
 
         {canEdit ? (
           <View style={styles.actionsRow}>
