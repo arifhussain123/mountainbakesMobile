@@ -111,20 +111,6 @@ export function DiscountDetailScreen() {
             <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Claim ID</Text>
             <Text style={[theme.typography.body, { color: theme.colors.textFaint }]}>{item.id.slice(0, 8)}</Text>
           </View>
-          {item.reviewedAt ? (
-            <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Reviewed</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>
-                {formatDisplayDate(item.reviewedAt.slice(0, 10))} · {formatDisplayTime(item.reviewedAt)}
-                {item.reviewedByName ? ` · ${item.reviewedByName}` : ''}
-              </Text>
-            </View>
-          ) : (
-            <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Reviewed</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.textFaint }]}>Not reviewed yet</Text>
-            </View>
-          )}
         </Card>
 
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>REASON</Text>
