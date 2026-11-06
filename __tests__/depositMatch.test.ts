@@ -56,8 +56,35 @@ describe('findLikelyDeposit', () => {
     expect(findLikelyDeposit(1000, '2026-10-15', [transfer])).toBeNull();
   });
 
-  it('does not match on a different amount', () => {
+  it('does not match a later-dated deposit 1,000 or more away', () => {
+    const transfer = makeTransfer({ amount: 2000, date: '2026-10-16' });
+    expect(findLikelyDeposit(1000, '2026-10-15', [transfer])).toBeNull();
+  });
+
+  it('falls back to the nearest amount within 999 when nothing matches exactly', () => {
     const transfer = makeTransfer({ amount: 1500, date: '2026-10-16' });
+    expect(findLikelyDeposit(1000, '2026-10-15', [transfer])).toBe(transfer);
+  });
+
+  it('takes the day\'s own deposit before a same amount dated later (Alabad 4–5 Nov)', () => {
+    const own = makeTransfer({ id: 'ct-own', amount: 30000, date: '2026-11-04' });
+    const later = makeTransfer({ id: 'ct-later', amount: 30450, date: '2026-11-05' });
+    expect(findLikelyDeposit(30450, '2026-11-04', [later, own])).toBe(own);
+  });
+
+  it('still takes a later same amount when the own-date deposit is 1,000 or more away', () => {
+    const own = makeTransfer({ id: 'ct-own', amount: 50, date: '2026-10-15' });
+    const later = makeTransfer({ id: 'ct-later', amount: 1425, date: '2026-10-16' });
+    expect(findLikelyDeposit(1425, '2026-10-15', [own, later])).toBe(later);
+  });
+
+  it('shows the deposit dated that day when no amount is near', () => {
+    const own = makeTransfer({ id: 'ct-own', amount: 5000, date: '2026-10-15' });
+    expect(findLikelyDeposit(1000, '2026-10-15', [own])).toBe(own);
+  });
+
+  it('ignores a rejected deposit', () => {
+    const transfer = makeTransfer({ amount: 1000, date: '2026-10-15', status: 'rejected' });
     expect(findLikelyDeposit(1000, '2026-10-15', [transfer])).toBeNull();
   });
 
