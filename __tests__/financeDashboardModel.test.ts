@@ -63,7 +63,7 @@ function fixture(over: Partial<FinanceMonthlyDashboard> = {}): FinanceMonthlyDas
       { id: C, name: 'Dhok Khaba Branch', isActive: false },
     ],
     summary: {
-      demand: 2000, companyShare: 1500.5, received: 1700, balance: -199.5, lastMonthBalance: 300,
+      demand: 2000, companyShare: 1500.5, received: 1700, balance: 199.5, lastMonthBalance: 300,
       ledgerExpense: 900, returns: 50, discount: 20, orders: 3, receipts: 2, ledgerEntries: 3,
       returnCount: 1, discountCount: 1, unpricedLines: 0, ledgerIncome: 1700, ledgerExpenseTotal: 900, ledgerNet: 800,
     },
@@ -117,8 +117,9 @@ describe('dashboardModel — formatting and wording', () => {
   });
 
   it('names what a balance means instead of relying on red', () => {
-    expect(balanceMeaning(40735)).toBe('owed');
-    expect(balanceMeaning(-37184)).toBe('overpaid');
+    // Received − Company Share: negative is still owed, positive is overpaid.
+    expect(balanceMeaning(-40735)).toBe('owed');
+    expect(balanceMeaning(37184)).toBe('overpaid');
     expect(balanceMeaning(0)).toBe('settled');
     expect(balanceMeaning(null)).toBeNull();
   });
@@ -159,8 +160,8 @@ describe('dashboardModel — income table', () => {
     const rows = sortIncome(incomeRows(fixture(), 'monthly'));
     expect(rows.map((r) => r.branch)).toEqual(['Alabad Branch', 'Banigala Stall', 'Dhok Khaba Branch (inactive)']);
     const [alabad, banigala, dhok] = rows;
-    expect(alabad).toMatchObject({ demand: 1600, companyShare: 1200.5, received: 1000, balance: 200.5, lastMonthBalance: 100 });
-    expect(banigala).toMatchObject({ balance: -400, lastMonthBalance: null });
+    expect(alabad).toMatchObject({ demand: 1600, companyShare: 1200.5, received: 1000, balance: -200.5, lastMonthBalance: 100 });
+    expect(banigala).toMatchObject({ balance: 400, lastMonthBalance: null });
     expect(dhok).toMatchObject({ demand: 0, companyShare: 0, received: 0, lastMonthBalance: 200 });
     expect(rows.map(isIdleIncomeRow)).toEqual([false, false, true]);
   });
@@ -168,7 +169,7 @@ describe('dashboardModel — income table', () => {
   it('totals agree with the summary card, and last month only on the monthly view', () => {
     const data = fixture();
     const monthly = incomeTotals(incomeRows(data, 'monthly'), 'monthly');
-    expect(monthly).toEqual({ demand: 2000, companyShare: 1500.5, received: 1700, balance: -199.5, lastMonthBalance: 300 });
+    expect(monthly).toEqual({ demand: 2000, companyShare: 1500.5, received: 1700, balance: 199.5, lastMonthBalance: 300 });
     expect(monthly.balance).toBe(data.summary.balance);
     expect(incomeTotals(incomeRows(data, 'daily'), 'daily').lastMonthBalance).toBeNull();
   });
@@ -218,7 +219,7 @@ describe('dashboardModel — charts', () => {
   it('branch totals put unassigned last; ledger heads rank largest first', () => {
     const totals = branchTotals(fixture());
     expect(totals.map((t) => t.branch)).toEqual(['Alabad Branch', 'Banigala Stall', UNASSIGNED_LABEL]);
-    expect(totals[1]).toMatchObject({ balance: -400, discount: 20 });
+    expect(totals[1]).toMatchObject({ balance: 400, discount: 20 });
     expect(totals[2]).toMatchObject({ ledger: 900 });
     expect(ledgerHeadTotals(fixture()).map((h) => [h.name, h.amount, h.entries])).toEqual([
       ['Raw Materials', 600, 2],
@@ -233,7 +234,7 @@ describe('dashboardModel — CSV', () => {
     expect(csv[0]).toBe('Mountain Bakes Finance — October 2026 · All Branches');
     expect(csv[2]).toBe('INCOME');
     expect(csv[3]).toBe('Period,Branch Name,Demand Amount,Company Share,Received Amount,Balance,Last Month Balance');
-    expect(csv).toContain('October 2026,Banigala Stall,400,300,700,-400,');
+    expect(csv).toContain('October 2026,Banigala Stall,400,300,700,400,');
     expect(csv).toContain('Period,Branch Name,Ledger Head,Amount,Return,Discount');
     expect(csv).toContain('October 2026,Alabad Branch,Production · Return / Discount,,50,0');
   });

@@ -12,7 +12,7 @@ import type {
  * No money is DERIVED here. Every amount arrives already summed per (business
  * date, branch[, ledger head]) from `GET /finance/dashboard/monthly`; this file
  * only regroups those rows into the period a table shows (day / week / month)
- * and labels them. The one subtraction, Balance = Company Share − Received, is
+ * and labels them. The one subtraction, Balance = Received − Company Share, is
  * the rule the server's own summary applies, so a row and the card agree.
  */
 
@@ -86,14 +86,15 @@ export function niceCeil(n: number): number {
 }
 
 /**
- * What a Balance (Company Share − Received) means, in words — so a negative
- * figure is never carried by red alone. Positive: the branch still owes the
- * company; negative: more was received than the share, i.e. overpaid.
+ * What a Balance (Received − Company Share, owner's rule 2026-11-07) means, in
+ * words — so a negative figure is never carried by red alone. Negative: less
+ * was received than the share, so the branch still owes the company;
+ * positive: more was received than the share, i.e. overpaid.
  */
 export function balanceMeaning(balance: number | null): 'owed' | 'overpaid' | 'settled' | null {
   if (balance === null) return null;
-  if (balance > 0) return 'owed';
-  if (balance < 0) return 'overpaid';
+  if (balance < 0) return 'owed';
+  if (balance > 0) return 'overpaid';
   return 'settled';
 }
 
@@ -298,7 +299,7 @@ export function incomeRows(data: FinanceMonthlyDashboard, gran: Granularity): In
     demand: round2(r.demand),
     companyShare: round2(r.companyShare),
     received: round2(r.received),
-    balance: round2(r.companyShare - r.received),
+    balance: round2(r.received - r.companyShare),
   }));
 }
 
@@ -539,7 +540,7 @@ export function branchTotals(data: FinanceMonthlyDashboard): BranchTotals[] {
       demand: round2(r.demand),
       companyShare: round2(r.companyShare),
       received: round2(r.received),
-      balance: round2(r.companyShare - r.received),
+      balance: round2(r.received - r.companyShare),
       ledger: round2(r.ledger),
       returns: round2(r.returns),
       discount: round2(r.discount),
