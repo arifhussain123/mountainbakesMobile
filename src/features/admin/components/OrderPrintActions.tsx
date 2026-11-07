@@ -9,7 +9,7 @@ import {
   useProducts,
   type ProductionOrder,
 } from '@/api';
-import { buildOrderChallanText, buildOrderPopText, buildProductionCheckText, type SlipPrintInput } from '@/features/orders/utils/productionOrderPrint';
+import { buildOrderChallanText, buildOrderPopText, type SlipPrintInput } from '@/features/orders/utils/productionOrderPrint';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAppTheme } from '@/shared/theme';
 import { formatDisplayDate, formatDisplayTime, logger } from '@/shared/utils';
@@ -19,12 +19,11 @@ import { shareText } from './ExportSheet';
 
 /**
  * The order slip's print buttons (web `OrderPrintPreview` action bar):
- * Production Check (pending only — the floor's stock-check sheet), POP Print
- * (the receipt) and A4 Challan (Customer + Company copies). Each prints what
- * the slip shows — typed quantities included while pending — as text into the
- * Share sheet. A4 Challan and POP Print flag the slip printed on the server
- * exactly as the web does (fire-and-forget: a failed flag never turns a
- * printed slip into an error); Production Check never does.
+ * POP Print (the receipt) and A4 Challan (Customer + Company copies). Each
+ * prints what the slip shows — typed quantities included while pending — as
+ * text into the Share sheet. Both flag the slip printed on the server exactly
+ * as the web does (fire-and-forget: a failed flag never turns a printed slip
+ * into an error).
  */
 export function OrderPrintActions({
   order,
@@ -85,12 +84,10 @@ export function OrderPrintActions({
     markPrinted();
     void share(`${order.demandNumber} — A4 Challan`, buildOrderChallanText(input()));
   };
-  const productionCheck = () => void share(`${order.demandNumber} — Production Check`, buildProductionCheckText(input()));
 
   return (
     <View style={{ marginTop: theme.spacing.lg, gap: 8 }}>
       <View style={styles.row}>
-        {order.status === 'pending' ? <ActionChip icon="file-list" label="Production Check" onPress={productionCheck} disabled={disabled} /> : null}
         <ActionChip icon="printer" label="POP Print" onPress={() => void popPrint()} disabled={disabled} />
         <ActionChip icon="file-spreadsheet" label="A4 Challan" onPress={a4Challan} disabled={disabled} />
       </View>
