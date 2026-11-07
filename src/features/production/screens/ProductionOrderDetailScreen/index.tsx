@@ -157,8 +157,8 @@ export function ProductionOrderDetailScreen() {
                 { k: 'ORDERED', v: formatCurrency(previousBalance.orderedValue) },
                 { k: 'DELIVERED', v: formatCurrency(previousBalance.deliveredValue) },
                 { k: `COMPANY SHARE (${previousBalance.companySharePct}%)`, v: formatCurrency(previousBalance.companyShareValue) },
-                { k: 'LESS RETURNS', v: formatCurrency(previousBalance.returnsValue) },
-                { k: 'LESS DISCOUNTS', v: formatCurrency(previousBalance.discountsValue) },
+                { k: previousBalance.returnsDeducted === false ? 'RETURNS' : 'LESS RETURNS', v: formatCurrency(previousBalance.returnsValue) },
+                { k: previousBalance.returnsDeducted === false ? 'DISCOUNTS' : 'LESS DISCOUNTS', v: formatCurrency(previousBalance.discountsValue) },
                 { k: 'AMOUNT TO COLLECT', v: formatCurrency(previousBalance.amountToCollect) },
                 { k: 'PAYMENTS RECEIVED', v: formatCurrency(previousBalance.paymentsReceivedValue) },
                 {
