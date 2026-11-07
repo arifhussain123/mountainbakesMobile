@@ -806,12 +806,6 @@ export interface PreviousOrderBalance {
   returnItems: PreviousOrderBalanceItem[];
   discountsValue: number;
   discountItems: PreviousOrderBalanceDiscountItem[];
-  /**
-   * Whether Returns and Discount came off the share. False from the Company-
-   * Share-on-Delivered date (1 Nov 2026): Amount to Collect is the Company Share
-   * and the two are shown as their own figures. Absent on an older server: true.
-   */
-  returnsDeducted?: boolean;
   amountToCollect: number;
   paymentsReceivedValue: number;
   paymentItems: PreviousOrderBalancePaymentItem[];
@@ -2741,24 +2735,13 @@ export interface LedgerPage {
   totalCredit: number;
 }
 
-/** One account's month-to-date figures on the Daily Ledger summary. */
-export interface LedgerAccountSummary {
-  openingBalance: number;
-  totalReceived: number;
-  totalExpense: number;
-  balance: number;
-}
-
 export interface LedgerSummary {
   businessDate: string;
   monthStart: string;
-  /** Cash and bank TOGETHER — the total of `accounts`, never in place of them. */
   openingBalance: number;
   totalReceived: number;
   totalExpense: number;
   balance: number;
-  /** Each account on its own (centralized ledger rules). Absent on an older server. */
-  accounts?: { cash: LedgerAccountSummary; bank: LedgerAccountSummary };
 }
 
 /** `adjust` permission only — reverses, and optionally re-posts corrected. */

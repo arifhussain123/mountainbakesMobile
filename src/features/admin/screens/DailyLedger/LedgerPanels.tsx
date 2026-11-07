@@ -181,44 +181,15 @@ export function LedgerSummaryTiles({ date, branchId }: { date: string; branchId?
       </Card>
     );
   }
-  const accounts = data?.accounts;
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      {/* Cash and bank together — the total of the two below, labelled so. */}
-      <SummaryTiles
-        tiles={[
-          { label: 'Opening Balance · cash + bank', value: formatMoney2(data?.openingBalance) },
-          { label: 'Total Amount Received', value: formatMoney2(data?.totalReceived), tone: 'success' },
-          { label: 'Total Amount Expense', value: formatMoney2(data?.totalExpense), tone: 'danger' },
-          { label: 'Balance · cash + bank', value: formatMoney2(data?.balance) },
-        ]}
-      />
-      {accounts ? (
-        <Card style={{ gap: 10 }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>BY ACCOUNT</Text>
-          {(['cash', 'bank'] as const).map((k) => {
-            const a = accounts[k];
-            const fig = (label: string, v: number, color = theme.colors.text) => (
-              <View style={styles.accountFig}>
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{label}</Text>
-                <Text style={[theme.typography.bodySmall, { color, fontWeight: '700', fontVariant: ['tabular-nums'] }]}>{formatMoney2(v)}</Text>
-              </View>
-            );
-            return (
-              <View key={k} style={{ gap: 4 }} accessible accessibilityLabel={`${k === 'cash' ? 'Cash' : 'Bank'}: opening ${formatMoney2(a.openingBalance)}, received ${formatMoney2(a.totalReceived)}, expense ${formatMoney2(a.totalExpense)}, balance ${formatMoney2(a.balance)}`}>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{k === 'cash' ? 'Cash' : 'Bank'}</Text>
-                <View style={styles.accountRow}>
-                  {fig('Opening', a.openingBalance)}
-                  {fig('Received', a.totalReceived, theme.colors.success)}
-                  {fig('Expense', a.totalExpense, theme.colors.danger)}
-                  {fig('Balance', a.balance)}
-                </View>
-              </View>
-            );
-          })}
-        </Card>
-      ) : null}
-    </View>
+    <SummaryTiles
+      tiles={[
+        { label: 'Opening Balance', value: formatMoney2(data?.openingBalance) },
+        { label: 'Total Amount Received', value: formatMoney2(data?.totalReceived), tone: 'success' },
+        { label: 'Total Amount Expense', value: formatMoney2(data?.totalExpense), tone: 'danger' },
+        { label: 'Balance', value: formatMoney2(data?.balance) },
+      ]}
+    />
   );
 }
 
@@ -316,8 +287,6 @@ export function LedgerCard({ entry }: { entry: DisplayEntry }) {
 }
 
 const styles = StyleSheet.create({
-  accountRow: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6 },
-  accountFig: { width: '50%', gap: 1 },
   panel: { borderWidth: 1, padding: 12 },
   panelHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' },
   panelRow: { paddingVertical: 8, gap: 2 },
