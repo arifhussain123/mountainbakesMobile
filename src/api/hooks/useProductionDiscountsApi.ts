@@ -38,3 +38,15 @@ export function useReviewProductionDiscount() {
     },
   });
 }
+
+/** Production's Edit amount on a pending claim (Discount Detail → Edit). */
+export function useSetProductionDiscountAmount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => productionDiscountService.setProductionDiscountAmount(id, amount),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['productionDiscounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['discountDayCheck'] });
+    },
+  });
+}

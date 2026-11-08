@@ -135,7 +135,7 @@ export function DailySaleDetailScreen() {
           <View style={styles.section}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>COMPANY SHARE ↔ CASH DEPOSIT</Text>
             <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
-              Likely linked deposit — matched by amount, not a confirmed server link.
+              Likely linked deposit — the same amount, else the one dated that day, else the nearest within 999. Not a confirmed server link.
             </Text>
             <Pressable
               accessibilityRole="button"

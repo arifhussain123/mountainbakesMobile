@@ -114,9 +114,9 @@ export const DailyShareReceivedChart = memo(function DailyShareReceivedChart({ d
                 { label: 'Received', value: d.received, color: SERIES.received },
                 {
                   label: 'Difference',
-                  value: d.companyShare - d.received,
+                  value: d.received - d.companyShare,
                   color: theme.colors.textSecondary,
-                  words: balanceWords('Difference', Math.round((d.companyShare - d.received) * 100) / 100),
+                  words: balanceWords('Difference', Math.round((d.received - d.companyShare) * 100) / 100),
                 },
               ]}
               action={d.companyShare > 0 ? { label: 'View demands', onPress: () => onViewDemands(d.date) } : undefined}

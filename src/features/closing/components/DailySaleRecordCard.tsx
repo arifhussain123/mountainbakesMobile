@@ -9,8 +9,6 @@ export interface DailySaleRecordCardProps {
   isGenerating: boolean;
   onGenerate: () => void;
   onOpenManualFeed: () => void;
-  onVerify: () => void;
-  isVerifying: boolean;
   /** Opens Day Detail — absent (undefined) for a not-yet-generated day, which has nothing to show. */
   onOpenDetail?: () => void;
 }
@@ -32,7 +30,7 @@ const STATUS_VARIANT: Record<DailySaleRecord['status'], StatusVariant> = {
 };
 
 /** branchApp.md screen 21 — one business day's takings against what was counted. */
-export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenManualFeed, onVerify, isVerifying, onOpenDetail }: DailySaleRecordCardProps) {
+export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenManualFeed, onOpenDetail }: DailySaleRecordCardProps) {
   const theme = useAppTheme();
   const notGenerated = record.id === null;
   const hasCount = record.manualCash !== null || record.manualEasypaisa !== null || record.manualBank !== null;
@@ -147,17 +145,6 @@ export function DailySaleRecordCard({ record, isGenerating, onGenerate, onOpenMa
               {record.status === 'open' || record.status === 'pending_verification' ? (
                 <Pressable accessibilityRole="button" onPress={onOpenManualFeed} style={[styles.actionButton, { backgroundColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Manual Feed</Text>
-                </Pressable>
-              ) : null}
-              {record.status === 'pending_verification' ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onVerify}
-                  disabled={isVerifying}
-                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700' }]}>
-                    {isVerifying ? 'Verifying…' : 'Verify'}
-                  </Text>
                 </Pressable>
               ) : null}
             </>

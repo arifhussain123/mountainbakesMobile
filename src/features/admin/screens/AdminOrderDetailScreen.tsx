@@ -537,7 +537,7 @@ function ReturnForm({ order, onDone }: { order: ProductionOrder; onDone: () => v
  *   approved  a done marker, nothing left to act on
  *
  * Every action is the web's own endpoint; the server re-checks stock and status.
- * Production Check (pending), POP Print and A4 Challan share the web's three
+ * POP Print and A4 Challan share the web's two
  * documents as text — see `OrderPrintActions`.
  */
 export function AdminOrderDetailScreen() {

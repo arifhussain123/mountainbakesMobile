@@ -36,10 +36,14 @@ interface StockCachePayload {
   rows: StockRowWithDemand[];
 }
 
+const WIDE_LAYOUT_MIN_WIDTH = 900;
+
 export function StockScreen() {
   const theme = useAppTheme();
-  const { clamp, sh } = useResponsive();
+  const { clamp, sh, width } = useResponsive();
   const stockCheckHeight = clamp(48, sh(54), 58);
+  /** Wide tablets / landscape: two cards side by side so each card's seven columns stay a readable width instead of stretching edge to edge. */
+  const listColumns = width >= WIDE_LAYOUT_MIN_WIDTH ? 2 : 1;
   const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
@@ -135,7 +139,10 @@ export function StockScreen() {
       </View>
 
       <FlatList
+        key={`stock-columns-${listColumns}`}
         data={sorted}
+        numColumns={listColumns}
+        columnWrapperStyle={listColumns > 1 ? styles.cardColumns : undefined}
         keyExtractor={(item) => item.productId}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
@@ -165,7 +172,15 @@ export function StockScreen() {
         ListEmptyComponent={
           !isLoading && !error ? <EmptyState title="No Products" message="No stock to show yet." /> : undefined
         }
-        renderItem={({ item }) => <StockCard row={item} showDemand />}
+        renderItem={({ item }) =>
+          listColumns > 1 ? (
+            <View style={styles.cardCell}>
+              <StockCard row={item} showDemand />
+            </View>
+          ) : (
+            <StockCard row={item} showDemand />
+          )
+        }
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
       />

@@ -37,11 +37,6 @@ export async function feedDailySaleRecord(input: FeedDailySaleRecordInput): Prom
   return apiClient.put<DailySaleRecordDetail>('/daily-sale-records/manual-feed', input);
 }
 
-/** `branch_manager` or `super_admin` only — confirmed in `daily-sale.routes.ts`. */
-export async function verifyDailySaleRecord(id: string): Promise<DailySaleRecordDetail> {
-  return apiClient.put<DailySaleRecordDetail>(`/daily-sale-records/${id}/verify`);
-}
-
 /** `PUT /:id/lock` — super admin closes a verified (or amended) record. */
 export async function lockDailySaleRecord(id: string): Promise<DailySaleRecordDetail> {
   return apiClient.put<DailySaleRecordDetail>(`/daily-sale-records/${id}/lock`, {});

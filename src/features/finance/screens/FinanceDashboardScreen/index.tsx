@@ -12,6 +12,7 @@ import { mapErrorToMessage } from '@/shared/helpers';
 import { useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAppTheme } from '@/shared/theme';
+import { useAuthStore } from '@/state';
 import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
 import {
   branchNamer,
@@ -54,6 +55,8 @@ type Nav = NativeStackNavigationProp<FinanceHomeStackParamList>;
 export function FinanceDashboardScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<Nav>();
+  // An Accountant has no Daily Ledger; Income & Expense lists the entries awaiting approval.
+  const approvalsTab = useAuthStore((st) => st.user?.role) === 'accountant' ? Routes.FINANCE_INCOME_EXPENSE_TAB : Routes.FINANCE_LEDGER_TAB;
   const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
@@ -157,7 +160,7 @@ export function FinanceDashboardScreen() {
           exportDisabled={!data || !any}
         />
 
-        <TodayStrip cash={cash.data} loading={cash.isLoading} onApprovals={() => navigation.getParent()?.navigate(Routes.FINANCE_LEDGER_TAB)} />
+        <TodayStrip cash={cash.data} loading={cash.isLoading} onApprovals={() => navigation.getParent()?.navigate(approvalsTab)} />
 
         {showingCache ? (
           <View style={[styles.pill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>

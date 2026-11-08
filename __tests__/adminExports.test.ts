@@ -31,7 +31,6 @@ import {
   buildOrderChallanText,
   buildOrderPopText,
   buildPopPrintText,
-  buildProductionCheckText,
   compactDate,
   slipReference,
   type SlipPrintInput,
@@ -183,15 +182,6 @@ describe('order slip print', () => {
     expect(company).toContain('Cash Paid');
     expect(company).toContain('Rs.3,500');
     expect(text).not.toContain('Chocolate Cake');
-  });
-
-  it('Production Check is product, qty and amount only', () => {
-    const text = buildProductionCheckText(slip());
-    expect(text).toContain('PRODUCTION CHECK');
-    expect(text).toContain('PO-20261020-1030');
-    expect(text).toContain('Total Qty: 12    Total Amount: Rs.3,500');
-    expect(text).not.toContain('PREVIOUS ORDER BALANCE');
-    expect(buildProductionCheckText(slip({ lines: [] }))).toContain('No approved products.');
   });
 
   it("leaves the Production role's own slips exactly as they were", () => {

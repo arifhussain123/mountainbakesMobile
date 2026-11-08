@@ -78,8 +78,8 @@ export function productionOrdersExportParams(q: ProductionOrdersDataQuery): Para
 
 /**
  * `PUT /production-orders/:id/printed` — flags the slip printed (idempotent;
- * never touches stock). The web sets it on A4 Challan and POP Print, never on
- * Production Check, fire-and-forget.
+ * never touches stock). The web sets it on A4 Challan and POP Print,
+ * fire-and-forget.
  */
 export async function markProductionOrderPrinted(id: string): Promise<void> {
   await apiClient.put<unknown>(`/production-orders/${encodeURIComponent(id)}/printed`);

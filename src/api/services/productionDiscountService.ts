@@ -1,5 +1,5 @@
 import { apiClient } from '../client';
-import type { BranchDiscount, BranchDiscountListResponse, MonthlyDiscountSummary, ReviewBranchDiscountInput } from '../types';
+import type { BranchDiscount, BranchDiscountListResponse, DiscountDayCheck, MonthlyDiscountSummary, ReviewBranchDiscountInput } from '../types';
 
 export interface ListProductionDiscountsParams {
   from?: string;
@@ -30,4 +30,18 @@ export async function reviewProductionDiscount(id: string, input: ReviewBranchDi
 /** `GET /production-discounts/summary` — every active branch this business month, or one when `branchId` is set. */
 export async function getProductionDiscountSummary(branchId?: string | null): Promise<MonthlyDiscountSummary> {
   return apiClient.get<MonthlyDiscountSummary>('/production-discounts/summary', branchId ? { branchId } : undefined);
+}
+
+/** `GET /production-discounts/day-check` — one branch-day's till discounts per product against what the branch claimed. */
+export async function getProductionDiscountDayCheck(branchId: string, date: string): Promise<DiscountDayCheck> {
+  return apiClient.get<DiscountDayCheck>('/production-discounts/day-check', { branchId, date });
+}
+
+/**
+ * `PUT /production-discounts/:id/amount` — Production corrects a pending claim's
+ * amount. The server keeps the branch's own figure (`originalAmount`) and
+ * notifies the branch; anything but a pending claim is a 409.
+ */
+export async function setProductionDiscountAmount(id: string, amount: number): Promise<BranchDiscount> {
+  return apiClient.put<BranchDiscount>(`/production-discounts/${id}/amount`, { amount });
 }

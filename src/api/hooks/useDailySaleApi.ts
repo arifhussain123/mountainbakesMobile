@@ -41,14 +41,6 @@ export function useFeedDailySaleRecord() {
   });
 }
 
-export function useVerifyDailySaleRecord() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => dailySaleService.verifyDailySaleRecord(id),
-    onSuccess: () => invalidateRecords(queryClient),
-  });
-}
-
 // ─── Super admin (web Daily Sale Records, `admin`) ──────────────────────────
 
 /** Generate (or refresh) one branch's record for a day — the admin names the branch. */

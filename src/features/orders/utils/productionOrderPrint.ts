@@ -27,10 +27,9 @@ import {
  * Two families live here:
  *   - `buildPopPrintText` / `buildA4ChallanText` — the Production role's own
  *     slips, moved here unchanged from its Order Detail screen.
- *   - `buildOrderPopText` / `buildOrderChallanText` / `buildProductionCheckText`
- *     — the web's three documents (`OrderPrintPreview.tsx`: the POP receipt
- *     `buildProductionOrderDocument`, the two-copy A4 delivery challan
- *     `PrintCopy`, and the `ProductionCheckSheet`), section for section.
+ *   - `buildOrderPopText` / `buildOrderChallanText` — the web's two documents
+ *     (`OrderPrintPreview.tsx`: the POP receipt `buildProductionOrderDocument`
+ *     and the two-copy A4 delivery challan `PrintCopy`), section for section.
  */
 
 // ─── The Production role's slips ───────────────────────────────────────────
@@ -353,35 +352,5 @@ export function buildOrderChallanText(input: SlipPrintInput): string {
     ...centerText('— — — — — — cut here — — — — — —', w),
     '',
     ...challanCopy('Company Copy', input, w),
-  ]);
-}
-
-/**
- * Production Check — the web's floor sheet: Branch, Product, Qty, Amount for
- * the lines going out, nothing else. Not a delivery document.
- */
-export function buildProductionCheckText(input: SlipPrintInput): string {
-  const w = TEXT_COLUMNS.a4;
-  const sym = input.currencySymbol || 'Rs.';
-  const money = (n: number) => `${sym}${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
-  const fmt = (n: number) => (Number(n) || 0).toLocaleString('en-US');
-  const { order } = input;
-  const items = shipping(input.lines);
-  const totalQty = items.reduce((a, r) => a + r.approved, 0);
-  const totalAmount = items.reduce((a, r) => a + r.amount, 0);
-  const meta = (k: string, v: string | null | undefined) => kvLine(`${k}:`, v || '—', w);
-  return joinLines([
-    'PRODUCTION CHECK',
-    ...meta('Branch', order.branchName),
-    ...meta('Production Order No', slipReference(order)),
-    ...meta('Demand Date', order.date),
-    ...meta('Required Date', order.requiredDate ?? ''),
-    ...meta('Print Date', input.printDate),
-    '='.repeat(w),
-    ...(items.length === 0
-      ? ['No approved products.']
-      : textTable([{ header: 'Product' }, { header: 'Qty', width: 8 }, { header: 'Amount', width: 12 }], items.map((r) => [r.productName, fmt(r.approved), money(r.amount)]), w)),
-    '='.repeat(w),
-    `Total Qty: ${fmt(totalQty)}    Total Amount: ${money(totalAmount)}`,
   ]);
 }

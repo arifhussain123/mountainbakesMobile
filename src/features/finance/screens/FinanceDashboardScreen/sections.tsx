@@ -77,11 +77,11 @@ export function SummaryCarousel({ data, scoped, drill }: { data: FinanceMonthlyD
       items: [
         { label: 'Company Share', value: s.companyShare, sub: plural(s.orders, 'approved demand'), onPress: () => drill('share') },
         { label: 'Received Amount', value: s.received, sub: `${plural(s.receipts, 'ledger receipt')} · incl. fuel`, onPress: () => drill('received') },
-        { label: 'Balance', value: s.balance, sub: 'Company Share − Received', signed: true, strong: true },
+        { label: 'Balance', value: s.balance, sub: 'Received − Company Share', signed: true, strong: true },
         {
           label: 'Last Month Balance',
           value: s.lastMonthBalance,
-          sub: s.lastMonthBalance === null ? `No records in ${prev}` : `${prev} · Share − Received`,
+          sub: s.lastMonthBalance === null ? `No records in ${prev}` : `${prev} · Received − Share`,
           signed: true,
           aside: true,
         },
@@ -284,7 +284,7 @@ export function IncomeKpis({ data, context, drill }: { data: FinanceMonthlyDashb
           <Tile
             label="Balance"
             value={sm.balance}
-            sub="Company Share − Received"
+            sub="Received − Company Share"
             color={BAND.overall}
             signed
             accessibilityLabel={`${balanceWords('Balance', sm.balance)}, company share minus received`}

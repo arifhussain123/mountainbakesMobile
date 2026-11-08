@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { useAppSettings, useDailySaleRecord, useLockDailySaleRecord, useVerifyDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
+import { useAppSettings, useDailySaleRecord, useLockDailySaleRecord, type DailySaleAudit, type DailySaleRecord } from '@/api';
 import { Routes, type SuperAdminDailySaleStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -178,8 +178,8 @@ function HistoryTab({ audits }: { audits: DailySaleAudit[] }) {
  * History (the audit trail, newest first). One fetch: `GET /daily-sale-records/:id`.
  *
  * The web row's actions, each shown only where the status allows it: Manual
- * Feed and Verify while open; Amend once closed with a counted figure; Lock on
- * a verified or amended record; Unlock on any closed one. Print (the web's
+ * Feed while open (verification is automatic at 12:30 AM); Amend once closed
+ * with a counted figure; Lock on a verified or amended record; Unlock on any closed one. Print (the web's
  * A4 `DailySalePrintSheet`) shares the record as a text document.
  */
 export function AdminDailySaleDetailScreen() {
@@ -188,11 +188,10 @@ export function AdminDailySaleDetailScreen() {
   const { recordId } = useRoute<RouteProp<SuperAdminDailySaleStackParamList, typeof Routes.SUPER_ADMIN_DAILY_SALE_DETAIL>>().params;
   const q = useDailySaleRecord(recordId);
   const [tab, setTab] = useState<Tab>('summary');
-  const verify = useVerifyDailySaleRecord();
   const lock = useLockDailySaleRecord();
   const sheet = useDailySaleSheet();
   const settingsQ = useAppSettings();
-  const busy = verify.isPending || lock.isPending;
+  const busy = lock.isPending;
 
   const print = () => {
     const d = q.data;
@@ -203,11 +202,10 @@ export function AdminDailySaleDetailScreen() {
     );
   };
 
-  const decide = (r: DailySaleRecord, action: 'verify' | 'lock') => {
+  const lockRecord = (r: DailySaleRecord) => {
     if (!r.id) return;
-    const mutation = action === 'verify' ? verify : lock;
-    mutation.mutate(r.id, {
-      onSuccess: () => Alert.alert(action === 'verify' ? 'Verified' : 'Locked', action === 'verify' ? 'Record verified.' : 'Record locked.'),
+    lock.mutate(r.id, {
+      onSuccess: () => Alert.alert('Locked', 'Record locked.'),
       onError: (e) => Alert.alert('Could Not Update the Record', mapErrorToMessage(e)),
     });
   };
@@ -266,11 +264,8 @@ export function AdminDailySaleDetailScreen() {
                 <View style={styles.actions}>
                   <ActionChip icon="printer" label="Print" onPress={print} />
                   {can.feed ? <ActionChip icon="plus" label="Manual Feed" onPress={() => sheet.open({ kind: 'feed', record })} /> : null}
-                  {can.verify ? (
-                    <ActionChip icon="check" label="Verify" primary onPress={() => decide(record, 'verify')} loading={verify.isPending} disabled={busy} />
-                  ) : null}
                   {can.amend ? <ActionChip icon="pencil" label="Amend" onPress={() => sheet.open({ kind: 'amend', record })} /> : null}
-                  {can.lock ? <ActionChip icon="lock" label="Lock" primary onPress={() => decide(record, 'lock')} loading={lock.isPending} disabled={busy} /> : null}
+                  {can.lock ? <ActionChip icon="lock" label="Lock" primary onPress={() => lockRecord(record)} loading={lock.isPending} disabled={busy} /> : null}
                   {can.unlock ? <ActionChip icon="rotate-ccw" label="Unlock" onPress={() => sheet.open({ kind: 'unlock', record })} /> : null}
                 </View>
               );

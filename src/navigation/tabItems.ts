@@ -59,6 +59,9 @@ export const FINANCE_TAB_ITEMS: TabItem[] = [
   { key: 'more', label: 'More', icon: 'more', route: null, badgeSource: null },
 ];
 
+/** Finance's tabs without the Ledger — an Accountant has no Daily Ledger. */
+export const ACCOUNTANT_TAB_ITEMS: TabItem[] = FINANCE_TAB_ITEMS.filter((tab) => tab.key !== 'ledger');
+
 /**
  * Super Admin's daily checks — Dashboard, Orders, Branch Stock, Reports, More
  * (the drawer holds the other sixteen). Orders carries the same badge as its

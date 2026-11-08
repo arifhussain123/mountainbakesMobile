@@ -12,3 +12,8 @@ export type { DiscountSortField, SortSheetProps } from './SortSheet';
 
 export { MonthlyDiscountSummaryCard } from './MonthlyDiscountSummaryCard';
 export type { MonthlyDiscountSummaryCardProps } from './MonthlyDiscountSummaryCard';
+
+export { DiscountDayBreakdown } from './DiscountDayBreakdown';
+export type { DiscountDayBreakdownProps } from './DiscountDayBreakdown';
+
+export { AmountChangedNote } from './AmountChangedNote';

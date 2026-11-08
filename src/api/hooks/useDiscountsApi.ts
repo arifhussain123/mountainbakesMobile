@@ -1,7 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBusinessDate } from '../businessDate';
 import { queryKeys } from '../queryKeys';
-import { discountService } from '../services';
+import { discountService, productionDiscountService } from '../services';
 import type { ListBranchDiscountsPageParams, ListBranchDiscountsParams } from '../services/discountService';
 import type { CreateBranchDiscountInput, ReviseBranchDiscountInput } from '../types';
 
@@ -18,6 +18,22 @@ export function useBranchDiscountSummary() {
     queryKey: queryKeys.branchDiscountSummary(getBusinessDate()),
     queryFn: () => discountService.getBranchDiscountSummary(),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Product breakdown: one branch-day's till discounts per product against what
+ * the branch claimed. `production` reads any branch; `branch` reads the
+ * caller's own (pinned on the server). Fetched only while `enabled`.
+ */
+export function useDiscountDayCheck(side: 'production' | 'branch', branchId: string | null, date: string | null, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.discountDayCheck(side, branchId, date ?? ''),
+    queryFn: () =>
+      side === 'branch'
+        ? discountService.getBranchDiscountDayCheck(date!, branchId)
+        : productionDiscountService.getProductionDiscountDayCheck(branchId!, date!),
+    enabled: enabled && !!date && (side === 'branch' || !!branchId),
   });
 }
 

@@ -43,6 +43,7 @@ export {
   useProductionDiscountsAwaitingCount,
   useProductionDiscountSummary,
   useReviewProductionDiscount,
+  useSetProductionDiscountAmount,
 } from './useProductionDiscountsApi';
 export { useCreateProductionAdjustment, usePrepareProduction, useProductionStock } from './useProductionStockApi';
 export {
@@ -64,7 +65,7 @@ export {
   useReviseBranchReturn,
   useWithdrawBranchReturn,
 } from './useStockReturnsApi';
-export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
+export { useBranchDiscounts, useBranchDiscountSummary, useBranchDiscountsList, useDiscountDayCheck, useCreateBranchDiscount, useReviseBranchDiscount, useWithdrawBranchDiscount } from './useDiscountsApi';
 export { useCashTransferDetail, useCashTransfers, useCreateCashTransfer, useMonthlyCashTransferSummary } from './useCashTransfersApi';
 export { useCreateExpense, useExpenses, useExpensesData, useExpensesTotal } from './useExpensesApi';
 export {
@@ -184,7 +185,6 @@ export {
   useLockDailySaleRecord,
   useSetPaymentMethodLock,
   useUnlockDailySaleRecord,
-  useVerifyDailySaleRecord,
 } from './useDailySaleApi';
 export { useApproveSpecialOrder, usePrepareSpecialOrder, useSpecialOrders } from './useSpecialOrdersApi';
 export {

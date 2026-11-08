@@ -35,14 +35,13 @@ const rec = (over: Partial<DailySaleRecord>) =>
 
 describe('daily sale row actions', () => {
   it('offers only Generate on a day with no stored record', () => {
-    expect(dailySaleRowActions(rec({ id: null }))).toEqual({ generate: true, feed: false, verify: false, amend: false, lock: false, unlock: false });
+    expect(dailySaleRowActions(rec({ id: null }))).toEqual({ generate: true, feed: false, amend: false, lock: false, unlock: false });
   });
 
-  it('feeds and verifies while open; nothing admin-only yet', () => {
+  it('feeds while open (verify is automatic); nothing admin-only yet', () => {
     expect(dailySaleRowActions(rec({ status: 'pending_verification', fedAt: 'x' }))).toEqual({
       generate: false,
       feed: true,
-      verify: true,
       amend: false,
       lock: false,
       unlock: false,
@@ -50,7 +49,7 @@ describe('daily sale row actions', () => {
   });
 
   it('locks a verified record, amends only a counted one, and unlocks any closed one', () => {
-    expect(dailySaleRowActions(rec({ status: 'verified', fedAt: null }))).toMatchObject({ feed: false, verify: false, amend: false, lock: true, unlock: true });
+    expect(dailySaleRowActions(rec({ status: 'verified', fedAt: null }))).toMatchObject({ feed: false, amend: false, lock: true, unlock: true });
     expect(dailySaleRowActions(rec({ status: 'amended', fedAt: 'x' }))).toMatchObject({ amend: true, lock: true, unlock: true });
     expect(dailySaleRowActions(rec({ status: 'locked', fedAt: 'x' }))).toMatchObject({ amend: true, lock: false, unlock: true });
   });
