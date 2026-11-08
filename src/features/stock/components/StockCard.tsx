@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useState } from 'react';
+import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { openNewQuery } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
 import type { StockRowWithDemand } from '../calculations';
-import { MovementRow } from './MovementRow';
+import { stockBalanceTone, stockCardColumns, type StockFigureTone } from '../stockCardColumns';
 
 /** Icon-only "Report an issue" — see `ExpenseCard`'s identical helper for why this is a compact variant rather than `ReportIssueAction`'s full labeled button. `stockCode` is a per-PRODUCT catalog id (Step 0), never unsynced. */
 function ReportIssueIconButton({ referenceId }: { referenceId: string }) {
@@ -14,58 +15,125 @@ function ReportIssueIconButton({ referenceId }: { referenceId: string }) {
       accessibilityLabel={`Report an issue with ${referenceId}`}
       hitSlop={8}
       onPress={() => openNewQuery(referenceId)}
-      style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      style={styles.flagButton}>
       <Icon name="flag" size={15} color={theme.colors.textFaint} />
     </Pressable>
   );
 }
 
+/**
+ * Narrowest a column may get before the grid scrolls sideways instead of
+ * squeezing — the widest single word, "Expected", is ~41px at the 10px label
+ * size, so a 360px phone (≈43px columns) still fits all seven without
+ * scrolling. Scaled by the system font size so a phone with large text
+ * scrolls rather than breaking a word or clipping a number.
+ */
+const MIN_COLUMN_WIDTH = 42;
+/** Column width used when the grid does have to scroll. */
+const SCROLL_COLUMN_WIDTH = 56;
+const COLUMN_COUNT = 7;
+
 export interface StockCardProps {
   row: StockRowWithDemand;
-  showDemand: boolean;
+  /** Kept for the existing call site; the Waiting/Expected columns always show (they read 0 when nothing is outstanding). */
+  showDemand?: boolean;
 }
 
 /**
- * The web table's per-product row, as a card: name + big balance on top, ID
- * underneath, movement columns, and (today only) a "Waiting N · Expected N"
- * line when there's an outstanding production order. A zero-balance card is
- * visually muted rather than hidden (the listing rule already dropped
- * no-activity rows upstream).
+ * One product on the Stock screen: name and stock ID on top, then a
+ * seven-column strip (Opening Stock, New Stock, Sold, Return, Adjust,
+ * Waiting, Expected — label above value), then the live Stock balance.
+ * No product imagery. A zero-balance card is muted rather than hidden (the
+ * listing rule already dropped no-activity rows upstream).
  */
-export function StockCard({ row, showDemand }: StockCardProps) {
+export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
   const theme = useAppTheme();
+  const [gridWidth, setGridWidth] = useState(0);
   const isZero = row.balance === 0;
-  const accessibilityLabel = `${row.productName}, balance ${row.balance}, opening ${row.opening}, new ${row.newQty}, sold ${row.sold}`;
+  const columns = stockCardColumns(row);
+
+  const toneColor = (tone: StockFigureTone) =>
+    tone === 'positive' ? theme.colors.success : tone === 'negative' ? theme.colors.danger : theme.colors.text;
+
+  const minColumn = MIN_COLUMN_WIDTH * Math.max(1, PixelRatio.getFontScale());
+  const mustScroll = gridWidth > 0 && gridWidth / COLUMN_COUNT < minColumn;
+  const columnWidth = mustScroll ? Math.max(SCROLL_COLUMN_WIDTH, minColumn) : undefined;
+
+  const accessibilityLabel = [
+    `${row.productName}, ${row.stockCode}`,
+    ...columns.map((column) => `${column.spokenLabel} ${column.value}`),
+    `stock ${row.balance}`,
+  ].join(', ');
+
+  const grid = (
+    <View style={styles.grid}>
+      {columns.map((column, index) => (
+        <View
+          key={column.key}
+          style={[
+            styles.column,
+            columnWidth ? { width: columnWidth } : { flex: 1 },
+            index > 0 ? { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: theme.colors.cardBorder } : null,
+          ]}>
+          <Text style={[styles.columnLabel, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+            {column.label}
+          </Text>
+          <Text
+            style={[
+              styles.columnValue,
+              { color: toneColor(column.tone), fontWeight: column.value === '0' ? '500' : '700' },
+            ]}
+            numberOfLines={1}>
+            {column.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <Card accessible accessibilityLabel={accessibilityLabel} style={[styles.card, isZero ? { opacity: 0.55 } : null]}>
       <View style={styles.header}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={2}>
             {row.productName}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{row.stockCode}</Text>
-            <ReportIssueIconButton referenceId={row.stockCode} />
-          </View>
+          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>{row.stockCode}</Text>
         </View>
-        <Text style={[theme.typography.kpi, { color: isZero ? theme.colors.textSecondary : theme.colors.text }]}>{row.balance}</Text>
+        <ReportIssueIconButton referenceId={row.stockCode} />
       </View>
 
-      <View style={{ marginTop: 10 }}>
-        <MovementRow opening={row.opening} newQty={row.newQty} sold={row.sold} returned={row.returned} adjustment={row.adjustment} />
+      <View
+        onLayout={(event: LayoutChangeEvent) => setGridWidth(Math.round(event.nativeEvent.layout.width))}
+        style={[styles.gridFrame, { borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+        {mustScroll ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
+            {grid}
+          </ScrollView>
+        ) : (
+          grid
+        )}
       </View>
 
-      {showDemand && row.waitingDemand > 0 ? (
-        <Text style={[theme.typography.label, { color: theme.colors.warning, marginTop: 8, fontWeight: '700' }]}>
-          Waiting {row.waitingDemand} · Expected {row.expectedBalance}
+      <View style={styles.stockRow}>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '600' }]}>Stock</Text>
+        <Text style={[styles.stockValue, { color: isZero ? theme.colors.textSecondary : toneColor(stockBalanceTone(row.balance)) }]}>
+          {row.balance}
         </Text>
-      ) : null}
+      </View>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 8 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  card: { marginBottom: 8, paddingHorizontal: 10, paddingVertical: 12 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  flagButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginTop: -4, marginRight: -6 },
+  gridFrame: { marginTop: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  grid: { flexDirection: 'row', alignItems: 'stretch' },
+  column: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  columnLabel: { fontSize: 10, lineHeight: 12, fontWeight: '500', textAlign: 'center' },
+  columnValue: { fontSize: 15, lineHeight: 20, marginTop: 4, fontVariant: ['tabular-nums'] },
+  stockRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 10 },
+  stockValue: { fontSize: 20, lineHeight: 26, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

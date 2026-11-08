@@ -28,17 +28,19 @@ export function StockSummaryGrid({ totals, productCount }: StockSummaryGridProps
   const theme = useAppTheme();
   const { clamp, ms } = useResponsive();
   const valueFontSize = clamp(18, ms(22), 26);
+  /** Same rule as the product cards: positive green, negative red, zero in the plain text color. */
+  const signColor = (n: number) => (n > 0 ? theme.colors.success : n < 0 ? theme.colors.danger : undefined);
 
   const rows: Tile[][] = [
     [
       { key: 'opening', label: 'Opening', value: String(totals.opening) },
-      { key: 'newQty', label: 'New', value: formatSigned(totals.newQty), color: theme.colors.success },
-      { key: 'sold', label: 'Sold', value: formatSigned(-totals.sold), color: theme.colors.danger },
+      { key: 'newQty', label: 'New', value: formatSigned(totals.newQty), color: totals.newQty === 0 ? undefined : theme.colors.success },
+      { key: 'sold', label: 'Sold', value: formatSigned(-totals.sold), color: totals.sold === 0 ? undefined : theme.colors.danger },
     ],
     [
-      { key: 'returned', label: 'Returned', value: formatSigned(-totals.returned), color: theme.colors.orange },
-      { key: 'adjustment', label: 'Adjustment', value: formatSigned(totals.adjustment) },
-      { key: 'waitingDemand', label: 'Waiting demand', value: String(totals.waitingDemand), color: theme.colors.warning },
+      { key: 'returned', label: 'Returned', value: formatSigned(-totals.returned), color: totals.returned === 0 ? undefined : theme.colors.danger },
+      { key: 'adjustment', label: 'Adjustment', value: formatSigned(totals.adjustment), color: signColor(totals.adjustment) },
+      { key: 'waitingDemand', label: 'Waiting demand', value: String(totals.waitingDemand) },
     ],
     [
       { key: 'balance', label: 'Balance', value: String(totals.balance), highlight: true },

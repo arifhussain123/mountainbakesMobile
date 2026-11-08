@@ -7,8 +7,6 @@ export type { CountRowProps } from './CountRow';
 export { MonthlyReturnsSummaryCard } from './MonthlyReturnsSummaryCard';
 export type { MonthlyReturnsSummaryCardProps } from './MonthlyReturnsSummaryCard';
 
-export { MovementRow } from './MovementRow';
-export type { MovementRowProps } from './MovementRow';
 
 export { ProductPickerModal } from './ProductPickerModal';
 export { ReturnLineRow } from './ReturnLineRow';
