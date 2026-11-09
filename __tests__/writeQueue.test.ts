@@ -11,7 +11,7 @@ import type { QueuedWrite, QueueStorage } from '@/shared/offline/types';
 // dependency: it is fully testable without SQLite.
 
 function createInMemoryStorage(seed: QueuedWrite[] = []): QueueStorage {
-  const rows = new Map(seed.map((w) => [w.id, w]));
+  const rows = new Map(seed.map(w => [w.id, w]));
   return {
     async insert(write) {
       rows.set(write.id, write);
@@ -39,7 +39,12 @@ describe('createWriteQueue', () => {
     const executor = jest.fn().mockResolvedValue(undefined);
     const queue = createWriteQueue({ storage, executor });
 
-    const id = await queue.enqueue({ endpoint: '/expenses', method: 'post', payload: { amount: 100 }, idempotencyKey: 'expense-abc' });
+    const id = await queue.enqueue({
+      endpoint: '/expenses',
+      method: 'post',
+      payload: { amount: 100 },
+      idempotencyKey: 'expense-abc',
+    });
 
     expect(id).toBe('expense-abc');
     const [write] = await queue.all();
@@ -73,7 +78,12 @@ describe('createWriteQueue', () => {
     const executor = jest.fn().mockRejectedValue(apiError(null));
     const queue = createWriteQueue({ storage, executor, now: () => time });
 
-    await queue.enqueue({ endpoint: '/sales', method: 'post', payload: {}, idempotencyKey: 'sale-1' });
+    await queue.enqueue({
+      endpoint: '/sales',
+      method: 'post',
+      payload: {},
+      idempotencyKey: 'sale-1',
+    });
     await queue.flush();
 
     const [write] = await queue.all();
@@ -95,10 +105,17 @@ describe('createWriteQueue', () => {
 
   it('a non-retryable failure (4xx validation) marks the write failed immediately, without retrying', async () => {
     const storage = createInMemoryStorage();
-    const executor = jest.fn().mockRejectedValue(apiError(422, 'Amount must be positive'));
+    const executor = jest
+      .fn()
+      .mockRejectedValue(apiError(422, 'Amount must be positive'));
     const queue = createWriteQueue({ storage, executor });
 
-    await queue.enqueue({ endpoint: '/expenses', method: 'post', payload: { amount: -5 }, idempotencyKey: 'expense-bad' });
+    await queue.enqueue({
+      endpoint: '/expenses',
+      method: 'post',
+      payload: { amount: -5 },
+      idempotencyKey: 'expense-bad',
+    });
     await queue.flush();
 
     const [write] = await queue.all();
@@ -117,7 +134,12 @@ describe('createWriteQueue', () => {
     const executor = jest.fn().mockRejectedValue(apiError(503));
     const queue = createWriteQueue({ storage, executor, now: () => time });
 
-    await queue.enqueue({ endpoint: '/sales', method: 'post', payload: {}, idempotencyKey: 'sale-flaky' });
+    await queue.enqueue({
+      endpoint: '/sales',
+      method: 'post',
+      payload: {},
+      idempotencyKey: 'sale-flaky',
+    });
 
     for (let i = 0; i < 5; i += 1) {
       await queue.flush();
@@ -136,8 +158,15 @@ describe('createWriteQueue', () => {
     const executor = jest.fn().mockResolvedValue(undefined);
     const queue = createWriteQueue({ storage, executor, onQueueChanged });
 
-    await queue.enqueue({ endpoint: '/expenses', method: 'post', payload: {}, idempotencyKey: 'expense-2' });
-    expect(onQueueChanged).toHaveBeenLastCalledWith([expect.objectContaining({ idempotencyKey: 'expense-2' })]);
+    await queue.enqueue({
+      endpoint: '/expenses',
+      method: 'post',
+      payload: {},
+      idempotencyKey: 'expense-2',
+    });
+    expect(onQueueChanged).toHaveBeenLastCalledWith([
+      expect.objectContaining({ idempotencyKey: 'expense-2' }),
+    ]);
 
     await queue.flush();
     expect(onQueueChanged).toHaveBeenLastCalledWith([]);

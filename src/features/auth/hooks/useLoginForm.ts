@@ -1,46 +1,45 @@
-import { useEffect, useState } from 'react';
-import { mapErrorToMessage } from '@/shared/helpers';
+import { useEffect } from 'react';
+import { Keyboard } from 'react-native';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@/shared/forms';
 import { useAuthStore } from '@/state';
+import { loginFormSchema, type LoginFormValues } from '../loginSchema';
+import { useLogin } from './useLogin';
 
+/**
+ * React Hook Form wiring for the Login screen: Zod validation on submit,
+ * re-validation as the user types once a field has failed, the remembered
+ * email pre-filled with "Remember me" ticked, and the mutation from `useLogin`.
+ */
 export function useLoginForm() {
-  const rememberedEmail = useAuthStore((state) => state.rememberedEmail);
-  const login = useAuthStore((state) => state.login);
+  const rememberedEmail = useAuthStore(state => state.rememberedEmail);
+  const { submit, isPending, errorMessage, clearError } = useLogin();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: rememberedEmail ?? '',
+      password: '',
+      rememberMe: rememberedEmail != null,
+    },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
 
+  // The remembered email is loaded during bootstrap, before this screen can
+  // mount — this only matters if it changes while the screen is open.
   useEffect(() => {
-    if (rememberedEmail) setIdentifier(rememberedEmail);
-  }, [rememberedEmail]);
-
-  const canSubmit = identifier.trim().length > 0 && password.length > 0 && !isSubmitting;
-
-  const submit = async () => {
-    if (!canSubmit) return;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    try {
-      await login(identifier.trim(), password, rememberMe);
-    } catch (error) {
-      setErrorMessage(mapErrorToMessage(error));
-    } finally {
-      setIsSubmitting(false);
+    if (rememberedEmail && !form.getValues('email')) {
+      form.setValue('email', rememberedEmail);
+      form.setValue('rememberMe', true);
     }
-  };
+  }, [form, rememberedEmail]);
 
-  return {
-    identifier,
-    setIdentifier,
-    password,
-    setPassword,
-    rememberMe,
-    setRememberMe,
-    isSubmitting,
-    errorMessage,
-    canSubmit,
-    submit,
-  };
+  const onSubmit = form.handleSubmit(values => {
+    if (isPending) return;
+    Keyboard.dismiss();
+    submit(values);
+  });
+
+  return { form, onSubmit, isPending, errorMessage, clearError };
 }

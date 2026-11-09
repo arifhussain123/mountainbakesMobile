@@ -15,12 +15,19 @@ export type IconName =
   | 'trash'
   | 'calendar'
   | 'camera'
-  | 'image';
+  | 'image'
+  | 'trending-up'
+  | 'layers'
+  | 'grid'
+  | 'arrow-up-right'
+  | 'chevron-left';
 
 export interface IconProps {
   name: IconName;
   size?: number;
   color?: string;
+  /** Outline thickness in viewBox units (default 2). The pill button's arrow chip uses 2.6, as in the design files. */
+  strokeWidth?: number;
 }
 
 /**
@@ -28,9 +35,20 @@ export interface IconProps {
  * keeps the bundle lean (CLAUDE.md Section 36) for the small, fixed set Phase 1
  * actually needs.
  */
-export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
+export function Icon({
+  name,
+  size = 20,
+  color = '#2E1A12',
+  strokeWidth = 2,
+}: IconProps) {
   const stroke = color;
-  const common = { fill: 'none', stroke, strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const common = {
+    fill: 'none',
+    stroke,
+    strokeWidth,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
 
   switch (name) {
     case 'menu':
@@ -130,16 +148,67 @@ export function Icon({ name, size = 20, color = '#2E1A12' }: IconProps) {
     case 'camera':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M4 8h3l2-3h6l2 3h3v12H4z" {...common} strokeLinejoin="round" />
+          <Path
+            d="M4 8h3l2-3h6l2 3h3v12H4z"
+            {...common}
+            strokeLinejoin="round"
+          />
           <Circle cx={12} cy={13} r={3.5} {...common} />
         </Svg>
       );
     case 'image':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Rect x={4} y={4} width={16} height={16} rx={2} {...common} strokeLinejoin="round" />
+          <Rect
+            x={4}
+            y={4}
+            width={16}
+            height={16}
+            rx={2}
+            {...common}
+            strokeLinejoin="round"
+          />
           <Path d="M4 16l5-5 4 4 3-3 4 4" {...common} strokeLinejoin="round" />
           <Circle cx={15} cy={9} r={1.5} fill={stroke} stroke="none" />
+        </Svg>
+      );
+    // The onboarding feature-strip trio and the pill-button arrow, traced from
+    // mountainbakesBranch.html screen 02 so the mobile strip matches the design.
+    case 'trending-up':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M3 17l6-6 4 4 8-8" {...common} />
+          <Path d="M15 7h6v6" {...common} />
+        </Svg>
+      );
+    case 'layers':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M12 3l4 2.3v4.6L12 12 8 9.9V5.3z" {...common} />
+          <Path d="M8 9.9l4 2.1v4.6l-4 2.3-4-2.3v-4.6z" {...common} />
+          <Path d="M16 9.9l4 2.1v4.6l-4 2.3-4-2.3" {...common} />
+        </Svg>
+      );
+    case 'grid':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x={4} y={4} width={6} height={6} {...common} />
+          <Rect x={14} y={4} width={6} height={6} {...common} />
+          <Rect x={4} y={14} width={6} height={6} {...common} />
+          <Rect x={14} y={14} width={6} height={6} {...common} />
+        </Svg>
+      );
+    case 'arrow-up-right':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M7 17L17 7" {...common} />
+          <Path d="M8 7h9v9" {...common} />
+        </Svg>
+      );
+    case 'chevron-left':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M15 6l-6 6 6 6" {...common} />
         </Svg>
       );
     default:

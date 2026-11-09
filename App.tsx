@@ -4,7 +4,7 @@
  * logic to App.tsx").
  */
 import { useEffect } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -14,8 +14,6 @@ import { queryClient, startOfflineQueueRetryWorker } from '@/api';
 import { RootNavigator } from '@/navigation';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
   useEffect(() => {
     void BootSplash.hide({ fade: true });
     startOfflineQueueRetryWorker();
@@ -26,7 +24,8 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <BottomSheetModalProvider>
-            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+            {/* The app renders one dark theme regardless of the OS setting, so the status bar is always light-on-dark. */}
+            <StatusBar barStyle="light-content" />
             <RootNavigator />
           </BottomSheetModalProvider>
         </SafeAreaProvider>

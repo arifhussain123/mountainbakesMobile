@@ -59,13 +59,25 @@ export type BottomTabParamList = {
 
 export type DrawerParamList = {
   [Routes.TABS]: NavigatorScreenParams<BottomTabParamList> | undefined;
-  [Routes.DISCOUNTS_STACK]: NavigatorScreenParams<DiscountsStackParamList> | undefined;
+  [Routes.DISCOUNTS_STACK]:
+    | NavigatorScreenParams<DiscountsStackParamList>
+    | undefined;
   [Routes.CASH_STACK]: NavigatorScreenParams<CashStackParamList> | undefined;
-  [Routes.EXPENSES_STACK]: NavigatorScreenParams<ExpensesStackParamList> | undefined;
-  [Routes.EVENTS_STACK]: NavigatorScreenParams<EventsStackParamList> | undefined;
-  [Routes.CLOSING_STACK]: NavigatorScreenParams<ClosingStackParamList> | undefined;
-  [Routes.REPORTS_STACK]: NavigatorScreenParams<ReportsStackParamList> | undefined;
-  [Routes.HELP_DESK_STACK]: NavigatorScreenParams<HelpDeskStackParamList> | undefined;
+  [Routes.EXPENSES_STACK]:
+    | NavigatorScreenParams<ExpensesStackParamList>
+    | undefined;
+  [Routes.EVENTS_STACK]:
+    | NavigatorScreenParams<EventsStackParamList>
+    | undefined;
+  [Routes.CLOSING_STACK]:
+    | NavigatorScreenParams<ClosingStackParamList>
+    | undefined;
+  [Routes.REPORTS_STACK]:
+    | NavigatorScreenParams<ReportsStackParamList>
+    | undefined;
+  [Routes.HELP_DESK_STACK]:
+    | NavigatorScreenParams<HelpDeskStackParamList>
+    | undefined;
   [Routes.PROFILE]: undefined;
   [Routes.SETTINGS]: undefined;
 };
@@ -73,6 +85,7 @@ export type DrawerParamList = {
 export type AuthStackParamList = {
   [Routes.ONBOARDING]: undefined;
   [Routes.LOGIN]: undefined;
+  [Routes.FORGOT_PASSWORD]: undefined;
 };
 
 // ─── Production app (production_user) ─────────────────────────────────────
@@ -112,17 +125,31 @@ export type ProductionEventsStackParamList = {
 
 export type ProductionBottomTabParamList = {
   [Routes.PRODUCTION_DASHBOARD_TAB]: undefined;
-  [Routes.PRODUCTION_ORDERS_TAB]: NavigatorScreenParams<ProductionOrdersStackParamList> | undefined;
-  [Routes.PRODUCTION_SALES_TAB]: NavigatorScreenParams<ProductionSalesStackParamList> | undefined;
-  [Routes.PRODUCTION_STOCK_TAB]: NavigatorScreenParams<ProductionStockStackParamList> | undefined;
+  [Routes.PRODUCTION_ORDERS_TAB]:
+    | NavigatorScreenParams<ProductionOrdersStackParamList>
+    | undefined;
+  [Routes.PRODUCTION_SALES_TAB]:
+    | NavigatorScreenParams<ProductionSalesStackParamList>
+    | undefined;
+  [Routes.PRODUCTION_STOCK_TAB]:
+    | NavigatorScreenParams<ProductionStockStackParamList>
+    | undefined;
   [Routes.PRODUCTION_MORE_TAB]: undefined;
 };
 
 export type ProductionDrawerParamList = {
-  [Routes.PRODUCTION_TABS]: NavigatorScreenParams<ProductionBottomTabParamList> | undefined;
-  [Routes.PRODUCTION_RETURNS_STACK]: NavigatorScreenParams<ProductionReturnsStackParamList> | undefined;
-  [Routes.PRODUCTION_DISCOUNTS_STACK]: NavigatorScreenParams<ProductionDiscountsStackParamList> | undefined;
-  [Routes.PRODUCTION_EVENTS_STACK]: NavigatorScreenParams<ProductionEventsStackParamList> | undefined;
+  [Routes.PRODUCTION_TABS]:
+    | NavigatorScreenParams<ProductionBottomTabParamList>
+    | undefined;
+  [Routes.PRODUCTION_RETURNS_STACK]:
+    | NavigatorScreenParams<ProductionReturnsStackParamList>
+    | undefined;
+  [Routes.PRODUCTION_DISCOUNTS_STACK]:
+    | NavigatorScreenParams<ProductionDiscountsStackParamList>
+    | undefined;
+  [Routes.PRODUCTION_EVENTS_STACK]:
+    | NavigatorScreenParams<ProductionEventsStackParamList>
+    | undefined;
   [Routes.PRODUCTION_REPORTS_STACK]: undefined;
   [Routes.PRODUCTION_HELP_DESK_STACK]: undefined;
 };
@@ -133,14 +160,18 @@ export type FinanceLedgerStackParamList = {
 
 export type FinanceBottomTabParamList = {
   [Routes.FINANCE_DASHBOARD_TAB]: undefined;
-  [Routes.FINANCE_LEDGER_TAB]: NavigatorScreenParams<FinanceLedgerStackParamList> | undefined;
+  [Routes.FINANCE_LEDGER_TAB]:
+    | NavigatorScreenParams<FinanceLedgerStackParamList>
+    | undefined;
   [Routes.FINANCE_CASH_TRANSFERS_TAB]: undefined;
   [Routes.FINANCE_INCOME_EXPENSE_TAB]: undefined;
   [Routes.FINANCE_MORE_TAB]: undefined;
 };
 
 export type FinanceDrawerParamList = {
-  [Routes.FINANCE_TABS]: NavigatorScreenParams<FinanceBottomTabParamList> | undefined;
+  [Routes.FINANCE_TABS]:
+    | NavigatorScreenParams<FinanceBottomTabParamList>
+    | undefined;
   [Routes.FINANCE_PAYROLL_STACK]: undefined;
   [Routes.FINANCE_PARTNERS_STACK]: undefined;
   [Routes.FINANCE_COMPANY_TRANSACTION_DETAILS_STACK]: undefined;
@@ -153,10 +184,14 @@ export type FinanceDrawerParamList = {
 };
 
 export type RootStackParamList = {
-  [Routes.LOGIN]: undefined;
+  [Routes.AUTH]: NavigatorScreenParams<AuthStackParamList> | undefined;
   [Routes.DRAWER]: NavigatorScreenParams<DrawerParamList> | undefined;
-  [Routes.PRODUCTION_DRAWER]: NavigatorScreenParams<ProductionDrawerParamList> | undefined;
-  [Routes.FINANCE_DRAWER]: NavigatorScreenParams<FinanceDrawerParamList> | undefined;
+  [Routes.PRODUCTION_DRAWER]:
+    | NavigatorScreenParams<ProductionDrawerParamList>
+    | undefined;
+  [Routes.FINANCE_DRAWER]:
+    | NavigatorScreenParams<FinanceDrawerParamList>
+    | undefined;
   [Routes.UNSUPPORTED_ROLE]: undefined;
   [Routes.COMING_SOON]: { title: string };
 };

@@ -13,6 +13,9 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		74134C0007FF4D8DA7EBBBE5 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5B24F390E46B4C1CAFC8A2EE /* BootSplash.storyboard */; };
 		BBF2F0EA791E4FF5A9EC12F7 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5CDA657BA82B42EABB252A5F /* Colors.xcassets */; };
+		A1F0A7B1C2D3E4F5A6B7C811 /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1F0A7B1C2D3E4F5A6B7C801 /* SpaceGrotesk-Regular.ttf */; };
+		A1F0A7B1C2D3E4F5A6B7C812 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1F0A7B1C2D3E4F5A6B7C802 /* SpaceGrotesk-Medium.ttf */; };
+		A1F0A7B1C2D3E4F5A6B7C813 /* SpaceGrotesk-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A1F0A7B1C2D3E4F5A6B7C803 /* SpaceGrotesk-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +31,9 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		5B24F390E46B4C1CAFC8A2EE /* BootSplash.storyboard */ = {isa = PBXFileReference; name = "BootSplash.storyboard"; path = "MountainBakesMobile/BootSplash.storyboard"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		5CDA657BA82B42EABB252A5F /* Colors.xcassets */ = {isa = PBXFileReference; name = "Colors.xcassets"; path = "MountainBakesMobile/Colors.xcassets"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = folder.assetcatalog; explicitFileType = undefined; includeInIndex = 0; };
+		A1F0A7B1C2D3E4F5A6B7C801 /* SpaceGrotesk-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SpaceGrotesk-Regular.ttf"; path = "../assets/fonts/SpaceGrotesk-Regular.ttf"; sourceTree = "<group>"; };
+		A1F0A7B1C2D3E4F5A6B7C802 /* SpaceGrotesk-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SpaceGrotesk-Medium.ttf"; path = "../assets/fonts/SpaceGrotesk-Medium.ttf"; sourceTree = "<group>"; };
+		A1F0A7B1C2D3E4F5A6B7C803 /* SpaceGrotesk-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SpaceGrotesk-Bold.ttf"; path = "../assets/fonts/SpaceGrotesk-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +48,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A1F0A7B1C2D3E4F5A6B7C820 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A1F0A7B1C2D3E4F5A6B7C801 /* SpaceGrotesk-Regular.ttf */,
+				A1F0A7B1C2D3E4F5A6B7C802 /* SpaceGrotesk-Medium.ttf */,
+				A1F0A7B1C2D3E4F5A6B7C803 /* SpaceGrotesk-Bold.ttf */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* MountainBakesMobile */ = {
 			isa = PBXGroup;
 			children = (
@@ -80,6 +96,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				A1F0A7B1C2D3E4F5A6B7C820 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -167,6 +184,9 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				74134C0007FF4D8DA7EBBBE5 /* BootSplash.storyboard in Resources */,
 				BBF2F0EA791E4FF5A9EC12F7 /* Colors.xcassets in Resources */,
+				A1F0A7B1C2D3E4F5A6B7C811 /* SpaceGrotesk-Regular.ttf in Resources */,
+				A1F0A7B1C2D3E4F5A6B7C812 /* SpaceGrotesk-Medium.ttf in Resources */,
+				A1F0A7B1C2D3E4F5A6B7C813 /* SpaceGrotesk-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

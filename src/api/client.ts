@@ -1,7 +1,11 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { env } from '@/config/env';
 import { logger } from '@/shared/utils';
-import { GEO_POSITION_HEADER, encodeGeoPosition, type GeoPosition } from './geo';
+import {
+  GEO_POSITION_HEADER,
+  encodeGeoPosition,
+  type GeoPosition,
+} from './geo';
 import type { ApiError } from './types';
 
 // ─── Wiring to auth state, without api/ importing state/ directly ──────────
@@ -24,12 +28,20 @@ export function setSessionExpiredHandler(fn: () => void): void {
 }
 
 export function isApiError(value: unknown): value is ApiError {
-  return typeof value === 'object' && value !== null && 'status' in value && 'message' in value;
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'status' in value &&
+    'message' in value
+  );
 }
 
-const axiosInstance = axios.create({ baseURL: env.apiBaseUrl, timeout: 20_000 });
+const axiosInstance = axios.create({
+  baseURL: env.apiBaseUrl,
+  timeout: 20_000,
+});
 
-axiosInstance.interceptors.request.use((config) => {
+axiosInstance.interceptors.request.use(config => {
   const token = getAccessToken();
   if (token) config.headers.set('Authorization', `Bearer ${token}`);
   return config;
@@ -37,15 +49,45 @@ axiosInstance.interceptors.request.use((config) => {
 
 function toApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
-    const err = error as AxiosError<{ error?: string; code?: string; details?: unknown }>;
+    const err = error as AxiosError<{
+      error?: string;
+      code?: string;
+      details?: unknown;
+    }>;
     if (!err.response) {
-      return { status: null, message: 'No internet connection. Please check your network and try again.' };
+      // Both leave `status: null` (the request never reached the server); the
+      // `code` tells a timeout apart from no connectivity, which the login
+      // screen words differently ("retry" vs. "you're offline").
+      const timedOut = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      return timedOut
+        ? {
+            status: null,
+            code: 'timeout',
+            message: 'The server took too long to respond. Please try again.',
+          }
+        : {
+            status: null,
+            code: 'network',
+            message:
+              'No internet connection. Please check your network and try again.',
+          };
     }
+    const data = err.response.data;
+    // The backend's AuthError puts its machine-readable code under
+    // `details.code` ({ error, details: { code } }), while a few other routes
+    // put it at the top level — surface either as `code`.
+    const details = data?.details;
+    const detailsCode =
+      typeof details === 'object' &&
+      details !== null &&
+      typeof (details as { code?: unknown }).code === 'string'
+        ? (details as { code: string }).code
+        : undefined;
     return {
       status: err.response.status,
-      message: err.response.data?.error ?? 'Something went wrong. Please try again.',
-      code: err.response.data?.code,
-      details: err.response.data?.details,
+      message: data?.error ?? 'Something went wrong. Please try again.',
+      code: data?.code ?? detailsCode,
+      details,
     };
   }
   logger.error('unexpected API client error', error);
@@ -60,11 +102,20 @@ const AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh'];
 
 // A 401 is retried exactly once, after a successful refresh — never in a loop.
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  response => response,
   async (error: AxiosError) => {
-    const original = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
-    const isAuthEndpoint = !!original?.url && AUTH_ENDPOINTS.some((path) => original.url!.includes(path));
-    if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
+    const original = error.config as
+      | (AxiosRequestConfig & { _retried?: boolean })
+      | undefined;
+    const isAuthEndpoint =
+      !!original?.url &&
+      AUTH_ENDPOINTS.some(path => original.url!.includes(path));
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retried &&
+      !isAuthEndpoint
+    ) {
       original._retried = true;
       const refreshed = await refreshTokens();
       if (refreshed) return axiosInstance.request(original);
@@ -87,8 +138,10 @@ export interface MutationOptions {
 
 function mutationHeaders(options?: MutationOptions): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (options?.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
-  if (options?.geoPosition) headers[GEO_POSITION_HEADER] = encodeGeoPosition(options.geoPosition);
+  if (options?.idempotencyKey)
+    headers['Idempotency-Key'] = options.idempotencyKey;
+  if (options?.geoPosition)
+    headers[GEO_POSITION_HEADER] = encodeGeoPosition(options.geoPosition);
   return headers;
 }
 
@@ -107,17 +160,29 @@ export const apiClient = {
       throw toApiError(error);
     }
   },
-  async post<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
+  async post<T>(
+    url: string,
+    body?: unknown,
+    options?: MutationOptions,
+  ): Promise<T> {
     try {
-      const response = await axiosInstance.post<T>(url, body, { headers: mutationHeaders(options) });
+      const response = await axiosInstance.post<T>(url, body, {
+        headers: mutationHeaders(options),
+      });
       return response.data;
     } catch (error) {
       throw toApiError(error);
     }
   },
-  async put<T>(url: string, body?: unknown, options?: MutationOptions): Promise<T> {
+  async put<T>(
+    url: string,
+    body?: unknown,
+    options?: MutationOptions,
+  ): Promise<T> {
     try {
-      const response = await axiosInstance.put<T>(url, body, { headers: mutationHeaders(options) });
+      const response = await axiosInstance.put<T>(url, body, {
+        headers: mutationHeaders(options),
+      });
       return response.data;
     } catch (error) {
       throw toApiError(error);
@@ -125,7 +190,9 @@ export const apiClient = {
   },
   async delete<T>(url: string, options?: MutationOptions): Promise<T> {
     try {
-      const response = await axiosInstance.delete<T>(url, { headers: mutationHeaders(options) });
+      const response = await axiosInstance.delete<T>(url, {
+        headers: mutationHeaders(options),
+      });
       return response.data;
     } catch (error) {
       throw toApiError(error);

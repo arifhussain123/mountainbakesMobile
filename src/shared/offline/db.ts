@@ -33,6 +33,14 @@ export function getOfflineDb(): DB {
       updated_at INTEGER NOT NULL
     );
   `);
+  // The signed-in user/branch mirror (see sessionCache.ts) — never a token.
+  db.executeSync(`
+    CREATE TABLE IF NOT EXISTS session_cache (
+      cache_key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
   return db;
 }
 

@@ -1,86 +1,196 @@
-import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, PrimaryButton, Screen } from '@/shared/ui';
+import { useRef } from 'react';
+import {
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+} from 'react-native';
+import { Controller } from 'react-hook-form';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { images } from '@/assets';
+import { Routes } from '@/navigation/routes';
+import type { AuthStackParamList } from '@/navigation/types';
+import { useAppTheme } from '@/shared/theme';
+import { Checkbox } from '@/shared/ui/Checkbox';
+import { InlineBanner } from '@/shared/ui/InlineBanner';
+import { PasswordField } from '@/shared/ui/PasswordField';
+import { PillButton } from '@/shared/ui/PillButton';
+import { Screen } from '@/shared/ui/Screen';
+import { TextField, type TextFieldHandle } from '@/shared/ui/TextField';
 import { useLoginForm } from '../../hooks';
 import { styles } from './styles';
 
+/** mountainbakesBranch.html screen 02c on the Charcoal/Orange tokens. */
 export function LoginScreen() {
-  const theme = useAppTheme();
-  const { identifier, setIdentifier, password, setPassword, rememberMe, setRememberMe, isSubmitting, errorMessage, canSubmit, submit } =
+  const { colors, typography } = useAppTheme();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const { form, onSubmit, isPending, errorMessage, clearError } =
     useLoginForm();
-  const [showPassword, setShowPassword] = useState(false);
+  const {
+    control,
+    formState: { errors },
+  } = form;
+  const passwordRef = useRef<TextFieldHandle>(null);
 
   return (
     <Screen glow="warm">
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.xl }]} keyboardShouldPersistTaps="handled">
-          <Image source={images.logo} style={styles.logo} />
-          <Text style={[theme.typography.screenTitle, { color: theme.colors.text, textAlign: 'center', marginTop: theme.spacing.lg }]}>
-            Welcome Back
-          </Text>
-          <Text
-            style={[theme.typography.body, { color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.xs }]}>
-            Sign in to open your branch.
-          </Text>
-
-          <View style={styles.field}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Email</Text>
-            <TextInput
-              value={identifier}
-              onChangeText={setIdentifier}
-              placeholder="you@mountainbakes.com"
-              placeholderTextColor={theme.colors.textSecondary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={[styles.input, { marginTop: 6, borderColor: theme.colors.border, color: theme.colors.text }]}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Password</Text>
-            <View style={[styles.passwordRow, { marginTop: 6, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radii.md }]}>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                placeholderTextColor={theme.colors.textSecondary}
-                secureTextEntry={!showPassword}
-                style={[styles.passwordInput, { color: theme.colors.text }]}
-              />
-              <Pressable accessibilityRole="button" onPress={() => setShowPassword((v) => !v)} style={{ paddingHorizontal: theme.spacing.md }}>
-                <Text style={[theme.typography.label, { color: theme.colors.primary }]}>{showPassword ? 'Hide' : 'Show'}</Text>
-              </Pressable>
-            </View>
-          </View>
-
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          testID="login-scroll"
+        >
+          {/* A tap anywhere outside a control dismisses the keyboard. */}
           <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: rememberMe }}
-            onPress={() => setRememberMe((v) => !v)}
-            style={styles.rememberRow}>
-            <View style={[styles.checkbox, { borderColor: theme.colors.border, backgroundColor: rememberMe ? theme.colors.primary : 'transparent' }]}>
-              {rememberMe ? <Icon name="check" size={12} color={theme.colors.primaryText} /> : null}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '600' }]}>Remember me</Text>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-                Fills in your email next time. Your password is never saved.
-              </Text>
-            </View>
-          </Pressable>
-
-          {errorMessage ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.lg, textAlign: 'center' }]}>
-              {errorMessage}
+            style={styles.flex}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
+            <Image
+              source={images.logo}
+              style={styles.logo}
+              resizeMode="contain"
+              accessible
+              accessibilityLabel="Mountain Bakes"
+            />
+            <Text
+              accessibilityRole="header"
+              accessibilityLabel="Welcome back"
+              style={[
+                typography.brandHeadline,
+                styles.headline,
+                { color: colors.textPrimary },
+              ]}
+              maxFontSizeMultiplier={1.3}
+            >
+              Welcome{'\n'}
+              <Text style={{ color: colors.accent }}>Back</Text>
             </Text>
-          ) : null}
+            <Text
+              style={[
+                typography.brandBody,
+                styles.subtitle,
+                { color: colors.textMuted },
+              ]}
+              maxFontSizeMultiplier={1.3}
+            >
+              Sign in to open your branch.
+            </Text>
 
-          <View style={{ marginTop: theme.spacing.xl }}>
-            <PrimaryButton label="Sign In" onPress={() => void submit()} loading={isSubmitting} disabled={!canSubmit} testID="login-submit" />
-          </View>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextField
+                  label="Email"
+                  required
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.email?.message}
+                  placeholder="you@mountainbakes.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="username"
+                  importantForAutofill="yes"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  editable={!isPending}
+                  containerStyle={styles.field}
+                  testID="login-email"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <PasswordField
+                  ref={passwordRef}
+                  label="Password"
+                  required
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.password?.message}
+                  placeholder="Your password"
+                  autoComplete="password"
+                  textContentType="password"
+                  importantForAutofill="yes"
+                  returnKeyType="go"
+                  onSubmitEditing={() => void onSubmit()}
+                  editable={!isPending}
+                  containerStyle={styles.field}
+                  testID="login-password"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="rememberMe"
+              render={({ field: { value, onChange } }) => (
+                <Checkbox
+                  checked={value}
+                  onChange={onChange}
+                  label="Remember me"
+                  helper="Fills in your email next time. Your password is never saved."
+                  testID="login-remember"
+                  trailing={
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel="Forgot password?"
+                      onPress={() =>
+                        navigation.navigate(Routes.FORGOT_PASSWORD)
+                      }
+                      hitSlop={8}
+                      style={styles.link}
+                      testID="login-forgot"
+                    >
+                      <Text
+                        style={[typography.brandLink, { color: colors.accent }]}
+                        maxFontSizeMultiplier={1.3}
+                      >
+                        Forgot password?
+                      </Text>
+                    </Pressable>
+                  }
+                />
+              )}
+            />
+
+            {errorMessage ? (
+              <InlineBanner
+                message={errorMessage}
+                onDismiss={clearError}
+                style={styles.banner}
+                testID="login-error"
+              />
+            ) : null}
+
+            <PillButton
+              label="Sign in"
+              onPress={() => void onSubmit()}
+              loading={isPending}
+              accessibilityHint="Signs in and opens your branch"
+              style={styles.button}
+              testID="login-submit"
+            />
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

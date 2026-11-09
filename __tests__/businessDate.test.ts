@@ -13,17 +13,23 @@ import { getBusinessDate, getBusinessDayBounds } from '@/api/businessDate';
 describe('getBusinessDate', () => {
   it('keeps a time at or after 02:00 Karachi on the same calendar day', () => {
     // 10:00 UTC = 15:00 Karachi (UTC+5) on 12 Oct.
-    expect(getBusinessDate(new Date('2026-10-12T10:00:00.000Z'))).toBe('2026-10-12');
+    expect(getBusinessDate(new Date('2026-10-12T10:00:00.000Z'))).toBe(
+      '2026-10-12',
+    );
   });
 
   it('rolls a time before 02:00 Karachi back to the previous business day', () => {
     // 20:30 UTC on 11 Oct = 01:30 Karachi on 12 Oct — before the 02:00 rollover.
-    expect(getBusinessDate(new Date('2026-10-11T20:30:00.000Z'))).toBe('2026-10-11');
+    expect(getBusinessDate(new Date('2026-10-11T20:30:00.000Z'))).toBe(
+      '2026-10-11',
+    );
   });
 
   it('treats exactly 02:00 Karachi as the new business day', () => {
     // 21:00 UTC on 11 Oct = 02:00 Karachi on 12 Oct — the rollover instant itself.
-    expect(getBusinessDate(new Date('2026-10-11T21:00:00.000Z'))).toBe('2026-10-12');
+    expect(getBusinessDate(new Date('2026-10-11T21:00:00.000Z'))).toBe(
+      '2026-10-12',
+    );
   });
 });
 

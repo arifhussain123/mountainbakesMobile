@@ -17,10 +17,10 @@ yet reconciled against this spec's exact copy/bottom-sheet presentation) · **No
 
 | # | Screen | Route | Status | Note |
 |---|---|---|---|---|
-| 01 | Splash | `SplashView` (RootNavigator) | Partial | Built pre-rebuild; not yet reconciled against this spec's exact copy/glow. |
-| 02 | Onboarding 1 | `Onboarding` | Partial | 2-slide version exists; copy/visuals not yet reconciled line-for-line. |
-| 02b | Onboarding 3 | `Onboarding` | Partial | Same screen, slide 2 — "day ends at 2 AM" copy present via `businessDate.ts` logic, not yet matched verbatim. |
-| 02c | Login | `Login` | Partial | Built; "Finance Ledger sign-in" button deliberately NOT present (Slice 1 decision — building it would expose finance-role surfaces to a branch session; still correct under RN CLI). |
+| 01 | Splash | `SplashView` (RootNavigator) | Done | On the Charcoal/Orange tokens + Space Grotesk, `SplashGlow`, accent tagline bullets, pulsing "Loading…"; native bootsplash background = `colors.bg`. |
+| 02 | Onboarding 1 | `Onboarding` (page 1 of 3) | Done | `OnboardingSlide` + `FeatureStrip` + `PagerDots`, swipe pager, Skip. Page 2 is a PLACEHOLDER (copy/features flagged in `onboardingContent.ts`) until its design arrives. |
+| 02b | Onboarding 3 | `Onboarding` (page 3 of 3) | Done | Verbatim "The day / ends at / 2 AM" copy, no feature strip, Skip fades out, Get Started → `onboardingCompleted` + reset to Login. |
+| 02c | Login | `Login` | Done | React Hook Form + Zod, `TextField`/`PasswordField`/`Checkbox`/`PillButton`, inline error banner, Remember me (email only), Forgot password → `ForgotPassword` (admin-only server policy shown verbatim). "Finance Ledger sign-in" button deliberately NOT present (Slice 1 decision). |
 | 03 | Home | `Dashboard` | Partial | Built against real endpoints; exact copy/section order vs. this spec's verbatim list not yet audited. |
 | 04 | New Orders | `OrdersList` | Done | Against real `production-orders`. |
 | 05 | Create Order | `CreateOrder` (bottom sheet, owned by `OrdersListScreen`) | Done | Converted to `@gorhom/bottom-sheet` — Slice 13. |

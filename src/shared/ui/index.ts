@@ -4,6 +4,9 @@ export type { AppHeaderProps, AppHeaderAction } from './AppHeader';
 export { Card } from './Card';
 export type { CardProps } from './Card';
 
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+
 export { DateFilter } from './DateFilter';
 export type { DateFilterProps, DatePeriod } from './DateFilter';
 
@@ -19,14 +22,26 @@ export type { FormBottomSheetProps } from './FormBottomSheet';
 export { Icon } from './Icon';
 export type { IconName, IconProps } from './Icon';
 
+export { InlineBanner } from './InlineBanner';
+export type { InlineBannerProps } from './InlineBanner';
+
 export { LoadingSkeleton } from './LoadingSkeleton';
 export type { LoadingSkeletonProps } from './LoadingSkeleton';
+
+export { PasswordField } from './PasswordField';
+export type { PasswordFieldProps } from './PasswordField';
+
+export { PillButton } from './PillButton';
+export type { PillButtonProps } from './PillButton';
 
 export { PrimaryButton } from './PrimaryButton';
 export type { PrimaryButtonProps } from './PrimaryButton';
 
 export { Screen } from './Screen';
 export type { ScreenProps } from './Screen';
+
+export { SplashGlow } from './SplashGlow';
+export type { SplashGlowProps } from './SplashGlow';
 
 export { SearchBar } from './SearchBar';
 export type { SearchBarProps } from './SearchBar';
@@ -45,3 +60,6 @@ export type { SummaryCardProps } from './SummaryCard';
 
 export { SyncBadge } from './SyncBadge';
 export type { SyncBadgeProps } from './SyncBadge';
+
+export { TextField, FIELD_HEIGHT } from './TextField';
+export type { TextFieldProps, TextFieldHandle } from './TextField';

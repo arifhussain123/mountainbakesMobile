@@ -1,6 +1,7 @@
 /** Every route name used anywhere in the app — never a hardcoded string elsewhere. */
 export const Routes = {
   // Root stack
+  AUTH: 'Auth',
   DRAWER: 'Drawer',
   PRODUCTION_DRAWER: 'ProductionDrawer',
   FINANCE_DRAWER: 'FinanceDrawer',
@@ -68,6 +69,7 @@ export const Routes = {
   // Auth stack
   ONBOARDING: 'Onboarding',
   LOGIN: 'Login',
+  FORGOT_PASSWORD: 'ForgotPassword',
 
   // ─── Production app (production_user) ──────────────────────────────────
   PRODUCTION_TABS: 'ProductionTabs',
@@ -124,7 +126,8 @@ export const Routes = {
 
   FINANCE_PAYROLL_STACK: 'FinancePayrollStack',
   FINANCE_PARTNERS_STACK: 'FinancePartnersStack',
-  FINANCE_COMPANY_TRANSACTION_DETAILS_STACK: 'FinanceCompanyTransactionDetailsStack',
+  FINANCE_COMPANY_TRANSACTION_DETAILS_STACK:
+    'FinanceCompanyTransactionDetailsStack',
   FINANCE_LEDGER_HEADS_STACK: 'FinanceLedgerHeadsStack',
   FINANCE_CLOSING_STACK: 'FinanceClosingStack',
   FINANCE_REPORTS_STACK: 'FinanceReportsStack',
