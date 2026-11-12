@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useChangeOwnPassword } from '@/api';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { useAppTheme, useResponsive } from '@/shared/theme';
-import { Icon, PasswordField, PillButton, Screen } from '@/shared/ui';
+import LinearGradient from 'react-native-linear-gradient';
+import { HERO_GRADIENT, useAppTheme, useResponsive } from '@/shared/theme';
+import { Icon, InfoBanner, PasswordField, PillButton, Screen } from '@/shared/ui';
 import { useAuthStore } from '@/state';
 import {
   PASSWORD_STRENGTH_LABELS,
@@ -70,13 +71,19 @@ export function ChangePasswordScreen() {
         <ScrollView contentContainerStyle={[styles.scroll, { padding: theme.spacing.xl }]} keyboardShouldPersistTaps="handled">
           <View style={{ width: '100%', maxWidth: contentWidth(420), alignSelf: 'center', gap: 14 }}>
             <View style={styles.head}>
-              <View style={[styles.badge, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border }]}>
-                <Icon name="lock" size={22} color={theme.colors.primary} />
-              </View>
-              <Text accessibilityRole="header" style={[theme.typography.screenTitle, styles.center, { color: theme.colors.text }]}>
+              {theme.isDark ? (
+                <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+                  <Icon name="lock" size={26} color={theme.colors.primaryText} />
+                </View>
+              ) : (
+                <LinearGradient colors={[HERO_GRADIENT[0], HERO_GRADIENT[2]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.badge, styles.badgeLift]}>
+                  <Icon name="lock" size={26} color="#FFFFFF" />
+                </LinearGradient>
+              )}
+              <Text accessibilityRole="header" style={[styles.h1, styles.center, { color: theme.colors.text }]}>
                 Set a new password
               </Text>
-              <Text style={[theme.typography.body, styles.center, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.p, styles.center, { color: theme.colors.textSecondary }]}>
                 For your security you must set a new password before continuing.
               </Text>
             </View>
@@ -120,12 +127,11 @@ export function ChangePasswordScreen() {
             </View>
 
             {error ? (
-              <View style={[styles.banner, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.danger }]}>
-                <Icon name="warning" size={16} color={theme.colors.danger} />
-                <Text accessibilityLiveRegion="assertive" style={[theme.typography.bodySmall, { color: theme.colors.danger, flex: 1 }]}>
+              <InfoBanner kind="bad">
+                <Text accessibilityLiveRegion="assertive" style={[styles.bannerText, { color: theme.colors.danger }]}>
                   {error}
                 </Text>
-              </View>
+              </InfoBanner>
             ) : null}
 
             <PillButton
@@ -178,9 +184,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
   head: { alignItems: 'center', gap: 8, marginBottom: 6 },
-  badge: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  // Redesign: a glossy violet tile (the hero gradient) instead of a bordered glass badge.
+  badge: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  badgeLift: { shadowColor: '#5B48D8', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 6 },
+  h1: { fontSize: 28, lineHeight: 34, fontWeight: '600', letterSpacing: -0.8 },
+  p: { fontSize: 15, lineHeight: 21 },
   center: { textAlign: 'center' },
-  banner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderWidth: 1, borderRadius: 14 },
+  bannerText: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, alignItems: 'center' },
   bars: { flexDirection: 'row', gap: 4 },
   bar: { flex: 1, height: 6, borderRadius: 3 },

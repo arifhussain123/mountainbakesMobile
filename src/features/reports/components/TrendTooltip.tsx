@@ -12,52 +12,61 @@ export interface TrendTooltipProps {
 }
 
 /**
- * The chart's "exact amount" readout, plus Prev/Next day buttons — the
- * accessible way to reach every point without a drag gesture, for a screen
- * reader or anyone who can't do a precise touch-drag.
+ * The chart's "exact amount" readout (the redesign's brand pill "Sun 11 ·
+ * Rs. 41,200"), plus Prev/Next day buttons — the accessible way to reach every
+ * point without a drag gesture, for a screen reader or anyone who can't do a
+ * precise touch-drag.
  */
 export function TrendTooltip({ point, onStep, canStepPrev, canStepNext }: TrendTooltipProps) {
   const theme = useAppTheme();
+  const pillBg = theme.isDark ? theme.colors.border : '#EFEBFF';
+  const pillInk = theme.isDark ? theme.colors.text : '#5B48D8';
 
   return (
     <View style={styles.row}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Previous day"
-        disabled={!canStepPrev}
-        onPress={() => onStep('prev')}
-        style={[styles.stepButton, { borderColor: theme.colors.cardBorder, opacity: canStepPrev ? 1 : 0.35 }]}>
-        <Icon name="chevron-left" size={14} color={theme.colors.text} />
-      </Pressable>
-      <View style={{ flex: 1, alignItems: 'center' }}>
+      <StepButton icon="chevron-left" label="Previous day" disabled={!canStepPrev} onPress={() => onStep('prev')} />
+      <View style={[styles.pill, { backgroundColor: pillBg }]}>
         {point ? (
           <>
-            <Text
-              accessibilityLiveRegion="polite"
-              style={[theme.typography.body, { color: theme.colors.primary, fontWeight: '700' }]}>
+            <Text accessibilityLiveRegion="polite" style={[styles.amount, { color: pillInk }]} numberOfLines={1}>
               {formatCurrency(point.sales)}
             </Text>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]} numberOfLines={1}>
               {formatDisplayDate(point.date)} · {point.transactions} orders
             </Text>
           </>
         ) : (
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>No data</Text>
+          <Text style={[styles.meta, { color: theme.colors.textFaint }]}>No data</Text>
         )}
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Next day"
-        disabled={!canStepNext}
-        onPress={() => onStep('next')}
-        style={[styles.stepButton, { borderColor: theme.colors.cardBorder, opacity: canStepNext ? 1 : 0.35 }]}>
-        <Icon name="chevron-right" size={14} color={theme.colors.text} />
-      </Pressable>
+      <StepButton icon="chevron-right" label="Next day" disabled={!canStepNext} onPress={() => onStep('next')} />
     </View>
+  );
+}
+
+function StepButton({ icon, label, disabled, onPress }: { icon: 'chevron-left' | 'chevron-right'; label: string; disabled: boolean; onPress: () => void }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.stepButton,
+        { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface, opacity: disabled ? 0.35 : 1 },
+        theme.isDark || disabled ? null : styles.lift,
+      ]}>
+      <Icon name={icon} size={16} color={theme.colors.text} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stepButton: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pill: { flex: 1, minWidth: 0, alignItems: 'center', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 10 },
+  amount: { fontSize: 16, lineHeight: 21, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  meta: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  stepButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  lift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
 });

@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { Icon } from '@/shared/ui';
 
 export interface IssueStarterChipsProps {
   onPick: (starter: string) => void;
@@ -19,8 +20,9 @@ export function IssueStarterChips({ onPick }: IssueStarterChipsProps) {
           accessibilityRole="button"
           accessibilityLabel={`Insert starter: ${starter.replace(' — ', '')}`}
           onPress={() => onPick(starter)}
-          style={[styles.chip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.pill }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.text }]}>{starter.replace(' — ', '')}</Text>
+          style={[styles.chip, { backgroundColor: theme.colors.cardFill, borderColor: theme.isDark ? theme.colors.cardBorder : '#E6E1FA' }]}>
+          <Icon name="plus" size={14} color={theme.colors.textFaint} />
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{starter.replace(' — ', '')}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -28,6 +30,8 @@ export function IssueStarterChips({ onPick }: IssueStarterChipsProps) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
-  chip: { height: 32, paddingHorizontal: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  // 2026 redesign `.chip`: 36pt white pill, faint lavender border, 13/600 slate text.
+  chip: { height: 36, paddingHorizontal: 14, borderWidth: 1, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  label: { fontSize: 13, fontWeight: '600' },
 });

@@ -1,10 +1,18 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, SearchBar } from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Icon, IconButton, ListThumb, SearchBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('');
 
 export interface ProductPickerModalProps {
   visible: boolean;
@@ -28,10 +36,8 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.lg }}>
-          <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>Search Product</Text>
-          <Pressable accessibilityRole="button" onPress={onClose}>
-            <Icon name="close" color={theme.colors.text} />
-          </Pressable>
+          <Text style={[designType.h2, { color: theme.colors.text }]}>Search Product</Text>
+          <IconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
         </View>
         <View style={{ paddingHorizontal: theme.spacing.lg }}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
@@ -40,7 +46,7 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
           data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: theme.spacing.lg }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const available = stockByProductId.get(item.id) ?? 0;
             return (
               <Pressable
@@ -48,20 +54,22 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
                 onPress={() => onSelect(item)}
                 style={{
                   flexDirection: 'row',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
+                  gap: 12,
                   paddingVertical: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border,
+                  borderTopWidth: index === 0 ? 0 : 1,
+                  borderTopColor: theme.colors.border,
                 }}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[theme.typography.body, { color: theme.colors.text }]} numberOfLines={1}>
+                <ListThumb text={initials(item.name)} index={index} />
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                  <Text style={[designType.h3s, { color: theme.colors.text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
+                  <Text style={[designType.xs, { color: available > 0 ? theme.colors.textFaint : theme.colors.danger }]}>
                     {formatCurrency(item.price)} · Available {available}
                   </Text>
                 </View>
+                <Icon name="chevron-right" size={18} color={theme.colors.textFaint} />
               </Pressable>
             );
           }}

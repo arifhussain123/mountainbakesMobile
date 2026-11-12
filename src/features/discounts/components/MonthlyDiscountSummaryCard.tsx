@@ -1,12 +1,11 @@
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { MonthlyDiscountSummary } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
+import { Card, ErrorState, InfoBanner, KpiTile, LoadingSkeleton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
-import { formatMonthToDateLine } from '@/shared/utils';
+import { formatCurrency, formatMonthToDateLine } from '@/shared/utils';
 import {
   buildDiscountSummaryBoxes,
-  buildOwnBranchDiscountTotal,
   formatDiscountWindow,
   formatStaleNotice,
   type DiscountSummaryBox,
@@ -52,6 +51,11 @@ export function MonthlyDiscountSummaryCard({
   }
 
   const stale = !!error && !!summary;
+
+  if (!showBranches) {
+    return <OwnBranchSummary summary={summary} isLoading={isLoading} stale={stale} updatedAt={updatedAt} isFetching={isFetching} onRetry={onRetry} />;
+  }
+
   const boxes = summary ? buildDiscountSummaryBoxes(summary, { showBranches }) : [];
   const wrap = width >= WRAP_FROM;
   const renderBox = (b: DiscountSummaryBox) => (
@@ -113,8 +117,6 @@ export function MonthlyDiscountSummaryCard({
         <View style={{ marginTop: theme.spacing.sm }}>
           <LoadingSkeleton height={96} />
         </View>
-      ) : !showBranches ? (
-        <OwnBranchTotal summary={summary} dim={stale} />
       ) : boxes.length === 0 ? (
         <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
           {summary.branches.length === 0 ? 'No active branches.' : 'No branch discounts this month.'}
@@ -134,27 +136,61 @@ export function MonthlyDiscountSummaryCard({
   );
 }
 
+const claims = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'claim' : 'claims'}`;
+
 /**
- * Branch → Discounts: the branch's own month as one full-width total, laid out
- * like Shop Expenses' total card — the web's `OwnBranchSummary`. Only branch
- * roles reach this screen, so the branch never needs naming.
+ * Branch → Discounts (redesign `14 Discounts`): the branch's own month as two
+ * pastel kpi tiles — awaiting review and approved, each with its claim count.
+ * Only branch roles reach this, so the branch never needs naming; the server
+ * scopes `totals` to it. Pending is its own tile, never added into Approved.
  */
-function OwnBranchTotal({ summary, dim }: { summary: MonthlyDiscountSummary; dim: boolean }) {
+function OwnBranchSummary({
+  summary,
+  isLoading,
+  stale,
+  updatedAt,
+  isFetching,
+  onRetry,
+}: {
+  summary: MonthlyDiscountSummary | undefined;
+  isLoading: boolean;
+  stale: boolean;
+  updatedAt: number;
+  isFetching: boolean;
+  onRetry: () => void;
+}) {
   const theme = useAppTheme();
-  const t = buildOwnBranchDiscountTotal(summary);
+  const t = summary?.totals;
   return (
-    <View
-      accessible
-      accessibilityLabel={`${t.label}: ${t.total}. ${t.approvedLine}${t.pendingLine ? `. ${t.pendingLine}` : ''}`}
-      style={[styles.ownTotal, dim && styles.dim, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg, marginTop: theme.spacing.sm }]}>
-      <Text style={[theme.typography.label, { color: theme.colors.primaryText }]}>{t.label.toUpperCase()}</Text>
-      <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, marginTop: 4 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-        {t.total}
+    <View style={styles.own}>
+      <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>
+        {summary ? `This month · ${formatDiscountWindow(summary.from, summary.to)}` : 'This month'}
       </Text>
-      <Text style={[theme.typography.label, { color: theme.colors.primaryText, marginTop: 4 }]}>{t.approvedLine}</Text>
-      {t.pendingLine ? (
-        <Text style={[theme.typography.label, styles.bold, { color: theme.colors.primaryText, marginTop: 2 }]}>{t.pendingLine}</Text>
+      {stale ? (
+        <InfoBanner kind="warn">
+          <Text style={[theme.typography.bodySmall, { color: theme.colors.warning }]}>{formatStaleNotice(updatedAt)}</Text>
+          <Pressable accessibilityRole="button" onPress={onRetry} disabled={isFetching} hitSlop={8} style={styles.mt2}>
+            <Text style={[theme.typography.label, styles.bold, { color: isFetching ? theme.colors.textFaint : theme.colors.primary }]}>
+              {isFetching ? 'Retrying…' : 'Retry'}
+            </Text>
+          </Pressable>
+        </InfoBanner>
       ) : null}
+      {isLoading || !t ? (
+        <LoadingSkeleton height={96} />
+      ) : (
+        <View style={[styles.grid2, stale && styles.dim]}>
+          <KpiTile
+            tone={0}
+            label="Awaiting review"
+            value={formatCurrency(t.pending.amount)}
+            sub={claims(t.pending.count)}
+            valueColor={theme.colors.warning}
+          />
+          <KpiTile tone={1} label="Approved" value={formatCurrency(t.approved.amount)} sub={claims(t.approved.count)} valueColor={theme.colors.success} />
+        </View>
+      )}
+      {summary ? <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{formatMonthToDateLine(summary.from)}</Text> : null}
     </View>
   );
 }
@@ -172,5 +208,6 @@ const styles = StyleSheet.create({
   boxWrap: { width: undefined, flexBasis: 170, flexGrow: 1 },
   boxHead: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1 },
   boxBody: { paddingHorizontal: 12, paddingVertical: 10 },
-  ownTotal: { padding: 16 },
+  own: { gap: 10 },
+  grid2: { flexDirection: 'row', gap: 8 },
 });

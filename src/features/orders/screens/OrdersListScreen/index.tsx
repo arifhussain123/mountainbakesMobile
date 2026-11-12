@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
@@ -11,7 +11,7 @@ import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
 import { Routes, openDrawer, useTabBarHeight, type OrdersStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar, StatusBadge } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, FilterChipRow, FormBottomSheet, IconButton, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionOrder } from '@/api';
 import { CancelDemandModal, DemandTotalModal, OrderCard, QueuedDemandCard, SortSheet, TotalsBar, type OrderSort } from '../../components';
@@ -20,6 +20,8 @@ import { isActiveOrder } from '../../utils/demandLines';
 import { styles } from './styles';
 
 const PRODUCTION_ORDERS_ENDPOINT = '/production-orders';
+/** Room under the last card so the "New order" FAB never covers it. */
+const FAB_CLEARANCE = 96;
 
 function compareOrders(a: ProductionOrder, b: ProductionOrder, sort: OrderSort): number {
   const dir = sort.dir === 'asc' ? 1 : -1;
@@ -38,7 +40,7 @@ function compareOrders(a: ProductionOrder, b: ProductionOrder, sort: OrderSort):
   }
 }
 
-/** branchApp.md screen 04 — "New Orders": the branch's production demand list. */
+/** 2026 redesign B04 — "New orders": the branch's production demand list. */
 export function OrdersListScreen() {
   const theme = useAppTheme();
   const tabBarHeight = useTabBarHeight();
@@ -89,60 +91,42 @@ export function OrdersListScreen() {
   return (
     <Screen>
       <AppHeader
-        title="New Orders"
-        subtitle="Production Orders · Last 7 days"
+        title="New orders"
+        subtitle="Production orders · last 7 days"
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
 
       {isOffline ? (
-        <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-          <Icon name="warning" size={14} color={theme.colors.warning} />
-          <Text style={[theme.typography.label, { color: theme.colors.warning, marginLeft: 6 }]}>Offline — showing cached list</Text>
-        </View>
+        <InfoBanner kind="warn" style={[styles.offlineBanner, { marginHorizontal: theme.spacing.lg }]}>
+          Offline — showing cached list
+        </InfoBanner>
       ) : null}
 
-      <View style={[styles.tabsRow, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.md, marginHorizontal: theme.spacing.lg }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: tab === 'active' }}
-          onPress={() => setTab('active')}
-          style={[styles.tab, { backgroundColor: tab === 'active' ? theme.colors.primary : 'transparent', borderRadius: theme.radii.sm }]}>
-          <Text style={[theme.typography.label, { color: tab === 'active' ? theme.colors.primaryText : theme.colors.text }]}>
-            Needs action
-          </Text>
-          <View style={{ marginLeft: 6 }}>
-            <StatusBadge label={String(activeCount)} variant={activeCount > 0 && tab !== 'active' ? 'warning' : 'neutral'} />
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: tab === 'history' }}
-          onPress={() => setTab('history')}
-          style={[styles.tab, { backgroundColor: tab === 'history' ? theme.colors.primary : 'transparent', borderRadius: theme.radii.sm }]}>
-          <Text style={[theme.typography.label, { color: tab === 'history' ? theme.colors.primaryText : theme.colors.text }]}>
-            History
-          </Text>
-          <View style={{ marginLeft: 6 }}>
-            <StatusBadge label={String(historyCount)} variant="neutral" />
-          </View>
-        </Pressable>
+      <View style={[styles.chipsRow, { paddingHorizontal: theme.spacing.lg }]}>
+        <FilterChipRow
+          options={[
+            { value: 'active' as const, label: 'Needs action', count: activeCount },
+            { value: 'history' as const, label: 'History', count: historyCount },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </View>
 
       <View style={[styles.searchRow, { paddingHorizontal: theme.spacing.lg }]}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex1}>
           <SearchBar
             value={search}
             onChangeText={setSearch}
             placeholder={tab === 'active' ? 'Search active demands...' : 'Search order history...'}
           />
         </View>
-        <Pressable
-          accessibilityRole="button"
+        <IconButton
+          icon="sort"
           accessibilityLabel="Sort"
+          dot={sort.field !== 'date' || sort.dir !== 'desc'}
           onPress={() => setSortOpen(true)}
-          style={[styles.sortButton, { borderColor: theme.colors.border }]}>
-          <Icon name="chevron-down" size={16} color={theme.colors.text} />
-        </Pressable>
+        />
       </View>
 
       {tab === 'history' && filtered.length > 0 ? (
@@ -157,7 +141,7 @@ export function OrdersListScreen() {
       <FlashList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + FAB_CLEARANCE }}
         ListHeaderComponent={
           tab === 'active' && queuedDemands.length > 0 ? (
             <View>
@@ -191,13 +175,12 @@ export function OrdersListScreen() {
         onRefresh={() => void refetch()}
       />
 
-      <Pressable
-        accessibilityRole="button"
+      <Fab
+        label="New order"
         accessibilityLabel="New production order"
         onPress={() => sheetRef.current?.present()}
-        style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: tabBarHeight + 20 }]}>
-        <Icon name="plus" size={22} color={theme.colors.primaryText} />
-      </Pressable>
+        bottom={tabBarHeight + 20}
+      />
 
       <FormBottomSheet ref={sheetRef} title="Create New Production Order" onRequestClose={() => sheetRef.current?.dismiss()}>
         <CreateOrderSheetContent onClose={() => sheetRef.current?.dismiss()} />

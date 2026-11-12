@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { StyleSheet, View } from 'react-native';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { MiniStat } from '@/shared/ui';
 import type { ProductionOrder } from '@/api';
 import { fulfilledTotals, isVerified, livePackingItems, requestedTotals } from '../utils/demandLines';
 
@@ -28,7 +29,7 @@ export function TotalsBar({ orders }: TotalsBarProps) {
   );
 
   return (
-    <View style={[styles.row, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+    <View style={[styles.row, { backgroundColor: tintFill(theme) }]}>
       {[
         { label: 'Products', value: totals.products },
         { label: 'Demand Qty', value: totals.qty },
@@ -36,20 +37,14 @@ export function TotalsBar({ orders }: TotalsBarProps) {
         { label: 'Verified Qty', value: totals.verifiedQty },
         { label: 'Packing', value: totals.packing },
       ].map((cell) => (
-        <View key={cell.label} style={styles.cell}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
-            {cell.label.toUpperCase()}
-          </Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', marginTop: 2 }]}>
-            {cell.value.toLocaleString()}
-          </Text>
-        </View>
+        <MiniStat key={cell.label} label={cell.label} value={cell.value.toLocaleString()} style={styles.cell} />
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', borderWidth: 1, padding: 10, marginTop: 8 },
-  cell: { flex: 1 },
+  // The redesign's lavender `card tint` strip of mini stats; wraps to two lines on a narrow phone.
+  row: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, columnGap: 8, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginTop: 10 },
+  cell: { flexBasis: '30%', flexGrow: 1 },
 });

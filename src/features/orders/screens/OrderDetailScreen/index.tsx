@@ -3,14 +3,14 @@ import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useProductionOrder, useProductionOrders } from '@/api';
 import type { OrdersStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, ErrorState, Icon, LoadingSkeleton, PillButton, QtyStepper, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { AppHeader, Card, ErrorState, Icon, InfoBanner, LoadingSkeleton, MiniStat, PillButton, QtyStepper, Screen, SmallButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
 import type { ProductionOrder } from '@/api';
 import { DemandTotalModal } from '../../components/DemandTotalModal';
-import { effectiveQty, isVerified, liveItems, livePackingItems, requestedTotals } from '../../utils/demandLines';
+import { effectiveQty, fulfilledTotals, isVerified, liveItems, livePackingItems, requestedTotals } from '../../utils/demandLines';
 import { useVerifyDeliveryForm } from '../../hooks/useVerifyDeliveryForm';
 import { styles } from './styles';
 
@@ -38,9 +38,9 @@ function StatusTimeline({ order }: { order: ProductionOrder }) {
 
   if (order.status === 'rejected' || order.status === 'cancelled') {
     return (
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.sm }]}>
+      <InfoBanner kind={order.status === 'rejected' ? 'bad' : 'warn'}>
         {order.status === 'rejected' ? 'Rejected by Production.' : 'Deleted by the branch.'}
-      </Text>
+      </InfoBanner>
     );
   }
 
@@ -58,10 +58,10 @@ function StatusTimeline({ order }: { order: ProductionOrder }) {
           <View
             style={[
               styles.timelineDot,
-              { backgroundColor: step.done ? theme.colors.primary : theme.colors.border, borderColor: theme.colors.primary },
+              { backgroundColor: step.done ? theme.colors.primary : theme.colors.surface, borderColor: step.done ? theme.colors.primary : theme.colors.border },
             ]}
           />
-          <Text style={[theme.typography.label, { color: step.done ? theme.colors.text : theme.colors.textFaint, marginLeft: 8 }]}>
+          <Text style={[styles.stepText, { color: step.done ? theme.colors.text : theme.colors.textFaint }]}>
             {step.label}
           </Text>
           {i < steps.length - 1 ? <View style={[styles.timelineLine, { backgroundColor: theme.colors.border }]} /> : null}
@@ -75,14 +75,14 @@ function PhotoRow({ title, photos }: { title: string; photos?: { id: string; url
   const theme = useAppTheme();
   if (!photos || photos.length === 0) return null;
   return (
-    <View style={{ marginTop: theme.spacing.lg }}>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{title.toUpperCase()}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: theme.spacing.sm }}>
+    <Card style={styles.section}>
+      <Text style={[styles.h3, { color: theme.colors.text }]}>{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {photos.map((photo) => (
           <Image key={photo.id} source={{ uri: photo.url }} style={[styles.photoThumb, { borderColor: theme.colors.border }]} />
         ))}
       </ScrollView>
-    </View>
+    </Card>
   );
 }
 
@@ -97,18 +97,20 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
   };
 
   return (
-    <View style={[styles.verifySection, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Verify Delivery</Text>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 4 }]}>
+    <Card style={styles.section}>
+      <Text style={[styles.h3, { color: theme.colors.text }]}>Verify Delivery</Text>
+      <Text style={[theme.typography.bodySmall, styles.pullUp, { color: theme.colors.textSecondary }]}>
         Count what physically arrived. Correct any quantity that doesn't match.
       </Text>
 
       {lines.map((item) => (
-        <View key={item.productId} style={styles.verifyRow}>
-          <Text style={[theme.typography.body, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
-            {item.productName}
-          </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginRight: 8 }]}>Sent {effectiveQty(item)}</Text>
+        <View key={item.productId} style={[styles.verifyRow, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.flex1}>
+            <Text style={[styles.rowName, { color: theme.colors.text }]} numberOfLines={1}>
+              {item.productName}
+            </Text>
+            <Text style={[styles.xs, { color: theme.colors.textFaint }]}>Sent {effectiveQty(item)}</Text>
+          </View>
           <QtyStepper
             value={parseInt(form.verifiedQtyById[item.productId] ?? '', 10) || 0}
             onChange={(v) => form.setVerifiedQty(item.productId, String(v))}
@@ -117,8 +119,8 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
         </View>
       ))}
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>
-        DELIVERY PHOTO <Text style={{ color: theme.colors.danger }}>*</Text>
+      <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+        Delivery photo <Text style={{ color: theme.colors.primary }}>*</Text>
       </Text>
       {form.photo ? (
         <View style={styles.photoPreviewRow}>
@@ -129,30 +131,29 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
         </View>
       ) : (
         <View style={styles.photoButtonsRow}>
-          <Pressable
-            accessibilityRole="button"
+          <SmallButton
+            label="Camera"
+            icon="camera"
+            kind="soft"
+            size="sm"
             disabled={form.isPickingPhoto}
             onPress={() => void form.capturePhoto('camera')}
-            style={[styles.photoButton, { borderColor: theme.colors.border }]}>
-            <Icon name="camera" size={16} color={theme.colors.text} />
-            <Text style={[theme.typography.label, { color: theme.colors.text, marginLeft: 6 }]}>Camera</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+            style={styles.flex1}
+          />
+          <SmallButton
+            label="Gallery"
+            icon="image"
+            size="sm"
             disabled={form.isPickingPhoto}
             onPress={() => void form.capturePhoto('gallery')}
-            style={[styles.photoButton, { borderColor: theme.colors.border }]}>
-            <Icon name="image" size={16} color={theme.colors.text} />
-            <Text style={[theme.typography.label, { color: theme.colors.text, marginLeft: 6 }]}>Gallery</Text>
-          </Pressable>
+            style={styles.flex1}
+          />
         </View>
       )}
 
-      {form.submitError ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.sm }]}>{form.submitError}</Text>
-      ) : null}
+      {form.submitError ? <InfoBanner kind="bad">{form.submitError}</InfoBanner> : null}
 
-      <View style={{ marginTop: theme.spacing.lg }}>
+      <View>
         <PillButton
           label="Submit Verification"
           onPress={() => void handleSubmit()}
@@ -161,7 +162,7 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
           testID="verify-delivery-submit"
         />
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -200,6 +201,7 @@ export function OrderDetailScreen() {
 
   const requested = requestedTotals(order);
   const verified = isVerified(order);
+  const fulfilled = verified ? fulfilledTotals(order) : null;
   const packing = livePackingItems(order.packingItems);
 
   return (
@@ -212,91 +214,90 @@ export function OrderDetailScreen() {
           { icon: 'close', onPress: () => navigation.goBack(), accessibilityLabel: 'Close' },
         ]}
       />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <View style={styles.headerRow}>
-          <StatusBadge label={STATUS_LABEL[order.status] ?? order.status} variant={STATUS_VARIANT[order.status] ?? 'neutral'} />
-        </View>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]}>
-          {formatDisplayDate(order.date)} · {order.time}
-          {order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}
-        </Text>
+      <ScrollView contentContainerStyle={[styles.body, { padding: theme.spacing.lg }]}>
+        <Card style={styles.section}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.xs, styles.flex1, { color: theme.colors.textFaint }]}>
+              {formatDisplayDate(order.date)} · {order.time}
+              {order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}
+            </Text>
+            <StatusBadge label={STATUS_LABEL[order.status] ?? order.status} variant={STATUS_VARIANT[order.status] ?? 'neutral'} />
+          </View>
+          <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
+            <MiniStat label="Products" value={fulfilled ? `${fulfilled.products} / ${requested.products}` : String(requested.products)} />
+            <MiniStat label="Qty" value={fulfilled ? `${fulfilled.qty} / ${requested.qty}` : String(requested.qty)} />
+            <MiniStat label="Packing" value={String(packing.length)} />
+          </View>
+          <StatusTimeline order={order} />
+        </Card>
 
-        <StatusTimeline order={order} />
+        {order.cancelReason ? <InfoBanner kind="warn">{`Reason · ${order.cancelReason}`}</InfoBanner> : null}
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>
-          PRODUCTS · {requested.products}
-        </Text>
-        {liveItems(order.items).map((item) => {
-          const demandQty = item.qty;
-          const countedQty = effectiveQty(item);
-          const differs = verified && countedQty !== demandQty;
-          return (
-            <View key={item.productId} style={[styles.itemRow, { borderBottomColor: theme.colors.border }]}>
-              <Text style={[theme.typography.body, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
-                {item.productName}
-                {item.isSpecial ? ' (Special)' : ''}
-                {item.addedByProduction ? ' · Added by Production' : ''}
-              </Text>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, width: 50, textAlign: 'right' }]}>
-                {demandQty}
-              </Text>
-              <Text
-                style={[
-                  theme.typography.bodySmall,
-                  {
-                    width: 50,
-                    textAlign: 'right',
-                    fontWeight: '700',
-                    color: !verified
-                      ? theme.colors.textFaint
-                      : differs && countedQty < demandQty
-                        ? theme.colors.warning
-                        : differs
-                          ? theme.colors.success
-                          : theme.colors.text,
-                  },
-                ]}>
-                {verified ? countedQty : '—'}
-              </Text>
-            </View>
-          );
-        })}
+        <Card style={styles.section}>
+          <Text style={[styles.h3, { color: theme.colors.text }]}>Products · {requested.products}</Text>
+          <View style={styles.tableHead}>
+            <Text style={[styles.th, styles.flex1, { color: theme.colors.textFaint }]}>Product</Text>
+            <Text style={[styles.th, styles.numCol, { color: theme.colors.textFaint }]}>Demand</Text>
+            <Text style={[styles.th, styles.numCol, { color: theme.colors.textFaint }]}>Verified</Text>
+          </View>
+          <View>
+            {liveItems(order.items).map((item) => {
+              const demandQty = item.qty;
+              const countedQty = effectiveQty(item);
+              const differs = verified && countedQty !== demandQty;
+              return (
+                <View key={item.productId} style={[styles.itemRow, { borderTopColor: theme.colors.border }]}>
+                  <Text style={[styles.rowName, styles.flex1, { color: theme.colors.text }]} numberOfLines={1}>
+                    {item.productName}
+                    {item.isSpecial ? ' (Special)' : ''}
+                    {item.addedByProduction ? ' · Added by Production' : ''}
+                  </Text>
+                  <Text style={[styles.num, styles.numCol, { color: theme.colors.textSecondary }]}>{demandQty}</Text>
+                  <Text
+                    style={[
+                      styles.num,
+                      styles.numCol,
+                      styles.bold,
+                      {
+                        color: !verified
+                          ? theme.colors.textFaint
+                          : differs && countedQty < demandQty
+                            ? theme.colors.warning
+                            : differs
+                              ? theme.colors.success
+                              : theme.colors.text,
+                      },
+                    ]}>
+                    {verified ? countedQty : '—'}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </Card>
 
         {packing.length > 0 ? (
-          <>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>
-              PACKING MATERIALS · {packing.length}
-            </Text>
-            {packing.map((item) => (
-              <View key={item.packingMaterialId} style={[styles.itemRow, { borderBottomColor: theme.colors.border }]}>
-                <Text style={[theme.typography.body, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
-                  {item.materialName}
-                </Text>
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.text, width: 50, textAlign: 'right' }]}>
-                  {effectiveQty(item)}
-                </Text>
-              </View>
-            ))}
-          </>
-        ) : null}
-
-        {order.cancelReason ? (
-          <View style={{ marginTop: theme.spacing.lg }}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>REASON</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{order.cancelReason}</Text>
-          </View>
+          <Card style={styles.section}>
+            <Text style={[styles.h3, { color: theme.colors.text }]}>Packing materials · {packing.length}</Text>
+            <View>
+              {packing.map((item) => (
+                <View key={item.packingMaterialId} style={[styles.itemRow, { borderTopColor: theme.colors.border }]}>
+                  <Text style={[styles.rowName, styles.flex1, { color: theme.colors.text }]} numberOfLines={1}>
+                    {item.materialName}
+                  </Text>
+                  <Text style={[styles.num, styles.numCol, styles.bold, { color: theme.colors.text }]}>{effectiveQty(item)}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
         ) : null}
 
         <PhotoRow title="Demand photo" photos={order.demandPhotos} />
         <PhotoRow title="Verification photo" photos={order.verificationPhotos} />
 
-        {order.status === 'awaiting_verification' ? (
-          <View style={{ marginTop: theme.spacing.xl }}>
-            <VerifyDeliverySection order={order} />
-          </View>
-        ) : null}
+        {order.status === 'awaiting_verification' ? <VerifyDeliverySection order={order} /> : null}
 
-        <View style={{ marginTop: theme.spacing.lg }}>
+        <View>
           <ReportIssueAction referenceId={order.demandNumber} />
         </View>
       </ScrollView>

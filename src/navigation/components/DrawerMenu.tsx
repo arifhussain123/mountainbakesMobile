@@ -69,6 +69,9 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
   const available = measuredListHeight > 0 ? measuredListHeight : computeAvailableListHeight(windowHeight, insets.top, insets.bottom);
   const metrics = computeDrawerRowMetrics(available, rows.length, sectionCount);
 
+  // 2026 redesign: a white drawer panel in light mode; dark keeps the charcoal background.
+  const panel = theme.isDark ? theme.colors.background : theme.colors.surface;
+
   const handleSignOut = () => {
     setSignOutOpen(false);
     closeDrawer();
@@ -76,7 +79,7 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: panel }]}>
       <DrawerHeader roleLabel={roleLabel} insetTop={insets.top} />
       {contextLine ? <BranchStrip branchName={contextLine} /> : null}
 
@@ -109,7 +112,7 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
         </ScrollView>
         {/* A list that scrolls (Super Admin's, a small screen, large fonts) fades at the bottom to hint there's more. */}
         {metrics.needsScroll ? (
-          <LinearGradient colors={[`${theme.colors.background}00`, theme.colors.background]} pointerEvents="none" style={styles.scrollFade} />
+          <LinearGradient colors={[`${panel}00`, panel]} pointerEvents="none" style={styles.scrollFade} />
         ) : null}
       </View>
 

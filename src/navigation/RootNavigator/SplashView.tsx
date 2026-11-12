@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { Platform, StyleSheet, Text, View, Image as RNImage } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useAppTheme, useResponsive } from '@/shared/theme';
-import { Screen } from '@/shared/ui';
+import LinearGradient from 'react-native-linear-gradient';
+import { HERO_GRADIENT, useAppTheme, useResponsive } from '@/shared/theme';
+import { Screen, Sphere3D } from '@/shared/ui';
 import { useAuthStore } from '@/state';
 import { images } from '@/assets';
 
@@ -25,6 +26,11 @@ import { images } from '@/assets';
  * the instant `App.tsx` calls `BootSplash.hide()`. The logo's animated style
  * below starts at that native size/scale and tweens to the responsive final
  * size over 300ms, per this task's own spec.
+ *
+ * 2026 redesign (B01, light mode): a violet gradient with 3D spheres, white
+ * title and a honey tagline. The native splash is plain lavender, so the
+ * violet layer fades in over the same 300ms handoff instead of cutting in.
+ * Dark mode keeps the earlier warm-glow look.
  */
 const NATIVE_BOOTSPLASH_LOGO_SIZE = Platform.select({ ios: 200, android: 288, default: 200 });
 const HANDOFF_DURATION_MS = 300;
@@ -46,6 +52,7 @@ export function SplashView() {
   const logoScale = useSharedValue(reduceMotion ? 1 : NATIVE_BOOTSPLASH_LOGO_SIZE / logoSize);
   const blockTranslateY = useSharedValue(reduceMotion ? 0 : nativeCenterY - blockCenterY);
   const textOpacity = useSharedValue(reduceMotion ? 1 : 0);
+  const violet = !theme.isDark;
 
   useEffect(() => {
     logoScale.value = withTiming(1, { duration: HANDOFF_DURATION_MS });
@@ -62,34 +69,63 @@ export function SplashView() {
   const logoStyle = useAnimatedStyle(() => ({ transform: [{ scale: logoScale.value }] }));
   const textStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
 
+  const titleColor = violet ? '#FFFFFF' : theme.colors.text;
+  const taglineColor = violet ? '#FFD36E' : theme.colors.textMuted;
+  const loaderColor = violet ? '#FFD36E' : theme.colors.primary;
+
   return (
-    <Screen glow="warm" contentStyle={styles.container}>
+    <Screen glow={violet ? undefined : 'warm'} contentStyle={styles.container}>
+      {violet ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, textStyle]}>
+          <LinearGradient colors={[...HERO_GRADIENT]} start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }} style={StyleSheet.absoluteFill} />
+          <Sphere3D size={220} tone="saffron" style={{ right: -60, top: 90 }} />
+          <Sphere3D size={64} tone="lilac" style={{ left: 46, top: 170 }} />
+          <Sphere3D size={140} tone="gold" style={{ left: -40, bottom: 140 }} />
+          <Sphere3D size={34} tone="mint" style={{ right: 54, bottom: 230 }} />
+        </Animated.View>
+      ) : null}
       <Animated.View style={blockStyle}>
         <Animated.View style={logoStyle}>
-          <RNImage source={images.logo} style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2 }} resizeMode="contain" />
+          <RNImage
+            source={images.logo}
+            style={[{ width: logoSize, height: logoSize, borderRadius: logoSize / 2 }, violet ? styles.logoRing : null]}
+            resizeMode="contain"
+          />
         </Animated.View>
 
         <Animated.View style={textStyle}>
           <Text
-            style={[theme.typography.screenTitle, styles.title, { color: theme.colors.text, fontSize: size(30, 24, 36), marginTop: size(24, 16, 32) }]}
+            style={[
+              theme.typography.screenTitle,
+              violet ? styles.titleViolet : styles.title,
+              { color: titleColor, fontSize: size(violet ? 34 : 30, 24, 38), marginTop: size(24, 16, 32) },
+            ]}
             maxFontSizeMultiplier={1.2}>
-            MOUNTAIN BAKES
+            {violet ? 'Mountain Bakes' : 'MOUNTAIN BAKES'}
           </Text>
-          <Text
-            style={[theme.typography.bodySmall, styles.tagline, { color: theme.colors.textMuted, fontSize: size(15, 13, 18), marginTop: size(8, 6, 12) }]}
-            maxFontSizeMultiplier={1.2}>
-            Fresh <Text style={{ color: theme.colors.primary }}>•</Text> Quality <Text style={{ color: theme.colors.primary }}>•</Text> Every Day
-          </Text>
+          {violet ? (
+            <Text style={[styles.taglineViolet, { color: taglineColor, fontSize: size(12, 11, 14), marginTop: size(8, 6, 12) }]} maxFontSizeMultiplier={1.2}>
+              FRESH · QUALITY · EVERY DAY
+            </Text>
+          ) : (
+            <Text
+              style={[theme.typography.bodySmall, styles.tagline, { color: taglineColor, fontSize: size(15, 13, 18), marginTop: size(8, 6, 12) }]}
+              maxFontSizeMultiplier={1.2}>
+              Fresh <Text style={{ color: theme.colors.primary }}>•</Text> Quality <Text style={{ color: theme.colors.primary }}>•</Text> Every Day
+            </Text>
+          )}
 
           <View style={{ marginTop: size(40, 28, 56), alignItems: 'center' }}>
-            <PulsingDot color={theme.colors.primary} size={size(10, 8, 12)} reduceMotion={reduceMotion} />
+            <PulsingDot color={loaderColor} size={size(10, 8, 12)} reduceMotion={reduceMotion} />
             {/* "Loading…" until a step has run 1.5s+ (authStore's
                 `timeBootstrapStep`), then a friendly message for what's
                 actually taking a while — never a raw step name like
                 "sessionRefresh" (dev builds log that to the console instead,
                 see authStore.ts). Never blank: a normal, fast boot still
                 reads "Loading…" the whole time it's on screen. */}
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 10, fontSize: size(13, 12, 15) }]} maxFontSizeMultiplier={1.2}>
+            <Text
+              style={[theme.typography.label, { color: violet ? 'rgba(255,255,255,0.6)' : theme.colors.textFaint, marginTop: 10, fontSize: size(13, 12, 15) }]}
+              maxFontSizeMultiplier={1.2}>
               {bootstrapMessage ?? 'Loading…'}
             </Text>
           </View>
@@ -122,4 +158,7 @@ const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center' },
   title: { textAlign: 'center', letterSpacing: 2, fontWeight: '700' },
   tagline: { textAlign: 'center' },
+  titleViolet: { textAlign: 'center', letterSpacing: -0.5, fontWeight: '600' },
+  taglineViolet: { textAlign: 'center', letterSpacing: 2.4, fontWeight: '600' },
+  logoRing: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.9)' },
 });

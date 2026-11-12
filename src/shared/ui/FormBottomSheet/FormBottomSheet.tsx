@@ -71,7 +71,7 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
-        backgroundStyle={{ backgroundColor: theme.colors.background }}
+        backgroundStyle={{ backgroundColor: theme.isDark ? theme.colors.background : '#F7F5FF' }}
         handleIndicatorStyle={{ backgroundColor: theme.colors.border }}>
         <View
           style={{

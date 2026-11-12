@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate, useStock as useStockRows } from '@/api';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar';
 import { useAuthStore } from '@/state';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { buildCheckResult, isHeldForStockCheck, parseCountInput, type StockCheckItem } from '../../calculations';
 import { CountProgressFooter, CountRow, StockCheckResult } from '../../components';
+import { COUNT_TABLE } from '../../components/CountRow';
 import { useStockCheckStore } from '../../useStockCheckStore';
 import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
 
@@ -93,7 +94,7 @@ export function StockCheckScreen() {
   if (view === 'result') {
     return (
       <Screen>
-        <AppHeader title="Stock Check Result" subtitle={`${branchName} · ${businessDate}`} />
+        <AppHeader title="Stock check result" subtitle={`${branchName} · ${businessDate}`} />
         <View style={{ padding: theme.spacing.lg }}>
           <StockCheckResult
             result={checkResult}
@@ -110,19 +111,16 @@ export function StockCheckScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Stock Check" subtitle={`${branchName} · ${businessDate}`} />
-      <View style={{ paddingHorizontal: theme.spacing.lg }}>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
+      <AppHeader title="Stock check" subtitle={`${branchName} · ${businessDate}`} />
+      <View style={[styles.intro, { paddingHorizontal: theme.spacing.lg }]}>
+        <Text style={[styles.p, { color: theme.colors.textSecondary }]}>
           Count what is on the shelf, then Verify. Nothing here is saved to the server; it only compares your count with the balance.
         </Text>
         {hasResumableCount ? (
-          <Text style={[theme.typography.label, { color: theme.colors.primary, marginTop: 8, fontWeight: '700' }]}>
-            Resume count ({countedCount} of {held.length})
-          </Text>
+          <InfoBanner kind="brand" icon="refresh" style={styles.banner}>
+            {`Resume count (${countedCount} of ${held.length})`}
+          </InfoBanner>
         ) : null}
-      </View>
-
-      <View style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.md }}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
       </View>
 
@@ -139,10 +137,27 @@ export function StockCheckScreen() {
       <FlatList
         data={visibleRows}
         keyExtractor={(item) => item.productId}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: theme.spacing.lg }}
+        style={styles.list}
+        contentContainerStyle={[
+          styles.listContent,
+          { marginHorizontal: theme.spacing.lg },
+          // The redesign's flat table card — only drawn when there are rows to hold.
+          visibleRows.length > 0
+            ? [styles.tableCard, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]
+            : null,
+        ]}
+        ListHeaderComponent={
+          visibleRows.length > 0 ? (
+            <View style={styles.th}>
+              <Text style={[styles.thText, styles.thName, { color: theme.colors.textFaint }]}>Product</Text>
+              <Text style={[styles.thText, styles.thBal, { color: theme.colors.textFaint }]}>Bal</Text>
+              <Text style={[styles.thText, styles.thCount, { color: theme.colors.textFaint }]}>Count</Text>
+            </View>
+          ) : undefined
+        }
         renderItem={({ item, index }) => (
           <CountRow
+            first={index === 0}
             inputRef={getInputRef(item.productId)}
             productName={item.productName}
             balance={item.balance}
@@ -157,7 +172,28 @@ export function StockCheckScreen() {
         )}
       />
 
-      <CountProgressFooter countedCount={countedCount} heldCount={held.length} hiddenAtZero={hiddenAtZero} onClear={handleClear} onVerify={handleVerify} />
+      <CountProgressFooter
+        countedCount={countedCount}
+        heldCount={held.length}
+        hiddenAtZero={hiddenAtZero}
+        differenceCount={checkResult.surplus.length + checkResult.deficit.length}
+        onClear={handleClear}
+        onVerify={handleVerify}
+      />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  intro: { gap: 12, marginBottom: 12 },
+  p: { fontSize: 15, lineHeight: 21 },
+  banner: { paddingVertical: 8 },
+  list: { flex: 1 },
+  listContent: { marginBottom: 12 },
+  tableCard: { borderWidth: 1, borderRadius: 22, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4 },
+  th: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  thText: { fontSize: 10, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
+  thName: { flex: 1 },
+  thBal: { width: COUNT_TABLE.balanceWidth, textAlign: 'right' },
+  thCount: { width: COUNT_TABLE.countWidth, textAlign: 'center' },
+});

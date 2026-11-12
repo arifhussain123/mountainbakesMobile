@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
+import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native';
+import { format } from 'date-fns';
 import {
   getBusinessDate,
   getSalesAnalyticsExportCsv,
@@ -14,36 +16,43 @@ import {
 } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
-import { openDrawer, useTabBarHeight } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, DateFilter, type DatePeriod, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
+import { openDrawer, Routes, useTabBarHeight } from '@/navigation';
+import { designType, useAppTheme } from '@/shared/theme';
+import { AppHeader, type DatePeriod, EmptyState, ErrorState, IconButton, InfoBanner, KpiTile, LoadingSkeleton, Screen, SectionHeader, SegmentedControl, type SegmentedOption } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate, formatDisplayTime, formatPercent } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAuthStore } from '@/state';
-import {
-  DailyKpiGrid,
-  HeadingActions,
-  HeroSalesCard,
-  LabeledListCard,
-  OrdersCard,
-  PaymentMethodsCard,
-  SalesChart,
-  SalesVsExpensesBar,
-  SectionHeading,
-  StockDetailTable,
-  StockFlowChart,
-  StockGrid,
-  StockHistoryList,
-  TopProductsBars,
-  type DailyKpiItem,
-  type LabeledListRow,
-} from '../../components';
+import { DailyKpiGrid, HeadingActions, HeroSalesCard, OrdersCard, PaymentMethodsCard, SalesChart, SalesVsExpensesBar, StockDetailTable, StockFlowChart, StockGrid, StockHistoryList, TopSellersCard, type DailyKpiItem, type TopSellersMetric } from '../../components';
+import { sharePct } from '../../calculations';
 import { getAnalyticsWindow } from '../../utils';
 import { styles } from './styles';
 
 const PERIOD_LABEL: Record<DatePeriod, string> = { daily: 'Today', weekly: 'This Week', monthly: 'This Month' };
+const PERIOD_TITLE: Record<DatePeriod, string> = { daily: "Today's overview", weekly: "This week's overview", monthly: "This month's overview" };
+// The same three periods the old DateFilter offered — `reports/summary?period=` has no others.
+const PERIOD_OPTIONS: SegmentedOption<DatePeriod>[] = [
+  { value: 'daily', label: 'Today' },
+  { value: 'weekly', label: 'Week' },
+  { value: 'monthly', label: 'Month' },
+];
+const TOP_SELLERS_OPTIONS: SegmentedOption<TopSellersMetric>[] = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'qty', label: 'Qty' },
+];
+
+/** `Mon 12 Oct 2026` — the title block's eyebrow. */
+function eyebrowDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? isoDate : format(d, 'EEE d MMM yyyy');
+}
+
+/** "x% of sales", or a plain caption when there are no sales to compare against. */
+function shareOfSales(part: number, sales: number, fallback: string): string {
+  const pct = sharePct(part, sales);
+  return pct === null ? fallback : `${formatPercent(pct, 'shareOfSales')} of sales`;
+}
 
 interface DashboardCachePayload {
   summary: ReportSummary;
@@ -69,6 +78,8 @@ export function HomeDashboardScreen() {
   const [period, setPeriod] = useState<DatePeriod>('daily');
   const [compare, setCompare] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [topMetric, setTopMetric] = useState<TopSellersMetric>('sales');
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const { isOffline } = useNetworkStatus();
 
   const today = useMemo(() => getBusinessDate(), []);
@@ -148,194 +159,188 @@ export function HomeDashboardScreen() {
         ? 'No prior period data'
         : `${formatPercent(comparison.changePct, 'comparison.changePct', { signed: true })} vs previous period`;
   const comparisonDot = !compare || !comparison ? theme.colors.secondary : comparison.direction === 'down' ? theme.colors.danger : theme.colors.success;
+  const heroComparison =
+    compare && comparison && comparison.changePct !== null
+      ? { label: `${formatPercent(comparison.changePct, 'comparison.changePct', { signed: true })} vs previous`, direction: comparison.direction }
+      : null;
+  const lastSeven = data ? data.analytics.daily.slice(-7) : [];
+  const lastSevenAverage = lastSeven.length > 0 ? lastSeven.reduce((sum, p) => sum + (Number.isFinite(p.sales) ? p.sales : 0), 0) / lastSeven.length : 0;
 
   return (
     <Screen>
+      {/* The redesign's topbar (logo · "Mountain Bakes" · bell · avatar) is the shared AppHeader's job — kept as is here. */}
       <AppHeader
         title={greeting()}
         subtitle={branchName ?? 'No branch assigned'}
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       {showingCache ? (
-        <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-            Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline
-          </Text>
-        </View>
+        <InfoBanner kind="warn" icon="clock" style={styles.offline}>
+          {`Last updated ${formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline`}
+        </InfoBanner>
       ) : null}
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, paddingBottom: theme.spacing.lg + tabBarHeight }}
+        contentContainerStyle={[styles.body, { paddingBottom: theme.spacing.lg + tabBarHeight }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}>
-        <DateFilter value={period} onChange={setPeriod} />
+        {/* ── Title block: date eyebrow, "Today's overview", refresh ── */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleCol}>
+            <Text style={[designType.eyebrow, { color: theme.colors.textFaint }]}>{eyebrowDate(today)}</Text>
+            <Text accessibilityRole="header" style={[designType.h1, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {PERIOD_TITLE[period]}
+            </Text>
+          </View>
+          <IconButton icon="refresh" accessibilityLabel="Refresh dashboard" onPress={onRefresh} loading={refreshing} />
+        </View>
+
+        <SegmentedControl options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
 
         {isLoading && !data ? (
-          <View style={{ marginTop: theme.spacing.lg, gap: theme.spacing.md }}>
-            <LoadingSkeleton height={160} />
-            <LoadingSkeleton height={160} />
-            <LoadingSkeleton height={160} />
+          <View style={styles.stack}>
+            <LoadingSkeleton height={170} />
+            <LoadingSkeleton height={110} />
+            <LoadingSkeleton height={190} />
           </View>
         ) : firstError && !data ? (
           <ErrorState message={mapErrorToMessage(firstError)} onRetry={onRefresh} />
         ) : data ? (
           <>
-            {/* ── Hero Sales card (design lines 107-113) ── */}
-            <View style={styles.section}>
-              <HeroSalesCard
-                periodLabel={PERIOD_LABEL[period]}
-                salesSub={`${formatCount(data.summary.totalOrders, 'summary.totalOrders')} orders`}
-                sales={data.summary.totalRevenue}
-                netAmount={data.summary.totalProfit}
-                orders={data.summary.totalOrders}
-                pending={data.summary.totalPending}
-                cancelled={data.summary.totalCancelled}
+            {/* ── Hero: Sales with Net / Orders / Avg order ── */}
+            <HeroSalesCard
+              periodLabel={PERIOD_LABEL[period]}
+              sales={data.summary.totalRevenue}
+              netAmount={data.summary.totalProfit}
+              orders={data.summary.totalOrders}
+              averageOrder={data.summary.averageOrderValue}
+              comparison={heroComparison}
+            />
+
+            {/* ── Expenses / Discounts / Returns ── */}
+            <View style={styles.grid3}>
+              <KpiTile
+                index={0}
+                label="Expenses"
+                value={formatCurrency(data.summary.totalExpenses, 'summary.totalExpenses')}
+                sub={shareOfSales(data.summary.totalExpenses, data.summary.totalRevenue, 'logged')}
+                dot={theme.colors.danger}
+              />
+              <KpiTile
+                index={1}
+                label="Discounts"
+                value={formatCurrency(data.summary.totalDiscount, 'summary.totalDiscount')}
+                sub={shareOfSales(data.summary.totalDiscount, data.summary.totalRevenue, 'applied')}
+                dot={theme.colors.secondary}
+              />
+              <KpiTile
+                index={2}
+                label="Returns"
+                value={formatCount(data.stockDay.row.returnedQty, 'stockDay.returnedQty')}
+                sub={period === 'daily' ? 'units' : 'units today'}
+                dot={theme.colors.violet}
               />
             </View>
 
-            {/* ── Deductions · Today (design lines 114-117) ── */}
-            <View style={styles.section}>
-              <LabeledListCard
-                title="Deductions · Today"
-                emptyMessage="No deductions recorded for this period."
-                rows={(
-                  [
-                    data.summary.totalDiscount > 0
-                      ? { id: 'discounts', label: 'Discounts', sub: 'Applied today', value: formatCurrency(data.summary.totalDiscount, 'summary.totalDiscount'), color: theme.colors.danger }
-                      : null,
-                    data.summary.totalExpenses > 0
-                      ? { id: 'expenses', label: 'Expenses', sub: 'Logged today', value: formatCurrency(data.summary.totalExpenses, 'summary.totalExpenses'), color: theme.colors.danger }
-                      : null,
-                  ].filter(Boolean) as LabeledListRow[]
-                )}
-              />
-            </View>
+            {/* ── Last 7 days ── */}
+            <SectionHeader title="Last 7 days" linkLabel="Reports" onLinkPress={() => navigation.navigate(Routes.REPORTS_STACK)} />
+            {lastSeven.length > 0 ? (
+              <SalesChart key={`last7-${period}`} data={lastSeven} average={lastSevenAverage} title={null} />
+            ) : (
+              <EmptyState title="No Sales Yet" message="Sales for the last 7 days will appear here." />
+            )}
 
-            {/* ── Last 7 Days (design lines 118-121) ── */}
-            <View style={styles.section}>
-              <LabeledListCard
-                title="Last 7 Days"
-                emptyMessage="Sales for the last 7 days will appear here."
-                rows={data.analytics.daily.slice(-7).map(
-                  (point): LabeledListRow => ({
-                    id: point.date,
-                    label: formatDisplayDate(point.date),
-                    sub: `${formatCount(point.transactions, 'daily.transactions')} orders`,
-                    value: formatCurrency(point.sales, 'daily.sales'),
-                  }),
-                )}
-              />
-            </View>
+            {/* ── Top sellers (Sales / Qty) ── */}
+            <SectionHeader
+              title="Top sellers"
+              right={<SegmentedControl options={TOP_SELLERS_OPTIONS} value={topMetric} onChange={setTopMetric} style={styles.smallSeg} />}
+            />
+            <TopSellersCard products={data.analytics.topProducts} metric={topMetric} />
 
-            {/* ── Sales vs Deductions (design lines 122-128) ── */}
-            <View style={styles.section}>
-              <SalesVsExpensesBar
-                dayLabel={formatDisplayDate(today)}
-                sales={data.summary.totalRevenue}
-                discounts={data.summary.totalDiscount}
-                expenses={data.summary.totalExpenses}
-                net={data.summary.totalProfit}
-              />
-            </View>
+            {/* ── Payment methods ── */}
+            <SectionHeader title="Payment methods" />
+            <PaymentMethodsCard methods={data.analytics.paymentMethods} />
 
-            {/* ── Daily Sales (design lines 130-152) ── */}
-            <SectionHeading
-              text="Daily"
-              accent="Sales"
+            {/* ── Branch stock ── */}
+            <SectionHeader title="Branch stock" linkLabel="Open stock" onLinkPress={() => navigation.navigate(Routes.STOCK_TAB)} />
+            <StockGrid row={data.stockDay.row} difference={data.stockDay.reconciliation.difference} />
+            <Text style={[designType.sm, styles.center, { color: theme.colors.textSecondary }]}>
+              Valued at current prices ·{' '}
+              {data.stockDay.reconciliation.difference === 0
+                ? 'agrees with the Stock page'
+                : `${formatCount(data.stockDay.reconciliation.difference, 'reconciliation.difference')} difference vs the Stock page`}
+            </Text>
+
+            {/* ── Below the mockup: the app's further sections, restyled to match ── */}
+            <SectionHeader title="Sales vs deductions" style={styles.gapTop} />
+            <SalesVsExpensesBar
+              dayLabel={PERIOD_LABEL[period]}
+              sales={data.summary.totalRevenue}
+              discounts={data.summary.totalDiscount}
+              expenses={data.summary.totalExpenses}
+              net={data.summary.totalProfit}
+            />
+
+            <SectionHeader
+              title="Sales analytics"
+              style={styles.gapTop}
               right={<HeadingActions compareActive={compare} onToggleCompare={() => setCompare((v) => !v)} onExport={handleExport} exporting={exporting} />}
             />
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
+            <Text style={[designType.sm, styles.subline, { color: theme.colors.textSecondary }]}>
               {formatDisplayDate(window.from)} – {formatDisplayDate(window.to)} · {branchName ?? 'Branch'}
             </Text>
-
-            <View style={styles.section}>
-              <DailyKpiGrid
-                kpis={(
-                  [
-                    { id: 'today', label: "Today's Sales", value: formatCurrency(data.analytics.todaySales, 'analytics.todaySales'), sub: 'As of now', dot: theme.colors.primary },
-                    { id: 'total', label: 'Total Sales', value: formatCurrency(data.analytics.totalSales, 'analytics.totalSales'), sub: comparisonSub, dot: comparisonDot },
-                    { id: 'transactions', label: 'Transactions', value: formatCount(data.analytics.totalTransactions, 'analytics.totalTransactions'), sub: 'This period', dot: theme.colors.info },
-                    { id: 'average', label: 'Avg Daily', value: formatCurrency(data.analytics.averageDailySales, 'analytics.averageDailySales'), sub: 'Per day', dot: theme.colors.success },
-                    {
-                      id: 'highest',
-                      label: 'Highest Day',
-                      value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.sales, 'analytics.highestDay.sales') : '—',
-                      sub: data.analytics.highestDay ? formatDisplayDate(data.analytics.highestDay.date) : 'No data',
-                      dot: theme.colors.violet,
-                    },
-                    {
-                      id: 'lowest',
-                      label: 'Lowest Day',
-                      value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.sales, 'analytics.lowestDay.sales') : '—',
-                      sub: data.analytics.lowestDay ? formatDisplayDate(data.analytics.lowestDay.date) : 'No data',
-                      dot: theme.colors.danger,
-                    },
-                  ] as DailyKpiItem[]
-                )}
-              />
-            </View>
-
-            <View style={styles.section}>
-              {data.analytics.daily.length > 0 ? (
-                <SalesChart data={data.analytics.daily} average={data.analytics.averageDailySales} />
+            <DailyKpiGrid
+              kpis={
+                [
+                  { id: 'today', label: "Today's sales", value: formatCurrency(data.analytics.todaySales, 'analytics.todaySales'), sub: 'As of now', dot: theme.colors.primary },
+                  { id: 'total', label: 'Total sales', value: formatCurrency(data.analytics.totalSales, 'analytics.totalSales'), sub: comparisonSub, dot: comparisonDot },
+                  { id: 'transactions', label: 'Transactions', value: formatCount(data.analytics.totalTransactions, 'analytics.totalTransactions'), sub: 'This period', dot: theme.colors.info },
+                  { id: 'average', label: 'Avg daily', value: formatCurrency(data.analytics.averageDailySales, 'analytics.averageDailySales'), sub: 'Per day', dot: theme.colors.success },
+                  {
+                    id: 'highest',
+                    label: 'Highest day',
+                    value: data.analytics.highestDay ? formatCurrency(data.analytics.highestDay.sales, 'analytics.highestDay.sales') : '—',
+                    sub: data.analytics.highestDay ? formatDisplayDate(data.analytics.highestDay.date) : 'No data',
+                    dot: theme.colors.violet,
+                  },
+                  {
+                    id: 'lowest',
+                    label: 'Lowest day',
+                    value: data.analytics.lowestDay ? formatCurrency(data.analytics.lowestDay.sales, 'analytics.lowestDay.sales') : '—',
+                    sub: data.analytics.lowestDay ? formatDisplayDate(data.analytics.lowestDay.date) : 'No data',
+                    dot: theme.colors.danger,
+                  },
+                ] as DailyKpiItem[]
+              }
+            />
+            {/* Today's window IS the last 7 days (charted above); Week/Month chart their whole window here. */}
+            {period !== 'daily' ? (
+              data.analytics.daily.length > 0 ? (
+                <SalesChart key={`window-${period}`} data={data.analytics.daily} average={data.analytics.averageDailySales} />
               ) : (
                 <EmptyState title="No Sales Yet" message="Sales for this period will appear here." />
-              )}
-            </View>
+              )
+            ) : null}
 
-            <View style={styles.section}>
-              <TopProductsBars products={data.analytics.topProducts} />
-            </View>
+            <SectionHeader title="Orders" style={styles.gapTop} />
+            <OrdersCard total={data.summary.totalOrders} pending={data.summary.totalPending} cancelled={data.summary.totalCancelled} />
 
-            {/* ── Orders Today (design lines 154-166) ── */}
-            <SectionHeading text="Orders" accent="Today" />
-            <View style={styles.section}>
-              <OrdersCard total={data.summary.totalOrders} pending={data.summary.totalPending} cancelled={data.summary.totalCancelled} />
-            </View>
+            <SectionHeader title="Stock detail" style={styles.gapTop} />
+            <StockFlowChart row={data.stockDay.row} />
+            <StockDetailTable
+              row={data.stockDay.row}
+              date={today}
+              agrees={data.stockDay.reconciliation.difference === 0}
+              unexplained={data.stockDay.reconciliation.unexplained}
+            />
 
-            <View style={styles.section}>
-              <PaymentMethodsCard methods={data.analytics.paymentMethods} />
-            </View>
-
-            {/* ── Branch Stock (design lines 168-187) ── */}
-            <SectionHeading text="Branch" accent="Stock" />
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
-              Valued at current prices · {formatDisplayDate(today)}
-            </Text>
-
-            <View style={styles.section}>
-              <StockGrid row={data.stockDay.row} difference={data.stockDay.reconciliation.difference} />
-            </View>
-
-            <View style={styles.section}>
-              <StockFlowChart row={data.stockDay.row} />
-            </View>
-
-            <View style={styles.section}>
-              <StockDetailTable
-                row={data.stockDay.row}
-                date={today}
-                agrees={data.stockDay.reconciliation.difference === 0}
-                unexplained={data.stockDay.reconciliation.unexplained}
-              />
-            </View>
-
-            {/* ── Stock History 7 Days (design lines 189-201) ── */}
-            <SectionHeading text="Stock History" accent="7 Days" />
-            <Text
-              style={[
-                theme.typography.bodySmall,
-                { color: theme.colors.textSecondary, marginTop: theme.spacing.sm, marginBottom: theme.spacing.sm },
-              ]}>
-              Sold is valued at current prices, not the till total.
-            </Text>
-            <View style={styles.section}>
-              {data.stockHistory.rows.length > 0 ? (
-                // Newest first (today at the top), regardless of what order the server returns —
-                // sorted explicitly by date rather than assuming/flipping a particular server order.
-                <StockHistoryList rows={[...data.stockHistory.rows].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))} />
-              ) : (
-                <EmptyState title="No Stock History" message="Stock movements for the last 7 days will appear here." />
-              )}
-            </View>
+            <SectionHeader title="Stock history · 7 days" style={styles.gapTop} />
+            <Text style={[designType.sm, styles.subline, { color: theme.colors.textSecondary }]}>Sold is valued at current prices, not the till total.</Text>
+            {data.stockHistory.rows.length > 0 ? (
+              // Newest first (today at the top), regardless of what order the server returns —
+              // sorted explicitly by date rather than assuming/flipping a particular server order.
+              <StockHistoryList rows={[...data.stockHistory.rows].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))} />
+            ) : (
+              <EmptyState title="No Stock History" message="Stock movements for the last 7 days will appear here." />
+            )}
           </>
         ) : null}
       </ScrollView>

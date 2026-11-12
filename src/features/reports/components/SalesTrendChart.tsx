@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { Card, MiniStat } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
 import { summarizeTrend } from '../calculations';
@@ -16,7 +16,8 @@ const HEIGHT = 170;
 const CHART_TOP = 10;
 const CHART_BOTTOM = 130;
 const GRID_LINES = [10, 50, 90, 130];
-const GRID_LABELS = ['60k', '40k', '20k'];
+/** The redesign's second line colour ("honey") for the Orders series. */
+const HONEY = '#FFD36E';
 const POINT_WIDTH = 40;
 const MIN_WIDTH = 312;
 /** Horizontal scroll kicks in past this many points — a fixed-width chart gets unreadable beyond here. */
@@ -40,8 +41,9 @@ function trendAccessibilitySummary(
 }
 
 /**
- * design UIandUX/mountainbakesBranch.html screen 23, lines 1120-1132 — dual
- * line chart (solid orange Revenue, dashed grey Orders). Default-selects the
+ * 2026 redesign B23 "Daily sales" card — dual line chart (solid saffron
+ * Revenue, dashed honey Orders; each line scaled to its own max, so there is
+ * no shared y-axis to label). Default-selects the
  * latest day, like the web. Scrolls horizontally past ~16 points (a weekly
  * range over a long custom window, or a monthly/yearly report) rather than
  * squeezing every point unreadably into a fixed width.
@@ -66,6 +68,7 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
     y: CHART_BOTTOM - (d.transactions / maxOrders) * (CHART_BOTTOM - CHART_TOP),
   }));
   const selX = revenuePoints[selectedIndex]?.x ?? 0;
+  const ordersColor = theme.isDark ? theme.colors.textSecondary : HONEY;
 
   const chart = (
     <View style={{ width }}>
@@ -77,25 +80,20 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
             y1={y}
             x2={width}
             y2={y}
-            stroke={i === GRID_LINES.length - 1 ? theme.colors.border : theme.colors.cardBorder}
+            stroke={theme.colors.border}
             strokeDasharray={i === GRID_LINES.length - 1 ? undefined : '3 4'}
           />
         ))}
-        {GRID_LABELS.map((label, i) => (
-          <SvgText key={label} x={2} y={GRID_LINES[i] - 3} fill={theme.colors.textFaint} fontSize={8} fontWeight="600">
-            {label}
-          </SvgText>
-        ))}
         {data.length > 0 ? <Line x1={selX} y1={CHART_TOP} x2={selX} y2={CHART_BOTTOM} stroke={theme.colors.border} /> : null}
-        <Path d={buildPath(orderPoints)} fill="none" stroke={theme.colors.textSecondary} strokeWidth={1.6} strokeDasharray="4 3" />
-        <Path d={buildPath(revenuePoints)} fill="none" stroke={theme.colors.primary} strokeWidth={2.2} />
+        <Path d={buildPath(orderPoints)} fill="none" stroke={ordersColor} strokeWidth={2.5} strokeDasharray="5 5" strokeLinecap="round" strokeLinejoin="round" />
+        <Path d={buildPath(revenuePoints)} fill="none" stroke={theme.colors.primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
         {revenuePoints.map((p, i) => (
           <Circle
             key={data[i].date}
             cx={p.x}
             cy={p.y}
-            r={i === selectedIndex ? 4 : 3}
-            fill={theme.colors.background}
+            r={i === selectedIndex ? 5 : 3}
+            fill={i === selectedIndex ? theme.colors.primary : theme.isDark ? theme.colors.background : '#FFFFFF'}
             stroke={theme.colors.primary}
             strokeWidth={2}
             onPress={() => setSelectedIndex(i)}
@@ -117,18 +115,16 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
   );
 
   return (
-    <Card accessibilityLabel={trendAccessibilitySummary(data, trend.bestDay, trend.slowestDay)}>
-      <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Daily Sales</Text>
-      <View style={{ marginTop: theme.spacing.sm }}>
-        <TrendTooltip
-          point={selected}
-          canStepPrev={selectedIndex > 0}
-          canStepNext={selectedIndex < data.length - 1}
-          onStep={(dir) => setSelectedIndex((i) => (dir === 'prev' ? Math.max(0, i - 1) : Math.min(data.length - 1, i + 1)))}
-        />
-      </View>
+    <Card accessibilityLabel={trendAccessibilitySummary(data, trend.bestDay, trend.slowestDay)} style={styles.card}>
+      <Text style={[styles.h3, { color: theme.colors.text }]}>Daily sales</Text>
+      <TrendTooltip
+        point={selected}
+        canStepPrev={selectedIndex > 0}
+        canStepNext={selectedIndex < data.length - 1}
+        onStep={(dir) => setSelectedIndex((i) => (dir === 'prev' ? Math.max(0, i - 1) : Math.min(data.length - 1, i + 1)))}
+      />
 
-      <View style={{ marginTop: theme.spacing.md }}>
+      <View>
         {data.length > SCROLL_THRESHOLD ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {chart}
@@ -138,35 +134,28 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
         )}
       </View>
 
-      <View style={[styles.legend, { marginTop: theme.spacing.xs }]}>
+      <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendLine, { backgroundColor: theme.colors.primary }]} />
-          <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '600' }]}>Revenue</Text>
+          <View style={[styles.swatch, { backgroundColor: theme.colors.primary }]} />
+          <Text style={[styles.legendText, { color: theme.colors.textSecondary }]}>Revenue</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendLineDashed, { borderColor: theme.colors.textSecondary }]} />
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '600' }]}>Orders</Text>
+          <View style={[styles.swatch, { backgroundColor: ordersColor }]} />
+          <Text style={[styles.legendText, { color: theme.colors.textSecondary }]}>Orders</Text>
         </View>
       </View>
 
-      <View style={[styles.summaryRow, { marginTop: theme.spacing.md, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.sm }]}>
+      <View style={[styles.summaryRow, { backgroundColor: theme.isDark ? theme.colors.border : '#EFEBFF' }]}>
         <View style={styles.summaryCell}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Best Day</Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.success, fontWeight: '700' }]}>
-            {trend.bestDay ? formatCurrency(trend.bestDay.sales) : '—'}
-          </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{trend.bestDay ? formatDisplayDate(trend.bestDay.date) : ''}</Text>
+          <MiniStat label="Best day" value={trend.bestDay ? formatCurrency(trend.bestDay.sales) : '—'} valueColor={theme.colors.success} />
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{trend.bestDay ? formatDisplayDate(trend.bestDay.date) : ' '}</Text>
         </View>
         <View style={styles.summaryCell}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Slowest Day</Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, fontWeight: '700' }]}>
-            {trend.slowestDay ? formatCurrency(trend.slowestDay.sales) : '—'}
-          </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{trend.slowestDay ? formatDisplayDate(trend.slowestDay.date) : ''}</Text>
+          <MiniStat label="Slowest day" value={trend.slowestDay ? formatCurrency(trend.slowestDay.sales) : '—'} valueColor={theme.colors.danger} />
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{trend.slowestDay ? formatDisplayDate(trend.slowestDay.date) : ' '}</Text>
         </View>
         <View style={styles.summaryCell}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Daily Average</Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(trend.averageDailyRevenue)}</Text>
+          <MiniStat label="Daily avg" value={formatCurrency(trend.averageDailyRevenue)} />
         </View>
       </View>
     </Card>
@@ -174,12 +163,15 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
 }
 
 const styles = StyleSheet.create({
+  card: { gap: 14 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
   labelsRow: { flexDirection: 'row', marginTop: 6 },
-  label: { textAlign: 'center', fontSize: 10, fontWeight: '600' },
-  legend: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendLine: { width: 14, height: 2 },
-  legendLineDashed: { width: 14, borderTopWidth: 2, borderStyle: 'dashed' },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryCell: { flex: 1, alignItems: 'center' },
+  label: { textAlign: 'center', fontSize: 11, fontWeight: '500' },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  swatch: { width: 10, height: 10, borderRadius: 3 },
+  legendText: { fontSize: 11, fontWeight: '600' },
+  summaryRow: { flexDirection: 'row', gap: 8, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 12 },
+  summaryCell: { flex: 1, minWidth: 0, gap: 2 },
+  xs: { fontSize: 11, lineHeight: 14, fontWeight: '500' },
 });

@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { Icon, TextField } from '@/shared/ui';
 import { SUPPORTED_REFERENCE_PREFIXES } from '../schemas';
@@ -15,9 +15,11 @@ export interface ReferenceIdFieldProps {
 /** Reference ID input + Find + "Pick from recent" — auto-uppercase/trim happens on submit (`schemas.ts#normalizeReferenceId`), not as-you-type, so a branch manager can still see exactly what they typed while typing it. */
 export function ReferenceIdField({ value, onChangeText, onFind, onOpenRecent, isLookingUp, error }: ReferenceIdFieldProps) {
   const theme = useAppTheme();
+  const findInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
-    <View>
+    // TextField brings its own 16pt top margin; New Query lays its sections out with a gap instead.
+    <View style={styles.wrap}>
       <TextField
         label="Reference ID"
         required
@@ -34,33 +36,43 @@ export function ReferenceIdField({ value, onChangeText, onFind, onOpenRecent, is
             accessibilityLabel="Find record"
             onPress={onFind}
             disabled={isLookingUp || !value.trim()}
-            style={{
-              height: 36,
-              paddingHorizontal: 14,
-              marginRight: 6,
-              borderRadius: theme.radii.md,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.colors.primary,
-              opacity: isLookingUp || !value.trim() ? 0.5 : 1,
-            }}>
+            style={[
+              styles.find,
+              // 2026 redesign B25: a midnight "Find" pill (light); dark keeps the accent fill.
+              { backgroundColor: theme.isDark ? theme.colors.primary : DARK_BTN, opacity: isLookingUp || !value.trim() ? 0.5 : 1 },
+            ]}>
             {isLookingUp ? (
-              <ActivityIndicator size="small" color={theme.colors.primaryText} />
+              <ActivityIndicator size="small" color={findInk} />
             ) : (
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.primaryText, fontWeight: '700' }]}>Find</Text>
+              <>
+                <Icon name="search" size={16} color={findInk} />
+                <Text style={[styles.findText, { color: findInk }]}>Find</Text>
+              </>
             )}
           </Pressable>
         }
       />
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 6 }]}>
+      <Text style={[styles.help, { color: theme.colors.textFaint }]}>
         Supported: {SUPPORTED_REFERENCE_PREFIXES.map((p) => `${p}-`).join(', ')}
       </Text>
-      <Pressable accessibilityRole="button" onPress={onOpenRecent} style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
-        <Icon name="chevron-down" size={14} color={theme.colors.primary} />
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.primary, fontWeight: '700', marginLeft: 6 }]}>
+      <Pressable accessibilityRole="button" onPress={onOpenRecent} style={styles.recent}>
+        <Icon name="history-clock" size={16} color={theme.colors.primary} />
+        <Text style={[styles.recentText, { color: theme.colors.primary }]}>
           Pick from recent
         </Text>
       </Pressable>
     </View>
   );
 }
+
+/** The redesign's `btn dark` fill (midnight navy). */
+const DARK_BTN = '#1E1B4B';
+
+const styles = StyleSheet.create({
+  wrap: { marginTop: -16 },
+  find: { height: 40, paddingHorizontal: 14, marginRight: 6, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  findText: { fontSize: 13, fontWeight: '700' },
+  help: { fontSize: 12, lineHeight: 17, marginTop: 6 },
+  recent: { marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, alignSelf: 'flex-start' },
+  recentText: { fontSize: 13, fontWeight: '700' },
+});

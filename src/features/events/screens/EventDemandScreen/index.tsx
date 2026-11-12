@@ -3,15 +3,27 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Tex
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSpecialEvents } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, Icon, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
-import { formatDisplayDate } from '@/shared/utils';
+import { AppHeader, Card, EmptyState, Icon, InfoBanner, MiniStat, Pill, PrimaryButton, Screen, SecondaryButton, TextField } from '@/shared/ui';
+import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { EventsStackParamList } from '@/navigation';
 import type { Product } from '@/api';
 import { AddProductModal, EventDemandItemRow } from '../../components';
 import { useEventDemandForm } from '../../hooks';
 import { styles } from './styles';
 
-/** branchApp.md screen 19 — Advance Demand for one Special Event. */
+/** "Fri 16 Oct 2026". */
+function longDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace(',', '');
+}
+
+/**
+ * branchApp.md screen 19 — Advance Demand for one Special Event (redesign
+ * B19): the event card with its due-date banner, the product rows with
+ * steppers, expected customers + notes, a Products/Units/Value strip and a
+ * pinned Save draft / Submit footer.
+ */
 export function EventDemandScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation();
@@ -23,6 +35,15 @@ export function EventDemandScreen() {
 
   const form = useEventDemandForm(eventId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [notesFocused, setNotesFocused] = useState(false);
+
+  const totals = useMemo(() => {
+    const units = form.lines.reduce((sum, l) => sum + l.qty, 0);
+    // Value only when every line has a known price — a hydrated draft line can lack one.
+    const priced = form.lines.every((l) => l.product.price > 0);
+    const value = priced ? form.lines.reduce((sum, l) => sum + l.qty * l.product.price, 0) : null;
+    return { units, value };
+  }, [form.lines]);
 
   const handleAddProduct = (product: Product) => {
     form.addProduct(product);
@@ -41,98 +62,127 @@ export function EventDemandScreen() {
     }
   };
 
+  const labelStyle = [theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' as const }];
+  const days = event?.daysRemaining;
+
   return (
     <Screen>
-      <AppHeader title="Advance Demand" />
+      <AppHeader title="Advance Demand" subtitle={event?.name} />
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {event ? (
-            <View>
-              <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>{event.name}</Text>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 4 }]}>
-                {event.eventDate ? formatDisplayDate(event.eventDate) : 'Date not yet resolved'}
-                {event.demandDueDate ? ` · Due ${formatDisplayDate(event.demandDueDate)}` : ''}
-              </Text>
-            </View>
+            <Card style={styles.eventCard}>
+              <View style={styles.between}>
+                <View style={styles.grow}>
+                  <Text style={[styles.h3, { color: theme.colors.text }]}>{event.name}</Text>
+                  <Text style={[styles.xs, { color: theme.colors.textFaint }]}>
+                    {event.eventDate
+                      ? [longDate(event.eventDate), event.hijriLabel].filter(Boolean).join(' · ')
+                      : 'Date not yet resolved'}
+                  </Text>
+                </View>
+                {days != null && days >= 0 ? <Pill label={days === 0 ? 'today' : `in ${days} days`} kind="brand" /> : null}
+              </View>
+              {event.demandDueDate ? (
+                <InfoBanner kind="warn" icon="clock">
+                  <Text style={[styles.bannerText, { color: theme.colors.warning }]}>
+                    Due by <Text style={styles.bold}>{formatDisplayDate(event.demandDueDate)}</Text>. Production plans the bake from this.
+                  </Text>
+                </InfoBanner>
+              ) : null}
+            </Card>
           ) : null}
 
-          {form.isSubmitted ? (
-            <View style={{ marginTop: theme.spacing.md, backgroundColor: `${theme.colors.success}1A`, borderRadius: theme.radii.md, padding: theme.spacing.md }}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.success, fontWeight: '700' }]}>
-                This demand has already been submitted and can no longer be edited.
-              </Text>
-            </View>
-          ) : null}
+          {form.isSubmitted ? <InfoBanner kind="ok">This demand has already been submitted and can no longer be edited.</InfoBanner> : null}
 
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>ADD A PRODUCT</Text>
+          <Text style={[styles.eyebrow, { color: theme.colors.textFaint }]}>Products</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => setPickerOpen(true)}
             disabled={form.isSubmitted}
-            style={[styles.addProductButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, marginTop: 6 }]}>
-            <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>Search products…</Text>
-            <Icon name="chevron-down" size={14} color={theme.colors.textSecondary} />
+            style={[
+              styles.search,
+              { borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill, opacity: form.isSubmitted ? 0.6 : 1 },
+            ]}>
+            <Icon name="search" size={20} color={theme.colors.textFaint} />
+            <Text style={[styles.searchText, { color: theme.colors.textFaint }]}>Search products to add…</Text>
           </Pressable>
 
-          <View style={{ marginTop: theme.spacing.md }}>
-            {form.lines.length === 0 ? (
-              <EmptyState title="No Products Added" message="Search and add products this event needs." />
-            ) : (
-              form.lines.map((line) => (
+          {form.lines.length === 0 ? (
+            <EmptyState title="No Products Added" message="Search and add products this event needs." />
+          ) : (
+            <Card style={styles.listCard}>
+              {form.lines.map((line, index) => (
                 <EventDemandItemRow
                   key={line.product.id}
+                  index={index}
                   name={line.product.name}
                   qty={line.qty}
+                  unitPrice={line.product.price}
+                  disabled={form.isSubmitted}
                   onIncrement={() => form.updateQty(line.product.id, line.qty + 1)}
                   onDecrement={() => form.updateQty(line.product.id, line.qty - 1)}
                   onRemove={() => form.removeLine(line.product.id)}
                 />
-              ))
-            )}
+              ))}
+            </Card>
+          )}
+
+          <View style={styles.noTopGap}>
+            <TextField
+              label="Expected customers (optional)"
+              value={form.expectedCustomers}
+              onChangeText={form.setExpectedCustomers}
+              placeholder="Optional"
+              keyboardType="numeric"
+              editable={!form.isSubmitted}
+            />
           </View>
 
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>EXPECTED CUSTOMERS</Text>
-          <TextInput
-            value={form.expectedCustomers}
-            onChangeText={form.setExpectedCustomers}
-            placeholder="Optional"
-            placeholderTextColor={theme.colors.textSecondary}
-            keyboardType="numeric"
-            editable={!form.isSubmitted}
-            style={[styles.numberInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6 }]}
-          />
+          <View>
+            <Text style={labelStyle}>Notes for Production</Text>
+            <TextInput
+              value={form.notes}
+              onChangeText={form.setNotes}
+              placeholder="Anything Production should know…"
+              placeholderTextColor={theme.colors.textFaint}
+              multiline
+              editable={!form.isSubmitted}
+              onFocus={() => setNotesFocused(true)}
+              onBlur={() => setNotesFocused(false)}
+              style={[
+                styles.notesInput,
+                {
+                  borderRadius: theme.radii.lg,
+                  backgroundColor: theme.colors.cardFill,
+                  borderColor: notesFocused ? theme.colors.primary : theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
+            />
+          </View>
 
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>NOTES FOR PRODUCTION</Text>
-          <TextInput
-            value={form.notes}
-            onChangeText={form.setNotes}
-            placeholder="Anything Production should know…"
-            placeholderTextColor={theme.colors.textSecondary}
-            multiline
-            editable={!form.isSubmitted}
-            style={[styles.notesInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6 }]}
-          />
-
-          {form.submitError ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.md }]}>{form.submitError}</Text>
-          ) : null}
-
-          {!form.isSubmitted ? (
-            <View style={styles.footer}>
-              <View style={{ flex: 1 }}>
-                <SecondaryButton label="Save Draft" onPress={() => void handleSaveDraft()} loading={form.isSavingDraft} disabled={!form.canSave} />
-              </View>
-              <View style={{ flex: 1.5 }}>
-                <PrimaryButton
-                  label="Submit to Production"
-                  onPress={() => void handleSubmit()}
-                  loading={form.isSubmitting}
-                  disabled={!form.canSubmit}
-                />
-              </View>
+          {form.lines.length > 0 ? (
+            <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+              <MiniStat label="Products" value={String(form.lines.length)} />
+              <MiniStat label="Units" value={String(totals.units)} />
+              {totals.value !== null ? <MiniStat label="Value" value={formatCurrency(totals.value)} /> : null}
             </View>
           ) : null}
+
+          {form.submitError ? <Text style={[theme.typography.bodySmall, { color: theme.colors.danger }]}>{form.submitError}</Text> : null}
         </ScrollView>
+
+        {!form.isSubmitted ? (
+          <View style={[styles.footer, { backgroundColor: theme.isDark ? theme.colors.surface : 'rgba(255,255,255,0.92)' }]}>
+            <View style={styles.grow}>
+              <SecondaryButton label="Save draft" onPress={() => void handleSaveDraft()} loading={form.isSavingDraft} disabled={!form.canSave} />
+            </View>
+            <View style={styles.wide}>
+              <PrimaryButton label="Submit to Production" onPress={() => void handleSubmit()} loading={form.isSubmitting} disabled={!form.canSubmit} />
+            </View>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
 
       <AddProductModal

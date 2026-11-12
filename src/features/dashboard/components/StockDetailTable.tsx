@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon } from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Card, InfoBanner } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 
@@ -11,14 +11,14 @@ export interface StockDetailTableProps {
   unexplained: number;
 }
 
-/** Design lines 183-187 — the "Stock Detail" label/qty/amount table + reconciliation line. */
+/** "Stock detail" — label / qty / amount per movement, with the reconciliation result as a banner. */
 export function StockDetailTable({ row, date, agrees, unexplained }: StockDetailTableProps) {
   const theme = useAppTheme();
   const displayDate = formatDisplayDate(date);
 
   const rows = [
-    { id: 'previous', label: 'Previous Balance', q: row.openingQty, a: row.openingAmount, color: theme.colors.text },
-    { id: 'new', label: 'New Stock', q: row.newQty, a: row.newAmount, color: theme.colors.success },
+    { id: 'previous', label: 'Previous balance', q: row.openingQty, a: row.openingAmount, color: theme.colors.text },
+    { id: 'new', label: 'New stock', q: row.newQty, a: row.newAmount, color: theme.colors.success },
     { id: 'sold', label: 'Sold', q: -row.soldQty, a: -row.soldAmount, color: theme.colors.danger },
     { id: 'returned', label: 'Returned', q: row.returnedQty, a: row.returnedAmount, color: theme.colors.violet },
     { id: 'adjustment', label: 'Adjustment', q: row.adjustmentQty, a: row.adjustmentAmount, color: theme.colors.textSecondary },
@@ -28,42 +28,37 @@ export function StockDetailTable({ row, date, agrees, unexplained }: StockDetail
   return (
     <Card style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={[theme.typography.label, styles.headCell, { color: theme.colors.textSecondary }]}>STOCK DETAIL</Text>
-        <Text style={[theme.typography.label, styles.qtyCell, { color: theme.colors.textSecondary }]}>QTY</Text>
-        <Text style={[theme.typography.label, styles.amtCell, { color: theme.colors.textSecondary }]}>AMOUNT</Text>
+        <Text style={[designType.xs, styles.headCell, { color: theme.colors.textFaint }]}>{displayDate}</Text>
+        <Text style={[designType.xs, styles.qtyCell, { color: theme.colors.textFaint }]}>Qty</Text>
+        <Text style={[designType.xs, styles.amtCell, { color: theme.colors.textFaint }]}>Amount</Text>
       </View>
-      {rows.map((item, index) => (
-        <View key={item.id} style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-          <View style={styles.headCell}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '700' }]}>{item.label}</Text>
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{displayDate}</Text>
-          </View>
-          <Text style={[theme.typography.body, styles.qtyCell, { color: item.color, fontWeight: '700' }]}>{formatCount(item.q, `stockDetail.${item.id}Qty`)}</Text>
-          <Text style={[theme.typography.bodySmall, styles.amtCell, { color: item.color, fontWeight: '700' }]}>{formatCurrency(item.a, `stockDetail.${item.id}Amount`)}</Text>
+      {rows.map((item) => (
+        <View key={item.id} style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <Text style={[styles.label, styles.headCell, { color: theme.colors.text }]} numberOfLines={1}>
+            {item.label}
+          </Text>
+          <Text style={[designType.amt, styles.qtyCell, { color: item.color, fontSize: 15 }]}>{formatCount(item.q, `stockDetail.${item.id}Qty`)}</Text>
+          <Text style={[designType.amt, styles.amtCell, { color: item.color, fontSize: 14 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+            {formatCurrency(item.a, `stockDetail.${item.id}Amount`)}
+          </Text>
         </View>
       ))}
-      <View style={styles.footer}>
-        {agrees ? (
-          <>
-            <Icon name="check" size={12} color={theme.colors.success} />
-            <Text style={[theme.typography.label, { color: theme.colors.success, fontWeight: '700' }]}>Agrees with the Stock page</Text>
-          </>
-        ) : (
-          <Text style={[theme.typography.label, { color: theme.colors.warning, fontWeight: '700' }]}>
-            ⚠ Stock Difference Detected — {formatCount(unexplained, 'reconciliation.unexplained')} unexplained
-          </Text>
-        )}
-      </View>
+      <InfoBanner kind={agrees ? 'ok' : 'warn'} style={styles.banner}>
+        {agrees
+          ? 'Agrees with the Stock page'
+          : `Stock Difference Detected — ${formatCount(unexplained, 'reconciliation.unexplained')} unexplained`}
+      </InfoBanner>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
-  headerRow: { flexDirection: 'row', paddingVertical: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  headCell: { flex: 1 },
-  qtyCell: { width: 44, textAlign: 'right' },
-  amtCell: { width: 84, textAlign: 'right' },
-  footer: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  card: { paddingTop: 10 },
+  headerRow: { flexDirection: 'row', paddingVertical: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderTopWidth: 1 },
+  label: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  headCell: { flex: 1, minWidth: 0 },
+  qtyCell: { width: 48, textAlign: 'right' },
+  amtCell: { width: 96, textAlign: 'right' },
+  banner: { marginTop: 10 },
 });

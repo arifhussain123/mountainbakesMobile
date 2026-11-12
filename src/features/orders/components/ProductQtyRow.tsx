@@ -1,5 +1,6 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { QtyStepper } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
 
@@ -14,42 +15,48 @@ export interface ProductQtyRowProps {
   onSubmitEditing?: () => void;
   /** A plain ref object, not `forwardRef` — same reasoning as `QtyStepper`'s own `inputRef`. */
   inputRef?: React.RefObject<any>;
+  /** First row of the list draws no divider above itself. */
+  first?: boolean;
 }
 
-/** One row of the Create Order product table — branchApp.md screen 05: PRODUCT/STOCK/RATE/QTY. */
-export function ProductQtyRow({ product, qtyInput, availableQty, onChangeQty, returnKeyType, onSubmitEditing, inputRef }: ProductQtyRowProps) {
+/**
+ * One row of the Create Order product list — 2026 redesign B05 `.li`: the
+ * product name over "category · stock N · Rs. rate", and a −/qty/+ stepper.
+ * Typing in the field is still the main input (keypad Next chains rows).
+ */
+export function ProductQtyRow({ product, qtyInput, availableQty, onChangeQty, returnKeyType, onSubmitEditing, inputRef, first }: ProductQtyRowProps) {
   const theme = useAppTheme();
-  const hasQty = (parseInt(qtyInput, 10) || 0) > 0;
+  const parsed = parseInt(qtyInput, 10);
+  const value = qtyInput.trim() === '' || Number.isNaN(parsed) ? null : parsed;
+  const hasQty = (value ?? 0) > 0;
+  const meta = [product.categoryName, `stock ${availableQty ?? '—'}`, formatCurrency(product.price)].filter(Boolean).join(' · ');
 
   return (
-    <View style={[styles.row, { borderBottomColor: theme.colors.border, backgroundColor: hasQty ? `${theme.colors.primary}0D` : 'transparent' }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[theme.typography.body, { color: theme.colors.text }]} numberOfLines={1}>
+    <View style={[styles.row, first ? null : [styles.divider, { borderTopColor: theme.colors.border }]]}>
+      <View style={styles.nameCol}>
+        <Text style={[styles.name, { color: hasQty ? theme.colors.primary : theme.colors.text }]} numberOfLines={1}>
           {product.name}
         </Text>
-        {product.categoryName ? (
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>{product.categoryName}</Text>
-        ) : null}
+        <Text style={[styles.meta, { color: theme.colors.textFaint }]} numberOfLines={1}>
+          {meta}
+        </Text>
       </View>
-      <Text style={[styles.stockCol, theme.typography.bodySmall, { color: theme.colors.text }]}>{availableQty ?? '—'}</Text>
-      <Text style={[styles.rateCol, theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{formatCurrency(product.price)}</Text>
-      <TextInput
-        ref={inputRef}
-        value={qtyInput}
-        onChangeText={onChangeQty}
-        placeholder="0"
-        keyboardType="numeric"
+      <QtyStepper
+        inputRef={inputRef}
+        value={value}
+        onChange={(next) => onChangeQty(next === null ? '' : String(next))}
+        accessibilityLabel={`Quantity for ${product.name}`}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
-        style={[styles.qtyInput, { borderColor: hasQty ? theme.colors.primary : theme.colors.border, color: theme.colors.text, borderRadius: theme.radii.sm }]}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1 },
-  stockCol: { width: 40, textAlign: 'center' },
-  rateCol: { width: 54, textAlign: 'right' },
-  qtyInput: { width: 50, height: 36, borderWidth: 1.5, textAlign: 'center', fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  nameCol: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontSize: 14, lineHeight: 20, fontWeight: '600', letterSpacing: -0.2 },
+  meta: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  divider: { borderTopWidth: 1 },
 });

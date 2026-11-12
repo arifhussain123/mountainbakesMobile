@@ -10,18 +10,19 @@ export interface PagerDotsProps {
 
 function Dot({ index, scrollProgress }: { index: number; scrollProgress: SharedValue<number> }) {
   const theme = useAppTheme();
+  const idle = theme.isDark ? theme.colors.border : '#DCD6F5';
 
   const style = useAnimatedStyle(() => {
     const input = [index - 1, index, index + 1];
-    const width = interpolate(scrollProgress.value, input, [4, 18, 4], 'clamp');
-    const backgroundColor = interpolateColor(scrollProgress.value, input, [theme.colors.border, theme.colors.primary, theme.colors.border]);
+    const width = interpolate(scrollProgress.value, input, [8, 22, 8], 'clamp');
+    const backgroundColor = interpolateColor(scrollProgress.value, input, [idle, theme.colors.primary, idle]);
     return { width, backgroundColor };
   });
 
   return <Animated.View style={[styles.dot, style]} />;
 }
 
-/** Active page = animated orange pill, inactive = small grey dot — mountainbakesBranch.html's onboarding indicator. */
+/** Redesign B02 — the active page is a 22pt accent pill, the others 8pt dots; animated with the swipe. */
 export function PagerDots({ count, scrollProgress }: PagerDotsProps) {
   return (
     <View style={styles.row} accessible accessibilityRole="none">
@@ -33,6 +34,6 @@ export function PagerDots({ count, scrollProgress }: PagerDotsProps) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5 },
-  dot: { height: 4, borderRadius: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { height: 8, borderRadius: 4 },
 });

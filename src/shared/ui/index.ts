@@ -38,7 +38,7 @@ export { useFormBottomSheetScroll } from './FormBottomSheet';
 export { GlowLayer, WARM_GLOW_RGB } from './GlowLayer';
 export type { GlowLayerProps } from './GlowLayer';
 
-export { HeroSurface } from './HeroSurface';
+export { HeroSurface, useHeroInk } from './HeroSurface';
 export type { HeroSurfaceProps } from './HeroSurface';
 
 export { Sphere3D } from './Sphere3D';
@@ -91,3 +91,42 @@ export type { SyncBadgeProps } from './SyncBadge';
 
 export { TextField } from './TextField';
 export type { TextFieldProps } from './TextField';
+
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
+
+export { InfoBanner } from './InfoBanner';
+export type { InfoBannerKind, InfoBannerProps } from './InfoBanner';
+
+export { MiniStat } from './MiniStat';
+export type { MiniStatProps } from './MiniStat';
+
+export { SectionHeader } from './SectionHeader';
+export type { SectionHeaderProps } from './SectionHeader';
+
+export { ListThumb } from './ListThumb';
+export type { ListThumbProps } from './ListThumb';
+
+export { IconButton } from './IconButton';
+export type { IconButtonProps } from './IconButton';
+
+export { SmallButton } from './SmallButton';
+export type { SmallButtonKind, SmallButtonProps } from './SmallButton';
+
+export { Fab, FAB_CLEARANCE } from './Fab';
+export type { FabProps } from './Fab';
+
+export { PagerButton } from './PagerButton';
+export type { PagerButtonProps } from './PagerButton';
+
+export { Pill } from './Pill';
+export type { PillKind, PillProps } from './Pill';
+
+export { KpiTile } from './KpiTile';
+export type { KpiTileProps } from './KpiTile';
+
+export { Eyebrow, PageTitle } from './PageTitle';
+export type { PageTitleProps } from './PageTitle';
+
+export { BackBar, TopBar } from './TopBar';
+export type { BackBarProps, TopBarAction, TopBarProps } from './TopBar';

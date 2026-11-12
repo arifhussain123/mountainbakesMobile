@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { useAppTheme } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
@@ -13,49 +13,50 @@ export interface DailySaleHeroCardProps {
 }
 
 /**
- * Design "21 Daily Sale Record" lines 1007-1012 — the orange "TOTAL SALE" hero
- * card with two nested dark tiles (Company Share / Cash on Table), the same
- * shape as the dashboard's `HeroSalesCard` (lines 107-113) adapted for this
- * screen's own figures instead of Net Amount/Orders.
+ * Redesign B21 — the violet "Total sale · <range>" hero: the window's total,
+ * then Company share / Branch share / Cash on table in columns (white on
+ * violet; Branch share in honey, the branch's own cut).
  */
 export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, branchShare, cashOnTable }: DailySaleHeroCardProps) {
   const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
   const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const honey = theme.isDark ? onHero : '#FFD36E';
+
+  const cols = [
+    { label: 'Company share', value: companyShare, color: onHero },
+    { label: 'Branch share', value: branchShare, color: honey },
+    { label: 'Cash on table', value: cashOnTable, color: onHero },
+  ];
 
   return (
-    <HeroSurface style={[styles.card, { padding: theme.spacing.lg }]}>
-      <View style={styles.eyebrowRow}>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>Total Sale</Text>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>{rangeLabel}</Text>
-      </View>
-      <Text style={[theme.typography.screenTitle, { color: onHero, fontSize: 36, marginTop: theme.spacing.sm }]}>
+    <HeroSurface style={styles.card}>
+      <Text style={[styles.eyebrow, { color: onHero, opacity: 0.8 }]}>Total sale · {rangeLabel}</Text>
+      <Text style={[styles.value, { color: onHero }]} numberOfLines={1} adjustsFontSizeToFit>
         {formatCurrency(totalSale)}
       </Text>
-      <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
-        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Company Share</Text>
-          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(companyShare)}</Text>
-        </View>
-        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Branch Share</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.success, marginTop: 2, fontWeight: '700' }]}>
-            {formatCurrency(branchShare)}
-          </Text>
-        </View>
-        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md, padding: theme.spacing.sm }]}>
-          <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Cash on Table</Text>
-          <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(cashOnTable)}</Text>
-        </View>
+      <View style={styles.grid}>
+        {cols.map((c) => (
+          <View key={c.label} style={styles.col}>
+            <Text style={[styles.sm, { color: onHero, opacity: 0.84 }]} numberOfLines={1}>
+              {c.label}
+            </Text>
+            <Text style={[styles.colValue, { color: c.color }]} numberOfLines={1} adjustsFontSizeToFit>
+              {formatCurrency(c.value)}
+            </Text>
+          </View>
+        ))}
       </View>
     </HeroSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {},
-  eyebrowRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2 },
-  grid: { flexDirection: 'row' },
-  tile: { flex: 1, minWidth: 0 },
+  card: { gap: 6 },
+  eyebrow: { fontSize: 12, lineHeight: 15, fontWeight: '600', letterSpacing: 0.6 },
+  value: { fontSize: 32, lineHeight: 38, fontWeight: '600', letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  grid: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  col: { flex: 1, minWidth: 0, gap: 2 },
+  sm: { fontSize: 13, lineHeight: 18 },
+  colValue: { fontSize: 15, lineHeight: 20, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

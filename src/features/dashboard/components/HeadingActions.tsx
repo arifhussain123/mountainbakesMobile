@@ -9,12 +9,15 @@ export interface HeadingActionsProps {
 }
 
 /**
- * Design line 132 — the "Compare"/"Export" pill pair next to the "Daily Sales"
- * heading. Compare is a filled toggle (on/off); Export is outlined and always
- * a one-shot action, so it gets its own loading state instead of a toggle look.
+ * The "Compare" / "Export" pair beside the Sales-analytics heading. Compare is
+ * a toggle chip (navy when on, like the redesign's selected `chip`); Export is
+ * a one-shot action with its own loading state.
  */
 export function HeadingActions({ compareActive, onToggleCompare, onExport, exporting }: HeadingActionsProps) {
   const theme = useAppTheme();
+  const idleBg = theme.isDark ? theme.colors.cardFill : theme.colors.surface;
+  const onBg = theme.isDark ? theme.colors.primary : '#2E2A5C';
+  const onInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
     <View style={styles.row}>
@@ -23,27 +26,16 @@ export function HeadingActions({ compareActive, onToggleCompare, onExport, expor
         accessibilityLabel="Compare with the previous period"
         accessibilityState={{ selected: compareActive }}
         onPress={onToggleCompare}
-        style={[
-          styles.pill,
-          {
-            backgroundColor: compareActive ? theme.colors.primary : theme.colors.cardFill,
-          },
-        ]}>
-        <Text style={[theme.typography.label, { color: compareActive ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>
-          Compare
-        </Text>
+        style={[styles.chip, compareActive ? { backgroundColor: onBg, borderColor: onBg } : { backgroundColor: idleBg, borderColor: theme.colors.border }]}>
+        <Text style={[styles.text, { color: compareActive ? onInk : theme.colors.text }]}>Compare</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Export sales data"
         disabled={exporting}
         onPress={onExport}
-        style={[styles.pill, styles.outlined, { borderColor: theme.colors.cardBorder, opacity: exporting ? 0.6 : 1 }]}>
-        {exporting ? (
-          <ActivityIndicator size="small" color={theme.colors.text} />
-        ) : (
-          <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Export</Text>
-        )}
+        style={[styles.chip, { backgroundColor: idleBg, borderColor: theme.colors.border, opacity: exporting ? 0.6 : 1 }]}>
+        {exporting ? <ActivityIndicator size="small" color={theme.colors.text} /> : <Text style={[styles.text, { color: theme.colors.text }]}>Export</Text>}
       </Pressable>
     </View>
   );
@@ -51,6 +43,6 @@ export function HeadingActions({ compareActive, onToggleCompare, onExport, expor
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
-  pill: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
-  outlined: { borderWidth: 1, backgroundColor: 'transparent' },
+  chip: { height: 32, minWidth: 64, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  text: { fontSize: 13, fontWeight: '600' },
 });

@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Alert, Linking, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { useAuthStore } from '@/state';
-import { useAppTheme } from '@/shared/theme';
-import { PhotoViewer, PrimaryButton, SecondaryButton, useFormBottomSheetScroll } from '@/shared/ui';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { Icon, InfoBanner, ListThumb, MiniStat, PhotoViewer, PrimaryButton, SecondaryButton, useFormBottomSheetScroll, type IconName } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { Product } from '@/api';
 import { ProductPickerModal, ReturnLineRow, ReturnPhotoConfirmModal } from '../../components';
@@ -13,7 +13,7 @@ export interface ReturnItemsSheetContentProps {
   onClose: () => void;
 }
 
-/** branchApp.md screen 06 — Return Items, presented as a bottom sheet. One photo per returned product. */
+/** 2026 redesign B06 — Return Items, presented as a bottom sheet. One photo per returned product. */
 export function ReturnItemsSheetContent({ onClose }: ReturnItemsSheetContentProps) {
   const theme = useAppTheme();
   const branchName = useAuthStore((state) => state.user?.branchName ?? '—');
@@ -22,7 +22,9 @@ export function ReturnItemsSheetContent({ onClose }: ReturnItemsSheetContentProp
   const [pickerForKey, setPickerForKey] = useState<string | null>(null);
   const [viewingKey, setViewingKey] = useState<string | null>(null);
   // Where each line sits in the sheet, for "scroll to the first line missing a photo".
-  const itemsTop = useRef(0);
+  // The list sits inside the Items field (under its label), so its top is the field's y plus the list's y within it.
+  const itemsFieldTop = useRef(0);
+  const itemsListTop = useRef(0);
   const lineTops = useRef(new Map<string, number>());
 
   const now = new Date().toISOString();
@@ -72,7 +74,7 @@ export function ReturnItemsSheetContent({ onClose }: ReturnItemsSheetContentProp
     const outcome = await form.submit();
     if (outcome.status === 'blocked' && outcome.firstMissingPhotoKey) {
       const top = lineTops.current.get(outcome.firstMissingPhotoKey);
-      if (top != null) sheetScroll?.scrollTo(itemsTop.current + top - 12);
+      if (top != null) sheetScroll?.scrollTo(itemsFieldTop.current + itemsListTop.current + top - 12);
     } else if (outcome.status === 'saved') {
       Alert.alert('Return saved', 'Your return has been sent to Production for review.', [{ text: 'OK', onPress: onClose }]);
     } else if (outcome.status === 'queued') {
@@ -92,101 +94,123 @@ export function ReturnItemsSheetContent({ onClose }: ReturnItemsSheetContentProp
         ? "You're offline — Save keeps the return on this phone and sends it when you're back online."
         : null;
 
+  const fieldFill = theme.isDark ? theme.colors.cardFill : theme.colors.surface;
+  const readOnlyField = (label: string, value: string, icon: IconName) => (
+    <View style={[styles.field, styles.flex1]}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <View style={[styles.input, { backgroundColor: fieldFill, borderColor: theme.colors.border }]}>
+        <Icon name={icon} size={20} color={theme.colors.textFaint} />
+        <Text style={[styles.inputText, { color: theme.colors.text }]} numberOfLines={1}>
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
-    <View>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>DATE</Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{formatDisplayDate(now.slice(0, 10))}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>TIME</Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{formatDisplayTime(now)}</Text>
-        </View>
+    <View style={styles.body}>
+      <View style={styles.grid2}>
+        {readOnlyField('Date', formatDisplayDate(now.slice(0, 10)), 'calendar')}
+        {readOnlyField('Time', formatDisplayTime(now), 'clock')}
       </View>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 12 }]}>BRANCH</Text>
-      <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{branchName}</Text>
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>ITEMS · ONE PHOTO EACH</Text>
       <View
-        style={{ marginTop: 8 }}
+        style={styles.field}
         onLayout={(e) => {
-          itemsTop.current = e.nativeEvent.layout.y;
+          itemsFieldTop.current = e.nativeEvent.layout.y;
         }}>
-        {form.lines.map((line) => (
-          <ReturnLineRow
-            key={line.key}
-            product={line.product}
-            qty={line.qty}
-            available={line.available}
-            isDuplicate={line.isDuplicate}
-            photo={line.photo}
-            photoError={form.captureErrors[line.key] ?? null}
-            showPhotoRequired={form.showPhotoErrors && form.missingPhotoKeys.includes(line.key)}
-            photoDisabled={!line.product || form.isPickingPhoto}
-            onLayout={(e) => lineTops.current.set(line.key, e.nativeEvent.layout.y)}
-            onPressSelect={() => setPickerForKey(line.key)}
-            onIncrement={() => form.updateLine(line.key, { qtyInput: String(Math.min(line.available ?? 0, line.qty + 1)) })}
-            onDecrement={() => form.updateLine(line.key, { qtyInput: String(Math.max(1, line.qty - 1)) })}
-            onRemove={() => {
-              lineTops.current.delete(line.key);
-              form.removeLine(line.key);
-            }}
-            onTakePhoto={() => void capture(line.key, 'camera')}
-            onPickPhoto={() => void capture(line.key, 'gallery')}
-            onOpenPhoto={() => setViewingKey(line.key)}
-            onRetakePhoto={() => void capture(line.key, line.photo?.source ?? 'camera')}
-            onRemovePhoto={() => form.removePhoto(line.key)}
-            onRetryUpload={() => form.retryUpload(line.key)}
-          />
-        ))}
-        <SecondaryButton label="+ Add Item" onPress={form.addLine} />
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          Items <Text style={{ color: theme.colors.textFaint }}>· one photo each</Text>
+        </Text>
+        <View
+          onLayout={(e) => {
+            itemsListTop.current = e.nativeEvent.layout.y;
+          }}>
+          {form.lines.map((line, index) => (
+            <ReturnLineRow
+              key={line.key}
+              index={index}
+              product={line.product}
+              qty={line.qty}
+              available={line.available}
+              isDuplicate={line.isDuplicate}
+              photo={line.photo}
+              photoError={form.captureErrors[line.key] ?? null}
+              showPhotoRequired={form.showPhotoErrors && form.missingPhotoKeys.includes(line.key)}
+              photoDisabled={!line.product || form.isPickingPhoto}
+              onLayout={(e) => lineTops.current.set(line.key, e.nativeEvent.layout.y)}
+              onPressSelect={() => setPickerForKey(line.key)}
+              onIncrement={() => form.updateLine(line.key, { qtyInput: String(Math.min(line.available ?? 0, line.qty + 1)) })}
+              onDecrement={() => form.updateLine(line.key, { qtyInput: String(Math.max(1, line.qty - 1)) })}
+              onRemove={() => {
+                lineTops.current.delete(line.key);
+                form.removeLine(line.key);
+              }}
+              onTakePhoto={() => void capture(line.key, 'camera')}
+              onPickPhoto={() => void capture(line.key, 'gallery')}
+              onOpenPhoto={() => setViewingKey(line.key)}
+              onRetakePhoto={() => void capture(line.key, line.photo?.source ?? 'camera')}
+              onRemovePhoto={() => form.removePhoto(line.key)}
+              onRetryUpload={() => form.retryUpload(line.key)}
+            />
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add another product"
+            onPress={form.addLine}
+            style={({ pressed }) => [
+              styles.addRow,
+              { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, opacity: pressed ? 0.8 : 1 },
+            ]}>
+            <ListThumb icon="plus" index={form.lines.length} />
+            <Text style={[styles.addText, { color: theme.colors.primary }]}>Add another product</Text>
+          </Pressable>
+        </View>
       </View>
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>RETURN REASON (OPTIONAL)</Text>
-      <TextInput
-        value={form.reason}
-        onChangeText={form.setReason}
-        placeholder="Damaged / unsold / expired…"
-        placeholderTextColor={theme.colors.textSecondary}
-        multiline
-        style={[styles.reasonInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6 }]}
-      />
+      <View style={styles.field}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          Return reason <Text style={{ color: theme.colors.textFaint }}>(optional)</Text>
+        </Text>
+        <TextInput
+          value={form.reason}
+          onChangeText={form.setReason}
+          placeholder="Damaged / unsold / expired…"
+          placeholderTextColor={theme.colors.textFaint}
+          multiline
+          style={[styles.reasonInput, { borderColor: theme.colors.border, color: theme.colors.text, backgroundColor: fieldFill }]}
+        />
+      </View>
 
-      {form.submitError ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.md }]}>{form.submitError}</Text>
-      ) : null}
+      {form.submitError ? <InfoBanner kind="bad">{form.submitError}</InfoBanner> : null}
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface, marginTop: theme.spacing.lg }]}>
-        <View style={styles.footerStatsRow}>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-            Products <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{form.totalProducts}</Text>
-          </Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-            Total units <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{form.totalUnits}</Text>
-          </Text>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-            Photos{' '}
-            <Text style={{ color: form.photosReady < form.photosTotal ? theme.colors.danger : theme.colors.primary, fontWeight: '700' }}>
-              {form.photosReady} of {form.photosTotal}
-            </Text>
-          </Text>
+      <View style={[styles.totals, { backgroundColor: tintFill(theme) }]}>
+        <MiniStat label="Products" value={String(form.totalProducts)} style={styles.half} />
+        <MiniStat label="Total units" value={String(form.totalUnits)} style={styles.half} />
+        <MiniStat
+          label="Photos"
+          value={`${form.photosReady} of ${form.photosTotal}`}
+          valueColor={form.photosReady < form.photosTotal ? theme.colors.danger : undefined}
+          style={styles.half}
+        />
+        <MiniStat label="Branch" value={branchName} style={styles.half} />
+      </View>
+
+      {footerHint ? <Text style={[styles.hint, { color: theme.colors.textFaint }]}>{footerHint}</Text> : null}
+
+      <View style={styles.actionsRow}>
+        <View style={styles.flex1}>
+          <SecondaryButton label="Cancel" onPress={onClose} />
         </View>
-        {footerHint ? <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 6 }]}>{footerHint}</Text> : null}
-        <View style={styles.actionsRow}>
-          <View style={{ flex: 1 }}>
-            <SecondaryButton label="Cancel" onPress={onClose} />
-          </View>
-          <View style={{ flex: 1.4 }}>
-            <PrimaryButton
-              label="Save Return"
-              onPress={() => void handleSubmit()}
-              loading={form.isSubmitting}
-              // Missing photos only: still tappable, so the tap can scroll to the line that needs one.
-              inactive={form.blockedOnlyByPhotos}
-              disabled={!form.canSubmit && !form.blockedOnlyByPhotos}
-            />
-          </View>
+        <View style={styles.save}>
+          <PrimaryButton
+            label="Save Return"
+            onPress={() => void handleSubmit()}
+            loading={form.isSubmitting}
+            // Missing photos only: still tappable, so the tap can scroll to the line that needs one.
+            inactive={form.blockedOnlyByPhotos}
+            disabled={!form.canSubmit && !form.blockedOnlyByPhotos}
+          />
         </View>
       </View>
 

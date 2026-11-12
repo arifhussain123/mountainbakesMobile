@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, SearchBar } from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Icon, IconButton, ListThumb, SearchBar } from '@/shared/ui';
 import { formatDisplayDate, includesTerm } from '@/shared/utils';
 import type { ProductionOrder } from '@/api';
 
@@ -29,10 +29,8 @@ export function DemandPickerModal({ visible, demands, onSelect, onClose }: Deman
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.lg }}>
-          <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>Select Demand</Text>
-          <Pressable accessibilityRole="button" onPress={onClose}>
-            <Icon name="close" color={theme.colors.text} />
-          </Pressable>
+          <Text style={[designType.h2, { color: theme.colors.text }]}>Select Demand</Text>
+          <IconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
         </View>
         <View style={{ paddingHorizontal: theme.spacing.lg }}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand…" />
@@ -41,15 +39,26 @@ export function DemandPickerModal({ visible, demands, onSelect, onClose }: Deman
           data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: theme.spacing.lg }}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <Pressable
               accessibilityRole="button"
               onPress={() => onSelect(item)}
-              style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{item.demandNumber}</Text>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-                {formatDisplayDate(item.date)} · {item.status}
-              </Text>
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingVertical: 12,
+                borderTopWidth: index === 0 ? 0 : 1,
+                borderTopColor: theme.colors.border,
+              }}>
+              <ListThumb icon="orders" index={index} />
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text style={[designType.h3s, { color: theme.colors.text }]}>{item.demandNumber}</Text>
+                <Text style={[designType.xs, { color: theme.colors.textFaint }]}>
+                  {formatDisplayDate(item.date)} · {item.status}
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={18} color={theme.colors.textFaint} />
             </Pressable>
           )}
           ListEmptyComponent={<Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>No demands found.</Text>}

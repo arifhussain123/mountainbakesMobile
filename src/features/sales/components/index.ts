@@ -13,7 +13,7 @@ export type { ProductPickerModalProps } from './ProductPickerModal';
 export { ProductPickerRow } from './ProductPickerRow';
 export type { ProductPickerRowProps } from './ProductPickerRow';
 
-export { SaleCard, paymentMethodColor } from './SaleCard';
+export { SaleCard, paymentMethodColor, PAYMENT_LABEL } from './SaleCard';
 export type { SaleCardProps } from './SaleCard';
 
 export { SalesDateChipRow } from './SalesDateChipRow';
@@ -24,3 +24,4 @@ export type { SalesHeroCardProps } from './SalesHeroCard';
 
 export { SortSheet, SORT_OPTIONS } from './SortSheet';
 export type { SortField, SortSheetProps } from './SortSheet';
+

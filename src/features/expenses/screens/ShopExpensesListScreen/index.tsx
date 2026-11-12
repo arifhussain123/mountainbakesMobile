@@ -7,7 +7,7 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { useSummaryFocusRefresh } from '@/features/discounts/hooks';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, FormBottomSheet, HeroSurface, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -46,42 +46,45 @@ export function ShopExpensesListScreen() {
 
   const totalText = totalQ.data ? formatCurrency(totalQ.data.amount) : totalQ.isError ? '—' : '…';
 
+  // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
+  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const countText = count !== undefined ? ` · ${count} ${count === 1 ? 'expense' : 'expenses'}` : '';
+
   return (
     <Screen>
       <AppHeader
         title="Shop Expenses"
-        subtitle={`${windowText}${count !== undefined ? ` · ${count} ${count === 1 ? 'expense' : 'expenses'}` : ''}`}
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
-      <View style={{ paddingHorizontal: theme.spacing.lg }}>
-        <PrimaryButton label="+ Shop Expense" onPress={() => sheetRef.current?.present()} />
-      </View>
       <FlatList
         data={expenses}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: theme.spacing.xs, paddingBottom: 112 }}
         ListHeaderComponent={
-          <View>
-            <View
+          <View style={styles.header}>
+            <HeroSurface
               accessible
               accessibilityLabel={`Total ${term ? 'matching, ' : ''}this month: ${totalText}`}
-              style={[styles.totalCard, { backgroundColor: theme.colors.primary, marginBottom: theme.spacing.md }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.primaryText }]}>
-                {term ? 'TOTAL · THIS MONTH · MATCHING' : 'TOTAL · THIS MONTH'}
+              style={styles.hero}>
+              <Text style={[styles.eyebrow, { color: onHero, opacity: 0.8 }]}>
+                {windowText}
+                {countText}
+                {term ? ' · matching' : ''}
               </Text>
-              <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, marginTop: 4 }]}>{totalText}</Text>
+              <Text style={[styles.heroValue, { color: onHero }]} numberOfLines={1} adjustsFontSizeToFit>
+                {totalText}
+              </Text>
               {totalQ.isError ? (
                 <Pressable accessibilityRole="button" onPress={() => void totalQ.refetch()} disabled={totalQ.isFetching} hitSlop={8}>
-                  <Text style={[theme.typography.label, { color: theme.colors.primaryText, marginTop: 4, textDecorationLine: 'underline' }]}>
+                  <Text style={[styles.heroSub, { color: onHero, textDecorationLine: 'underline' }]}>
                     {totalQ.isFetching ? 'Retrying…' : 'Could not load the total · Retry'}
                   </Text>
                 </Pressable>
               ) : null}
-            </View>
+            </HeroSurface>
             <SearchBar value={search} onChangeText={setSearch} placeholder="Search expense #, description, remarks…" />
             {list.isLoading ? <LoadingSkeleton height={100} /> : null}
             {list.error && expenses.length === 0 ? <ErrorState message={mapErrorToMessage(list.error)} onRetry={() => void list.refetch()} /> : null}
-            <View style={{ height: theme.spacing.md }} />
           </View>
         }
         ListEmptyComponent={
@@ -92,7 +95,7 @@ export function ShopExpensesListScreen() {
             />
           ) : undefined
         }
-        renderItem={({ item }) => <ExpenseCard item={item} />}
+        renderItem={({ item, index }) => <ExpenseCard item={item} index={index} isLast={index === expenses.length - 1} />}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
@@ -104,6 +107,9 @@ export function ShopExpensesListScreen() {
           void totalQ.refetch();
         }}
       />
+
+      {/* B16's floating "+ Expense" button (saffron gradient pill, bottom-right). */}
+      <Fab label="Expense" accessibilityLabel="New shop expense" onPress={() => sheetRef.current?.present()} bottom={24} />
 
       <FormBottomSheet ref={sheetRef} title="New Expense" onRequestClose={() => sheetRef.current?.dismiss()}>
         <NewShopExpenseSheetContent onClose={() => sheetRef.current?.dismiss()} />

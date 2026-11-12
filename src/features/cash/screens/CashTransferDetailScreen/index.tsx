@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useCashTransferDetail } from '@/api';
 import type { CashStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, Icon, LoadingSkeleton, PhotoViewer, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { designType, FLAT_CARD, heroType, useAppTheme } from '@/shared/theme';
+import { BackBar, Card, ErrorState, Eyebrow, HeroSurface, Icon, InfoBanner, LoadingSkeleton, MiniStat, PhotoViewer, Screen, StatusBadge, type StatusVariant, useHeroInk } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { CashTransfer } from '@/api';
 import { isTransferFinal } from '../../calculations';
-import { ChannelBreakdown } from '../../components';
 import { styles } from './styles';
 
 const STATUS_LABEL: Record<CashTransfer['status'], string> = {
@@ -25,29 +24,36 @@ const STATUS_VARIANT: Record<CashTransfer['status'], StatusVariant> = {
   rejected: 'danger',
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+/** "27,900" — the hero's four `mini` figures drop the "Rs." so they fit across a phone. */
+const plain = (n: number) => (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+function Row({ label, value, divided }: { label: string; value: string; divided?: boolean }) {
   const theme = useAppTheme();
   return (
-    <View style={styles.row}>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{label}</Text>
-      <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>{value}</Text>
+    <View style={[styles.row, divided ? { borderTopWidth: 1, borderTopColor: theme.colors.border } : null]}>
+      <Text style={[designType.sm, { color: theme.colors.textSecondary }]}>{label}</Text>
+      <Text style={[designType.label, styles.rowValue, { color: theme.colors.text }]} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
 
-/** branchApp.md screen 15b — a single cash transfer's full detail. No edit/withdraw exists for this resource — the only client action after create is wait, or resubmit after rejection. */
+/** Cash transfer detail (redesign language: back bar, violet total hero) — a single cash transfer's full detail. No edit/withdraw exists for this resource — the only client action after create is wait, or resubmit after rejection. */
 export function CashTransferDetailScreen() {
+  const navigation = useNavigation();
   const theme = useAppTheme();
   const route = useRoute<RouteProp<CashStackParamList, 'CashTransferDetail'>>();
   const { data: transfer, isLoading, error, refetch } = useCashTransferDetail(route.params.transferId);
   const [photoVisible, setPhotoVisible] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const { ink: heroInk, muted: heroMuted } = useHeroInk();
 
   if (isLoading) {
     return (
       <Screen>
-        <AppHeader title="Transfer Detail" />
-        <View style={{ padding: theme.spacing.lg }}>
+        <BackBar onBack={() => navigation.goBack()} title="Transfer Detail" />
+        <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
       </Screen>
@@ -57,8 +63,8 @@ export function CashTransferDetailScreen() {
   if (error || !transfer) {
     return (
       <Screen>
-        <AppHeader title="Transfer Detail" />
-        <View style={{ padding: theme.spacing.lg }}>
+        <BackBar onBack={() => navigation.goBack()} title="Transfer Detail" />
+        <View style={{ padding: 20 }}>
           <ErrorState message={error ? mapErrorToMessage(error) : 'Transfer not found.'} onRetry={() => void refetch()} />
         </View>
       </Screen>
@@ -69,94 +75,99 @@ export function CashTransferDetailScreen() {
 
   return (
     <Screen>
-      <AppHeader title={transfer.transferNo} subtitle={`${formatDisplayDate(transfer.date)} · ${formatDisplayTime(transfer.createdAt)}`} />
-      <View style={{ padding: theme.spacing.lg }}>
-        <Card>
-          <View style={styles.headerRow}>
-            <Text style={[theme.typography.sectionTitle, { color: theme.colors.text }]}>{formatCurrency(transfer.amount)}</Text>
-            <StatusBadge label={STATUS_LABEL[transfer.status]} variant={STATUS_VARIANT[transfer.status]} />
+      <BackBar onBack={() => navigation.goBack()} title={transfer.transferNo} subtitle={`${formatDisplayDate(transfer.date)} · ${formatDisplayTime(transfer.createdAt)}`} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <HeroSurface style={styles.hero}>
+          <Text style={[heroType.eyebrow, { color: heroMuted }]}>Total amount</Text>
+          <Text style={[heroType.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {formatCurrency(transfer.amount)}
+          </Text>
+          <View style={styles.miniRow}>
+            <MiniStat onHero label="Cash" value={plain(transfer.cashAmount)} />
+            <MiniStat onHero label="Easypaisa" value={plain(transfer.easypaisaAmount)} />
+            <MiniStat onHero label="Bank" value={plain(transfer.bankAmount)} />
+            <MiniStat onHero label="Fuel" value={plain(transfer.fuelCharges)} />
           </View>
+        </HeroSurface>
 
-          <ChannelBreakdown
-            cashAmount={transfer.cashAmount}
-            easypaisaAmount={transfer.easypaisaAmount}
-            bankAmount={transfer.bankAmount}
-            fuelCharges={transfer.fuelCharges}
-          />
+        <View style={styles.statusRow}>
+          <StatusBadge label={STATUS_LABEL[transfer.status]} variant={STATUS_VARIANT[transfer.status]} />
           {transfer.fuelCharges > 0 ? (
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>Booked separately as fuel income</Text>
+            <Text style={[designType.xs, styles.grow, { color: theme.colors.textFaint }]}>Fuel is booked separately as fuel income</Text>
           ) : null}
+        </View>
 
-          <View style={{ marginTop: theme.spacing.md }}>
-            <Row label="Branch" value={transfer.branchName} />
-            {transfer.voucherNo ? <Row label="Voucher" value={transfer.voucherNo} /> : null}
-          </View>
+        <Card style={[FLAT_CARD, styles.details]}>
+          <Row label="Branch" value={transfer.branchName} />
+          {transfer.voucherNo ? <Row label="Voucher" value={transfer.voucherNo} divided /> : null}
+        </Card>
 
-          {transfer.note ? (
-            <View style={{ marginTop: theme.spacing.md }}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>NOTE</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{transfer.note}</Text>
-            </View>
-          ) : null}
+        {transfer.note ? (
+          <>
+            <Eyebrow>Note</Eyebrow>
+            <Card style={FLAT_CARD}>
+              <Text style={[designType.p, { color: theme.colors.text }]}>“{transfer.note}”</Text>
+            </Card>
+          </>
+        ) : null}
 
-          {transfer.status === 'approved' ? (
-            <View style={{ marginTop: theme.spacing.md }}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>FINANCE REVIEW</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 4 }]}>
+        {transfer.status === 'approved' ? (
+          <>
+            <Eyebrow>Finance review</Eyebrow>
+            <InfoBanner kind="ok">
+              <Text style={[styles.reviewTitle, { color: theme.colors.success }]}>
                 Approved by {transfer.approvedByName ?? 'Finance'}
                 {transfer.approvedAt ? ` · ${formatDisplayDate(transfer.approvedAt)}` : ''}
               </Text>
               {transfer.approvalNote ? (
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>{transfer.approvalNote}</Text>
+                <Text style={[designType.sm, { color: theme.colors.textSecondary, marginTop: 2 }]}>{transfer.approvalNote}</Text>
               ) : null}
-            </View>
-          ) : null}
-          {transfer.status === 'rejected' ? (
-            <View style={{ marginTop: theme.spacing.md }}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>FINANCE REVIEW</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.danger, marginTop: 4 }]}>Rejected</Text>
+            </InfoBanner>
+          </>
+        ) : null}
+        {transfer.status === 'rejected' ? (
+          <>
+            <Eyebrow>Finance review</Eyebrow>
+            <InfoBanner kind="bad">
+              <Text style={[styles.reviewTitle, { color: theme.colors.danger }]}>Rejected</Text>
               {transfer.rejectionReason ? (
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: 2 }]}>{transfer.rejectionReason}</Text>
+                <Text style={[designType.sm, { color: theme.colors.danger, marginTop: 2 }]}>{transfer.rejectionReason}</Text>
               ) : null}
-            </View>
-          ) : null}
+            </InfoBanner>
+          </>
+        ) : null}
 
-          {isTransferFinal(transfer.status) ? (
-            <View style={styles.finalRow}>
-              <Icon name="lock" size={12} color={theme.colors.textFaint} />
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginLeft: 4 }]}>
-                Final — there is no edit or withdraw for a reviewed transfer.
-              </Text>
-            </View>
-          ) : (
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: theme.spacing.md }]}>
-              Waiting on Finance. A wrong submission is rejected (with a reason) and raised again — it cannot be edited here.
-            </Text>
-          )}
-        </Card>
+        {isTransferFinal(transfer.status) ? (
+          <View style={styles.finalRow}>
+            <Icon name="lock" size={12} color={theme.colors.textFaint} />
+            <Text style={[designType.xs, styles.grow, { color: theme.colors.textFaint }]}>Final — there is no edit or withdraw for a reviewed transfer.</Text>
+          </View>
+        ) : (
+          <InfoBanner kind="warn" icon="clock">
+            Waiting on Finance. A wrong submission is rejected (with a reason) and raised again — it cannot be edited here.
+          </InfoBanner>
+        )}
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>PAYMENT PHOTO</Text>
+        <Eyebrow>Payment photo</Eyebrow>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Payment photo for ${transfer.transferNo}`}
           onPress={() => setPhotoVisible(true)}
-          style={[styles.photoFrame, { marginTop: 8, borderRadius: theme.radii.md, backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+          style={[styles.photoFrame, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
           {photo && !photoFailed ? (
             <Image source={{ uri: photo.url }} style={styles.photoImage} resizeMode="cover" onError={() => setPhotoFailed(true)} />
           ) : (
             <View style={styles.photoPlaceholder}>
               <Icon name="image" size={28} color={theme.colors.textFaint} />
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 6 }]}>
+              <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 6 }]}>
                 {photoFailed ? 'Photo could not load — pull to refresh.' : 'No photo for this transfer.'}
               </Text>
             </View>
           )}
         </Pressable>
 
-        <View style={{ marginTop: theme.spacing.lg }}>
-          <ReportIssueAction referenceId={transfer.transferNo} />
-        </View>
-      </View>
+        <ReportIssueAction referenceId={transfer.transferNo} />
+      </ScrollView>
 
       <PhotoViewer
         visible={photoVisible}

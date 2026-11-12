@@ -30,9 +30,13 @@ export function ReportIssueAction({ referenceId }: ReportIssueActionProps) {
       accessibilityRole="button"
       accessibilityLabel={referenceId ? `Report an issue with ${referenceId}` : 'Report an issue — sync this record first'}
       onPress={handlePress}
-      style={[styles.button, { borderColor: theme.colors.border, borderRadius: theme.radii.md }]}>
+      style={[
+        styles.button,
+        // 2026 redesign: a white secondary pill with the faint lavender border (light).
+        { borderColor: theme.isDark ? theme.colors.border : '#E6E1FA', backgroundColor: theme.isDark ? 'transparent' : theme.colors.surface },
+      ]}>
       <Icon name="flag" size={16} color={theme.colors.textSecondary} />
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, fontWeight: '600', marginLeft: 8 }]}>
+      <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
         Report an issue
       </Text>
     </Pressable>
@@ -45,7 +49,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
+    borderRadius: 999,
   },
+  label: { fontSize: 13, fontWeight: '600', marginLeft: 8 },
 });

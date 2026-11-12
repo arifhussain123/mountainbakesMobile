@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { getBusinessDate, useCashTransfers, useDailySaleRecords, useExpenses } from '@/api';
 import { navigateToRecord, Routes, type ClosingStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen } from '@/shared/ui';
+import { AppHeader, Card, ErrorState, FormBottomSheet, Icon, InfoBanner, ListThumb, LoadingSkeleton, PrimaryButton, Screen, SectionHeader } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { findLikelyDeposit } from '../../calculations/depositMatch';
@@ -53,6 +53,7 @@ export function DailySaleDetailScreen() {
   );
 
   const canEdit = record !== null && (record.status === 'open' || record.status === 'pending_verification');
+  const rowLine = { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border };
 
   if (isLoading) {
     return (
@@ -79,89 +80,75 @@ export function DailySaleDetailScreen() {
   return (
     <Screen>
       <AppHeader title="Day Detail" subtitle={formatDisplayDate(businessDate)} />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Card>
           <DailySaleRecordDetailSheet record={record} />
         </Card>
 
-        <View style={styles.section}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>CASH EXPENSES THIS DAY</Text>
+        {canEdit ? (
+          <PrimaryButton
+            label="Edit count"
+            onPress={() => {
+              setEditOpen(true);
+              editSheetRef.current?.present();
+            }}
+          />
+        ) : null}
+
+        <SectionHeader title="Cash expenses this day" />
+        <Card style={styles.listCard}>
           {cashExpensesForDay === null ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint, marginTop: 6 }]}>
+            <Text style={[styles.sm, styles.pad, { color: theme.colors.textFaint }]}>
               Itemized expenses are only available for the last 7 business days. Total cash expense for this day:{' '}
               {formatCurrency(record.cashExpense)}.
             </Text>
           ) : cashExpensesForDay.length === 0 ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint, marginTop: 6 }]}>No cash expenses recorded for this day.</Text>
+            <Text style={[styles.sm, styles.pad, { color: theme.colors.textFaint }]}>No cash expenses recorded for this day.</Text>
           ) : (
-            cashExpensesForDay.map((expense) => (
-              <View key={expense.id} style={styles.expenseRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[theme.typography.body, { color: theme.colors.text }]}>{expense.description}</Text>
-                  <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{expense.category}</Text>
+            cashExpensesForDay.map((expense, i) => (
+              <View key={expense.id} style={[styles.li, i > 0 && rowLine]}>
+                <ListThumb icon="receipt" index={i} />
+                <View style={styles.grow}>
+                  <Text style={[styles.liTitle, { color: theme.colors.text }]}>{expense.description}</Text>
+                  <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{expense.category}</Text>
                   {expense.amount > LARGE_EXPENSE_HINT_THRESHOLD ? (
-                    <View style={[styles.hintCard, { borderColor: theme.colors.warning, backgroundColor: `${theme.colors.warning}17` }]}>
-                      <Text style={[theme.typography.label, { color: theme.colors.text }]}>
-                        Was this paid from the till? If not, it lowers Cash on Table and shows as a difference.
-                      </Text>
-                    </View>
+                    <InfoBanner kind="warn" style={styles.hint}>
+                      Was this paid from the till? If not, it lowers Cash on Table and shows as a difference.
+                    </InfoBanner>
                   ) : null}
                 </View>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(expense.amount)}</Text>
+                <Text style={[styles.amt, { color: theme.colors.text }]}>{formatCurrency(expense.amount)}</Text>
               </View>
             ))
           )}
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigateToRecord(Routes.SHOP_EXPENSES_LIST, {})}
-            style={[styles.linkRow, { borderBottomColor: theme.colors.border, marginTop: 10 }]}>
-            <Text style={[theme.typography.body, { color: theme.colors.text }]}>Open Shop Expenses</Text>
-            <Icon name="chevron-right" size={16} color={theme.colors.textFaint} />
-          </Pressable>
-        </View>
+          <LinkRow label="Open Shop Expenses" onPress={() => navigateToRecord(Routes.SHOP_EXPENSES_LIST, {})} />
+        </Card>
 
-        <View style={styles.section}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>SALES FOR THIS DAY</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigateToRecord(Routes.SALES_LIST, {})}
-            style={[styles.linkRow, { borderBottomColor: theme.colors.border, marginTop: 6 }]}>
-            <Text style={[theme.typography.body, { color: theme.colors.text }]}>Open Sales</Text>
-            <Icon name="chevron-right" size={16} color={theme.colors.textFaint} />
-          </Pressable>
-        </View>
+        <SectionHeader title="Sales for this day" />
+        <Card style={styles.listCard}>
+          <LinkRow label="Open Sales" first onPress={() => navigateToRecord(Routes.SALES_LIST, {})} />
+        </Card>
 
         {likelyDeposit ? (
-          <View style={styles.section}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>COMPANY SHARE ↔ CASH DEPOSIT</Text>
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
+          <>
+            <SectionHeader title="Company share ↔ cash deposit" />
+            <Text style={[styles.xs, styles.pullUp, { color: theme.colors.textFaint }]}>
               Likely linked deposit — the same amount, else the one dated that day, else the nearest within 999. Not a confirmed server link.
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigateToRecord(Routes.CASH_TRANSFER_DETAIL, { transferId: likelyDeposit.id })}
-              style={[styles.linkRow, { borderBottomColor: theme.colors.border, marginTop: 6 }]}>
-              <View>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{likelyDeposit.transferNo}</Text>
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{formatDisplayDate(likelyDeposit.date)}</Text>
-              </View>
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(likelyDeposit.amount)}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {canEdit ? (
-          <View style={[styles.section, { flexDirection: 'row' }]}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setEditOpen(true);
-                editSheetRef.current?.present();
-              }}
-              style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: theme.colors.primary }}>
-              <Text style={[theme.typography.label, { color: theme.colors.primaryText, fontWeight: '700' }]}>Edit count</Text>
-            </Pressable>
-          </View>
+            <Card style={styles.listCard}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigateToRecord(Routes.CASH_TRANSFER_DETAIL, { transferId: likelyDeposit.id })}
+                style={styles.li}>
+                <ListThumb icon="transfer" index={0} />
+                <View style={styles.grow}>
+                  <Text style={[styles.liTitle, { color: theme.colors.text }]}>{likelyDeposit.transferNo}</Text>
+                  <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{formatDisplayDate(likelyDeposit.date)}</Text>
+                </View>
+                <Text style={[styles.amt, { color: theme.colors.text }]}>{formatCurrency(likelyDeposit.amount)}</Text>
+              </Pressable>
+            </Card>
+          </>
         ) : null}
       </ScrollView>
 
@@ -181,6 +168,20 @@ export function DailySaleDetailScreen() {
         ) : null}
       </FormBottomSheet>
     </Screen>
+  );
+}
+
+/** A tappable "Open …" row closing a list card, with a chevron. */
+function LinkRow({ label, first, onPress }: { label: string; first?: boolean; onPress: () => void }) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.linkRow, first ? null : { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border }]}>
+      <Text style={[styles.linkText, { color: theme.colors.primary }]}>{label}</Text>
+      <Icon name="chevron-right" size={16} color={theme.colors.primary} />
+    </Pressable>
   );
 }
 

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { getBusinessDate } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Dropdown, PrimaryButton, type DropdownOption } from '@/shared/ui';
+import { Icon, PrimaryButton, SegmentedControl, TextField, type SegmentedOption } from '@/shared/ui';
+import { formatDisplayDate } from '@/shared/utils';
 import type { ExpensePaymentMethod } from '@/api';
 import { useNewExpenseForm } from '../../hooks';
 import { styles } from './styles';
@@ -9,15 +12,25 @@ export interface NewShopExpenseSheetContentProps {
   onClose: () => void;
 }
 
-const PAYMENT_OPTIONS: DropdownOption<ExpensePaymentMethod>[] = [
+const PAYMENT_OPTIONS: SegmentedOption<ExpensePaymentMethod>[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'easypaisa', label: 'Easypaisa' },
 ];
 
-/** branchApp.md screen 17 — New Shop Expense, presented as a bottom sheet. Today-only date (enforced server-side), cash/easypaisa only. */
+/**
+ * branchApp.md screen 17 — New Shop Expense, presented as a bottom sheet
+ * (redesign B17: date + amount side by side, category chips, description,
+ * payment segment, remarks). Today-only date (enforced server-side, so the
+ * date is shown read-only), cash/easypaisa only.
+ */
 export function NewShopExpenseSheetContent({ onClose }: NewShopExpenseSheetContentProps) {
   const theme = useAppTheme();
   const form = useNewExpenseForm();
+  const [remarksFocused, setRemarksFocused] = useState(false);
+  // The selected chip: a midnight pill on light (as FilterChipRow), the accent on dark.
+  const chipOn = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const chipOnInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const labelStyle = [theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' as const }];
 
   const handleSubmit = async () => {
     const ok = await form.submit();
@@ -28,8 +41,35 @@ export function NewShopExpenseSheetContent({ onClose }: NewShopExpenseSheetConte
 
   return (
     <View>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>CATEGORY</Text>
-      <View style={[styles.categoryRow, { marginTop: 8 }]}>
+      <View style={styles.grid2}>
+        <View style={styles.cell}>
+          <TextField
+            label="Date"
+            value={formatDisplayDate(getBusinessDate())}
+            editable={false}
+            rightAccessory={
+              <View style={styles.accessory}>
+                <Icon name="calendar" size={18} color={theme.colors.textFaint} />
+              </View>
+            }
+          />
+        </View>
+        <View style={styles.cell}>
+          <TextField
+            label="Amount (Rs.)"
+            required
+            value={form.amountInput}
+            onChangeText={form.setAmountInput}
+            placeholder="0"
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+
+      <Text style={[labelStyle, { marginTop: 16 }]}>
+        Category<Text style={{ color: theme.colors.danger }}> *</Text>
+      </Text>
+      <View style={[styles.categoryRow, { marginTop: theme.spacing.sm }]}>
         {form.categories.map((option) => {
           const active = option === form.category;
           return (
@@ -40,54 +80,49 @@ export function NewShopExpenseSheetContent({ onClose }: NewShopExpenseSheetConte
               onPress={() => form.setCategory(option)}
               style={[
                 styles.categoryChip,
-                { backgroundColor: active ? theme.colors.primary : theme.colors.surface, borderColor: active ? theme.colors.primary : theme.colors.border },
+                {
+                  backgroundColor: active ? chipOn : theme.colors.cardFill,
+                  borderColor: active ? chipOn : theme.colors.cardBorder,
+                },
               ]}>
-              <Text style={[theme.typography.bodySmall, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '600' }]}>{option}</Text>
+              <Text style={[styles.chipLabel, { color: active ? chipOnInk : theme.colors.textSecondary }]}>{option}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>AMOUNT</Text>
-      <TextInput
-        value={form.amountInput}
-        onChangeText={form.setAmountInput}
-        placeholder="0"
-        placeholderTextColor={theme.colors.textSecondary}
-        keyboardType="decimal-pad"
-        style={[styles.descriptionInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6, fontWeight: '700' }]}
-      />
+      <TextField label="Description" required value={form.description} onChangeText={form.setDescription} placeholder="e.g. Electricity bill" />
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>EXPENSE DESCRIPTION</Text>
-      <TextInput
-        value={form.description}
-        onChangeText={form.setDescription}
-        placeholder="e.g. Electricity bill"
-        placeholderTextColor={theme.colors.textSecondary}
-        style={[styles.descriptionInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6 }]}
-      />
+      <Text style={[labelStyle, { marginTop: 16 }]}>Payment method</Text>
+      <SegmentedControl options={PAYMENT_OPTIONS} value={form.paymentMethod} onChange={form.setPaymentMethod} style={{ marginTop: theme.spacing.sm }} />
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>PAYMENT METHOD</Text>
-      <View style={{ marginTop: 6 }}>
-        <Dropdown options={PAYMENT_OPTIONS} value={form.paymentMethod} onChange={form.setPaymentMethod} placeholder="Select a payment method" />
-      </View>
-
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>REMARKS (OPTIONAL)</Text>
+      <Text style={[labelStyle, { marginTop: 16 }]}>Remarks (optional)</Text>
       <TextInput
         value={form.remarks}
         onChangeText={form.setRemarks}
         placeholder="Any notes…"
-        placeholderTextColor={theme.colors.textSecondary}
+        placeholderTextColor={theme.colors.textFaint}
         multiline
-        style={[styles.remarksInput, { borderColor: theme.colors.border, color: theme.colors.text, marginTop: 6 }]}
+        onFocus={() => setRemarksFocused(true)}
+        onBlur={() => setRemarksFocused(false)}
+        style={[
+          styles.remarksInput,
+          {
+            marginTop: theme.spacing.sm,
+            borderRadius: theme.radii.lg,
+            backgroundColor: theme.colors.cardFill,
+            borderColor: remarksFocused ? theme.colors.primary : theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
       />
 
       {form.submitError ? (
         <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.md }]}>{form.submitError}</Text>
       ) : null}
 
-      <View style={{ marginTop: theme.spacing.lg }}>
-        <PrimaryButton label="Save Expense" onPress={() => void handleSubmit()} loading={form.isSubmitting} disabled={!form.canSubmit} />
+      <View style={{ marginTop: theme.spacing.xl }}>
+        <PrimaryButton label="Save expense" onPress={() => void handleSubmit()} loading={form.isSubmitting} disabled={!form.canSubmit} />
       </View>
     </View>
   );

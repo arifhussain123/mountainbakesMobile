@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useAppTheme } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { Icon, ListThumb } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/utils';
 import { NOTIFICATION_TYPES } from '../deepLinks';
 import type { NotificationWithReadState } from '@/api';
@@ -12,9 +12,11 @@ export interface NotificationItemProps {
   onPress: () => void;
   /** Toggles read/unread — reachable both by swipe (the gesture the spec asks for) and by the trailing tap button (screen readers can't swipe, so the button stays as the accessible equivalent). */
   onToggleRead: () => void;
+  /** Row index within its day — picks the thumb's pastel so consecutive rows alternate. */
+  index?: number;
 }
 
-export function NotificationItem({ notification, onPress, onToggleRead }: NotificationItemProps) {
+export function NotificationItem({ notification, onPress, onToggleRead, index = 0 }: NotificationItemProps) {
   const theme = useAppTheme();
   const config = NOTIFICATION_TYPES[notification.type];
   const swipeableRef = useRef<SwipeableMethods>(null);
@@ -26,11 +28,15 @@ export function NotificationItem({ notification, onPress, onToggleRead }: Notifi
     swipeableRef.current?.close();
   }
 
+  // 2026 redesign: each notification is a white card with a pastel thumb; unread ones get a lavender wash.
+  const unreadFill = theme.isDark ? `${theme.colors.primary}14` : '#F3F0FF';
+
   return (
     <Swipeable
       ref={swipeableRef}
       friction={2}
       rightThreshold={40}
+      containerStyle={styles.container}
       renderRightActions={() => (
         <Pressable
           accessibilityRole="button"
@@ -44,21 +50,25 @@ export function NotificationItem({ notification, onPress, onToggleRead }: Notifi
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
-        style={[styles.row, { backgroundColor: notification.read ? 'transparent' : `${theme.colors.primary}0D` }]}>
-        <View style={[styles.iconBadge, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-          <Icon name={config.icon} size={18} color={theme.colors.primary} />
-        </View>
-        <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+        style={[
+          styles.row,
+          {
+            backgroundColor: notification.read ? theme.colors.cardFill : unreadFill,
+            borderColor: notification.read ? theme.colors.cardBorder : theme.isDark ? theme.colors.cardBorder : '#E2DBFF',
+          },
+        ]}>
+        <ListThumb icon={config.icon} index={index} />
+        <View style={styles.body}>
           <View style={styles.titleRow}>
-            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }]} numberOfLines={1}>
+            <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
               {notification.title}
             </Text>
             {!notification.read ? <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} /> : null}
           </View>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={2}>
+          <Text style={[styles.sm, { color: theme.colors.textSecondary }]} numberOfLines={2}>
             {notification.message}
           </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>{formatRelativeTime(notification.createdAt)}</Text>
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{formatRelativeTime(notification.createdAt)}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -74,10 +84,14 @@ export function NotificationItem({ notification, onPress, onToggleRead }: Notifi
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, paddingHorizontal: 16, minHeight: 44 },
-  iconBadge: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { marginBottom: 10, borderRadius: 22 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, minHeight: 44, borderRadius: 22, borderWidth: 1 },
+  body: { flex: 1, minWidth: 0, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
+  title: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  sm: { fontSize: 13, lineHeight: 18 },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500', marginTop: 2 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8 },
-  toggleButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
-  swipeAction: { width: 72, alignItems: 'center', justifyContent: 'center' },
+  toggleButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  swipeAction: { width: 72, marginLeft: 8, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

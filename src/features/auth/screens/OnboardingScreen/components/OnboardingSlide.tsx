@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { images } from '@/assets';
 import { useAppTheme, useResponsive } from '@/shared/theme';
 import type { OnboardingSlideContent } from '../onboardingContent';
 import { FeatureStrip } from './FeatureStrip';
+import { OnboardingArt } from './OnboardingArt';
 
 export interface OnboardingSlideProps {
   content: OnboardingSlideContent;
@@ -15,19 +15,17 @@ export interface OnboardingSlideProps {
 }
 
 /**
- * One onboarding page's content — logo, headline, body, optional feature
- * strip. Pure/presentational: paging, the CTA button, dots and Skip live in
- * `OnboardingScreen` so they stay pinned to the bottom, outside the
- * horizontally-scrolling pager, while only this content area flexes.
+ * One onboarding page (redesign B02/B02b): the rounded tinted art panel, then
+ * a big sentence-case headline, the body and the feature chips. Paging, the
+ * CTA, the dots and Skip live in `OnboardingScreen`, outside the pager.
  *
- * Sized entirely from `useResponsive()` — see that module and the task notes
- * on `OnboardingScreen` for the size ranges. On a very short screen or a
- * large system font, the content scrolls rather than overlapping the bottom
- * button group, which is pinned outside this component.
+ * Sized from `useResponsive()`: the art panel is 340pt on a roomy phone and
+ * gives way first on a short screen; if text still doesn't fit (large system
+ * font), the slide scrolls rather than overlapping the pinned CTA.
  */
 export function OnboardingSlide({ content, width, active }: OnboardingSlideProps) {
   const theme = useAppTheme();
-  const { width: deviceWidth, size, clamp, usableHeight } = useResponsive();
+  const { size, clamp, usableHeight } = useResponsive();
   const reduceMotion = useReducedMotion();
   const opacity = useSharedValue(reduceMotion ? 1 : 0);
   const translateY = useSharedValue(reduceMotion ? 0 : 12);
@@ -49,61 +47,30 @@ export function OnboardingSlide({ content, width, active }: OnboardingSlideProps
   }));
 
   const accessibleHeadline = `${content.headline.map((line) => line.text).join(' ')}.`;
-
-  // On a short screen (usableHeight < 640, this task's own threshold — a
-  // slightly tighter bar than `isShort`'s general 700), gaps shrink first;
-  // the logo only shrinks toward its own floor once gaps are already at
-  // their minimum, so text never has to fight the logo for space twice.
-  const veryShort = usableHeight < 640;
-  const logoSize = clamp(130, Math.min(deviceWidth * 0.42, usableHeight * 0.2), 210);
-  const headlineSize = size(36, 28, 44);
-  const gapLogoToText = veryShort ? 12 : size(24, 16, 32);
-  const gapBodyTop = veryShort ? 10 : size(16, 12, 24);
-  const gapFeaturesTop = veryShort ? 12 : size(20, 14, 28);
+  const artHeight = clamp(200, usableHeight * 0.42, 340);
+  const headlineSize = size(36, 30, 42);
 
   return (
     <View style={{ width, flex: 1 }}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.slide, { paddingTop: size(8, 4, 16) }]}
-        showsVerticalScrollIndicator={false}
-        bounces={false}>
-        <Image
-          source={images.logo}
-          style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2, alignSelf: 'center', marginTop: size(24, 12, 32) }}
-          resizeMode="contain"
-        />
-        <View style={styles.spacer} />
-        <Animated.View style={animatedStyle}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.slide} showsVerticalScrollIndicator={false} bounces={false}>
+        <OnboardingArt art={content.art} height={artHeight} />
+        <Animated.View style={[styles.text, animatedStyle]}>
           <Text
+            accessibilityRole="header"
             accessibilityLabel={accessibleHeadline}
             maxFontSizeMultiplier={1.2}
-            style={[
-              theme.typography.screenTitle,
-              styles.headline,
-              { color: theme.colors.text, fontSize: headlineSize, lineHeight: headlineSize * 1.1, marginTop: gapLogoToText },
-            ]}>
+            style={[styles.headline, { color: theme.colors.text, fontSize: headlineSize, lineHeight: Math.round(headlineSize * 1.17) }]}>
             {content.headline.map((line, i) => (
               <Text key={i} style={line.accent ? { color: theme.colors.primary } : undefined}>
-                {line.text.toUpperCase()}
+                {line.text}
                 {i < content.headline.length - 1 ? '\n' : ''}
               </Text>
             ))}
           </Text>
-          <Text
-            maxFontSizeMultiplier={1.2}
-            style={[
-              theme.typography.body,
-              styles.body,
-              { color: theme.colors.textSecondary, fontSize: size(15, 13, 17), maxWidth: Math.min(deviceWidth - 48, 360), marginTop: gapBodyTop },
-            ]}>
+          <Text maxFontSizeMultiplier={1.2} style={[styles.body, { color: theme.colors.textSecondary }]}>
             {content.body}
           </Text>
-          {content.features ? (
-            <View style={{ marginTop: gapFeaturesTop, width: '100%' }}>
-              <FeatureStrip features={content.features} />
-            </View>
-          ) : null}
+          {content.features ? <FeatureStrip features={content.features} /> : null}
         </Animated.View>
       </ScrollView>
     </View>
@@ -112,8 +79,8 @@ export function OnboardingSlide({ content, width, active }: OnboardingSlideProps
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  slide: { flexGrow: 1, paddingHorizontal: 26 },
-  spacer: { flex: 1 },
-  headline: { textTransform: 'uppercase', textAlign: 'center' },
-  body: { textAlign: 'center', alignSelf: 'center' },
+  slide: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 16 },
+  text: { gap: 14, paddingTop: 28 },
+  headline: { fontWeight: '600', letterSpacing: -1 },
+  body: { fontSize: 15, lineHeight: 22 },
 });

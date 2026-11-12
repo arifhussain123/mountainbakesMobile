@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import { useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCount } from '@/shared/utils';
 import { completedOrders, orderCompletionPct } from '../calculations';
+import { DonutRing } from './DonutRing';
 
 export interface OrdersCardProps {
   total: number;
@@ -11,54 +11,37 @@ export interface OrdersCardProps {
   cancelled: number;
 }
 
-const SIZE = 150;
-const STROKE = 16;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
 /**
- * Design lines 156-160 — the "Orders Today" donut (stroke-dasharray driven by
- * the completed %, "N% COMPLETED" centered) + a label/value row list below it.
+ * The Orders summary (CLAUDE.md §9): a completion donut ("N% completed") beside
+ * Total / Pending / Completed / Cancelled, each status as a dot badge.
  */
 export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
   const theme = useAppTheme();
   const completed = completedOrders(total, pending, cancelled);
   const pct = Math.round(orderCompletionPct(total, pending, cancelled) ?? 0);
-  const dash = (pct / 100) * CIRCUMFERENCE;
 
-  const rows = [
+  const rows: { label: string; value: number; variant?: StatusVariant }[] = [
     { label: 'Total', value: total },
-    { label: 'Pending', value: pending },
-    { label: 'Completed', value: completed },
-    { label: 'Cancelled', value: cancelled },
+    { label: 'Pending', value: pending, variant: 'warning' },
+    { label: 'Completed', value: completed, variant: 'success' },
+    { label: 'Cancelled', value: cancelled, variant: 'danger' },
   ];
 
   return (
     <Card style={styles.card}>
-      <View style={styles.donutWrap}>
-        <Svg width={SIZE} height={SIZE} style={{ transform: [{ rotate: '-90deg' }] }}>
-          <Circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} stroke={theme.colors.border} strokeWidth={STROKE} fill="none" />
-          <Circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            stroke={theme.colors.primary}
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            strokeDasharray={`${dash} ${CIRCUMFERENCE - dash}`}
-            fill="none"
-          />
-        </Svg>
-        <View style={styles.donutCenter}>
-          <Text style={[theme.typography.screenTitle, { color: theme.colors.text, fontSize: 28 }]}>{pct}%</Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, letterSpacing: 1.2, marginTop: 4 }]}>COMPLETED</Text>
-        </View>
-      </View>
-      <View style={[styles.list, { marginTop: theme.spacing.md }]}>
-        {rows.map((row, index) => (
-          <View key={row.label} style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-            <Text style={[theme.typography.body, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '800' }]}>{formatCount(row.value, `orders.${row.label}`)}</Text>
+      <DonutRing size={112} stroke={16} parts={[{ pct, color: theme.colors.primary }]}>
+        <Text style={[designType.h3, { color: theme.colors.text }]}>{pct}%</Text>
+        <Text style={[designType.xs, { color: theme.colors.textFaint }]}>completed</Text>
+      </DonutRing>
+      <View style={styles.list}>
+        {rows.map((row) => (
+          <View key={row.label} style={styles.row}>
+            {row.variant ? (
+              <StatusBadge label={row.label} variant={row.variant} />
+            ) : (
+              <Text style={[designType.sm, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
+            )}
+            <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCount(row.value, `orders.${row.label}`)}</Text>
           </View>
         ))}
       </View>
@@ -67,9 +50,7 @@ export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center' },
-  donutWrap: { width: SIZE, height: SIZE },
-  donutCenter: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  list: { alignSelf: 'stretch' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 11 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  list: { flex: 1, minWidth: 0, gap: 8 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
 });

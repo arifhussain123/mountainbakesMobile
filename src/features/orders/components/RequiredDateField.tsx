@@ -74,14 +74,13 @@ export function RequiredDateField({ value, onChange, error }: RequiredDateFieldP
         onPress={handleOpen}
         style={[
           styles.field,
-          { borderColor: error ? theme.colors.danger : theme.colors.border, backgroundColor: theme.colors.cardFill, borderRadius: theme.radii.md },
+          {
+            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: theme.isDark ? theme.colors.cardFill : theme.colors.surface,
+          },
         ]}>
-        <Icon name="calendar" size={16} color={theme.colors.textSecondary} />
-        <Text
-          style={[
-            theme.typography.bodySmall,
-            { color: value ? theme.colors.text : theme.colors.textSecondary, fontWeight: '600', marginLeft: 8 },
-          ]}>
+        <Icon name="calendar" size={20} color={theme.colors.textFaint} />
+        <Text style={[styles.fieldText, { color: value ? theme.colors.text : theme.colors.textFaint }]}>
           {value ? formatDisplayDate(value) : 'Select date'}
         </Text>
       </Pressable>
@@ -89,7 +88,7 @@ export function RequiredDateField({ value, onChange, error }: RequiredDateFieldP
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: theme.colors.overlay }]} onPress={() => setOpen(false)}>
           <Pressable
-            style={[styles.sheet, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderRadius: theme.radii.lg }]}
+            style={[styles.sheet, { backgroundColor: theme.colors.background, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.lg }]}
             onPress={(event) => event.stopPropagation()}>
             <View style={styles.header}>
               <Pressable accessibilityRole="button" onPress={() => shiftMonth(-1)} style={styles.navButton}>
@@ -117,7 +116,7 @@ export function RequiredDateField({ value, onChange, error }: RequiredDateFieldP
                     key={iso}
                     accessibilityRole="button"
                     onPress={() => handleSelect(day)}
-                    style={[styles.dayCell, selected ? { backgroundColor: theme.colors.primary, borderRadius: theme.radii.sm } : null]}>
+                    style={[styles.dayCell, selected ? [styles.daySelected, { backgroundColor: theme.colors.primary }] : null]}>
                     <Text
                       style={[
                         theme.typography.bodySmall,
@@ -140,7 +139,9 @@ export function RequiredDateField({ value, onChange, error }: RequiredDateFieldP
 }
 
 const styles = StyleSheet.create({
-  field: { height: 44, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  // The redesign's `.input`: 52pt, radius 16, 1.5 hairline, 16/500 text with a leading icon.
+  field: { height: 52, borderWidth: 1.5, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 },
+  fieldText: { fontSize: 16, fontWeight: '500' },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   sheet: { width: '100%', maxWidth: 360, borderWidth: 1, padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
@@ -150,4 +151,5 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
   dayCell: { width: `${100 / 7}%`, height: 36, alignItems: 'center', justifyContent: 'center' },
   closeRow: { marginTop: 8, alignItems: 'center' },
+  daySelected: { borderRadius: 12 },
 });

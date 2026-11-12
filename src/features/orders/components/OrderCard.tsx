@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { StyleSheet, Text, View } from 'react-native';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { Card, InfoBanner, MiniStat, SmallButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import type { ProductionOrder } from '@/api';
 import { fulfilledTotals, isVerified, livePackingItems, requestedTotals } from '../utils/demandLines';
@@ -37,22 +37,13 @@ const STATUS_VARIANT: Record<ProductionOrder['status'], StatusVariant> = {
   cancelled: 'neutral',
 };
 
-function StatCell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  const theme = useAppTheme();
-  return (
-    <View style={styles.statCell}>
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
-        {label}
-      </Text>
-      <Text
-        style={[theme.typography.body, { color: accent ? theme.colors.primary : theme.colors.text, marginTop: 2, fontWeight: '700' }]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** branchApp.md screen 04 "New Orders" — one branch production demand card. */
+/**
+ * 2026 redesign B04 "New Orders" — one branch production demand card: the
+ * demand number over its date · required date with the status pill on the
+ * right, then a lavender strip of Products / Qty / Packing ("verified /
+ * requested" once the branch has verified the delivery), the reason banner,
+ * and the View / Demand / Delete actions.
+ */
 export function OrderCard({ order, pendingSync, onView, onDemand, onDelete }: OrderCardProps) {
   const theme = useAppTheme();
   const requested = requestedTotals(order);
@@ -61,63 +52,63 @@ export function OrderCard({ order, pendingSync, onView, onDemand, onDelete }: Or
   const packingCount = livePackingItems(order.packingItems).length;
 
   return (
-    <Card style={{ marginBottom: 10 }}>
+    <Card style={styles.card}>
       <View style={styles.row}>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{order.demandNumber}</Text>
+        <View style={styles.titleCol}>
+          <Text style={[styles.h3, { color: theme.colors.text }]} numberOfLines={1}>
+            {order.demandNumber}
+          </Text>
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]} numberOfLines={2}>
+            {formatDisplayDate(order.date)} · {order.time}
+            {order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}
+          </Text>
+        </View>
         {pendingSync ? (
           <StatusBadge label="Waiting to sync" variant="neutral" />
         ) : (
           <StatusBadge label={STATUS_LABEL[order.status] ?? order.status} variant={STATUS_VARIANT[order.status] ?? 'neutral'} />
         )}
       </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-        {formatDisplayDate(order.date)} · {order.time}
-        {order.requiredDate ? ` · Required ${formatDisplayDate(order.requiredDate)}` : ''}
-      </Text>
 
-      <View style={styles.statsRow}>
-        <StatCell label="PRODUCTS" value={String(requested.products)} />
-        <StatCell label="DEMAND QTY" value={String(requested.qty)} />
-        <StatCell label="VERIFIED PRODUCTS" value={fulfilled ? String(fulfilled.products) : '—'} />
-        <StatCell label="VERIFIED QTY" value={fulfilled ? String(fulfilled.qty) : '—'} accent={!!fulfilled} />
+      <View
+        accessible
+        accessibilityLabel={
+          fulfilled
+            ? `${fulfilled.products} of ${requested.products} products verified, ${fulfilled.qty} of ${requested.qty} units verified, ${packingCount} packing materials`
+            : `${requested.products} products, ${requested.qty} units, ${packingCount} packing materials`
+        }
+        style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
+        <MiniStat label="Products" value={fulfilled ? `${fulfilled.products} / ${requested.products}` : String(requested.products)} />
+        <MiniStat
+          label="Qty"
+          value={fulfilled ? `${fulfilled.qty} / ${requested.qty}` : String(requested.qty)}
+          valueColor={fulfilled && fulfilled.qty !== requested.qty ? theme.colors.primary : undefined}
+        />
+        <MiniStat label="Packing" value={String(packingCount)} />
       </View>
 
-      {packingCount > 0 ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 8 }]}>
-          {packingCount} packing material{packingCount === 1 ? '' : 's'}
-        </Text>
-      ) : null}
-
       {order.status === 'cancelled' && order.cancelReason ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]} numberOfLines={2}>
-          Reason · {order.cancelReason}
-        </Text>
+        <InfoBanner kind="warn" style={styles.banner}>
+          {`Reason · ${order.cancelReason}`}
+        </InfoBanner>
       ) : null}
 
-      <View style={[styles.actionsRow, { borderTopColor: theme.colors.border }]}>
-        <Pressable accessibilityRole="button" onPress={onView} style={styles.actionButton}>
-          <Icon name="chevron-right" size={14} color={theme.colors.text} />
-          <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>View</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onDemand} style={styles.actionButton}>
-          <Icon name="box" size={14} color={theme.colors.text} />
-          <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Demand</Text>
-        </Pressable>
-        {order.status === 'pending' && onDelete ? (
-          <Pressable accessibilityRole="button" onPress={onDelete} style={styles.actionButton}>
-            <Icon name="trash" size={14} color={theme.colors.danger} />
-            <Text style={[theme.typography.label, { color: theme.colors.danger, fontWeight: '700' }]}>Delete</Text>
-          </Pressable>
-        ) : null}
+      <View style={styles.actionsRow}>
+        <SmallButton label="View" icon="chevron-right" onPress={onView} />
+        <SmallButton label="Demand" icon="box" onPress={onDemand} />
+        {order.status === 'pending' && onDelete ? <SmallButton label="Delete" icon="trash" kind="danger" onPress={onDelete} /> : null}
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statsRow: { flexDirection: 'row', gap: 4, marginTop: 10 },
-  statCell: { flex: 1 },
-  actionsRow: { flexDirection: 'row', gap: 16, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 32 },
+  card: { marginBottom: 12, gap: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  titleCol: { flex: 1, minWidth: 0, gap: 2 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  tint: { flexDirection: 'row', gap: 8, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12 },
+  banner: { paddingVertical: 8, paddingHorizontal: 12 },
+  actionsRow: { flexDirection: 'row', gap: 8 },
 });

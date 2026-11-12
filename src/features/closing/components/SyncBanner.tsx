@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { InfoBanner } from '@/shared/ui';
 import { formatDisplayTime } from '@/shared/utils';
 
 export interface SyncBannerProps {
@@ -19,38 +19,22 @@ export function SyncBanner({ updatedAt, unsyncedCount, isDayStillOpen }: SyncBan
   const theme = useAppTheme();
 
   return (
-    <View>
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
+    <View style={styles.box}>
+      <Text style={[styles.xs, { color: theme.colors.textFaint }]}>
         {updatedAt ? `Updated ${formatDisplayTime(updatedAt)}` : 'Updated just now'} · Pull to refresh
+        {isDayStillOpen ? ' · Day still open. Figures may change.' : ''}
       </Text>
 
       {unsyncedCount > 0 ? (
-        <View style={[styles.banner, { backgroundColor: `${theme.colors.warning}17`, borderColor: `${theme.colors.warning}48` }]}>
-          <Icon name="warning" size={15} color={theme.colors.warning} />
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.text, flex: 1 }]}>
-            {unsyncedCount} local {unsyncedCount === 1 ? 'entry' : 'entries'} not yet synced. This closing doesn't include{' '}
-            {unsyncedCount === 1 ? 'it' : 'them'} yet.
-          </Text>
-        </View>
-      ) : null}
-
-      {isDayStillOpen ? (
-        <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 6 }]}>
-          Day still open. Figures may change.
-        </Text>
+        <InfoBanner kind="warn">
+          {`${unsyncedCount} local ${unsyncedCount === 1 ? 'entry' : 'entries'} not yet synced. This closing doesn't include ${unsyncedCount === 1 ? 'it' : 'them'} yet.`}
+        </InfoBanner>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 8,
-  },
+  box: { gap: 8 },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
 });

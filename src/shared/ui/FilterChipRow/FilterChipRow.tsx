@@ -1,5 +1,6 @@
-import { ScrollView, Pressable, StyleSheet, Text } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { PRIMARY_GRADIENT, midnightFill, useAppTheme } from '@/shared/theme';
 
 export interface FilterChipOption<T extends string = string> {
   value: T;
@@ -21,7 +22,8 @@ export interface FilterChipRowProps<T extends string = string> {
  */
 export function FilterChipRow<T extends string = string>({ options, value, onChange }: FilterChipRowProps<T>) {
   const theme = useAppTheme();
-  const activeFill = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const activeFill = midnightFill(theme);
+  // Unselected chips: white with a faint lavender border (light).
   const activeInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
@@ -43,10 +45,8 @@ export function FilterChipRow<T extends string = string>({ options, value, onCha
                 borderRadius: theme.radii.pill,
               },
             ]}>
-            <Text style={[theme.typography.label, { color: active ? activeInk : theme.colors.text, fontWeight: '700' }]}>
-              {option.label}
-              {option.count !== undefined ? <Text style={{ opacity: 0.7 }}> {option.count}</Text> : null}
-            </Text>
+            <Text style={[styles.label, { color: active ? activeInk : theme.colors.textSecondary }]}>{option.label}</Text>
+            {option.count !== undefined ? <CountBubble count={option.count} active={active} /> : null}
           </Pressable>
         );
       })}
@@ -54,7 +54,25 @@ export function FilterChipRow<T extends string = string>({ options, value, onCha
   );
 }
 
+/** The chip's count: an orange gradient bubble on the selected chip, a lavender one otherwise. */
+function CountBubble({ count, active }: { count: number; active: boolean }) {
+  const theme = useAppTheme();
+  const text = <Text style={[styles.n, { color: active ? '#FFFFFF' : theme.colors.textSecondary }]}>{count}</Text>;
+  if (active && !theme.isDark) {
+    return (
+      <LinearGradient colors={[...PRIMARY_GRADIENT]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubble}>
+        {text}
+      </LinearGradient>
+    );
+  }
+  const fill = active ? 'rgba(255,255,255,0.18)' : theme.isDark ? theme.colors.border : '#EEF0F8';
+  return <View style={[styles.bubble, { backgroundColor: fill }]}>{text}</View>;
+}
+
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 6 },
-  chip: { height: 32, paddingHorizontal: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: 8 },
+  chip: { height: 36, paddingHorizontal: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  label: { fontSize: 13, fontWeight: '600' },
+  bubble: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9 },
+  n: { fontSize: 11, fontWeight: '600' },
 });

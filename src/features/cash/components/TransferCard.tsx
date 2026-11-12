@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
 import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { CashTransfer } from '@/api';
@@ -45,7 +45,7 @@ const STATUS_VARIANT: Record<CashTransfer['status'], StatusVariant> = {
   rejected: 'danger',
 };
 
-/** branchApp.md screen 15 — one branch cash transfer, as a card. No edit/withdraw exists for this resource. */
+/** Redesign `15 Cash Transfers` — one cash transfer, as a card. No edit/withdraw exists for this resource. */
 export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine, badges, highlight, accessibilityLabel: labelOverride }: TransferCardProps) {
   const theme = useAppTheme();
   const photo = item.attachments[0];
@@ -59,21 +59,23 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
-      <Card style={[{ marginBottom: 10 }, highlight ? { borderLeftWidth: 4, borderLeftColor: theme.colors.orange } : null]}>
+      <Card style={[FLAT_CARD, styles.card, highlight ? { borderLeftWidth: 4, borderLeftColor: theme.colors.orange } : null]}>
         <View style={styles.row}>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{item.transferNo}</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.primary }]}>{formatCurrency(item.amount)}</Text>
-        </View>
-        {showBranch ? (
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 2 }]} numberOfLines={1}>
-            {item.branchName}
-          </Text>
-        ) : null}
-        <View style={[styles.row, { marginTop: 2, gap: 8 }]}>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, flexShrink: 1 }]}>
-            {dateLine ?? `${formatDisplayDate(item.date)} · ${formatDisplayTime(item.createdAt)}`}
-          </Text>
-          <StatusBadge label={STATUS_LABEL[item.status]} variant={STATUS_VARIANT[item.status]} />
+          <View style={styles.grow}>
+            <Text style={[designType.h3, { color: theme.colors.text }]}>{item.transferNo}</Text>
+            {showBranch ? (
+              <Text style={[designType.sm, { color: theme.colors.text }]} numberOfLines={1}>
+                {item.branchName}
+              </Text>
+            ) : null}
+            <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
+              {dateLine ?? `${formatDisplayDate(item.date)} · ${formatDisplayTime(item.createdAt)}`}
+            </Text>
+          </View>
+          <View style={styles.right}>
+            <Text style={[designType.amt, styles.total, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+            <StatusBadge label={STATUS_LABEL[item.status]} variant={STATUS_VARIANT[item.status]} />
+          </View>
         </View>
         {badges && badges.length > 0 ? (
           <View style={styles.badgeRow}>
@@ -85,41 +87,39 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
 
         <ChannelBreakdown cashAmount={item.cashAmount} easypaisaAmount={item.easypaisaAmount} bankAmount={item.bankAmount} fuelCharges={item.fuelCharges} />
 
-        {item.note ? (
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 6 }]} numberOfLines={2}>
-            {item.note}
-          </Text>
-        ) : null}
         {item.status === 'rejected' && item.rejectionReason ? (
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: 6 }]} numberOfLines={2}>
+          <Text style={[designType.sm, { color: theme.colors.danger, marginTop: 10 }]} numberOfLines={2}>
             {item.rejectionReason}
           </Text>
         ) : null}
 
-        <View style={[styles.footerRow, { marginTop: 10, borderTopColor: theme.colors.cardBorder }]}>
+        <View style={styles.footerRow}>
           {photo && !photoFailed ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`Payment photo for ${item.transferNo}`} onPress={onPressPhoto}>
-              <Image
-                source={{ uri: photo.url }}
-                style={[styles.thumb, { borderRadius: theme.radii.sm }]}
-                onError={() => setFailedUrl(photo.url)}
-              />
+              <Image source={{ uri: photo.url }} style={styles.thumb} onError={() => setFailedUrl(photo.url)} />
             </Pressable>
           ) : (
-            <View style={[styles.thumb, styles.thumbPlaceholder, { backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
+            <View style={[styles.thumb, styles.thumbPlaceholder, { backgroundColor: theme.colors.border }]}>
               <Icon name="image" size={16} color={theme.colors.textFaint} />
             </View>
           )}
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text style={[designType.sm, styles.grow, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+            {item.note ? `“${item.note}”` : ''}
+          </Text>
+          <View style={styles.right}>
             {item.voucherNo ? (
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.voucherNo}
-              </Text>
+              <View style={[styles.voucher, { backgroundColor: `${theme.colors.success}1A` }]}>
+                <Text style={[styles.voucherText, { color: theme.colors.success }]} numberOfLines={1}>
+                  {item.voucherNo}
+                </Text>
+              </View>
+            ) : item.status === 'pending' ? (
+              <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Waiting for Finance</Text>
             ) : null}
             {isTransferFinal(item.status) ? (
               <View style={styles.finalRow}>
                 <Icon name="lock" size={12} color={theme.colors.textFaint} />
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginLeft: 4 }]}>Final</Text>
+                <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Final</Text>
               </View>
             ) : null}
           </View>
@@ -130,10 +130,16 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  footerRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 10, borderTopWidth: 1 },
-  thumb: { width: 40, height: 40 },
+  card: { marginBottom: 12, paddingVertical: 14 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  grow: { flex: 1, minWidth: 0 },
+  right: { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
+  total: { fontSize: 17 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  thumb: { width: 40, height: 40, borderRadius: 12 },
   thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  finalRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  voucher: { height: 24, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  voucherText: { fontSize: 11, fontWeight: '600' },
+  finalRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
 });

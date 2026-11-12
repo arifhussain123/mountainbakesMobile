@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSupportTickets } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
@@ -7,7 +7,7 @@ import { openDrawer, openNewQuery, openQueryDetail } from '@/navigation';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FilterChipRow, Icon, LoadingSkeleton, PillButton, Screen, SearchBar, type FilterChipOption } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, type FilterChipOption, FilterChipRow, Icon, InfoBanner, ListThumb, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { QueryCard } from '../../components';
@@ -16,12 +16,6 @@ import type { SupportTicket } from '@/api';
 const SUPPORT_ENDPOINT = '/support';
 
 type StatusFilter = 'open' | 'resolved' | 'all';
-
-const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
-  { value: 'open', label: 'Open' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'all', label: 'All' },
-];
 
 /** branchApp.md screen 24 — Help Desk: this branch's own queries. */
 export function HelpDeskListScreen() {
@@ -40,6 +34,17 @@ export function HelpDeskListScreen() {
     () => queuedWrites.filter((w) => w.endpoint === SUPPORT_ENDPOINT),
     [queuedWrites],
   );
+
+  // 2026 redesign B24: the chips carry their counts (from the already-loaded list — no extra request).
+  const statusOptions: FilterChipOption<StatusFilter>[] = useMemo(() => {
+    const open = tickets.filter((t) => t.status === 'open').length;
+    const resolved = tickets.filter((t) => t.status === 'resolved' || t.status === 'rejected').length;
+    return [
+      { value: 'open', label: 'Open', count: open },
+      { value: 'resolved', label: 'Resolved', count: resolved },
+      { value: 'all', label: 'All', count: tickets.length },
+    ];
+  }, [tickets]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -61,68 +66,79 @@ export function HelpDeskListScreen() {
   return (
     <Screen>
       <AppHeader
-        title="Help Desk"
-        subtitle="Spotted a problem with a record? Send it to Admin. It stays here until it's resolved."
+        title="Help desk"
+        subtitle="Spotted a problem with a record? Forward it to admin. It stays here until resolved."
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
 
-      <View style={{ paddingHorizontal: theme.spacing.lg }}>
-        <PillButton label="+ New Query" onPress={() => openNewQuery()} />
-      </View>
-
-      <View style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.md }}>
-        <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
-      </View>
-
-      <View style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.sm }}>
+      <View style={styles.controls}>
+        <FilterChipRow options={statusOptions} value={statusFilter} onChange={setStatusFilter} />
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search by reference ID or text..." />
+        {isOffline ? <InfoBanner kind="warn">Offline — showing cached queries</InfoBanner> : null}
       </View>
-
-      {isOffline ? (
-        <View style={[{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginHorizontal: theme.spacing.lg, marginTop: theme.spacing.sm, paddingHorizontal: 10, paddingVertical: 6, borderRadius: theme.radii.pill, borderWidth: 1, backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-          <Icon name="warning" size={14} color={theme.colors.warning} />
-          <Text style={[theme.typography.label, { color: theme.colors.warning, marginLeft: 6 }]}>Offline — showing cached queries</Text>
-        </View>
-      ) : null}
 
       <FlatList
         data={filtered}
         keyExtractor={(item: SupportTicket) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <View>
+          <View style={styles.header}>
             {isLoading ? <LoadingSkeleton height={100} /> : null}
             {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
             {queuedQueries.map((write) => (
-              <View
-                key={write.id}
-                style={{
-                  marginBottom: 10,
-                  padding: theme.spacing.md,
-                  borderRadius: theme.radii.md,
-                  borderWidth: 1,
-                  backgroundColor: theme.colors.cardFill,
-                  borderColor: write.status === 'failed' ? theme.colors.danger : theme.colors.warning,
-                }}>
-                <Text style={[theme.typography.label, { color: write.status === 'failed' ? theme.colors.danger : theme.colors.warning, fontWeight: '700' }]}>
+              <InfoBanner key={write.id} kind={write.status === 'failed' ? 'bad' : 'warn'} icon={write.status === 'failed' ? 'warning' : 'clock'}>
+                <Text style={[styles.bannerTitle, { color: write.status === 'failed' ? theme.colors.danger : theme.colors.warning }]}>
                   {write.status === 'failed' ? 'Sync failed · Fix' : 'Waiting to sync'}
                 </Text>
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
+                <Text style={[styles.bannerSub, { color: theme.colors.textSecondary }]}>
                   Submitted {formatDisplayTime(new Date(write.createdAt).toISOString())}
                 </Text>
-              </View>
+              </InfoBanner>
             ))}
           </View>
         }
         ListEmptyComponent={
           !isLoading && !error ? (
-            <EmptyState icon="headset" title="No Queries Yet" message="Raise one with New Query." />
+            <EmptyState icon="headset" title="No Queries Yet" message="Raise one with New query." />
+          ) : undefined
+        }
+        ListFooterComponent={
+          !isLoading ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="New query. Report a problem with a sale, demand, expense, stock or deposit"
+              onPress={() => openNewQuery()}
+              style={[
+                styles.tint,
+                { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF', borderColor: theme.isDark ? theme.colors.cardBorder : '#E2DBFF' },
+              ]}>
+              <ListThumb icon="headset" index={1} />
+              <View style={styles.grow}>
+                <Text style={[styles.tintTitle, { color: theme.colors.text }]}>Need to report something?</Text>
+                <Text style={[styles.xs, { color: theme.colors.textSecondary }]}>Sales, demands, expenses, stock or deposits.</Text>
+              </View>
+              <Icon name="chevron-right" size={18} color={theme.colors.textFaint} />
+            </Pressable>
           ) : undefined
         }
         renderItem={({ item }) => <QueryCard ticket={item} onPress={() => openQueryDetail(item.id)} />}
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
       />
+
+      <Fab label="New query" onPress={() => openNewQuery()} bottom={20} />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  controls: { paddingHorizontal: 20, gap: 12 },
+  list: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 104 },
+  header: { gap: 10, marginBottom: 2 },
+  bannerTitle: { fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  bannerSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  tint: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, borderWidth: 1, padding: 16, marginTop: 6 },
+  grow: { flex: 1, minWidth: 0, gap: 2 },
+  tintTitle: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+});
