@@ -48,39 +48,33 @@ export interface ThemeColors {
 type BaseTokens = Omit<ThemeColors, 'primary' | 'primaryText' | 'primaryPressed'>;
 
 /**
- * CLAUDE.md's original warm cream bakery look, refined to match the web
- * client's actual light theme exactly (`frontend/src/app/globals.css`'s
- * `:root` block, oklch values converted to sRGB hex) — Step 0's own
- * requirement that light mode matches the web, token-for-token where the web
- * defines an equivalent:
- *   background → oklch(0.978 0.018 88)       card/surface → oklch(1 0 0)
- *   foreground → oklch(0.18 0.04 47)          muted-foreground → oklch(0.5 0.04 47)
- *   border → oklch(0.9 0.02 88)
- * The web has no equivalents for textFaint/textLabel (a 3rd/4th muted tier)
- * or the chart/data colors — those keep this app's own existing light
- * palette, already designed as a cohesive set before this task.
+ * 2026 redesign — "lavender 3D" light theme (Figma file dTwAoYFfccfAV8o3fjwq9m;
+ * generator + mockups in `design UIandUX/redesign-2026/`, tokens from its
+ * common.py "v5 colour" block). Lavender canvas, white cards with a faint
+ * violet border, midnight-navy text, violet accent for data series. The hero
+ * gradient, pastel stat tiles and 3D shapes live in `design.ts`.
  */
 const lightBase: BaseTokens = {
-  background: '#FDF7EA',
+  background: '#F5F3FE',
   surface: '#FFFFFF',
   cardFill: '#FFFFFF',
-  cardBorder: '#E3DECF',
-  text: '#1F0B03',
-  textSecondary: '#775D50',
-  textMuted: '#775D50',
-  textFaint: '#9C8470',
-  textLabel: '#B6A696',
-  border: '#E3DECF',
-  success: '#2E7D32',
-  warning: '#B8860B',
-  danger: '#C62828',
-  secondary: '#7B6CD9',
-  info: '#1565C0',
-  infoAlt: '#3D7BD9',
-  violet: '#9D91E8',
-  orange: '#FF8A5C',
+  cardBorder: '#ECE8FB',
+  text: '#171A35',
+  textSecondary: '#5B6080',
+  textMuted: '#5B6080',
+  textFaint: '#8E92AD',
+  textLabel: '#A9ACC4',
+  border: '#E6E1FA',
+  success: '#12A26B',
+  warning: '#C27A0A',
+  danger: '#E5484D',
+  secondary: '#6C5CE7',
+  info: '#3D7BFA',
+  infoAlt: '#5B8DEF',
+  violet: '#8E7CFF',
+  orange: '#FF8A3D',
   lavender: '#C9BFF0',
-  overlay: 'rgba(31, 11, 3, 0.4)',
+  overlay: 'rgba(23, 26, 53, 0.45)',
 };
 
 /**
@@ -139,7 +133,9 @@ export const darkColors: ThemeColors = buildColors('dark', 'orange');
  * of `mode` — not a 4th mode-driven tier.
  */
 export const ON_DARK_CHIP = {
-  fill: '#1C1917',
-  text: '#F5F1EC',
-  textMuted: '#A39A92',
+  // 2026 redesign: frosted white instead of a near-black chip — heroes are now a violet
+  // gradient (light) or the flat accent (dark), and white-on-frosted reads on both.
+  fill: 'rgba(255, 255, 255, 0.16)',
+  text: '#FFFFFF',
+  textMuted: 'rgba(255, 255, 255, 0.80)',
 } as const;

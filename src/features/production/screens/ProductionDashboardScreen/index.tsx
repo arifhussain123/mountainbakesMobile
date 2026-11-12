@@ -5,8 +5,8 @@ import type { ProductionDashboardPeriod, ProductionOrderStatus } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, useTabBarHeight } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { AppHeader, Card, ErrorState, HeroSurface, LoadingSkeleton, PastelTile, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCount, formatDisplayDate, formatPercent, percentChange, percentOf } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useAuthStore } from '@/state';
@@ -188,7 +188,7 @@ export function ProductionDashboardScreen() {
         </ScrollView>
 
         {/* Hero: total demand this period */}
-        <View style={[styles.heroCard, { backgroundColor: theme.colors.primary }]}>
+        <HeroSurface style={styles.heroCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[theme.typography.label, { color: '#FFFFFF', letterSpacing: 1 }]}>
               TOTAL DEMAND · {period === 'today' ? 'TODAY' : period === 'month' ? 'THIS MONTH' : 'THIS WEEK'}
@@ -199,39 +199,39 @@ export function ProductionDashboardScreen() {
             {formatCount(week.kpis.demand.cur, 'kpis.demand.cur')} <Text style={{ fontSize: 14, fontWeight: '600' }}>units</Text>
           </Text>
           <View style={styles.heroSubRow}>
-            <View style={[styles.heroSubCard, { backgroundColor: '#1C1917' }]}>
+            <View style={[styles.heroSubCard, { backgroundColor: ON_DARK_CHIP.fill }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={[theme.typography.label, { color: '#A39A92' }]}>Produced</Text>
+                <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Produced</Text>
                 <ChangeLabel value={producedPct} field="kpis.produced" />
               </View>
-              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{formatCount(week.kpis.produced.cur, 'kpis.produced.cur')}</Text>
-              <Text style={[theme.typography.label, { color: '#857B73' }]}>{formatPercent(percentOfDemand, 'percentOfDemand', { digits: 0 })} of demand</Text>
+              <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCount(week.kpis.produced.cur, 'kpis.produced.cur')}</Text>
+              <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>{formatPercent(percentOfDemand, 'percentOfDemand', { digits: 0 })} of demand</Text>
             </View>
-            <View style={[styles.heroSubCard, { backgroundColor: '#1C1917' }]}>
-              <Text style={[theme.typography.label, { color: '#A39A92' }]}>Fulfilment rate</Text>
-              <Text style={[theme.typography.cardTitle, { color: '#F5F1EC', marginTop: 2 }]}>{formatPercent(fulfilmentRate, 'fulfilmentRate')}</Text>
-              <Text style={[theme.typography.label, { color: '#857B73' }]}>incl. available stock</Text>
+            <View style={[styles.heroSubCard, { backgroundColor: ON_DARK_CHIP.fill }]}>
+              <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>Fulfilment rate</Text>
+              <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatPercent(fulfilmentRate, 'fulfilmentRate')}</Text>
+              <Text style={[theme.typography.label, { color: ON_DARK_CHIP.textMuted }]}>incl. available stock</Text>
             </View>
           </View>
-        </View>
+        </HeroSurface>
 
         {/* 3 stat boxes */}
         <View style={styles.statGrid}>
-          <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+          <PastelTile tone={0} style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Open orders</Text>
             <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.openOrders.cur, 'kpis.openOrders.cur')}</Text>
             <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>waiting approval</Text>
-          </View>
-          <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+          </PastelTile>
+          <PastelTile tone={1} style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Delivered</Text>
             <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.deliveredOrders.cur, 'kpis.deliveredOrders.cur')}</Text>
             <ChangeLabel value={deliveredOrdersPct} field="kpis.deliveredOrders" />
-          </View>
-          <View style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+          </PastelTile>
+          <PastelTile tone={2} style={[styles.statBox, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
             <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Returned</Text>
             <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCount(week.kpis.returns.cur, 'kpis.returns.cur')}</Text>
             <ChangeLabel value={returnsPct} field="kpis.returns" />
-          </View>
+          </PastelTile>
         </View>
 
         {/* Order status donut */}

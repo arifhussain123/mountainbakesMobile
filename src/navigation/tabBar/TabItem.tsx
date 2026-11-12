@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useAppTheme } from '@/shared/theme';
+import { NAV_INK, useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 import { TabBadge } from './TabBadge';
 
@@ -31,6 +31,8 @@ export interface TabItemProps {
  */
 export function TabItem({ label, icon, active, badgeCount, isMore, onPress, onPressIn }: TabItemProps) {
   const theme = useAppTheme();
+  // 2026 redesign: warm taupe outline icons/labels on the white bar (light); dark keeps its faint grey.
+  const ink = theme.isDark ? theme.colors.textFaint : NAV_INK;
   const reduceMotion = useReducedMotion();
   const iconOpacity = useSharedValue(active ? 0 : 1);
   const pressScale = useSharedValue(1);
@@ -65,7 +67,7 @@ export function TabItem({ label, icon, active, badgeCount, isMore, onPress, onPr
       style={styles.touchTarget}>
       <Animated.View style={[styles.content, pressStyle]}>
         <Animated.View style={iconStyle}>
-          <Icon name={icon} size={22} color={theme.colors.textFaint} />
+          <Icon name={icon} size={22} color={ink} />
           <TabBadge count={badgeCount} />
         </Animated.View>
         <Text
@@ -73,7 +75,7 @@ export function TabItem({ label, icon, active, badgeCount, isMore, onPress, onPr
             theme.typography.label,
             active
               ? { color: theme.colors.primary, marginTop: 4, fontSize: 12, fontWeight: '700' }
-              : { color: theme.colors.textFaint, marginTop: 4, fontSize: 11 },
+              : { color: ink, marginTop: 4, fontSize: 12, fontWeight: '500' },
             styles.label,
           ]}
           numberOfLines={2}

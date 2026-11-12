@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import type { ProductionDashboardDelta } from '@/api/types';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, LoadingSkeleton } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { Card, Icon, LoadingSkeleton, PastelTile } from '@/shared/ui';
 import { deltaDisplay, fmtUnits, heatCell, shortBranch, type PlanTone } from '../../utils/dashboardGaps';
 import { SmallButton } from './parts';
 
@@ -59,7 +59,8 @@ export function SectionKpi({
 }) {
   const theme = useAppTheme();
   return (
-    <View
+    <PastelTile
+      tone={toneFor(name)}
       style={[
         styles.kpi,
         {
@@ -91,7 +92,7 @@ export function SectionKpi({
           {note}
         </Text>
       ) : null}
-    </View>
+    </PastelTile>
   );
 }
 

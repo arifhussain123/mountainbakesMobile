@@ -21,6 +21,8 @@ export interface FilterChipRowProps<T extends string = string> {
  */
 export function FilterChipRow<T extends string = string>({ options, value, onChange }: FilterChipRowProps<T>) {
   const theme = useAppTheme();
+  const activeFill = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const activeInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -35,12 +37,13 @@ export function FilterChipRow<T extends string = string>({ options, value, onCha
             style={[
               styles.chip,
               {
-                backgroundColor: active ? theme.colors.primary : theme.colors.cardFill,
-                borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
+                // 2026 redesign: the selected chip is a midnight pill (light); dark keeps the accent chip.
+                backgroundColor: active ? activeFill : theme.colors.cardFill,
+                borderColor: active ? activeFill : theme.colors.cardBorder,
                 borderRadius: theme.radii.pill,
               },
             ]}>
-            <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>
+            <Text style={[theme.typography.label, { color: active ? activeInk : theme.colors.text, fontWeight: '700' }]}>
               {option.label}
               {option.count !== undefined ? <Text style={{ opacity: 0.7 }}> {option.count}</Text> : null}
             </Text>

@@ -10,6 +10,8 @@ export { spacing } from './spacing';
 export { radii } from './radii';
 export { typography } from './typography';
 export { cardShadow } from './shadows';
+export { HERO_CHIP, HERO_GRADIENT, NAV_INK, PASTEL_TILES, PRIMARY_GRADIENT, SOFT_SHADOW, SPHERES, toneFor } from './design';
+export type { PastelTone, SphereTone } from './design';
 export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type ResponsiveMetrics } from './responsive';
 
 /**

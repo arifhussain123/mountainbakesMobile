@@ -4,7 +4,8 @@
  * hardcoding a family/size/weight).
  */
 export const typography = {
-  screenTitle: { fontSize: 24, fontWeight: '700' as const, lineHeight: 30 },
+  // 2026 redesign (Urbanist): SemiBold display with tight tracking, lighter overall.
+  screenTitle: { fontSize: 26, fontWeight: '600' as const, lineHeight: 32 },
   sectionTitle: { fontSize: 18, fontWeight: '600' as const, lineHeight: 24 },
   cardTitle: { fontSize: 16, fontWeight: '600' as const, lineHeight: 22 },
   body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 21 },

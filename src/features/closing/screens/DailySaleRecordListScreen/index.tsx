@@ -8,22 +8,8 @@ import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { openDrawer, Routes, type ClosingStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import {
-  AppHeader,
-  Card,
-  DateRangeSheet,
-  EmptyState,
-  ErrorState,
-  FilterChipRow,
-  FormBottomSheet,
-  Icon,
-  LoadingSkeleton,
-  PillButton,
-  Screen,
-  SearchBar,
-  type FilterChipOption,
-} from '@/shared/ui';
+import { useAppTheme, type PastelTone } from '@/shared/theme';
+import { AppHeader, Card, DateRangeSheet, EmptyState, ErrorState, type FilterChipOption, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, PastelTile, PillButton, Screen, SearchBar } from '@/shared/ui';
 import { formatCurrency, formatDisplayTime, type DateRange } from '@/shared/utils';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -274,7 +260,8 @@ export function DailySaleRecordListScreen() {
                       { label: 'Discount', value: summary.discount },
                     ] as const
                   ).map((t, i) => (
-                    <View
+                    <PastelTile
+                      tone={(i % 5) as PastelTone}
                       key={t.label}
                       style={[
                         styles.tile,
@@ -285,7 +272,7 @@ export function DailySaleRecordListScreen() {
                         <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{t.label}</Text>
                       </View>
                       <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCurrency(t.value)}</Text>
-                    </View>
+                    </PastelTile>
                   ))}
                 </View>
 

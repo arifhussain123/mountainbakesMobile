@@ -14,7 +14,12 @@ export function DrawerHeader({ roleLabel, insetTop }: DrawerHeaderProps) {
   const theme = useAppTheme();
   return (
     <View style={[styles.row, { paddingTop: insetTop + HEADER_PADDING_VERTICAL, paddingBottom: HEADER_PADDING_VERTICAL, paddingHorizontal: ROW_HORIZONTAL_PADDING }]}>
-      <View style={{ width: HEADER_LOGO_SIZE, height: HEADER_LOGO_SIZE, borderRadius: HEADER_LOGO_SIZE / 2, overflow: 'hidden' }}>
+      <View
+        style={[
+          { width: HEADER_LOGO_SIZE, height: HEADER_LOGO_SIZE, borderRadius: HEADER_LOGO_SIZE / 2, overflow: 'hidden' },
+          // 2026 redesign: the round badge sits in a white ring (light mode).
+          theme.isDark ? null : { borderWidth: 2, borderColor: '#FFFFFF' },
+        ]}>
         <Image source={images.logo} style={styles.logo} resizeMode="contain" />
       </View>
       <View style={{ marginLeft: theme.spacing.md, flexShrink: 1 }}>

@@ -62,12 +62,13 @@ export function ActiveBubble({ notchX, icon, showDot, diameter, iconSize }: Acti
           height: diameter,
           borderRadius: diameter / 2,
           backgroundColor: theme.colors.primary,
-          borderColor: theme.colors.background,
+          // White ring in light mode (2026 redesign) so the bubble reads as raised out of the white bar.
+          borderColor: theme.isDark ? theme.colors.background : theme.colors.surface,
           shadowColor: theme.colors.primary,
         },
       ]}>
       <Animated.View style={iconStyle}>
-        <Icon name={icon} size={iconSize} color={theme.colors.background} />
+        <Icon name={icon} size={iconSize} color={theme.isDark ? theme.colors.background : '#FFFFFF'} />
       </Animated.View>
       {showDot ? <TabBadge dot /> : null}
     </Animated.View>
@@ -79,8 +80,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    shadowOpacity: 0.45,
+    borderWidth: 4,
+    shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,

@@ -19,12 +19,13 @@ export function FilterChip({ label, active, onPress, dotColor }: FilterChipProps
       style={[
         styles.chip,
         {
-          backgroundColor: active ? theme.colors.primary : theme.colors.surface,
-          borderColor: active ? theme.colors.primary : theme.colors.border,
+          // Same as the shared FilterChipRow: midnight pill when selected (light), accent chip in dark.
+          backgroundColor: active ? (theme.isDark ? theme.colors.primary : '#1E1B4B') : theme.colors.surface,
+          borderColor: active ? (theme.isDark ? theme.colors.primary : '#1E1B4B') : theme.colors.border,
         },
       ]}>
       {dotColor ? <Pressable pointerEvents="none" style={[styles.dot, { backgroundColor: dotColor }]} /> : null}
-      <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text }]} numberOfLines={1}>
+      <Text style={[theme.typography.label, { color: active ? (theme.isDark ? theme.colors.primaryText : '#FFFFFF') : theme.colors.text }]} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>

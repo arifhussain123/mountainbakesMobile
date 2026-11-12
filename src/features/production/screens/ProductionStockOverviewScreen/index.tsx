@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useProductionStock } from '@/api';
 import { Routes, useTabBarHeight, type ProductionStockStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PrimaryButton, Screen, SearchBar, SecondaryButton } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PastelTile, PrimaryButton, Screen, SearchBar, SecondaryButton } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ProductionStockRowCard } from '../../components';
@@ -76,22 +76,22 @@ export function ProductionStockOverviewScreen() {
 
             {!isLoading && !error ? (
               <View style={[styles.statsGrid, { marginTop: theme.spacing.md }]}>
-                <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <PastelTile tone={0} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>OPENING</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 3, fontWeight: '700' }]}>{totals.opening}</Text>
-                </View>
-                <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                </PastelTile>
+                <PastelTile tone={1} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>PREPARED</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.success, marginTop: 3, fontWeight: '700' }]}>+{totals.prepared}</Text>
-                </View>
-                <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                </PastelTile>
+                <PastelTile tone={2} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>TOTAL STOCK</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 3, fontWeight: '700' }]}>{totals.totalStock}</Text>
-                </View>
-                <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                </PastelTile>
+                <PastelTile tone={3} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>BRANCH DEMAND</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.danger, marginTop: 3, fontWeight: '700' }]}>{totals.branchDemand}</Text>
-                </View>
+                </PastelTile>
                 <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>SOLD</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 3, fontWeight: '700' }]}>{totals.sold}</Text>

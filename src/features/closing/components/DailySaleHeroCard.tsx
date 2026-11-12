@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { HeroSurface } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
 export interface DailySaleHeroCardProps {
@@ -19,14 +20,16 @@ export interface DailySaleHeroCardProps {
  */
 export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, branchShare, cashOnTable }: DailySaleHeroCardProps) {
   const theme = useAppTheme();
+  // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
+  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg + 6, padding: theme.spacing.lg }]}>
+    <HeroSurface style={[styles.card, { padding: theme.spacing.lg }]}>
       <View style={styles.eyebrowRow}>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primaryText }]}>Total Sale</Text>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primaryText }]}>{rangeLabel}</Text>
+        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>Total Sale</Text>
+        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>{rangeLabel}</Text>
       </View>
-      <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, fontSize: 36, marginTop: theme.spacing.sm }]}>
+      <Text style={[theme.typography.screenTitle, { color: onHero, fontSize: 36, marginTop: theme.spacing.sm }]}>
         {formatCurrency(totalSale)}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
@@ -45,7 +48,7 @@ export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, branchS
           <Text style={[theme.typography.cardTitle, { color: ON_DARK_CHIP.text, marginTop: 2 }]}>{formatCurrency(cashOnTable)}</Text>
         </View>
       </View>
-    </View>
+    </HeroSurface>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { MonthlyReturnsSummary } from '@/api';
-import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { Card, ErrorState, LoadingSkeleton, PastelTile } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatMonthToDateLine } from '@/shared/utils';
 import {
@@ -89,7 +89,8 @@ export function MonthlyReturnsSummaryCard({
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: theme.spacing.sm }} contentContainerStyle={styles.row}>
           {buildReturnsSummaryTiles(summary, statusLabels, { showBranches, branchId: selectedBranchId }).map((tile) => (
-            <View
+            <PastelTile
+              tone={toneFor(String(tile.key))}
               key={tile.key}
               accessible
               accessibilityLabel={`${tile.label}: ${tile.value}, ${tile.sub}`}
@@ -103,7 +104,7 @@ export function MonthlyReturnsSummaryCard({
               <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textFaint }]} numberOfLines={1}>
                 {tile.sub}
               </Text>
-            </View>
+            </PastelTile>
           ))}
         </ScrollView>
       )}

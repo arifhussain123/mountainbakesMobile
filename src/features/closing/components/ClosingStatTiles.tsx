@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { Icon, type IconName, PastelTile } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
 export interface ClosingStatTilesProps {
@@ -32,7 +32,7 @@ export function ClosingStatTiles({ sales, expenses, net, stockOnHand }: ClosingS
   return (
     <View style={styles.grid}>
       {tiles.map((tile) => (
-        <View key={tile.key} style={[styles.tile, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.lg }]}>
+        <PastelTile tone={toneFor(String(tile.key))} key={tile.key} style={[styles.tile, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.lg }]}>
           <View style={[styles.iconBadge, { backgroundColor: `${tile.tint}1F` }]}>
             <Icon name={tile.icon} size={16} color={tile.tint} />
           </View>
@@ -40,7 +40,7 @@ export function ClosingStatTiles({ sales, expenses, net, stockOnHand }: ClosingS
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]} numberOfLines={1} adjustsFontSizeToFit>
             {tile.value}
           </Text>
-        </View>
+        </PastelTile>
       ))}
     </View>
   );

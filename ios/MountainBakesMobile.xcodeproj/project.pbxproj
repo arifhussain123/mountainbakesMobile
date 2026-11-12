@@ -13,6 +13,10 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		74134C0007FF4D8DA7EBBBE5 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5B24F390E46B4C1CAFC8A2EE /* BootSplash.storyboard */; };
 		BBF2F0EA791E4FF5A9EC12F7 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5CDA657BA82B42EABB252A5F /* Colors.xcassets */; };
+		591A21D94AD0FFA04AE41CC7 /* Urbanist-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8023446C1CE04C5D0470C4B4 /* Urbanist-Regular.ttf */; };
+		A9C657462E6365DF8B3DDC71 /* Urbanist-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DE952A191039EC10C055C467 /* Urbanist-Medium.ttf */; };
+		8AEA97AEB1EF34A17FE1E1E2 /* Urbanist-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 5A3DF749B95734FD16BD9719 /* Urbanist-SemiBold.ttf */; };
+		FE2B586780C0CF2B8A027B78 /* Urbanist-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 63D96B225934BAE3770A47B1 /* Urbanist-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +32,10 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		5B24F390E46B4C1CAFC8A2EE /* BootSplash.storyboard */ = {isa = PBXFileReference; name = "BootSplash.storyboard"; path = "MountainBakesMobile/BootSplash.storyboard"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		5CDA657BA82B42EABB252A5F /* Colors.xcassets */ = {isa = PBXFileReference; name = "Colors.xcassets"; path = "MountainBakesMobile/Colors.xcassets"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = folder.assetcatalog; explicitFileType = undefined; includeInIndex = 0; };
+		8023446C1CE04C5D0470C4B4 /* Urbanist-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Urbanist-Regular.ttf"; path = "../assets/fonts/Urbanist-Regular.ttf"; sourceTree = "<group>"; };
+		DE952A191039EC10C055C467 /* Urbanist-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Urbanist-Medium.ttf"; path = "../assets/fonts/Urbanist-Medium.ttf"; sourceTree = "<group>"; };
+		5A3DF749B95734FD16BD9719 /* Urbanist-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Urbanist-SemiBold.ttf"; path = "../assets/fonts/Urbanist-SemiBold.ttf"; sourceTree = "<group>"; };
+		63D96B225934BAE3770A47B1 /* Urbanist-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Urbanist-Bold.ttf"; path = "../assets/fonts/Urbanist-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +59,10 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				5B24F390E46B4C1CAFC8A2EE /* BootSplash.storyboard */,
+				8023446C1CE04C5D0470C4B4 /* Urbanist-Regular.ttf */,
+				DE952A191039EC10C055C467 /* Urbanist-Medium.ttf */,
+				5A3DF749B95734FD16BD9719 /* Urbanist-SemiBold.ttf */,
+				63D96B225934BAE3770A47B1 /* Urbanist-Bold.ttf */,
 				5CDA657BA82B42EABB252A5F /* Colors.xcassets */,
 			);
 			name = MountainBakesMobile;
@@ -166,6 +178,10 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				74134C0007FF4D8DA7EBBBE5 /* BootSplash.storyboard in Resources */,
+				591A21D94AD0FFA04AE41CC7 /* Urbanist-Regular.ttf in Resources */,
+				A9C657462E6365DF8B3DDC71 /* Urbanist-Medium.ttf in Resources */,
+				8AEA97AEB1EF34A17FE1E1E2 /* Urbanist-SemiBold.ttf in Resources */,
+				FE2B586780C0CF2B8A027B78 /* Urbanist-Bold.ttf in Resources */,
 				BBF2F0EA791E4FF5A9EC12F7 /* Colors.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
