@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Card, ListThumb, MiniStat, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import type { PackingUsageRow } from '@/api';
 import { derivePackingStatus, isPackingShortfall, PACKING_STATUS_LABEL, type PackingStatus } from '../calculations';
@@ -54,51 +54,48 @@ export function PackingMaterialsList({ rows }: PackingMaterialsListProps) {
   const groups = useMemo(() => groupByDate(rows), [rows]);
 
   return (
-    <View>
+    <View style={styles.wrap}>
       {totals.length > 0 ? (
-        <Card style={{ marginBottom: theme.spacing.md }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.2 }]}>
-            Totals for This Range
-          </Text>
-          {totals.map((t, index) => (
-            <View key={t.materialName} style={[styles.totalsRow, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }]} numberOfLines={1}>
-                {t.materialName}
-              </Text>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-                {t.requested} requested · {t.delivered} delivered
-              </Text>
-            </View>
-          ))}
+        <Card style={styles.totalsCard}>
+          <Text style={[styles.h3, { color: theme.colors.text }]}>Totals for this range</Text>
+          <View>
+            {totals.map((t, index) => (
+              <View key={t.materialName} style={[styles.li, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+                <ListThumb icon="box" index={index} />
+                <View style={styles.grow}>
+                  <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
+                    {t.materialName}
+                  </Text>
+                  <Text style={[styles.xs, { color: theme.colors.textSecondary }]}>
+                    {t.requested} requested · {t.delivered} delivered
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </Card>
       ) : null}
 
       {groups.map((group) => (
-        <View key={group.date} style={{ marginBottom: theme.spacing.md }}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginBottom: 6 }]}>{formatDisplayDate(group.date)}</Text>
+        <View key={group.date} style={styles.group}>
+          <Text style={[styles.eyebrow, { color: theme.colors.textFaint }]}>{formatDisplayDate(group.date)}</Text>
           {group.rows.map((row) => {
             const status = derivePackingStatus(row);
             const shortfall = isPackingShortfall(row);
             return (
               <Card
                 key={`${row.date}-${row.packingMaterialId ?? row.materialName}`}
-                style={[{ marginBottom: 8 }, shortfall && { borderColor: theme.colors.warning }]}>
+                style={[styles.requestCard, theme.isDark ? null : styles.flat, shortfall && { borderColor: theme.colors.warning }]}>
                 <View style={styles.row}>
-                  <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }]} numberOfLines={1}>
+                  <Text style={[styles.name, { color: theme.colors.text, flex: 1 }]} numberOfLines={1}>
                     {row.materialName}
                   </Text>
                   <StatusBadge label={PACKING_STATUS_LABEL[status]} variant={STATUS_VARIANT[status]} />
                 </View>
-                <View style={[styles.grid, { marginTop: 8 }]}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-                    Requested <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{row.requestedQty}</Text>
-                  </Text>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-                    Approved <Text style={{ color: theme.colors.success, fontWeight: '700' }}>{row.approvedQty}</Text>
-                  </Text>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-                    Delivered <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>{row.deliveredQty}</Text>
-                  </Text>
+                <View style={styles.minis}>
+                  <MiniStat label="Requested" value={String(row.requestedQty)} />
+                  <MiniStat label="Approved" value={String(row.approvedQty)} valueColor={theme.colors.success} />
+                  <MiniStat label="Delivered" value={String(row.deliveredQty)} valueColor={theme.colors.primary} />
                 </View>
               </Card>
             );
@@ -110,7 +107,17 @@ export function PackingMaterialsList({ rows }: PackingMaterialsListProps) {
 }
 
 const styles = StyleSheet.create({
-  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  wrap: { gap: 16 },
+  totalsCard: { gap: 4 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  li: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  grow: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  group: { gap: 10 },
+  eyebrow: { fontSize: 12, lineHeight: 15, fontWeight: '600', letterSpacing: 0.6 },
+  requestCard: { gap: 12 },
+  flat: { shadowOpacity: 0, elevation: 0 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  minis: { flexDirection: 'row', gap: 10 },
 });

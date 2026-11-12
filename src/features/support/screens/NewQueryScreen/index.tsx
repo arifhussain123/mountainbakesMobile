@@ -1,10 +1,10 @@
 import { useRef } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { goBack, openQueryDetail, Routes, type RootStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, PillButton, Screen } from '@/shared/ui';
+import { AppHeader, InfoBanner, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
 import { IssueStarterChips, RecentRecordsSheet, RecordPreview, ReferenceIdField } from '../../components';
 import { useNewQueryForm } from '../../hooks';
 import { ISSUE_MESSAGE_MIN_LENGTH } from '../../schemas';
@@ -36,10 +36,17 @@ export function NewQueryScreen() {
     }
   };
 
+  const fieldBorder = theme.isDark ? theme.colors.border : '#E6E1FA';
+
   return (
-    <Screen>
-      <AppHeader title="New Query" actions={[{ icon: 'close', onPress: handleCancel, accessibilityLabel: 'Cancel' }]} />
-      <View style={{ flex: 1, paddingHorizontal: theme.spacing.lg }}>
+    // 2026 redesign B25: the New query sheet's pale lavender surface (light); dark keeps the app background.
+    <Screen glow="none" style={theme.isDark ? undefined : { backgroundColor: SHEET_BG }}>
+      <AppHeader title="New query" actions={[{ icon: 'close', onPress: handleCancel, accessibilityLabel: 'Cancel' }]} />
+      <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Text style={[styles.p, { color: theme.colors.textSecondary }]}>
+          Search a record's ID — its details load automatically, so admin sees exactly what you mean.
+        </Text>
+
         <ReferenceIdField
           value={form.referenceId}
           onChangeText={form.setReferenceId}
@@ -50,56 +57,46 @@ export function NewQueryScreen() {
         />
 
         {form.duplicateTicket ? (
-          <View style={{ marginTop: 10, padding: theme.spacing.md, borderRadius: theme.radii.md, borderWidth: 1, borderColor: theme.colors.warning, backgroundColor: `${theme.colors.warning}1A` }}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.warning, fontWeight: '700' }]}>
+          <InfoBanner kind="warn">
+            <Text style={[styles.bannerText, { color: theme.colors.warning }]}>
               You already have an open query on {form.duplicateTicket.referenceId}.
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => openQueryDetail(form.duplicateTicket!.id)}
-              style={{ marginTop: 8, minHeight: 36, justifyContent: 'center' }}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.primary, fontWeight: '700' }]}>Open existing query</Text>
+            <Pressable accessibilityRole="button" onPress={() => openQueryDetail(form.duplicateTicket!.id)} style={styles.bannerLink}>
+              <Text style={[styles.link, { color: theme.colors.primary }]}>Open existing query</Text>
             </Pressable>
-          </View>
+          </InfoBanner>
         ) : null}
 
         {form.reference ? <RecordPreview reference={form.reference} announceOnMount /> : null}
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg, fontWeight: '700' }]}>
-          DESCRIBE THE ISSUE
-        </Text>
-        <View style={{ marginTop: 8 }}>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+            Describe the issue<Text style={{ color: theme.colors.danger }}> *</Text>
+          </Text>
           <IssueStarterChips onPick={(starter) => form.setMessage(form.message ? `${form.message} ${starter}` : starter)} />
+          <TextInput
+            value={form.message}
+            onChangeText={form.setMessage}
+            placeholder="What looks wrong with this record?"
+            placeholderTextColor={theme.colors.textFaint}
+            multiline
+            accessibilityLabel="Describe the issue"
+            style={[styles.area, { borderColor: fieldBorder, backgroundColor: theme.colors.cardFill, color: theme.colors.text }]}
+          />
+          <Text style={[styles.help, { color: theme.colors.textFaint }]}>
+            {form.message.trim().length}/{ISSUE_MESSAGE_MIN_LENGTH} minimum
+          </Text>
         </View>
-        <TextInput
-          value={form.message}
-          onChangeText={form.setMessage}
-          placeholder="What looks wrong with this record?"
-          placeholderTextColor={theme.colors.textFaint}
-          multiline
-          accessibilityLabel="Describe the issue"
-          style={{
-            marginTop: 10,
-            minHeight: 110,
-            borderWidth: 1,
-            borderRadius: theme.radii.lg,
-            borderColor: theme.colors.border,
-            backgroundColor: theme.colors.cardFill,
-            color: theme.colors.text,
-            padding: 12,
-            textAlignVertical: 'top',
-          }}
-        />
-        <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
-          {form.message.trim().length}/{ISSUE_MESSAGE_MIN_LENGTH} minimum
-        </Text>
 
-        {form.submitError ? (
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.md }]}>{form.submitError}</Text>
-        ) : null}
+        {form.submitError ? <InfoBanner kind="bad">{form.submitError}</InfoBanner> : null}
+      </ScrollView>
 
-        <View style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.lg }}>
-          <PillButton label="Submit to Admin" onPress={() => void handleSubmit()} loading={form.isSubmitting} disabled={!form.canSubmit} />
+      <View style={[styles.footer, { borderTopColor: theme.colors.border, backgroundColor: theme.isDark ? theme.colors.background : theme.colors.surface }]}>
+        <View style={styles.flex}>
+          <SecondaryButton label="Cancel" onPress={handleCancel} />
+        </View>
+        <View style={styles.flex}>
+          <PrimaryButton label="Submit to admin" onPress={() => void handleSubmit()} loading={form.isSubmitting} disabled={!form.canSubmit} />
         </View>
       </View>
 
@@ -115,3 +112,19 @@ export function NewQueryScreen() {
     </Screen>
   );
 }
+
+const SHEET_BG = '#F7F5FF';
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  body: { paddingHorizontal: 20, paddingBottom: 24, gap: 14 },
+  p: { fontSize: 15, lineHeight: 21 },
+  bannerText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  bannerLink: { marginTop: 4, minHeight: 36, justifyContent: 'center' },
+  link: { fontSize: 13, fontWeight: '700' },
+  field: { gap: 8 },
+  label: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  area: { minHeight: 110, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, fontSize: 15, textAlignVertical: 'top' },
+  help: { fontSize: 12, lineHeight: 17 },
+  footer: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, borderTopWidth: 1 },
+});

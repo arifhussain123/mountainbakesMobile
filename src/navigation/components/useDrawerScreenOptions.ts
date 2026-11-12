@@ -14,6 +14,7 @@ export function useDrawerScreenOptions(): DrawerNavigationOptions {
   return {
     headerShown: false,
     drawerType: 'front',
-    drawerStyle: { width: getDrawerWidth(width), backgroundColor: theme.colors.background },
+    // Light: the white drawer panel of the 2026 redesign; dark keeps the charcoal background.
+    drawerStyle: { width: getDrawerWidth(width), backgroundColor: theme.isDark ? theme.colors.background : theme.colors.surface },
   };
 }

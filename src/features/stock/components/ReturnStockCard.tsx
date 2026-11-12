@@ -1,15 +1,18 @@
 import { memo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Card, ListThumb, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
 import { LEGACY_SINGLE_PHOTO_NOTE } from '../returnPhotos';
 import { describeReturnValue } from '../returnsSummary';
 import { shortReturnRef } from '../returnStockList';
+import { MiniButton } from './redesign';
 
 export interface ReturnStockCardProps {
   item: BranchReturn;
+  /** Position in the list — picks the fallback thumbnail's pastel. */
+  index?: number;
   /** Opens the full record (and, while it is still open, Change / Withdraw). */
   onView: () => void;
 }
@@ -34,7 +37,7 @@ export const RETURN_STATUS_VARIANT: Record<BranchReturn['status'], StatusVariant
  * "Reviewed … · ID" and View. The whole card opens the record; Change and
  * Withdraw live there, next to the full detail they act on.
  */
-export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView }: ReturnStockCardProps) {
+export const ReturnStockCard = memo(function ReturnStockCardView({ item, index = 0, onView }: ReturnStockCardProps) {
   const theme = useAppTheme();
   const [photoFailed, setPhotoFailed] = useState(false);
   const hasPhoto = !!item.photo && !photoFailed;
@@ -47,8 +50,8 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView 
       onPress={onView}>
       <Card style={styles.card}>
         <View style={styles.row}>
-          <View style={[styles.thumb, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.surface }]}>
-            {hasPhoto ? (
+          {hasPhoto ? (
+            <View style={[styles.thumb, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.surface }]}>
               <Image
                 source={{ uri: item.photo!.url }}
                 style={styles.thumbImage}
@@ -56,39 +59,33 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView 
                 accessibilityLabel={item.legacySinglePhoto ? `Photo of the whole return. ${LEGACY_SINGLE_PHOTO_NOTE}` : `Photo of returned ${item.productName}`}
                 onError={() => setPhotoFailed(true)}
               />
-            ) : (
-              <Icon name="image" size={18} color={theme.colors.textFaint} />
-            )}
-          </View>
-          <View style={styles.body}>
-            <View style={styles.titleRow}>
-              <Text style={[theme.typography.cardTitle, styles.title, { color: theme.colors.text }]} numberOfLines={1}>
-                {item.productName}
-              </Text>
-              <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>×{item.qty}</Text>
             </View>
-            <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textSecondary }]}>
+          ) : (
+            <ListThumb icon="rotate-ccw" index={index} />
+          )}
+          <View style={styles.body}>
+            <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
+              {item.productName} <Text style={{ color: theme.colors.textFaint }}>×{item.qty}</Text>
+            </Text>
+            <Text style={[styles.xs, { color: theme.colors.textFaint }]}>
               {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
             </Text>
-            <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.text }]} numberOfLines={1}>
-              {describeReturnValue(item)}
-            </Text>
-            {hasPhoto && item.legacySinglePhoto ? (
-              <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textFaint }]} numberOfLines={1}>
-                {LEGACY_SINGLE_PHOTO_NOTE}
-              </Text>
-            ) : null}
-            <View style={styles.footer}>
-              <StatusBadge label={RETURN_STATUS_LABEL[item.status] ?? item.status} variant={RETURN_STATUS_VARIANT[item.status] ?? 'neutral'} />
-              <Text style={[theme.typography.label, styles.meta, { color: theme.colors.textFaint }]} numberOfLines={1}>
-                {reviewed} · {shortReturnRef(item.id)}
-              </Text>
-              <View style={styles.view}>
-                <Text style={[theme.typography.label, styles.bold, { color: theme.colors.text }]}>View</Text>
-                <Icon name="chevron-right" size={12} color={theme.colors.text} />
-              </View>
-            </View>
           </View>
+          <StatusBadge label={RETURN_STATUS_LABEL[item.status] ?? item.status} variant={RETURN_STATUS_VARIANT[item.status] ?? 'neutral'} />
+        </View>
+        <Text style={[styles.value, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          {describeReturnValue(item)}
+        </Text>
+        {hasPhoto && item.legacySinglePhoto ? (
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+            {LEGACY_SINGLE_PHOTO_NOTE}
+          </Text>
+        ) : null}
+        <View style={styles.footer}>
+          <Text style={[styles.xs, styles.meta, { color: theme.colors.textFaint }]} numberOfLines={1}>
+            {shortReturnRef(item.id)} · {reviewed}
+          </Text>
+          <MiniButton label="View" onPress={onView} accessibilityLabel={`View ${item.productName} return`} />
         </View>
       </Card>
     </Pressable>
@@ -96,16 +93,14 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, onView 
 });
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 8, padding: 12 },
-  row: { flexDirection: 'row', gap: 12 },
-  thumb: { width: 54, height: 54, borderRadius: 12, borderWidth: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  card: { marginBottom: 10, paddingHorizontal: 14, paddingVertical: 14, gap: 10, shadowOpacity: 0, elevation: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  thumb: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   thumbImage: { width: '100%', height: '100%' },
-  body: { flex: 1, minWidth: 0 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  title: { flex: 1, minWidth: 0 },
-  mt2: { marginTop: 2 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  body: { flex: 1, minWidth: 0, gap: 2 },
+  title: { fontSize: 15, lineHeight: 20, fontWeight: '600', letterSpacing: -0.2 },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  value: { fontSize: 13, lineHeight: 18 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   meta: { flex: 1, minWidth: 0 },
-  view: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  bold: { fontWeight: '700' },
 });

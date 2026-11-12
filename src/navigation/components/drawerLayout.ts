@@ -28,7 +28,10 @@ export const HEADER_ROLE_FONT_SIZE = 13;
 export const HEADER_HEIGHT = HEADER_PADDING_VERTICAL * 2 + HEADER_LOGO_SIZE;
 
 // ─── Branch strip ────────────────────────────────────────────────────────
-export const BRANCH_STRIP_HEIGHT = 40;
+/** Card height inside the strip; the strip adds `BRANCH_STRIP_MARGIN_BOTTOM` below it. */
+export const BRANCH_STRIP_CARD_HEIGHT = 40;
+export const BRANCH_STRIP_MARGIN_BOTTOM = 8;
+export const BRANCH_STRIP_HEIGHT = BRANCH_STRIP_CARD_HEIGHT + BRANCH_STRIP_MARGIN_BOTTOM;
 export const BRANCH_STRIP_FONT_SIZE = 14;
 
 // ─── Footer ──────────────────────────────────────────────────────────────
@@ -36,8 +39,9 @@ export const FOOTER_NAME_FONT_SIZE = 14;
 export const FOOTER_EMAIL_FONT_SIZE = 12;
 export const FOOTER_SYNC_FONT_SIZE = 11;
 export const FOOTER_SYNC_LINE_HEIGHT = 14;
-export const FOOTER_ROW_HEIGHT = 36;
-export const FOOTER_BUTTON_SIZE = 36;
+export const FOOTER_ROW_HEIGHT = 42;
+export const FOOTER_BUTTON_SIZE = 38;
+export const FOOTER_AVATAR_SIZE = 42;
 export const FOOTER_PADDING_TOP = 10;
 export const FOOTER_PADDING_BOTTOM = 8;
 export const FOOTER_ROW_TO_SYNC_GAP = 6;

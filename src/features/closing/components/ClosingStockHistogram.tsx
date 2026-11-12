@@ -21,6 +21,9 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
   const theme = useAppTheme();
   const dotPalette = [theme.colors.secondary, theme.colors.lavender, theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const [selected, setSelected] = useState<string[]>([]);
+  // The selected chip: a midnight pill on light (as FilterChipRow), the accent on dark.
+  const chipOn = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const chipOnInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   const toggle = (productId: string) => {
     setSelected((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]));
@@ -38,7 +41,7 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
 
   return (
     <View>
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint, letterSpacing: 1.2 }]}>CLOSING STOCK HISTOGRAM</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Closing stock histogram</Text>
       <View style={[styles.chipRow, { marginTop: theme.spacing.sm }]}>
         {rows.map((row, index) => {
           const active = selected.includes(row.productId);
@@ -52,15 +55,15 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
                 styles.chip,
                 {
                   borderRadius: theme.radii.pill,
-                  backgroundColor: active ? theme.colors.primary : theme.colors.cardFill,
-                  borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
+                  backgroundColor: active ? chipOn : theme.colors.cardFill,
+                  borderColor: active ? chipOn : theme.colors.border,
                 },
               ]}>
               <View style={[styles.dot, { backgroundColor: dot }]} />
-              <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
+              <Text style={[styles.chipText, { color: active ? chipOnInk : theme.colors.textSecondary }]} numberOfLines={1}>
                 {row.productName}
               </Text>
-              <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.textSecondary, opacity: 0.7 }]}>
+              <Text style={[styles.chipText, { color: active ? chipOnInk : theme.colors.textFaint, opacity: 0.8 }]}>
                 {row.balance}
               </Text>
             </Pressable>
@@ -95,7 +98,9 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
 
 const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { height: 30, paddingHorizontal: 10, borderRadius: 15, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
+  chip: { height: 32, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chipText: { fontSize: 12, fontWeight: '600' },
   dot: { width: 7, height: 7, borderRadius: 4 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   bar: { height: 6, borderRadius: 3 },

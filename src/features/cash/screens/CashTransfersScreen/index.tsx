@@ -8,25 +8,26 @@ import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { useSummaryFocusRefresh } from '@/features/discounts/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
-import { useOfflineQueueStore } from '@/state';
+import { useAuthStore, useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, type CashStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import {
-  AppHeader,
   DateRangeSheet,
   EmptyState,
   ErrorState,
   FilterChipRow,
   FormBottomSheet,
+  Icon,
+  InfoBanner,
   LoadingSkeleton,
   PhotoViewer,
-  PillButton,
   SearchBar,
   Screen,
-  Dropdown,
-  type DropdownOption,
+  SegmentedControl,
   type FilterChipOption,
+  type SegmentedOption,
 } from '@/shared/ui';
+import { ExtendedFab, PageTitle, TopBar } from '@/features/sales/components';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime } from '@/shared/utils';
@@ -50,19 +51,20 @@ const STATUS_OPTIONS: FilterChipOption<CashTransferStatus | 'all'>[] = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-const CHANNEL_OPTIONS: DropdownOption<CashTransferChannel | 'all'>[] = [
-  { value: 'all', label: 'All channels' },
+const CHANNEL_OPTIONS: SegmentedOption<CashTransferChannel | 'all'>[] = [
+  { value: 'all', label: 'All' },
   { value: 'cash', label: 'Cash' },
   { value: 'easypaisa', label: 'Easypaisa' },
   { value: 'bank_account', label: 'Bank' },
 ];
 
-/** branchApp.md screen 15 — Cash Transfers: the branch's own deposit history. */
+/** Redesign `15 Cash Transfers` — the branch's own deposit history, with a "Cash deposit" FAB. */
 export function CashTransfersScreen() {
   const theme = useAppTheme();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
   const navigation = useNavigation<NativeStackNavigationProp<CashStackParamList>>();
+  const branchName = useAuthStore((state) => state.user?.branchName ?? null);
   const depositSheetRef = useRef<BottomSheetModal>(null);
   const dateRangeSheetRef = useRef<BottomSheetModal>(null);
 
@@ -151,50 +153,38 @@ export function CashTransfersScreen() {
 
   return (
     <Screen>
-      <AppHeader
-        title="Cash Transfers"
-        subtitle="Money handed to the company · last 90 days. Finance approves each transfer and posts the receipt."
-        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
-      />
-
-      <View style={styles.headerPad}>
-        <PillButton label="Cash Deposit" onPress={() => depositSheetRef.current?.present()} showArrow />
-
-        {pendingWrites.length > 0 ? (
-          <View style={{ marginTop: 10 }}>
-            {pendingWrites.map((write) => (
-              <View
-                key={write.id}
-                style={[
-                  styles.queuedCard,
-                  { borderColor: write.status === 'failed' ? theme.colors.danger : theme.colors.warning, backgroundColor: theme.colors.cardFill },
-                ]}>
-                <Text style={[theme.typography.label, { color: write.status === 'failed' ? theme.colors.danger : theme.colors.warning, fontWeight: '700' }]}>
-                  {write.status === 'failed' ? 'Sync failed · Fix' : 'Waiting to sync'}
-                </Text>
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
-                  Submitted {formatDisplayTime(new Date(write.createdAt).toISOString())}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {showingCache ? (
-          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg }}
+        contentContainerStyle={styles.content}
         ListHeaderComponent={
-          <View style={{ marginBottom: theme.spacing.md }}>
+          <View style={styles.header}>
+            <TopBar onMenu={openDrawer} subtitle={branchName ?? undefined} actions={[...appearanceActions, bellAction]} />
+            <PageTitle title="Cash transfers" sub="Cash, Easypaisa and bank money handed to the company · last 90 days. Finance approves each transfer and posts the receipt." />
+
+            {pendingWrites.length > 0 ? (
+              <View style={styles.queued}>
+                {pendingWrites.map((write) => (
+                  <InfoBanner key={write.id} kind={write.status === 'failed' ? 'bad' : 'warn'} icon={write.status === 'failed' ? 'warning' : 'clock'}>
+                    <Text style={[styles.queuedTitle, { color: write.status === 'failed' ? theme.colors.danger : theme.colors.warning }]}>
+                      {write.status === 'failed' ? 'Sync failed · Fix' : 'Waiting to sync'}
+                    </Text>
+                    <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>
+                      Submitted {formatDisplayTime(new Date(write.createdAt).toISOString())}
+                    </Text>
+                  </InfoBanner>
+                ))}
+              </View>
+            ) : null}
+
+            {showingCache ? (
+              <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+                  Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
+                </Text>
+              </View>
+            ) : null}
+
             <MonthlyCashTransferSummaryCard
               summary={summaryQ.data}
               isLoading={summaryQ.isLoading}
@@ -202,39 +192,35 @@ export function CashTransfersScreen() {
               onRetry={() => void summaryQ.refetch()}
             />
 
-            <View style={{ marginTop: 12 }}>
-              <SearchBar value={search} onChangeText={setSearch} placeholder="Search transfer ID, voucher or note…" />
-            </View>
-
             <Pressable
               accessibilityRole="button"
-              onPress={() => dateRangeSheetRef.current?.present()}
-              style={[styles.dateChip, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, marginTop: 10 }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>{dateRangeLabel}</Text>
+              accessibilityLabel={`Date range, ${dateRangeLabel}. Change`}
+              onPress={() => dateRangeSheetRef.current?.present()}>
+              <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>Date range</Text>
+              <View style={[styles.fieldInput, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border }]}>
+                <Icon name="calendar" size={20} color={theme.colors.textFaint} />
+                <Text style={[styles.fieldValue, { color: theme.colors.text }]} numberOfLines={1}>
+                  {dateRangeLabel}
+                </Text>
+                <Icon name="chevron-down" size={18} color={theme.colors.textFaint} />
+              </View>
             </Pressable>
 
-            <View style={{ marginTop: 10 }}>
-              <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
-            </View>
-            <View style={{ marginTop: 8 }}>
-              <Dropdown options={CHANNEL_OPTIONS} value={channelFilter} onChange={setChannelFilter} />
-            </View>
+            <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+            <SegmentedControl options={CHANNEL_OPTIONS} value={channelFilter} onChange={setChannelFilter} />
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search transfer ID, voucher or note…" />
 
             {totalMatching > CASH_TRANSFERS_MAX_PAGE_SIZE ? (
-              <Text style={[theme.typography.label, { color: theme.colors.warning, marginTop: 10 }]}>
-                Showing the latest {CASH_TRANSFERS_MAX_PAGE_SIZE} of {totalMatching.toLocaleString('en-US')} transfers — narrow the dates to see the rest.
-              </Text>
+              <InfoBanner kind="warn">
+                {`Showing the latest ${CASH_TRANSFERS_MAX_PAGE_SIZE} of ${totalMatching.toLocaleString('en-US')} transfers — narrow the dates to see the rest.`}
+              </InfoBanner>
             ) : null}
-            {isLoading ? <View style={{ marginTop: 12 }}><LoadingSkeleton height={100} /></View> : null}
-            {error && !showingCache ? (
-              <View style={{ marginTop: 12 }}>
-                <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
-              </View>
-            ) : null}
+            {isLoading ? <LoadingSkeleton height={100} /> : null}
+            {error && !showingCache ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <EmptyState title="No Deposits Yet" message="Cash deposits you raise will appear here." /> : undefined
+          !isLoading && !error ? <EmptyState icon="transfer" title="No Deposits Yet" message="Cash deposits you raise will appear here." /> : undefined
         }
         renderItem={({ item }) => (
           <TransferCard
@@ -249,6 +235,8 @@ export function CashTransfersScreen() {
           void summaryQ.refetch();
         }}
       />
+
+      <ExtendedFab label="Cash deposit" bottom={20} onPress={() => depositSheetRef.current?.present()} />
 
       <FormBottomSheet
         ref={depositSheetRef}

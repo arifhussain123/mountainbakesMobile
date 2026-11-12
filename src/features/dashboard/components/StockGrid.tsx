@@ -1,61 +1,51 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme, type PastelTone } from '@/shared/theme';
-import { PASTEL_INK, PastelTile } from '@/shared/ui';
+import { StyleSheet, View } from 'react-native';
+import { useAppTheme } from '@/shared/theme';
 import { formatCount, formatCurrency } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
+import { KpiTile } from './KpiTile';
 
 export interface StockGridProps {
   row: BranchStockHistoryRow;
   difference: number;
 }
 
-/** Design lines 170-175 — Previous / New Stock / Sold / Remaining (orange) 4-card grid. */
+/** Redesign B03 "Branch stock" — Previous / New stock / Sold / Remaining as pastel tiles, two per row. */
 export function StockGrid({ row, difference }: StockGridProps) {
   const theme = useAppTheme();
 
   const tiles = [
-    { id: 'previous', label: 'PREVIOUS', dot: theme.colors.lavender, amount: row.openingAmount, sub: `${formatCount(row.openingQty, 'stock.openingQty')} items carried in` },
-    { id: 'new', label: 'NEW STOCK', dot: theme.colors.success, amount: row.newAmount, sub: `${formatCount(row.newQty, 'stock.newQty')} items` },
-    { id: 'sold', label: 'SOLD', dot: theme.colors.danger, amount: row.soldAmount, sub: `${formatCount(row.soldQty, 'stock.soldQty')} items` },
+    { id: 'previous', label: 'Previous', dot: theme.colors.lavender, amount: row.openingAmount, sub: `${formatCount(row.openingQty, 'stock.openingQty')} items carried in` },
+    { id: 'new', label: 'New stock', dot: theme.colors.success, amount: row.newAmount, sub: `${formatCount(row.newQty, 'stock.newQty')} items` },
+    { id: 'sold', label: 'Sold', dot: theme.colors.danger, amount: row.soldAmount, sub: `${formatCount(row.soldQty, 'stock.soldQty')} items` },
+    {
+      id: 'balance',
+      label: 'Remaining',
+      dot: theme.colors.primary,
+      amount: row.balanceAmount,
+      sub: `${formatCount(row.balanceQty, 'stock.balanceQty')} items · ${formatCount(difference, 'stock.difference')} diff`,
+      color: difference === 0 ? theme.colors.success : theme.colors.warning,
+    },
   ];
 
   return (
     <View style={styles.grid}>
       {tiles.map((tile, i) => (
-        // 2026 redesign: pastel tiles (mint / aqua / amber), Remaining in lilac; glass cards in dark mode.
-        <PastelTile key={tile.id} tone={(i % 3) as PastelTone} style={[styles.cell, { padding: theme.spacing.md }]}>
-          <View style={styles.labelRow}>
-            {theme.isDark ? <View style={[styles.dot, { backgroundColor: tile.dot }]} /> : null}
-            <Text style={[theme.typography.label, { color: theme.isDark ? theme.colors.textSecondary : PASTEL_INK.muted, letterSpacing: 1 }]}>{tile.label}</Text>
-          </View>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6 }]}>{formatCurrency(tile.amount, `stock.${tile.id}Amount`)}</Text>
-          <Text style={[theme.typography.label, { color: theme.isDark ? theme.colors.textFaint : PASTEL_INK.muted, marginTop: 2 }]}>{tile.sub}</Text>
-        </PastelTile>
+        <KpiTile
+          key={tile.id}
+          index={i}
+          label={tile.label}
+          value={formatCurrency(tile.amount, `stock.${tile.id}Amount`)}
+          sub={tile.sub}
+          dot={tile.dot}
+          valueColor={tile.color}
+          style={styles.cell}
+        />
       ))}
-      {theme.isDark ? (
-        <View style={[styles.cell, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg, padding: theme.spacing.md }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.primaryText, letterSpacing: 1 }]}>REMAINING</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.primaryText, marginTop: 6 }]}>{formatCurrency(row.balanceAmount, 'stock.balanceAmount')}</Text>
-          <Text style={[theme.typography.label, { color: theme.colors.primaryText, opacity: 0.75, marginTop: 2 }]}>
-            {formatCount(row.balanceQty, 'stock.balanceQty')} items · {formatCount(difference, 'stock.difference')} difference
-          </Text>
-        </View>
-      ) : (
-        <PastelTile tone={3} style={[styles.cell, { padding: theme.spacing.md }]}>
-          <Text style={[theme.typography.label, { color: PASTEL_INK.muted, letterSpacing: 1 }]}>REMAINING</Text>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6 }]}>{formatCurrency(row.balanceAmount, 'stock.balanceAmount')}</Text>
-          <Text style={[theme.typography.label, { color: PASTEL_INK.muted, marginTop: 2 }]}>
-            {formatCount(row.balanceQty, 'stock.balanceQty')} items · {formatCount(difference, 'stock.difference')} difference
-          </Text>
-        </PastelTile>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cell: { width: '47%' },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 2 },
+  cell: { flexBasis: '46%', flexGrow: 1 },
 });

@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   titleBlock: { flex: 1, minWidth: 0 },
   actions: { flexDirection: 'row', gap: 8 },
-  actionButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  actionButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   actionLift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
   badge: {
     position: 'absolute',

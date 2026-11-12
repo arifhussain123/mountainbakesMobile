@@ -11,8 +11,12 @@ export interface OnboardingFeature {
   label: string;
 }
 
+/** Which illustration fills the slide's tinted art panel. */
+export type OnboardingArt = 'bakery' | 'orders' | 'clock';
+
 export interface OnboardingSlideContent {
   headline: OnboardingHeadlineLine[];
+  art: OnboardingArt;
   body: string;
   /** Omitted on slides with no feature strip (e.g. the final, text-only slide). */
   features?: OnboardingFeature[];
@@ -30,7 +34,9 @@ export interface OnboardingSlideContent {
  */
 export const ONBOARDING_SLIDES: OnboardingSlideContent[] = [
   {
-    headline: [{ text: 'Fresh' }, { text: 'from the', accent: true }, { text: 'oven daily' }],
+    // 2026 redesign B02 copy: "Fresh from the / oven, daily".
+    headline: [{ text: 'Fresh from the' }, { text: 'oven, daily' }],
+    art: 'bakery',
     body: 'Sales, stock and orders for your branch, from the first bake to the evening close.',
     features: [
       { icon: 'trending-up', label: 'Live sales' },
@@ -43,7 +49,8 @@ export const ONBOARDING_SLIDES: OnboardingSlideContent[] = [
   {
     // PLACEHOLDER — no "02a" screen exists in mountainbakesBranch.html yet;
     // replace with real orders/production copy once that design lands.
-    headline: [{ text: 'Orders' }, { text: 'on time', accent: true }, { text: 'every time' }],
+    headline: [{ text: 'Orders on time,' }, { text: 'every time' }],
+    art: 'orders',
     body: 'Track every order from request to delivery, with production kept in sync at every branch.',
     features: [
       { icon: 'orders', label: 'New orders' },
@@ -58,8 +65,9 @@ export const ONBOARDING_SLIDES: OnboardingSlideContent[] = [
     // business-day rollover documented in src/api/businessDate.ts. Real,
     // load-bearing copy, not a placeholder — kept as the 3rd slide rather
     // than dropped, since it explains a rule the rest of the app depends on.
-    headline: [{ text: 'The day' }, { text: 'ends at', accent: true }, { text: '2 AM' }],
-    body: 'A sale rung up at 9pm belongs to that evening even if it reaches the office next morning. A late shift is never split across two days.',
+    headline: [{ text: 'The day ends' }, { text: 'at 2 AM' }],
+    art: 'clock',
+    body: 'A sale rung up at 9 pm belongs to that evening even if it reaches the office next morning. A late shift is never split across two days.',
     cta: 'Get Started',
     showSkip: false,
   },

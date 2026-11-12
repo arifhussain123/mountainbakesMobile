@@ -8,7 +8,7 @@ import { Routes, openDrawer, type DiscountsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue, useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
-import { useOfflineQueueStore } from '@/state';
+import { useAuthStore, useOfflineQueueStore } from '@/state';
 import {
   DateRangeSheet,
   EmptyState,
@@ -24,6 +24,7 @@ import {
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchDiscount, BranchDiscountStatus } from '@/api';
+import { ExtendedFab, PageTitle, TopBar } from '@/features/sales/components';
 import { DiscountCard, MonthlyDiscountSummaryCard, SortSheet, WithdrawConfirmSheet, type DiscountSortField } from '../../components';
 import { useDiscountActions } from '../../hooks';
 import { RequestDiscountSheetContent } from '../RequestDiscountScreen';
@@ -48,11 +49,12 @@ const SORT_DIRECTION: Record<DiscountSortField, 'asc' | 'desc'> = {
   status: 'asc',
 };
 
-/** branchApp.md screen 14 — Discounts: the branch's own claim history. */
+/** Redesign `14 Discounts` — the branch's own claim history, with a "Request" FAB for a new claim. */
 export function DiscountsListScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<DiscountsStackParamList>>();
   const { isOffline } = useNetworkStatus();
+  const branchName = useAuthStore((state) => state.user?.branchName ?? null);
 
   const requestSheetRef = useRef<BottomSheetModal>(null);
   const dateSheetRef = useRef<BottomSheetModal>(null);
@@ -132,6 +134,7 @@ export function DiscountsListScreen() {
   if (search.trim()) {
     activeFilters.push({ key: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') });
   }
+  const rangeLabel = isDefaultRange ? 'Last 90 days' : `${dateRange.from} – ${dateRange.to}`;
   const clearAll = () => {
     setStatusFilter('all');
     setDateRange(resolveDateRangePreset('last90', today));
@@ -149,111 +152,98 @@ export function DiscountsListScreen() {
     }
   };
 
+  const openRequest = () => {
+    setEditItem(null);
+    requestSheetRef.current?.present();
+  };
+
   return (
     <Screen>
-      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open menu" onPress={openDrawer} style={{ padding: 6, marginRight: 4 }}>
-            <Icon name="menu" size={20} color={theme.colors.text} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={[theme.typography.screenTitle, { color: theme.colors.text, textTransform: 'uppercase' }]}>
-              <Text style={{ color: theme.colors.primary }}>Discounts</Text>
-            </Text>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 4 }]}>
-              Money claimed back against a demand · last 90 days
-            </Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="About discount claims" onPress={() => infoSheetRef.current?.present()} style={{ padding: 6 }}>
-            <Icon name="info" size={20} color={theme.colors.textSecondary} />
-          </Pressable>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setEditItem(null);
-            requestSheetRef.current?.present();
-          }}
-          style={{
-            marginTop: theme.spacing.md,
-            height: 44,
-            borderRadius: theme.radii.pill,
-            backgroundColor: theme.colors.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            gap: 6,
-          }}>
-          <Icon name="plus" size={16} color={theme.colors.primaryText} />
-          <Text style={{ color: theme.colors.primaryText, fontWeight: '700', fontSize: 14 }}>Request Discount</Text>
-        </Pressable>
-      </View>
-
-      {showingCache ? (
-        <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-            Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline
-          </Text>
-        </View>
-      ) : null}
-
       <FlatList
         data={displayRows}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}
+        contentContainerStyle={styles.content}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
         }}
         ListHeaderComponent={
-          <View>
-            <View style={{ marginBottom: theme.spacing.md }}>
-              <MonthlyDiscountSummaryCard
-                summary={summaryQ.data}
-                isLoading={summaryQ.isLoading}
-                error={summaryQ.error}
-                onRetry={() => void summaryQ.refetch()}
-              />
-            </View>
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand # or reason…" />
-            <View style={styles.filterRow}>
-              <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+          <View style={styles.header}>
+            <TopBar
+              onMenu={openDrawer}
+              subtitle={branchName ?? undefined}
+              actions={[{ icon: 'info', onPress: () => infoSheetRef.current?.present(), accessibilityLabel: 'About discount claims' }]}
+            />
+            <PageTitle title="Discounts" sub="Money claimed back against a demand · last 90 days." />
+
+            {showingCache ? (
+              <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
+                  Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline
+                </Text>
+              </View>
+            ) : null}
+
+            <MonthlyDiscountSummaryCard
+              summary={summaryQ.data}
+              isLoading={summaryQ.isLoading}
+              error={summaryQ.error}
+              onRetry={() => void summaryQ.refetch()}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Date range, ${rangeLabel}. Change`}
+              onPress={() => dateSheetRef.current?.present()}>
+              <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>Date range</Text>
+              <View style={[styles.fieldInput, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border }]}>
+                <Icon name="calendar" size={20} color={theme.colors.textFaint} />
+                <Text style={[styles.fieldValue, { color: theme.colors.text }]} numberOfLines={1}>
+                  {rangeLabel}
+                </Text>
+                <Icon name="chevron-down" size={18} color={theme.colors.textFaint} />
+              </View>
+            </Pressable>
+
+            <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+
+            <View style={styles.searchRow}>
+              <View style={styles.grow}>
+                <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand # or reason…" />
+              </View>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => dateSheetRef.current?.present()}
-                style={[styles.chip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, flexDirection: 'row', gap: 4 }]}>
-                <Icon name="calendar" size={12} color={theme.colors.text} />
-                <Text style={[theme.typography.label, { color: theme.colors.text }]}>{isDefaultRange ? 'Last 90 days' : `${dateRange.from} – ${dateRange.to}`}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
+                accessibilityLabel="Sort claims"
                 onPress={() => sortSheetRef.current?.present()}
-                style={[styles.chip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, flexDirection: 'row', gap: 4 }]}>
-                <Icon name="bar-chart" size={12} color={theme.colors.text} />
-                <Text style={[theme.typography.label, { color: theme.colors.text }]}>Sort</Text>
+                style={[styles.sortChip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+                <Icon name="sort" size={16} color={theme.colors.textSecondary} />
+                <Text style={[styles.sortText, { color: theme.colors.textSecondary }]}>Sort</Text>
               </Pressable>
             </View>
+
             {activeFilters.length > 0 ? (
               <View style={styles.activeFiltersRow}>
                 {activeFilters.map((f) => (
-                  <Pressable key={f.key} onPress={f.onClear} style={[styles.activeChip, { backgroundColor: theme.colors.border }]}>
+                  <Pressable
+                    key={f.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Clear filter ${f.label}`}
+                    onPress={f.onClear}
+                    style={[styles.activeChip, { backgroundColor: theme.isDark ? theme.colors.border : '#EFEBFF' }]}>
                     <Text style={[theme.typography.label, { color: theme.colors.text }]}>{f.label}</Text>
                     <Icon name="close" size={10} color={theme.colors.textSecondary} />
                   </Pressable>
                 ))}
-                <Pressable onPress={clearAll} style={[styles.activeChip, { backgroundColor: 'transparent' }]}>
+                <Pressable accessibilityRole="button" onPress={clearAll} style={styles.activeChip}>
                   <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Clear all</Text>
                 </Pressable>
               </View>
             ) : null}
             {total !== null ? (
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 10 }]}>{total} claims in this range</Text>
+              <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>{total} claims in this range</Text>
             ) : null}
             {list.isLoading ? (
-              <View style={{ marginTop: 12, gap: 10 }}>
+              <View style={{ gap: 10 }}>
                 <LoadingSkeleton height={100} />
                 <LoadingSkeleton height={100} />
               </View>
@@ -297,6 +287,8 @@ export function DiscountsListScreen() {
           void summaryQ.refetch();
         }}
       />
+
+      <ExtendedFab label="Request" accessibilityLabel="Request discount" bottom={20} onPress={openRequest} />
 
       <FormBottomSheet
         ref={requestSheetRef}

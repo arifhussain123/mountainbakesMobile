@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import {
   getBusinessDate,
@@ -13,13 +13,15 @@ import {
 import type { BranchReturn, BranchReturnStatus } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
-import { openDrawer } from '@/navigation';
+import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useOfflineQueueStore } from '@/state';
 import { MonthlyReturnsSummaryCard, QueuedReturnCard, ReturnDetailSheet, ReturnOptionSheet, ReturnStockCard, ReviseReturnModal } from '../../components';
+import { GradientFab, IconCircleButton, PagerButton } from '../../components/redesign';
+import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
 import {
   DEFAULT_RETURN_SORT,
   DEFAULT_RETURN_WINDOW,
@@ -37,6 +39,8 @@ import { styles } from './styles';
 
 const SUMMARY_STATUS_LABEL = { pending: 'Pending', returned: 'Sent Back', accepted: 'Accepted', rejected: 'Rejected' };
 const ALL_PRODUCTS = 'all';
+/** Room under the pager so the "Return items" FAB never covers it. */
+const FAB_CLEARANCE = 96;
 
 /**
  * mountainbakesBranch.html screen 13 — Return Stock: what this branch has
@@ -52,6 +56,7 @@ const ALL_PRODUCTS = 'all';
  */
 export function ReturnStockListScreen() {
   const theme = useAppTheme();
+  const tabBarHeight = useTabBarHeight();
   const appearanceActions = useAppearanceHeaderActions();
   const bellAction = useNotificationBellAction();
 
@@ -69,6 +74,7 @@ export function ReturnStockListScreen() {
   const windowSheetRef = useRef<BottomSheetModal>(null);
   const productSheetRef = useRef<BottomSheetModal>(null);
   const detailSheetRef = useRef<BottomSheetModal>(null);
+  const returnItemsSheetRef = useRef<BottomSheetModal>(null);
 
   const sort = RETURN_SORTS.find((s) => s.key === sortKey) ?? DEFAULT_RETURN_SORT;
   const today = getBusinessDate();
@@ -163,26 +169,26 @@ export function ReturnStockListScreen() {
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={[styles.pill, { borderColor: theme.colors.border, borderRadius: theme.radii.md }]}>
-      <Text style={[theme.typography.label, styles.pillText, { color: theme.colors.text }]} numberOfLines={1}>
+      style={[styles.pill, { borderColor: theme.colors.border, backgroundColor: theme.isDark ? theme.colors.cardFill : theme.colors.surface }]}>
+      <Text style={[styles.pillText, { color: theme.colors.text }]} numberOfLines={1}>
         <Text style={{ color: theme.colors.textFaint }}>{label}</Text>
         {value}
       </Text>
-      <Icon name="chevron-down" size={12} color={theme.colors.textSecondary} />
+      <Icon name="chevron-down" size={14} color={theme.colors.textFaint} />
     </Pressable>
   );
 
   return (
     <Screen>
       <AppHeader
-        title="Return Stock"
-        subtitle="Sent to production · change or delete a return until production reviews it"
+        title="Return stock"
+        subtitle="Stock sent back to Production · change or delete a return until Production reviews it"
         actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
       <FlatList
         data={returns}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + FAB_CLEARANCE }}
         style={list.isPlaceholderData ? styles.dimmed : undefined}
         ListHeaderComponent={
           <View>
@@ -202,14 +208,12 @@ export function ReturnStockListScreen() {
               <View style={styles.flex1}>
                 <SearchBar value={search} onChangeText={onSearch} placeholder="Search reason or product…" />
               </View>
-              <Pressable
-                accessibilityRole="button"
+              <IconCircleButton
+                icon="sort"
                 accessibilityLabel={`Sort: ${sort.label}`}
+                dot={sort.key !== DEFAULT_RETURN_SORT.key}
                 onPress={() => sortSheetRef.current?.present()}
-                style={[styles.sortButton, { backgroundColor: theme.colors.border, borderRadius: theme.radii.md }]}>
-                <Icon name="sort" size={14} color={theme.colors.text} />
-                <Text style={[theme.typography.label, styles.bold, { color: theme.colors.text }]}>Sort</Text>
-              </Pressable>
+              />
             </View>
 
             <View style={styles.pillGrid}>
@@ -217,29 +221,9 @@ export function ReturnStockListScreen() {
               {pill('', returnWindowLabel(windowKey), () => windowSheetRef.current?.present(), 'Choose period')}
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-              <View style={styles.chipRow}>
-                {RETURN_STATUS_FILTERS.map((option) => {
-                  const active = option.value === status;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      onPress={() => refilter(setStatus)(option.value)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: active ? theme.colors.primary : theme.colors.surface,
-                          borderColor: active ? theme.colors.primary : theme.colors.border,
-                        },
-                      ]}>
-                      <Text style={[theme.typography.label, styles.bold, { color: active ? theme.colors.primaryText : theme.colors.text }]}>{option.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+            <View style={styles.chipScroll}>
+              <FilterChipRow options={RETURN_STATUS_FILTERS} value={status} onChange={refilter(setStatus)} />
+            </View>
 
             <Text style={[theme.typography.label, styles.sortNote, { color: theme.colors.textFaint }]}>Sorted: {sort.label}</Text>
 
@@ -262,33 +246,22 @@ export function ReturnStockListScreen() {
             )
           ) : undefined
         }
-        renderItem={({ item }) => <ReturnStockCard item={item} onView={() => openDetail(item)} />}
+        renderItem={({ item, index }) => <ReturnStockCard item={item} index={index} onView={() => openDetail(item)} />}
         ListFooterComponent={
           total > 0 ? (
             <View style={styles.footer}>
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{describeShowing(page, total)}</Text>
               {pages > 1 ? (
                 <View style={styles.pager}>
+                  <PagerButton icon="chevron-left" accessibilityLabel="Previous page" disabled={page <= 1} onPress={() => setPage(page - 1)} />
                   {pagerSlots(page, pages).map((slot, i) =>
                     slot === '…' ? (
                       <Text key={`gap-${i}`} style={[theme.typography.label, styles.pageGap, { color: theme.colors.textFaint }]}>…</Text>
                     ) : (
-                      <Pressable
-                        key={slot}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Page ${slot}`}
-                        accessibilityState={{ selected: slot === page }}
-                        onPress={() => setPage(slot)}
-                        style={[
-                          styles.pageButton,
-                          slot === page
-                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                            : { borderColor: theme.colors.border },
-                        ]}>
-                        <Text style={[theme.typography.label, styles.bold, { color: slot === page ? theme.colors.primaryText : theme.colors.text }]}>{slot}</Text>
-                      </Pressable>
+                      <PagerButton key={slot} label={String(slot)} accessibilityLabel={`Page ${slot}`} active={slot === page} onPress={() => setPage(slot)} />
                     ),
                   )}
+                  <PagerButton icon="chevron-right" accessibilityLabel="Next page" disabled={page >= pages} onPress={() => setPage(page + 1)} />
                 </View>
               ) : null}
             </View>
@@ -297,6 +270,8 @@ export function ReturnStockListScreen() {
         refreshing={list.isRefetching || summary.isRefetching}
         onRefresh={onRefresh}
       />
+
+      <GradientFab label="Return items" onPress={() => returnItemsSheetRef.current?.present()} bottom={tabBarHeight + 20} />
 
       <ReturnOptionSheet
         ref={sortSheetRef}
@@ -335,6 +310,14 @@ export function ReturnStockListScreen() {
         onDismiss={() => setViewing(null)}
         snapPoints={['85%']}>
         {viewing ? <ReturnDetailSheet item={viewing} onChange={handleChange} onWithdraw={handleWithdraw} /> : null}
+      </FormBottomSheet>
+
+      <FormBottomSheet
+        ref={returnItemsSheetRef}
+        title="Return items"
+        subtitle="Sent back to Production for review."
+        onRequestClose={() => returnItemsSheetRef.current?.dismiss()}>
+        <ReturnItemsSheetContent onClose={() => returnItemsSheetRef.current?.dismiss()} />
       </FormBottomSheet>
 
       <ReviseReturnModal

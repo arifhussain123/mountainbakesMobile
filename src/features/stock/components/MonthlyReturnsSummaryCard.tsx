@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { MonthlyReturnsSummary } from '@/api';
-import { useAppTheme, toneFor } from '@/shared/theme';
-import { Card, ErrorState, LoadingSkeleton, PastelTile } from '@/shared/ui';
+import { useAppTheme, type PastelTone } from '@/shared/theme';
+import { Card, ErrorState, LoadingSkeleton, PASTEL_INK, PastelTile } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatMonthToDateLine } from '@/shared/utils';
 import {
@@ -54,6 +54,7 @@ export function MonthlyReturnsSummaryCard({
 }: MonthlyReturnsSummaryCardProps) {
   const theme = useAppTheme();
   const { width } = useWindowDimensions();
+  const tileInk = theme.isDark ? theme.colors.textSecondary : PASTEL_INK.muted;
   const toneColor: Record<ReturnsSummaryTone, string> = {
     neutral: theme.colors.text,
     success: theme.colors.success,
@@ -74,8 +75,8 @@ export function MonthlyReturnsSummaryCard({
 
   return (
     <Card>
-      <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.textFaint }]}>MONTHLY RETURNS</Text>
-      <Text style={[theme.typography.body, styles.bold, styles.mt2, { color: theme.colors.text }]}>
+      <Text style={[styles.eyebrow, { color: theme.colors.textFaint }]}>Monthly returns</Text>
+      <Text style={[styles.h3, styles.mt2, { color: theme.colors.text }]}>
         {summary ? formatReturnsWindow(summary.from, summary.to) : 'This month'}
       </Text>
       {summary ? (
@@ -88,20 +89,21 @@ export function MonthlyReturnsSummaryCard({
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: theme.spacing.sm }} contentContainerStyle={styles.row}>
-          {buildReturnsSummaryTiles(summary, statusLabels, { showBranches, branchId: selectedBranchId }).map((tile) => (
+          {buildReturnsSummaryTiles(summary, statusLabels, { showBranches, branchId: selectedBranchId }).map((tile, index) => (
             <PastelTile
-              tone={toneFor(String(tile.key))}
+              // The redesign's `.kpi:nth-child(5n+k)` cycle: mint, aqua, amber, lilac, pink in order.
+              tone={(index % 5) as PastelTone}
               key={tile.key}
               accessible
               accessibilityLabel={`${tile.label}: ${tile.value}, ${tile.sub}`}
-              style={[styles.tile, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
-              <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              style={styles.tile}>
+              <Text style={[styles.tileLabel, { color: tileInk }]} numberOfLines={1}>
                 {tile.label}
               </Text>
-              <Text style={[theme.typography.cardTitle, styles.mt2, { color: toneColor[tile.tone] }]} numberOfLines={1}>
+              <Text style={[styles.tileValue, { color: toneColor[tile.tone] }]} numberOfLines={1}>
                 {tile.value}
               </Text>
-              <Text style={[theme.typography.label, styles.mt2, { color: theme.colors.textFaint }]} numberOfLines={1}>
+              <Text style={[styles.tileSub, { color: tileInk }]} numberOfLines={1}>
                 {tile.sub}
               </Text>
             </PastelTile>
@@ -142,7 +144,7 @@ export function MonthlyReturnsSummaryCard({
                         {
                           borderRadius: theme.radii.md,
                           borderColor: selected ? theme.colors.primary : theme.colors.cardBorder,
-                          backgroundColor: selected ? theme.colors.surface : theme.colors.cardFill,
+                          backgroundColor: selected ? theme.colors.surface : theme.isDark ? theme.colors.cardFill : '#FBFAFF',
                           borderWidth: selected ? 2 : 1,
                         },
                       ]}>
@@ -181,8 +183,12 @@ export function MonthlyReturnsSummaryCard({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
-  tile: { minWidth: 140, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  eyebrow: { letterSpacing: 1.2 },
+  tile: { minWidth: 140, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 12 },
+  tileLabel: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  tileValue: { fontSize: 20, lineHeight: 26, fontWeight: '700', letterSpacing: -0.4, marginTop: 2, fontVariant: ['tabular-nums'] },
+  tileSub: { fontSize: 11, lineHeight: 15, fontWeight: '500', marginTop: 2 },
+  eyebrow: { fontSize: 12, lineHeight: 15, fontWeight: '600', letterSpacing: 0.6 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
   bold: { fontWeight: '700' },
   mt2: { marginTop: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },

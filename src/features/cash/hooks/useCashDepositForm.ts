@@ -185,6 +185,8 @@ export function useCashDepositForm() {
     clear,
     handleAutoFill,
     autoFillDisabled,
+    /** A non-rejected deposit already made for today — why Auto-fill is off. Display only. */
+    existingTransferNo: existingTransferToday?.transferNo ?? null,
     splitHint,
   };
 }

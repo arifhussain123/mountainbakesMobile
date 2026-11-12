@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { SectionList, Text, View } from 'react-native';
+import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { useMarkNotificationsRead, useNotificationsWithReadState } from '@/api';
 import { goBack } from '@/navigation';
 import { useNetworkStatus } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, Icon, LoadingSkeleton, Screen } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FilterChipRow, InfoBanner, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { NotificationItem } from './components/NotificationItem';
 import { openNotificationRecord } from './deepLinks';
@@ -58,6 +58,11 @@ export function NotificationsScreen() {
     if (unreadIds.length > 0) markRead.mutate(unreadIds);
   };
 
+  const filterOptions: FilterChipOption<Filter>[] = [
+    { value: 'all', label: 'All' },
+    { value: 'unread', label: 'Unread', count: unreadCount > 0 ? unreadCount : undefined },
+  ];
+
   return (
     <Screen>
       <AppHeader
@@ -68,74 +73,23 @@ export function NotificationsScreen() {
         ]}
       />
 
-      {isOffline ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            alignSelf: 'flex-start',
-            marginHorizontal: theme.spacing.lg,
-            marginBottom: theme.spacing.sm,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: theme.radii.pill,
-            borderWidth: 1,
-            backgroundColor: theme.colors.cardFill,
-            borderColor: theme.colors.cardBorder,
-          }}>
-          <Icon name="warning" size={14} color={theme.colors.warning} />
-          <Text style={[theme.typography.label, { color: theme.colors.warning, marginLeft: 6 }]}>Offline — showing cached notifications</Text>
-        </View>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
-        {(['all', 'unread'] as const).map((value) => {
-          const active = filter === value;
-          return (
-            <Text
-              key={value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => setFilter(value)}
-              style={[
-                theme.typography.label,
-                {
-                  height: 32,
-                  paddingHorizontal: 12,
-                  lineHeight: 32,
-                  borderWidth: 1,
-                  borderRadius: theme.radii.pill,
-                  fontWeight: '700',
-                  overflow: 'hidden',
-                  backgroundColor: active ? theme.colors.primary : theme.colors.cardFill,
-                  borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
-                  color: active ? theme.colors.primaryText : theme.colors.text,
-                },
-              ]}>
-              {value === 'all' ? 'All' : `Unread${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
-            </Text>
-          );
-        })}
+      <View style={styles.controls}>
+        {isOffline ? <InfoBanner kind="warn">Offline — showing cached notifications</InfoBanner> : null}
+        <FilterChipRow options={filterOptions} value={filter} onChange={setFilter} />
+        {isLoading ? <LoadingSkeleton height={100} /> : null}
+        {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
       </View>
-
-      {isLoading ? <LoadingSkeleton height={100} /> : null}
-      {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
 
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: theme.spacing.lg }}
+        contentContainerStyle={styles.list}
+        stickySectionHeadersEnabled={false}
         renderSectionHeader={({ section }) => (
-          <Text
-            style={[
-              theme.typography.label,
-              { color: theme.colors.textSecondary, fontWeight: '700', paddingHorizontal: theme.spacing.lg, paddingVertical: 8, backgroundColor: theme.colors.background },
-            ]}>
-            {section.title.toUpperCase()}
-          </Text>
+          <Text style={[styles.eyebrow, { color: theme.colors.textFaint }]}>{section.title}</Text>
         )}
-        renderItem={({ item }) => (
-          <NotificationItem notification={item} onPress={() => handlePress(item)} onToggleRead={() => handleToggleRead(item)} />
+        renderItem={({ item, index }) => (
+          <NotificationItem notification={item} index={index} onPress={() => handlePress(item)} onToggleRead={() => handleToggleRead(item)} />
         )}
         ListEmptyComponent={
           !isLoading && !error ? (
@@ -148,3 +102,9 @@ export function NotificationsScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  controls: { paddingHorizontal: 20, gap: 12 },
+  list: { paddingHorizontal: 20, paddingBottom: 32 },
+  eyebrow: { fontSize: 12, lineHeight: 15, fontWeight: '600', letterSpacing: 0.6, paddingTop: 18, paddingBottom: 8 },
+});

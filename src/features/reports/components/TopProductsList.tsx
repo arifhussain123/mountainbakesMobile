@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { StyleSheet, Text, View } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
+import { Card, ListThumb, SegmentedControl, type SegmentedOption } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsTopProduct } from '@/api';
 import { sortTopProducts, type TopProductSort } from '../calculations';
@@ -10,12 +11,16 @@ export interface TopProductsListProps {
   products: SalesAnalyticsTopProduct[];
 }
 
+const SORT_OPTIONS: SegmentedOption<TopProductSort>[] = [
+  { value: 'revenue', label: 'Revenue' },
+  { value: 'qty', label: 'Qty' },
+];
+
 /**
- * design UIandUX/mountainbakesBranch.html screen 23 calls for a donut, but
- * per the brief a donut is hard to read at phone width — this is the ranked
- * list instead: rank, name, category, qty, revenue, and a thin bar showing
- * each product's share of the top-10's own revenue (not of total branch
- * revenue), toggleable between Revenue and Qty sort.
+ * The "Top products" tab — a ranked list instead of a donut (a donut is hard
+ * to read at phone width): a pastel rank thumb, name, category, revenue, and
+ * a thin bar showing each product's share of the top-10's own revenue (not of
+ * total branch revenue), toggleable between Revenue and Qty sort.
  */
 export function TopProductsList({ products }: TopProductsListProps) {
   const theme = useAppTheme();
@@ -24,74 +29,65 @@ export function TopProductsList({ products }: TopProductsListProps) {
   const sorted = useMemo(() => sortTopProducts(products, sort), [products, sort]);
   const maxRevenue = Math.max(1, ...products.map((p) => p.sales));
   const maxQty = Math.max(1, ...products.map((p) => p.qty));
+  const track = theme.isDark ? theme.colors.border : '#EEF0F8';
+  const gradient = !theme.isDark && theme.accent === 'orange';
 
   return (
-    <Card>
+    <Card style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.2 }]}>
-          Top Products
-        </Text>
-        <View style={[styles.sortToggle, { backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
-          {(['revenue', 'qty'] as const).map((option) => {
-            const active = option === sort;
-            return (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setSort(option)}
-                style={[styles.sortOption, { backgroundColor: active ? theme.colors.primary : 'transparent' }]}>
-                <Text style={[theme.typography.label, { color: active ? theme.colors.primaryText : theme.colors.textSecondary, fontWeight: '700' }]}>
-                  {option === 'revenue' ? 'Revenue' : 'Qty'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Text style={[styles.h3, { color: theme.colors.text }]}>Top products</Text>
+        <SegmentedControl options={SORT_OPTIONS} value={sort} onChange={setSort} style={styles.seg} />
       </View>
 
-      {sorted.map((product, index) => {
-        const shareOfTop = sort === 'revenue' ? (product.sales / maxRevenue) * 100 : (product.qty / maxQty) * 100;
-        return (
-          <View
-            key={product.productId || product.productName}
-            style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.cardBorder }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, width: 20 }]}>{index + 1}</Text>
-            <View style={{ flex: 1 }}>
-              <View style={styles.nameRow}>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700', flex: 1 }]} numberOfLines={1}>
-                  {product.productName}
-                </Text>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(product.sales)}</Text>
-              </View>
-              {product.categoryName ? (
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
-                  {product.categoryName}
-                </Text>
-              ) : null}
-              <View style={[styles.barRow, { marginTop: 6 }]}>
-                <View style={[styles.barTrack, { backgroundColor: theme.colors.border, borderRadius: 3 }]}>
-                  <View
-                    style={[styles.barFill, { width: `${Math.max(2, shareOfTop)}%`, backgroundColor: theme.colors.primary, borderRadius: 3 }]}
-                  />
+      <View>
+        {sorted.map((product, index) => {
+          const shareOfTop = sort === 'revenue' ? (product.sales / maxRevenue) * 100 : (product.qty / maxQty) * 100;
+          const width = `${Math.max(2, shareOfTop)}%` as const;
+          return (
+            <View
+              key={product.productId || product.productName}
+              style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+              <ListThumb text={String(index + 1)} index={index} />
+              <View style={styles.body}>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
+                    {product.productName}
+                  </Text>
+                  <Text style={[styles.amt, { color: theme.colors.text }]}>{formatCurrency(product.sales)}</Text>
                 </View>
-                <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{product.qty} sold</Text>
+                <View style={styles.nameRow}>
+                  <Text style={[styles.xs, { color: theme.colors.textFaint, flex: 1 }]} numberOfLines={1}>
+                    {product.categoryName ?? ' '}
+                  </Text>
+                  <Text style={[styles.xs, { color: theme.colors.textSecondary }]}>{product.qty} sold</Text>
+                </View>
+                <View style={[styles.barTrack, { backgroundColor: track }]}>
+                  {gradient ? (
+                    <LinearGradient colors={[...PRIMARY_GRADIENT]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.barFill, { width }]} />
+                  ) : (
+                    <View style={[styles.barFill, { width, backgroundColor: theme.colors.primary }]} />
+                  )}
+                </View>
               </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sortToggle: { flexDirection: 'row', padding: 2 },
-  sortOption: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  row: { flexDirection: 'row', gap: 8, paddingVertical: 10 },
-  nameRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  barTrack: { flex: 1, height: 6, overflow: 'hidden' },
-  barFill: { height: '100%' },
+  card: { gap: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  h3: { flexShrink: 1, fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  seg: { width: 160 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  body: { flex: 1, minWidth: 0, gap: 2 },
+  nameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  name: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  amt: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  barTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 6 },
+  barFill: { height: 6, borderRadius: 3 },
 });

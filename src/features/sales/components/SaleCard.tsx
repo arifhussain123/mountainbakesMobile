@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { StatusBadge } from '@/shared/ui';
+import { Card, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import type { Order } from '@/api';
+import { FLAT_CARD, TYPE } from './RedesignBits';
 
 export interface SaleCardProps {
   order: Order;
@@ -35,54 +36,54 @@ export function paymentMethodColor(theme: ReturnType<typeof useAppTheme>, method
 }
 
 /**
- * Design `09 Sales` lines 457-461 — the `{{ slList }}` sale card: customer
- * name, `{{s.id}} · {{s.time}}` subline, amount + color-coded payment pill
- * top-right, then a `products · N units` summary line below.
+ * Redesign `09 Sales` — one sale as a flat card: "products · N units" as the
+ * title, "id · time · customer" under it, the amount and a colour-coded
+ * payment pill on the right.
  */
 export function SaleCard({ order, onPress, syncState }: SaleCardProps) {
   const theme = useAppTheme();
   const payColor = paymentMethodColor(theme, order.paymentMethod);
   const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
-  const productsLine = order.items.map((item) => item.productName).join(', ');
+  const productsLine = order.items.map((item) => `${item.productName} ×${item.qty}`).join(', ');
+  // Walk-in sales have no customer name — the mockup leaves it off the line then.
+  const subline = [order.orderNumber, formatDisplayTime(order.createdAt), order.customerName].filter(Boolean).join(' · ');
 
   return (
-    <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
-      onPress={onPress}
-      style={[styles.card, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
-      {syncState ? (
-        <View style={{ marginBottom: 8, alignSelf: 'flex-start' }}>
-          <StatusBadge label={syncState === 'pending' ? 'Waiting to sync' : 'Sync failed · Fix'} variant={syncState === 'pending' ? 'warning' : 'danger'} />
-        </View>
-      ) : null}
-      <View style={styles.topRow}>
-        <View style={styles.leftCol}>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
-            {order.customerName || 'Walking Customer'}
-          </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
-            {order.orderNumber} · {formatDisplayTime(order.createdAt)}
-          </Text>
-        </View>
-        <View style={styles.rightCol}>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
-          <View style={[styles.payPill, { backgroundColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
-            <Text style={[styles.payPillText, { color: payColor }]}>{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</Text>
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} onPress={onPress} disabled={!onPress} style={styles.wrap}>
+      <Card style={[FLAT_CARD, styles.card]}>
+        {syncState ? (
+          <View style={styles.sync}>
+            <StatusBadge label={syncState === 'pending' ? 'Waiting to sync' : 'Sync failed · Fix'} variant={syncState === 'pending' ? 'warning' : 'danger'} />
+          </View>
+        ) : null}
+        <View style={styles.row}>
+          <View style={styles.left}>
+            <Text style={[TYPE.h3s, { color: theme.colors.text }]} numberOfLines={2}>
+              {productsLine || '—'} <Text style={{ color: theme.colors.textSecondary }}>· {totalQty} units</Text>
+            </Text>
+            <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+              {subline}
+            </Text>
+          </View>
+          <View style={styles.right}>
+            <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
+            <View style={[styles.payPill, { backgroundColor: `${payColor}1A` }]}>
+              <Text style={[styles.payPillText, { color: payColor }]}>{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</Text>
+            </View>
           </View>
         </View>
-      </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 8 }]} numberOfLines={2}>
-        {productsLine} <Text style={{ color: theme.colors.textFaint }}>· {totalQty} units</Text>
-      </Text>
+      </Card>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 8, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  leftCol: { flex: 1, minWidth: 0 },
-  rightCol: { alignItems: 'flex-end', gap: 5 },
-  payPill: { paddingHorizontal: 9, paddingVertical: 3 },
-  payPillText: { fontSize: 10, fontWeight: '700' },
+  wrap: { marginBottom: 12 },
+  card: { paddingVertical: 14 },
+  sync: { marginBottom: 8, alignSelf: 'flex-start' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  left: { flex: 1, minWidth: 0, gap: 4 },
+  right: { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
+  payPill: { height: 24, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  payPillText: { fontSize: 11, fontWeight: '600' },
 });

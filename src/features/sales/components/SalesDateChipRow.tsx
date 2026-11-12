@@ -11,27 +11,30 @@ export interface SalesDateChipRowProps {
 }
 
 /**
- * Design `09 Sales` lines 439-441 — the calendar-icon date chip + "Today"
- * toggle chip (exactly two chips, no arrows in the mock). The project has no
- * date-picker dependency yet, so the calendar chip itself steps the business
- * date back one day per tap rather than opening a calendar sheet; "Today"
- * jumps straight back to the current business date (also the way "forward"
- * works, since most browsing is backward from today). TODO: swap the chip's
- * tap handler for a real calendar picker if/when one is added to the app.
+ * The business-date stepper under the Sales title (the title's eyebrow names
+ * the date shown): a calendar chip that steps
+ * the business date back one day per tap, and a "Today" chip that jumps
+ * straight back (also the way "forward" works, since most browsing is
+ * backward from today). Styled as the 2026 redesign's filter chips — white
+ * pill, faint lavender border; the active "Today" chip is the midnight pill.
+ * TODO: swap the calendar chip's tap for a real calendar picker.
  */
 export function SalesDateChipRow({ dateLabel, isToday, onPrevDay, onToday }: SalesDateChipRowProps) {
   const theme = useAppTheme();
+  const activeFill = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const activeInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
     <View style={styles.row}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Previous day"
+        accessibilityLabel={`Previous day, showing ${dateLabel}`}
         onPress={onPrevDay}
-        style={[styles.dateChip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
-        <Icon name="calendar" size={15} color={theme.colors.textSecondary} />
-        <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '600' }]} numberOfLines={1}>
-          {dateLabel}
+        style={[styles.chip, styles.dateChip, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
+        <Icon name="chevron-left" size={16} color={theme.colors.textSecondary} />
+        <Icon name="calendar" size={16} color={theme.colors.textSecondary} />
+        <Text style={[styles.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          Previous day
         </Text>
       </Pressable>
       <Pressable
@@ -39,17 +42,18 @@ export function SalesDateChipRow({ dateLabel, isToday, onPrevDay, onToday }: Sal
         accessibilityState={{ selected: isToday }}
         onPress={onToday}
         style={[
-          styles.todayChip,
-          { backgroundColor: isToday ? theme.colors.primary : theme.colors.border, borderRadius: theme.radii.md },
+          styles.chip,
+          { backgroundColor: isToday ? activeFill : theme.colors.cardFill, borderColor: isToday ? activeFill : theme.colors.cardBorder },
         ]}>
-        <Text style={[theme.typography.label, { color: isToday ? theme.colors.primaryText : theme.colors.text, fontWeight: '700' }]}>Today</Text>
+        <Text style={[styles.label, { color: isToday ? activeInk : theme.colors.textSecondary }]}>Today</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { marginTop: 16, flexDirection: 'row', gap: 8 },
-  dateChip: { flex: 1, height: 42, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
-  todayChip: { height: 42, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: 8 },
+  chip: { height: 36, borderRadius: 18, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  dateChip: { paddingLeft: 10 },
+  label: { fontSize: 13, fontWeight: '600', flexShrink: 1 },
 });

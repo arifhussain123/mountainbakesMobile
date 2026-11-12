@@ -82,11 +82,25 @@ export function OnboardingScreen() {
 
   const currentSlide = ONBOARDING_SLIDES[index];
 
-  const buttonHeight = size(54, 48, 60);
+  const buttonHeight = size(52, 48, 58);
   const buttonLabelSize = size(16, 15, 18);
 
   return (
     <Screen glow="warm" contentStyle={styles.container}>
+      {/* Redesign B02: dots on the left, Skip on the right, above the art. */}
+      <View style={[styles.topRow, { width: SLIDE_WIDTH, alignSelf: 'center' }]}>
+        <View accessibilityLabel={`Page ${index + 1} of ${SLIDE_COUNT}`}>
+          <PagerDots count={SLIDE_COUNT} scrollProgress={scrollProgress} />
+        </View>
+        {currentSlide.showSkip ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Skip onboarding" onPress={finish} hitSlop={12} style={styles.skip}>
+            <Text style={[styles.skipLabel, { color: theme.colors.textSecondary }]}>Skip</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.skip} />
+        )}
+      </View>
+
       <Animated.FlatList
         ref={listRef}
         data={ONBOARDING_SLIDES}
@@ -104,8 +118,8 @@ export function OnboardingScreen() {
         style={[styles.list, { width: SLIDE_WIDTH, alignSelf: 'center' }]}
       />
 
-      {/* `insetBottom` is already applied by `Screen`'s SafeAreaView as padding — this adds the extra 16dp gap above it the spec calls for. */}
-      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: size(16, 12, 24) }]}>
+      {/* `insetBottom` is already applied by `Screen`'s SafeAreaView as padding — this adds the mockup's gap above it. */}
+      <View style={[styles.footer, { width: SLIDE_WIDTH, alignSelf: 'center', paddingBottom: size(24, 12, 40) }]}>
         <PillButton
           label={currentSlide.cta}
           onPress={handleNext}
@@ -114,28 +128,16 @@ export function OnboardingScreen() {
           height={buttonHeight}
           labelFontSize={buttonLabelSize}
         />
-
-        <View style={styles.pagerRow} accessibilityLabel={`Page ${index + 1} of ${SLIDE_COUNT}`}>
-          <PagerDots count={SLIDE_COUNT} scrollProgress={scrollProgress} />
-        </View>
-
-        {currentSlide.showSkip ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Skip onboarding" onPress={finish} style={styles.skip}>
-            <Text style={[styles.skipLabel, { color: theme.colors.primary }]}>Skip</Text>
-          </Pressable>
-        ) : (
-          <View style={styles.skip} />
-        )}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingTop: 8 },
+  container: { paddingTop: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 8 },
   list: { flex: 1 },
-  footer: { paddingHorizontal: 26, paddingBottom: 12 },
-  pagerRow: { marginTop: 16, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  skip: { marginTop: 4, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  skipLabel: { fontSize: 14, fontWeight: '700' },
+  footer: { paddingHorizontal: 24, paddingTop: 8 },
+  skip: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  skipLabel: { fontSize: 14, fontWeight: '600' },
 });

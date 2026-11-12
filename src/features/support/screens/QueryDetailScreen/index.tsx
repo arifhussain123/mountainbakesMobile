@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useSupportTickets } from '@/api';
 import { goBack, Routes, type RootStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, ErrorState, Icon, LoadingSkeleton, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { AppHeader, ErrorState, InfoBanner, LoadingSkeleton, Screen, SectionHeader, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { RecordPreview, ReplyThread } from '../../components';
 import { useSeenQueriesStore } from '../../store/seenQueriesStore';
@@ -56,31 +56,30 @@ export function QueryDetailScreen() {
   return (
     <Screen>
       <AppHeader title={ticket.ticketNumber} subtitle={ticket.referenceId} actions={[{ icon: 'close', onPress: goBack, accessibilityLabel: 'Close' }]} />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.statusRow}>
           <StatusBadge label={STATUS_LABEL[ticket.status]} variant={STATUS_VARIANT[ticket.status]} />
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint }]}>
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]}>
             Raised {formatDisplayDate(ticket.createdAt.slice(0, 10))} · {formatDisplayTime(ticket.createdAt)}
           </Text>
         </View>
 
         {ticket.referenceSnapshot ? <RecordPreview reference={ticket.referenceSnapshot} showOpenRecord /> : null}
 
-        <Text style={[theme.typography.sectionTitle, { color: theme.colors.text, marginTop: theme.spacing.lg }]}>Conversation</Text>
-        <View style={{ marginTop: theme.spacing.sm }}>
-          <ReplyThread ticket={ticket} />
-        </View>
+        <SectionHeader title="Conversation" />
+        <ReplyThread ticket={ticket} />
 
         {/* No reopen/withdraw action — Step 0 confirmed neither endpoint exists server-side. */}
         {ticket.status !== 'open' ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.lg }}>
-            <Icon name="info" size={14} color={theme.colors.textFaint} />
-            <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginLeft: 6, flex: 1 }]}>
-              This query is {STATUS_LABEL[ticket.status].toLowerCase()}. Raise a new query if the issue isn't fixed.
-            </Text>
-          </View>
+          <InfoBanner kind="info">{`This query is ${STATUS_LABEL[ticket.status].toLowerCase()}. Raise a new query if the issue isn't fixed.`}</InfoBanner>
         ) : null}
       </ScrollView>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  body: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32, gap: 16 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  xs: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontWeight: '500', textAlign: 'right' },
+});

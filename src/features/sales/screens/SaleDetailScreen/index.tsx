@@ -1,20 +1,20 @@
-import { Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { ScrollView, Share, Text, View } from 'react-native';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useOrder } from '@/api';
 import type { SalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, Icon, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
+import { Card, ErrorState, HeroSurface, ListThumb, LoadingSkeleton, PrimaryButton, Screen, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
-import { PAYMENT_LABEL, paymentMethodColor } from '../../components/SaleCard';
+import { BackAppBar, Eyebrow, FLAT_CARD, HERO_TYPE, HeroMini, PAYMENT_LABEL, paymentMethodColor, TYPE, useHeroInk } from '../../components';
 import { buildSaleReceiptText } from '../../receipt';
 import { styles } from './styles';
 
 /**
- * No Sale Detail screen exists in `mountainbakesBranch.html` — modeled after
- * `ProductionOrderDetailScreen`'s layout convention instead (AppHeader with
- * id/branch, a status badge, an itemized table, a Share-based "print").
+ * No Sale Detail screen exists in the mockups — laid out in the 2026 redesign's
+ * language instead: back + id/branch, a violet total hero, the customer, an
+ * itemized list, the totals summary and a Share-based "print".
  *
  * Branch roles can only view + reprint a sale — there is no edit/void
  * endpoint for a branch role (only a `super_admin`-only Help Desk ticket can
@@ -25,12 +25,13 @@ export function SaleDetailScreen() {
   const route = useRoute<RouteProp<SalesStackParamList, 'SaleDetail'>>();
   const { orderId } = route.params;
   const { data: order, isLoading, error, refetch } = useOrder(orderId);
+  const { ink: heroInk, muted: heroMuted } = useHeroInk();
 
   if (isLoading) {
     return (
       <Screen>
-        <AppHeader title="Sale" />
-        <View style={{ padding: theme.spacing.lg }}>
+        <BackAppBar title="Sale" />
+        <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
       </Screen>
@@ -40,121 +41,116 @@ export function SaleDetailScreen() {
   if (error || !order) {
     return (
       <Screen>
-        <AppHeader title="Sale" />
+        <BackAppBar title="Sale" />
         <ErrorState message={error ? mapErrorToMessage(error) : 'This sale could not be found.'} onRetry={() => void refetch()} />
       </Screen>
     );
   }
 
   const payColor = paymentMethodColor(theme, order.paymentMethod);
+  const payLabel = PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod;
   const handleReprint = () => {
     void Share.share({ message: buildSaleReceiptText(order), title: `${order.orderNumber} — Receipt` });
   };
 
   return (
     <Screen>
-      <AppHeader title={order.orderNumber} subtitle={order.branchName} />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <StatusBadge label="Synced" variant="success" />
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-            {formatDisplayDate(order.businessDate)} · {formatDisplayTime(order.createdAt)}
+      <BackAppBar title={order.orderNumber} subtitle={order.branchName} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <HeroSurface style={styles.hero}>
+          <View style={styles.heroHead}>
+            <Text style={[HERO_TYPE.eyebrow, { color: heroMuted }]}>Grand total</Text>
+          </View>
+          <Text style={[HERO_TYPE.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {formatCurrency(order.grandTotal)}
           </Text>
+          <View style={styles.miniRow}>
+            <HeroMini label="Date" value={formatDisplayDate(order.businessDate)} />
+            <HeroMini label="Time" value={formatDisplayTime(order.createdAt)} />
+            <HeroMini label="Payment" value={payLabel} />
+          </View>
+        </HeroSurface>
+        <View style={styles.statusRow}>
+          <StatusBadge label="Synced" variant="success" />
         </View>
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>CUSTOMER</Text>
-        <Card style={{ marginTop: theme.spacing.sm }}>
-          <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{order.customerName || 'Walking Customer'}</Text>
-          {order.customerPhone ? (
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>{order.customerPhone}</Text>
-          ) : null}
+        <Eyebrow>Customer</Eyebrow>
+        <Card style={[FLAT_CARD, styles.customer]}>
+          <ListThumb icon="user" index={1} />
+          <View style={styles.grow}>
+            <Text style={[TYPE.h3s, { color: theme.colors.text }]}>{order.customerName || 'Walking Customer'}</Text>
+            {order.customerPhone ? <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>{order.customerPhone}</Text> : null}
+          </View>
         </Card>
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>ITEMS</Text>
-        <Card style={{ marginTop: theme.spacing.sm }}>
+        <Eyebrow>Items</Eyebrow>
+        <Card style={[FLAT_CARD, styles.list]}>
           {order.items.map((item, index) => (
             <View
               key={item.productId || item.productName}
-              style={[styles.itemRow, { borderBottomColor: theme.colors.border, borderBottomWidth: index < order.items.length - 1 ? 1 : 0 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
+              style={[styles.itemRow, { borderTopColor: theme.colors.border, borderTopWidth: index === 0 ? 0 : 1 }]}>
+              <ListThumb text={initials(item.productName)} index={index} />
+              <View style={styles.grow}>
+                <Text style={[TYPE.h3s, { color: theme.colors.text }]} numberOfLines={1}>
                   {item.productName}
                 </Text>
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>
+                <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
                   {item.qty} × {formatCurrency(item.unitPrice)}
-                  {item.discount > 0 ? ` · -${formatCurrency(item.discount)} disc.` : ''}
+                  {item.discount > 0 ? ` · −${formatCurrency(item.discount)} disc.` : ''}
                 </Text>
               </View>
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(item.lineTotal)}</Text>
+              <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.lineTotal)}</Text>
             </View>
           ))}
         </Card>
 
-        <Card style={{ marginTop: theme.spacing.lg }}>
-          <View style={styles.totalsRow}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Subtotal</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text }]}>{formatCurrency(order.subtotal)}</Text>
+        <Card style={[FLAT_CARD, styles.sum]}>
+          <SumRow label="Subtotal" value={formatCurrency(order.subtotal)} />
+          {order.discountTotal > 0 ? <SumRow label="Discount" value={`− ${formatCurrency(order.discountTotal)}`} valueColor={theme.colors.danger} /> : null}
+          {order.taxAmount > 0 ? <SumRow label="Government tax" value={formatCurrency(order.taxAmount)} /> : null}
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.between}>
+            <Text style={[styles.grandLabel, { color: theme.colors.text }]}>Grand total</Text>
+            <Text style={[styles.grandValue, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
           </View>
-          {order.discountTotal > 0 ? (
-            <View style={styles.totalsRow}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Discount</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.danger }]}>-{formatCurrency(order.discountTotal)}</Text>
-            </View>
-          ) : null}
-          {order.taxAmount > 0 ? (
-            <View style={styles.totalsRow}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Government Tax</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{formatCurrency(order.taxAmount)}</Text>
-            </View>
-          ) : null}
-          <View style={[styles.totalsRow, { borderTopWidth: 1, borderTopColor: theme.colors.border, marginTop: 4, paddingTop: 10 }]}>
-            <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]}>Grand Total</Text>
-            <Text style={[theme.typography.cardTitle, { color: theme.colors.primary }]}>{formatCurrency(order.grandTotal)}</Text>
-          </View>
-          <View style={[styles.totalsRow, { marginTop: 6 }]}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Payment</Text>
-            <Text style={[theme.typography.body, { color: payColor, fontWeight: '700' }]}>
-              {PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}
-            </Text>
-          </View>
-          {order.receivedCash != null ? (
-            <View style={styles.totalsRow}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Received Cash</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{formatCurrency(order.receivedCash)}</Text>
-            </View>
-          ) : null}
-          {order.cashReturned != null ? (
-            <View style={styles.totalsRow}>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Cash Returned</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.success }]}>{formatCurrency(order.cashReturned)}</Text>
-            </View>
-          ) : null}
+          <SumRow label="Payment" value={payLabel} valueColor={payColor} />
+          {order.receivedCash != null ? <SumRow label="Received cash" value={formatCurrency(order.receivedCash)} /> : null}
+          {order.cashReturned != null ? <SumRow label="Cash returned" value={formatCurrency(order.cashReturned)} valueColor={theme.colors.success} /> : null}
         </Card>
 
         {order.notes ? (
           <>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>NOTES</Text>
-            <Card style={{ marginTop: theme.spacing.sm }}>
-              <Text style={[theme.typography.body, { color: theme.colors.text }]}>{order.notes}</Text>
+            <Eyebrow>Notes</Eyebrow>
+            <Card style={FLAT_CARD}>
+              <Text style={[TYPE.p, { color: theme.colors.text }]}>{order.notes}</Text>
             </Card>
           </>
         ) : null}
 
-        <View style={styles.printRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Reprint receipt"
-            onPress={handleReprint}
-            style={[styles.printButton, { backgroundColor: theme.colors.primary }]}>
-            <Icon name="printer" size={16} color={theme.colors.primaryText} />
-            <Text style={[theme.typography.body, { color: theme.colors.primaryText, fontWeight: '700' }]}>Reprint Receipt</Text>
-          </Pressable>
-        </View>
+        <PrimaryButton label="Reprint Receipt" onPress={handleReprint} />
 
-        <View style={{ marginTop: theme.spacing.md }}>
-          <ReportIssueAction referenceId={order.orderNumber} />
-        </View>
+        <ReportIssueAction referenceId={order.orderNumber} />
       </ScrollView>
     </Screen>
+  );
+}
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('');
+
+
+
+function SumRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  const theme = useAppTheme();
+  return (
+    <View style={styles.between}>
+      <Text style={[styles.sumLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.sumValue, { color: valueColor ?? theme.colors.text }]}>{value}</Text>
+    </View>
   );
 }

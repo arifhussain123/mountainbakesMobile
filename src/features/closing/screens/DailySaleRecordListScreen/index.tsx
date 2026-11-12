@@ -9,8 +9,25 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { openDrawer, Routes, type ClosingStackParamList } from '@/navigation';
 import { useAppTheme, type PastelTone } from '@/shared/theme';
-import { AppHeader, Card, DateRangeSheet, EmptyState, ErrorState, type FilterChipOption, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, PastelTile, PillButton, Screen, SearchBar } from '@/shared/ui';
-import { formatCurrency, formatDisplayTime, type DateRange } from '@/shared/utils';
+import {
+  AccentFill,
+  AppHeader,
+  DateRangeSheet,
+  EmptyState,
+  ErrorState,
+  type FilterChipOption,
+  FilterChipRow,
+  FormBottomSheet,
+  Icon,
+  type IconName,
+  InfoBanner,
+  LoadingSkeleton,
+  MiniStat,
+  Screen,
+  SearchBar,
+  StatCard,
+} from '@/shared/ui';
+import { formatCurrency, formatDisplayDate, formatDisplayTime, type DateRange } from '@/shared/utils';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import {
@@ -55,21 +72,60 @@ const STATUS_OPTIONS: FilterChipOption<StatusFilter>[] = [
   { value: 'verified', label: 'Verified' },
 ];
 
-const TILE_DOTS = ['#FF6B35', '#34C38A', '#5A8DEE', '#F5B800', '#FF5A5F', '#8A7A6D'];
-
-/** "01–12 OCT" when the range sits in one month, else "01 OCT – 12 NOV". */
+/** "01–12 Oct" when the range sits in one month, else "01 Oct – 12 Nov". */
 function formatRangeLabel(from: string, to: string): string {
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T00:00:00`);
   if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return `${from} – ${to}`;
   const fromDay = String(fromDate.getDate()).padStart(2, '0');
   const toDay = String(toDate.getDate()).padStart(2, '0');
-  const fromMonth = fromDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-  const toMonth = toDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const fromMonth = fromDate.toLocaleDateString('en-US', { month: 'short' });
+  const toMonth = toDate.toLocaleDateString('en-US', { month: 'short' });
   if (fromMonth === toMonth && fromDate.getFullYear() === toDate.getFullYear()) {
     return `${fromDay}–${toDay} ${toMonth}`;
   }
   return `${fromDay} ${fromMonth} – ${toDay} ${toMonth}`;
+}
+
+/** The redesign's small `btn(…, 'sm')`: 38pt, icon + label — saffron gradient when `primary`, white outlined otherwise. */
+function SmallButton({
+  label,
+  icon,
+  primary,
+  disabled,
+  accessibilityLabel,
+  onPress,
+}: {
+  label: string;
+  icon: IconName;
+  primary?: boolean;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  onPress: () => void;
+}) {
+  const theme = useAppTheme();
+  const ink = primary ? theme.colors.primaryText : theme.colors.text;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.smallButton,
+        primary
+          ? { backgroundColor: theme.colors.primary, borderWidth: 0 }
+          : { backgroundColor: theme.isDark ? 'transparent' : theme.colors.surface, borderColor: theme.colors.border },
+        { opacity: disabled ? 0.6 : pressed ? 0.85 : 1 },
+      ]}>
+      {primary ? <AccentFill borderRadius={14} /> : null}
+      <Icon name={icon} size={18} color={ink} />
+      <Text style={[styles.smallButtonText, { color: ink }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 /** branchApp.md screen 21 — Daily Sale Record: takings against what was physically counted. */
@@ -181,13 +237,6 @@ export function DailySaleRecordListScreen() {
     manualFeedSheetRef.current?.present();
   };
 
-  const openOverflowMenu = () => {
-    Alert.alert('More actions', undefined, [
-      { text: `Generate Today (${today})`, onPress: () => handleGenerate(today) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
   const summary = data?.summary;
   const rangeFrom = data?.from ?? dateRange.from;
   const rangeTo = data?.to ?? dateRange.to;
@@ -199,165 +248,134 @@ export function DailySaleRecordListScreen() {
     { value: 'notCounted', label: 'Not counted', count: counts.notCounted },
   ];
 
+  const isGeneratingToday = generatingDate === today;
+  const offlineFill = theme.isDark ? theme.colors.cardFill : '#EEF0F8';
+
+  const tiles = summary
+    ? [
+        { label: 'Cash', value: summary.cash },
+        { label: 'Easypaisa', value: summary.easypaisa },
+        { label: 'Foodpanda', value: summary.foodpanda },
+        { label: 'Bank', value: summary.bank },
+        { label: 'Expense', value: summary.cashExpense },
+        { label: 'Discount', value: summary.discount },
+      ]
+    : [];
+
   return (
     <Screen>
       <AppHeader
         title="Daily Sale Record"
-        subtitle="Committee Chowk Branch · takings vs what was counted"
-        actions={[
-          ...appearanceActions,
-          bellAction,
-          { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' },
-          { icon: 'more', onPress: openOverflowMenu, accessibilityLabel: 'More actions' },
-        ]}
+        subtitle="The day's takings against what was physically counted."
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
       />
-
-      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint }]}>
-          Sales and expenses are never changed by this screen.
-        </Text>
-        <View style={{ marginTop: 10 }}>
-          <PillButton label="Count today" onPress={() => openManualFeed(today)} showArrow />
-        </View>
-        {showingCache ? (
-          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, marginTop: 10 }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
-            </Text>
-          </View>
-        ) : null}
-      </View>
 
       <FlatList
         data={filteredRecords}
         keyExtractor={(item) => item.businessDate}
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={styles.content}
         ListHeaderComponent={
-          <View>
+          <View style={styles.header}>
+            <View style={styles.grid2}>
+              <SmallButton
+                label={isGeneratingToday ? 'Generating…' : 'Generate today'}
+                icon="refresh"
+                primary
+                disabled={isGeneratingToday}
+                accessibilityLabel={`Generate today (${today})`}
+                onPress={() => handleGenerate(today)}
+              />
+              <SmallButton label="Manual feed" icon="pencil" onPress={() => openManualFeed(today)} accessibilityLabel="Manual feed for today" />
+            </View>
+            <Text style={[styles.xs, { color: theme.colors.textFaint, marginTop: -8 }]}>Sales and expenses are never changed by this screen.</Text>
+
+            {showingCache ? (
+              <View style={[styles.offlinePill, { backgroundColor: offlineFill }]}>
+                <Text style={[styles.xs, { color: theme.colors.textSecondary }]}>
+                  Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
+                </Text>
+              </View>
+            ) : null}
+
             {isLoading ? <LoadingSkeleton height={100} /> : null}
             {error && !showingCache ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
 
             {summary ? (
               <>
-                <View style={{ marginTop: theme.spacing.md }}>
-                  <DailySaleHeroCard
-                    rangeLabel={formatRangeLabel(rangeFrom, rangeTo)}
-                    totalSale={summary.totalSale}
-                    companyShare={aggregates.companyShare}
-                    branchShare={aggregates.branchShare}
-                    cashOnTable={aggregates.cashOnTable}
-                  />
-                </View>
+                <DailySaleHeroCard
+                  rangeLabel={formatRangeLabel(rangeFrom, rangeTo)}
+                  totalSale={summary.totalSale}
+                  companyShare={aggregates.companyShare}
+                  branchShare={aggregates.branchShare}
+                  cashOnTable={aggregates.cashOnTable}
+                />
 
-                <View style={[styles.tilesGrid, { marginTop: theme.spacing.sm }]}>
-                  {(
-                    [
-                      { label: 'Cash', value: summary.cash },
-                      { label: 'Easypaisa', value: summary.easypaisa },
-                      { label: 'Foodpanda', value: summary.foodpanda },
-                      { label: 'Bank', value: summary.bank },
-                      { label: 'Expense', value: summary.cashExpense },
-                      { label: 'Discount', value: summary.discount },
-                    ] as const
-                  ).map((t, i) => (
-                    <PastelTile
-                      tone={(i % 5) as PastelTone}
-                      key={t.label}
-                      style={[
-                        styles.tile,
-                        { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.lg, padding: 11 },
-                      ]}>
-                      <View style={styles.tileDotRow}>
-                        <View style={[styles.tileDot, { backgroundColor: TILE_DOTS[i] }]} />
-                        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{t.label}</Text>
-                      </View>
-                      <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 4 }]}>{formatCurrency(t.value)}</Text>
-                    </PastelTile>
+                <View style={styles.tiles}>
+                  {[tiles.slice(0, 3), tiles.slice(3, 6)].map((row, r) => (
+                    <View key={`row-${r}`} style={styles.tileRow}>
+                      {row.map((t, i) => (
+                        <StatCard key={t.label} label={t.label} value={formatCurrency(t.value)} tone={((r * 3 + i) % 5) as PastelTone} />
+                      ))}
+                    </View>
                   ))}
                 </View>
 
-                <View style={{ marginTop: theme.spacing.sm }}>
-                  <DailySaleDifferenceCard difference={summary.difference} />
-                </View>
-                <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>Counted days only.</Text>
+                <DailySaleDifferenceCard difference={summary.difference} />
 
-                <View style={{ marginTop: theme.spacing.sm, gap: 8 }}>
-                  {summary.uncounted > 0 ? (
-                    <View
-                      style={[
-                        styles.banner,
-                        { backgroundColor: `${theme.colors.warning}17`, borderColor: `${theme.colors.warning}48`, borderRadius: theme.radii.md, padding: 11 },
-                      ]}>
-                      <Icon name="warning" size={15} color={theme.colors.warning} />
-                      <Pressable onPress={() => setQuickFilter('notCounted')} style={{ flex: 1 }}>
-                        <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]}>
-                          {summary.uncounted} day{summary.uncounted === 1 ? ' has' : 's have'} nothing counted yet, so the Difference covers only
-                          the days that do.
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                  {summary.difference !== 0 ? (
-                    <View
-                      style={[
-                        styles.banner,
-                        { backgroundColor: `${theme.colors.danger}14`, borderColor: `${theme.colors.danger}48`, borderRadius: theme.radii.md, padding: 11 },
-                      ]}>
-                      <Icon name="warning" size={15} color={theme.colors.danger} />
-                      <Pressable onPress={() => setQuickFilter('hasDifference')} style={{ flex: 1 }}>
-                        <Text style={[theme.typography.bodySmall, { color: theme.colors.text }]}>
-                          This window is out by{' '}
-                          <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>{formatDifferenceAmount(summary.difference)}</Text>.
-                          Open each day with a difference and check it against the counted amount.
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
+                {summary.difference !== 0 ? (
+                  <Pressable accessibilityRole="button" onPress={() => setQuickFilter('hasDifference')}>
+                    <InfoBanner kind="bad">
+                      <Text style={[styles.bannerText, { color: theme.colors.danger }]}>
+                        This window is out by <Text style={styles.bold}>{formatDifferenceAmount(summary.difference)}</Text>. Open each day with a
+                        difference and check it against the counted amount.
+                      </Text>
+                    </InfoBanner>
+                  </Pressable>
+                ) : null}
+                {summary.uncounted > 0 ? (
+                  <Pressable accessibilityRole="button" onPress={() => setQuickFilter('notCounted')}>
+                    <InfoBanner kind="warn">
+                      {`${summary.uncounted} day${summary.uncounted === 1 ? ' has' : 's have'} nothing counted yet, so the Difference covers only the days that do.`}
+                    </InfoBanner>
+                  </Pressable>
+                ) : null}
               </>
             ) : null}
 
             {dsrWindow.beforeStart ? (
-              <View
-                accessibilityRole="text"
-                style={[styles.banner, { marginTop: theme.spacing.md, borderColor: theme.colors.cardBorder, borderStyle: 'dashed', borderRadius: theme.radii.md, padding: 11 }]}>
-                <Icon name="info" size={15} color={theme.colors.primary} />
-                <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, flex: 1 }]}>
-                  <Text style={{ fontWeight: '700', color: theme.colors.text }}>{dailySaleBeforeStartNotice().title}</Text> {dailySaleBeforeStartNotice().body}
+              <InfoBanner kind="info">
+                <Text style={[styles.bannerText, { color: theme.colors.info }]}>
+                  <Text style={styles.bold}>{dailySaleBeforeStartNotice().title}</Text> {dailySaleBeforeStartNotice().body}
                 </Text>
-              </View>
+              </InfoBanner>
             ) : null}
 
-            <View style={{ marginTop: theme.spacing.md }}>
-              <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date or status…" />
-            </View>
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search by date or status…" />
 
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <View style={styles.chipRow}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={`Date range ${dateRangeLabel}. Change`}
                 onPress={() => dateRangeSheetRef.current?.present()}
-                style={[styles.dateChip, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, flex: 1 }]}>
-                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
+                style={[styles.toolChip, styles.grow, { borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill }]}>
+                <Icon name="calendar" size={16} color={theme.colors.textFaint} />
+                <Text style={[styles.toolChipText, { color: theme.colors.text }]} numberOfLines={1}>
                   {dateRangeLabel}
                 </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => sortSheetRef.current?.present()}
-                style={[styles.dateChip, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, flexDirection: 'row', gap: 6 }]}>
-                <Icon name="bar-chart" size={12} color={theme.colors.text} />
-                <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Sort</Text>
+                style={[styles.toolChip, { borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill }]}>
+                <Icon name="sort" size={16} color={theme.colors.textFaint} />
+                <Text style={[styles.toolChipText, { color: theme.colors.text }]}>Sort</Text>
               </Pressable>
             </View>
 
-            <View style={{ marginTop: 10 }}>
-              <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
-            </View>
-            <View style={{ marginTop: 8 }}>
+            <FilterChipRow options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+            <View style={{ marginTop: -8 }}>
               <FilterChipRow options={quickFilterOptions} value={quickFilter} onChange={setQuickFilter} />
             </View>
-
-            <View style={{ height: theme.spacing.sm }} />
           </View>
         }
         ListEmptyComponent={
@@ -378,34 +396,18 @@ export function DailySaleRecordListScreen() {
         )}
         ListFooterComponent={
           filteredRecords.length > 0 ? (
-            <View>
-              <Card style={[styles.aggregateCard, { marginTop: theme.spacing.sm }]}>
-                <View style={styles.aggregateItem}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Total sale</Text>
-                  <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>
-                    {formatCurrency(aggregates.totalSale)}
-                  </Text>
+            <View style={styles.footer}>
+              <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+                <View style={styles.tintRow}>
+                  <MiniStat label="Total sale" value={formatCurrency(aggregates.totalSale)} />
+                  <MiniStat label="Company share" value={formatCurrency(aggregates.companyShare)} />
                 </View>
-                <View style={styles.aggregateItem}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Company share</Text>
-                  <Text style={[theme.typography.cardTitle, { color: theme.colors.danger, marginTop: 2 }]}>
-                    {formatCurrency(aggregates.companyShare)}
-                  </Text>
+                <View style={styles.tintRow}>
+                  <MiniStat label="Cash on table" value={formatCurrency(aggregates.cashOnTable)} />
+                  <MiniStat label="Discount" value={formatCurrency(aggregates.discount)} />
                 </View>
-                <View style={[styles.aggregateItem, { marginTop: theme.spacing.sm }]}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Cash on table</Text>
-                  <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>
-                    {formatCurrency(aggregates.cashOnTable)}
-                  </Text>
-                </View>
-                <View style={[styles.aggregateItem, { marginTop: theme.spacing.sm }]}>
-                  <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Discount</Text>
-                  <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 2 }]}>
-                    {formatCurrency(aggregates.discount)}
-                  </Text>
-                </View>
-              </Card>
-              <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.md }]}>
+              </View>
+              <Text style={[styles.sm, { color: theme.colors.textSecondary, textAlign: 'center' }]}>
                 {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}
               </Text>
             </View>
@@ -418,7 +420,7 @@ export function DailySaleRecordListScreen() {
       <FormBottomSheet
         ref={manualFeedSheetRef}
         title="Manual Feed"
-        subtitle={manualFeedDate ? manualFeedDate : undefined}
+        subtitle={manualFeedDate ? formatDisplayDate(manualFeedDate) : undefined}
         onRequestClose={() => manualFeedSheetRef.current?.dismiss()}
         onDismiss={() => setManualFeedDate(null)}>
         {manualFeedDate ? (

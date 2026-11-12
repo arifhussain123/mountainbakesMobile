@@ -91,3 +91,18 @@ export type { SyncBadgeProps } from './SyncBadge';
 
 export { TextField } from './TextField';
 export type { TextFieldProps } from './TextField';
+
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
+
+export { InfoBanner } from './InfoBanner';
+export type { InfoBannerKind, InfoBannerProps } from './InfoBanner';
+
+export { MiniStat } from './MiniStat';
+export type { MiniStatProps } from './MiniStat';
+
+export { SectionHeader } from './SectionHeader';
+export type { SectionHeaderProps } from './SectionHeader';
+
+export { ListThumb } from './ListThumb';
+export type { ListThumbProps } from './ListThumb';

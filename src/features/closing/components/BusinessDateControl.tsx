@@ -10,6 +10,8 @@ export interface BusinessDateControlProps {
   onChange: (date: string) => void;
   /** 'YYYY-MM-DD' — dates after this are shown but not selectable (today, in practice). */
   maxDate: string;
+  /** A one-line note under the field. */
+  help?: string;
 }
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -31,7 +33,7 @@ function toIso(year: number, month: number, day: number): string {
  * month-grid calendar-modal pattern rather than adding one, with its own
  * trigger row to match this screen's exact copy/shape.
  */
-export function BusinessDateControl({ value, onChange, maxDate }: BusinessDateControlProps) {
+export function BusinessDateControl({ value, onChange, maxDate, help }: BusinessDateControlProps) {
   const theme = useAppTheme();
   const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(() => new Date(`${value}T00:00:00`).getFullYear());
@@ -72,22 +74,23 @@ export function BusinessDateControl({ value, onChange, maxDate }: BusinessDateCo
 
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Change business date"
-        onPress={handleOpen}
-        style={[styles.field, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
-        <Text style={[theme.typography.body, { fontWeight: '700' }]}>
-          <Text style={{ color: theme.colors.textSecondary, fontWeight: '600' }}>Business date · </Text>
-          <Text style={{ color: theme.colors.text }}>{formatDisplayDate(value)}</Text>
-        </Text>
-        <Icon name="calendar" size={14} color={theme.colors.textSecondary} />
-      </Pressable>
+      <View>
+        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>Business date</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Business date ${formatDisplayDate(value)}. Change business date`}
+          onPress={handleOpen}
+          style={[styles.field, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.border, borderRadius: theme.radii.lg }]}>
+          <Text style={[styles.value, { color: theme.colors.text }]}>{formatDisplayDate(value)}</Text>
+          <Icon name="calendar" size={20} color={theme.colors.textFaint} />
+        </Pressable>
+        {help ? <Text style={[styles.help, { color: theme.colors.textFaint }]}>{help}</Text> : null}
+      </View>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: theme.colors.overlay }]} onPress={() => setOpen(false)}>
           <Pressable
-            style={[styles.sheet, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, borderRadius: theme.radii.lg }]}
+            style={[styles.sheet, { backgroundColor: theme.isDark ? theme.colors.background : '#F7F5FF', borderColor: theme.colors.border, borderRadius: 26 }]}
             onPress={(event) => event.stopPropagation()}>
             <View style={styles.header}>
               <Pressable accessibilityRole="button" onPress={() => shiftMonth(-1)} style={styles.navButton}>
@@ -117,13 +120,13 @@ export function BusinessDateControl({ value, onChange, maxDate }: BusinessDateCo
                     accessibilityRole="button"
                     disabled={disabled}
                     onPress={() => handleSelect(day)}
-                    style={[styles.dayCell, selected ? { backgroundColor: theme.colors.primary, borderRadius: theme.radii.sm } : null]}>
+                    style={[styles.dayCell, selected ? { backgroundColor: theme.colors.primary, borderRadius: 12 } : null]}>
                     <Text
                       style={[
                         theme.typography.bodySmall,
                         {
                           color: selected ? theme.colors.primaryText : disabled ? theme.colors.textFaint : theme.colors.text,
-                          fontWeight: selected ? '700' : '400',
+                          fontWeight: '600',
                           opacity: disabled ? 0.4 : 1,
                         },
                       ]}>
@@ -144,7 +147,9 @@ export function BusinessDateControl({ value, onChange, maxDate }: BusinessDateCo
 }
 
 const styles = StyleSheet.create({
-  field: { height: 44, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  field: { height: 52, marginTop: 8, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  value: { fontSize: 15, fontWeight: '500' },
+  help: { fontSize: 12, lineHeight: 17, marginTop: 7 },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   sheet: { width: '100%', maxWidth: 360, borderWidth: 1, padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
@@ -152,6 +157,6 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row' },
   weekCell: { width: `${100 / 7}%`, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-  dayCell: { width: `${100 / 7}%`, height: 36, alignItems: 'center', justifyContent: 'center' },
+  dayCell: { width: `${100 / 7}%`, height: 38, alignItems: 'center', justifyContent: 'center' },
   closeRow: { marginTop: 8, alignItems: 'center' },
 });

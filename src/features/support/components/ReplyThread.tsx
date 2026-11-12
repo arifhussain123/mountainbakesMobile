@@ -17,32 +17,40 @@ export interface ReplyThreadProps {
 export function ReplyThread({ ticket }: ReplyThreadProps) {
   const theme = useAppTheme();
 
+  const mine = theme.isDark
+    ? { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }
+    : { backgroundColor: theme.colors.surface, borderColor: theme.colors.cardBorder };
+
   return (
-    <View>
-      <View style={[styles.bubble, { backgroundColor: theme.colors.cardFill, alignSelf: 'flex-start' }]}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' }]}>
+    <View style={styles.thread}>
+      <View style={[styles.bubble, styles.mine, mine]}>
+        <Text style={[styles.meta, { color: theme.colors.textFaint }]}>
           {ticket.raisedByName ?? 'You'} · {formatDisplayDate(ticket.createdAt.slice(0, 10))} {formatDisplayTime(ticket.createdAt)}
         </Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{ticket.message}</Text>
+        <Text style={[styles.p, { color: theme.colors.text }]}>{ticket.message}</Text>
       </View>
 
       {ticket.resolutionNote ? (
-        <View style={[styles.bubble, { backgroundColor: `${theme.colors.success}1A`, alignSelf: 'flex-end', marginTop: 10 }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.success, fontWeight: '700' }]}>
+        <View style={[styles.bubble, styles.theirs, { backgroundColor: `${theme.colors.success}1A`, borderColor: `${theme.colors.success}33` }]}>
+          <Text style={[styles.meta, { color: theme.colors.success }]}>
             {ticket.resolvedByName ?? 'Admin'}
             {ticket.resolvedAt ? ` · ${formatDisplayDate(ticket.resolvedAt.slice(0, 10))} ${formatDisplayTime(ticket.resolvedAt)}` : ''}
           </Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>{ticket.resolutionNote}</Text>
+          <Text style={[styles.p, { color: theme.colors.text }]}>{ticket.resolutionNote}</Text>
         </View>
       ) : (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textFaint, marginTop: 10 }]}>
-          Waiting for Admin to reply.
-        </Text>
+        <Text style={[styles.sm, { color: theme.colors.textFaint }]}>Waiting for Admin to reply.</Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bubble: { maxWidth: '88%', borderRadius: 14, padding: 12 },
+  thread: { gap: 10 },
+  bubble: { maxWidth: '88%', borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 4 },
+  mine: { alignSelf: 'flex-start', borderBottomLeftRadius: 6 },
+  theirs: { alignSelf: 'flex-end', borderBottomRightRadius: 6 },
+  meta: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  p: { fontSize: 15, lineHeight: 21 },
+  sm: { fontSize: 13, lineHeight: 18 },
 });

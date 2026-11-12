@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
-import { FormBottomSheet, Icon, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
-import { formatCurrency } from '@/shared/utils';
+import { FormBottomSheet, Icon, InfoBanner, MiniStat, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
+import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { useManualFeedForm, type ManualFeedChannel } from '../../hooks';
-import { NoteCounter } from '../../components';
+import { NoteCounter, Pill } from '../../components';
 import { styles } from './styles';
 import type { DailySaleRecord, PaymentMethodLock } from '@/api';
 
@@ -40,55 +40,64 @@ function ChannelField({
   onCountNotes?: () => void;
 }) {
   const theme = useAppTheme();
+  const [focused, setFocused] = useState(false);
+  const typed = value.trim() !== '';
+  // "Changed" when the typed figure replaces an earlier count, "New" for a first count.
+  const changePill =
+    !typed || locked ? null : countedValue === null ? 'new' : parseFloat(value) !== countedValue ? 'changed' : null;
 
   return (
-    <View style={[styles.fieldCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{CHANNEL_LABEL[channel]}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+    <View style={styles.field}>
+      <View style={styles.between}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>{CHANNEL_LABEL[channel]}</Text>
           {locked ? <Icon name="lock" size={14} color={theme.colors.textFaint} /> : null}
           <StatusBadge label={countedValue !== null ? 'Counted' : 'Not counted'} variant={countedValue !== null ? 'success' : 'neutral'} />
         </View>
+        <Text style={[styles.xs, { color: theme.colors.textFaint }]}>
+          {channel === 'cash' ? 'Cash on table' : 'System'}: {formatCurrency(autoValue)}
+        </Text>
       </View>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 4 }]}>
-        {channel === 'cash' ? 'Cash on table' : 'System'} {formatCurrency(autoValue)}
-      </Text>
-      {helper ? <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{helper}</Text> : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder="Counted amount"
-          placeholderTextColor={theme.colors.textSecondary}
-          keyboardType="decimal-pad"
-          editable={!locked}
+      {helper ? <Text style={[styles.help, { color: theme.colors.textFaint }]}>{helper}</Text> : null}
+      <View style={styles.inputRow}>
+        <View
           style={[
-            styles.amountInput,
-            { flex: 1, borderColor: theme.colors.border, color: locked ? theme.colors.textFaint : theme.colors.text, opacity: locked ? 0.6 : 1 },
-          ]}
-        />
+            styles.input,
+            {
+              backgroundColor: theme.colors.cardFill,
+              borderColor: focused ? theme.colors.primary : theme.colors.border,
+              opacity: locked ? 0.6 : 1,
+            },
+          ]}>
+          <Text style={[styles.pre, { color: theme.colors.textFaint }]}>Rs.</Text>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={countedValue !== null ? 'Leave blank to keep' : 'Counted amount'}
+            placeholderTextColor={theme.colors.textFaint}
+            keyboardType="decimal-pad"
+            editable={!locked}
+            accessibilityLabel={`${CHANNEL_LABEL[channel]} counted amount`}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={[styles.textInput, { color: locked ? theme.colors.textFaint : theme.colors.text }]}
+          />
+          {changePill === 'changed' ? <Pill label="Changed" kind="berry" /> : changePill === 'new' ? <Pill label="New" kind="brand" /> : null}
+        </View>
         {onCountNotes && !locked ? (
           <Pressable
             accessibilityRole="button"
             onPress={onCountNotes}
-            style={{
-              height: 44,
-              paddingHorizontal: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]}>Count notes</Text>
+            style={[styles.notesButton, { borderColor: theme.colors.border, backgroundColor: theme.isDark ? 'transparent' : theme.colors.surface }]}>
+            <Text style={[styles.notesButtonText, { color: theme.colors.text }]}>Count notes</Text>
           </Pressable>
         ) : null}
       </View>
       {diff !== null ? (
         <Text
           style={[
-            theme.typography.label,
-            { marginTop: 6, color: diff === 0 ? theme.colors.success : Math.abs(diff) >= 1000 ? theme.colors.danger : theme.colors.warning },
+            styles.xs,
+            { color: diff === 0 ? theme.colors.success : Math.abs(diff) >= 1000 ? theme.colors.danger : theme.colors.warning },
           ]}>
           {diff === 0 ? 'Matches the system figure' : `${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'over' : 'short'}`}
         </Text>
@@ -97,7 +106,7 @@ function ChannelField({
   );
 }
 
-/** branchApp.md screen 22 — Manual Daily Sale Feed, presented as a bottom sheet (addressed by business date, not a record id). */
+/** branchApp.md screen 22 — Manual Daily Sale Feed, presented as a bottom sheet (addressed by business date, not a record id). Redesign B22: a lavender date/total strip, then one "Rs." field per countable channel with its system figure on the right. */
 export function ManualFeedSheetContent({ businessDate, record, locks, onClose }: ManualFeedSheetContentProps) {
   const theme = useAppTheme();
   const form = useManualFeedForm(businessDate, record, locks);
@@ -130,15 +139,11 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
 
   if (form.recordLocked) {
     return (
-      <View>
-        <View style={[styles.fieldCard, { borderColor: theme.colors.warning, backgroundColor: `${theme.colors.warning}17` }]}>
-          <Text style={[theme.typography.body, { color: theme.colors.text }]}>
-            This day has been verified and can't be changed. Contact Admin.
-          </Text>
-        </View>
-        <View style={styles.actionsRow}>
-          <SecondaryButton label="Close" onPress={onClose} />
-        </View>
+      <View style={styles.stack}>
+        <InfoBanner kind="warn" icon="lock">
+          This day has been verified and can&apos;t be changed. Contact Admin.
+        </InfoBanner>
+        <SecondaryButton label="Close" onPress={onClose} />
       </View>
     );
   }
@@ -148,7 +153,12 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
     : 'Count the notes in the drawer.';
 
   return (
-    <View>
+    <View style={styles.stack}>
+      <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+        <MiniStat label="Business date" value={formatDisplayDate(businessDate)} />
+        <MiniStat label="Total sale" value={record ? formatCurrency(record.autoTotalSale) : '—'} />
+      </View>
+
       <ChannelField
         channel="cash"
         value={form.inputs.cash}
@@ -182,13 +192,11 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
         diff={form.liveDifference('bank')}
       />
 
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm }]}>
-        Leave a field blank to leave that figure as it is. Foodpanda is settled by the aggregator and isn't counted here.
+      <Text style={[styles.help, { color: theme.colors.textFaint }]}>
+        Leave a field blank to leave that figure as it is. Foodpanda is settled by the aggregator and isn&apos;t counted here.
       </Text>
 
-      {form.submitError ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: theme.spacing.md }]}>{form.submitError}</Text>
-      ) : null}
+      {form.submitError ? <Text style={[theme.typography.bodySmall, { color: theme.colors.danger }]}>{form.submitError}</Text> : null}
 
       <View style={styles.actionsRow}>
         <View style={{ flex: 1 }}>

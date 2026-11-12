@@ -5,7 +5,7 @@ import { getBusinessDate, getReportExportCsv, useReportSummary, useSalesAnalytic
 import { useAppTheme } from '@/shared/theme';
 import { useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
-import { DateRangeSheet, EmptyState, ErrorState, FilterChipRow, Icon, LoadingSkeleton, Screen, type FilterChipOption } from '@/shared/ui';
+import { DateRangeSheet, EmptyState, ErrorState, Icon, InfoBanner, LoadingSkeleton, Screen, SegmentedControl, type SegmentedOption } from '@/shared/ui';
 import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import {
@@ -14,6 +14,7 @@ import {
   PackingMaterialsList,
   PaymentMethodsCard,
   ReportsHeader,
+  ReportsHero,
   SalesTrendChart,
   TopProductsList,
   type KpiItem,
@@ -22,10 +23,10 @@ import { computeAvgOrderValue, computeNet } from '../../calculations';
 import { formatRangeLabel, rangeIncludesToday, resolveReportRange, stepReportRange, type ReportRange, type UiReportPeriod } from '../../ranges';
 import { styles } from './styles';
 
-const TABS: FilterChipOption<'trend' | 'topProducts' | 'packing'>[] = [
-  { value: 'trend', label: 'Sales Trend' },
-  { value: 'topProducts', label: 'Top Products' },
-  { value: 'packing', label: 'Packing Materials' },
+const TABS: SegmentedOption<'trend' | 'topProducts' | 'packing'>[] = [
+  { value: 'trend', label: 'Trend' },
+  { value: 'topProducts', label: 'Top products' },
+  { value: 'packing', label: 'Packing' },
 ];
 
 interface ReportsCachePayload {
@@ -118,20 +119,12 @@ export function ReportsScreen() {
   };
 
   const comparison = data?.analytics.comparison;
+  const revenueDelta = comparison && comparison.changePct !== null ? { pct: comparison.changePct, direction: comparison.direction } : undefined;
+  // 2026 redesign B23: Revenue, orders, net and expenses sit on the violet hero; the pastel tiles carry the rest.
   const kpis: KpiItem[] = data
     ? [
-        { id: 'orders', label: 'Total Orders', value: String(data.summary.totalOrders), icon: 'hash' },
-        {
-          id: 'revenue',
-          label: 'Revenue',
-          value: formatCurrency(data.summary.totalRevenue),
-          icon: 'wallet',
-          delta: comparison && comparison.changePct !== null ? { pct: comparison.changePct, direction: comparison.direction } : undefined,
-        },
-        { id: 'avg', label: 'Avg. Order Value', value: formatCurrency(computeAvgOrderValue(data.summary.totalRevenue, data.summary.totalOrders, data.summary.totalCancelled)), icon: 'bar-chart' },
+        { id: 'avg', label: 'Avg order value', value: formatCurrency(computeAvgOrderValue(data.summary.totalRevenue, data.summary.totalOrders, data.summary.totalCancelled)), icon: 'bar-chart' },
         { id: 'cancelled', label: 'Cancelled', value: String(data.summary.totalCancelled), icon: 'rotate-ccw', muted: data.summary.totalCancelled === 0 },
-        { id: 'expenses', label: 'Expenses', value: formatCurrency(data.summary.totalExpenses), icon: 'minus' },
-        { id: 'net', label: 'Net (Sales − Expenses)', value: formatCurrency(computeNet(data.summary.totalRevenue, data.summary.totalExpenses)), icon: 'trending-up', valueColor: theme.colors.success },
       ]
     : [];
 
@@ -141,7 +134,7 @@ export function ReportsScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.lg }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.xxl, gap: theme.spacing.lg }}
         refreshControl={
           <RefreshControl
             refreshing={summary.isRefetching || analytics.isRefetching}
@@ -162,28 +155,19 @@ export function ReportsScreen() {
           }}
           onStep={handleStep}
           onOpenExport={() => exportSheetRef.current?.present()}
+          onPressRange={period === 'custom' ? () => customRangeSheetRef.current?.present() : undefined}
         />
 
-        {period === 'custom' ? (
-          <View style={{ marginTop: theme.spacing.sm }}>
-            <Text
-              onPress={() => customRangeSheetRef.current?.present()}
-              style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>
-              Change custom range
-            </Text>
-          </View>
-        ) : null}
+        <SegmentedControl options={TABS} value={tab} onChange={setTab} />
 
         {showingCache ? (
-          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, marginTop: theme.spacing.sm }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline
-            </Text>
-          </View>
+          <InfoBanner kind="warn" icon="clock">
+            {`Last updated ${formatDisplayTime(new Date(cached!.updatedAt).toISOString())} · Offline`}
+          </InfoBanner>
         ) : null}
 
         {isLoading ? (
-          <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.sm }}>
+          <View style={{ gap: theme.spacing.md }}>
             <LoadingSkeleton height={160} />
             <LoadingSkeleton height={120} />
           </View>
@@ -192,58 +176,62 @@ export function ReportsScreen() {
 
         {data ? (
           <>
-            <View style={{ marginTop: theme.spacing.md }}>
-              <KpiGrid items={kpis} />
-            </View>
-
-            <View style={{ marginTop: theme.spacing.sm }}>
-              <PaymentMethodsCard methods={data.analytics.paymentMethods} />
-            </View>
+            <ReportsHero
+              revenue={formatCurrency(data.summary.totalRevenue)}
+              totalOrders={data.summary.totalOrders}
+              net={formatCurrency(computeNet(data.summary.totalRevenue, data.summary.totalExpenses))}
+              expenses={formatCurrency(data.summary.totalExpenses)}
+              delta={revenueDelta}
+            />
+            <KpiGrid items={kpis} />
           </>
         ) : null}
 
-        <View style={{ marginTop: theme.spacing.md }}>
-          <FilterChipRow options={TABS} value={tab} onChange={setTab} />
-        </View>
+        {tab === 'trend' && data ? (
+          data.analytics.daily.length > 0 ? (
+            <SalesTrendChart data={data.analytics.daily} />
+          ) : (
+            <EmptyState icon="bar-chart" title="No Sales Yet" message="Sales for this range will appear here." />
+          )
+        ) : null}
 
-        <View style={{ marginTop: theme.spacing.sm }}>
-          {tab === 'trend' && data ? (
-            data.analytics.daily.length > 0 ? (
-              <SalesTrendChart data={data.analytics.daily} />
+        {tab === 'topProducts' && data ? (
+          data.analytics.topProducts.length > 0 ? (
+            <TopProductsList products={data.analytics.topProducts} />
+          ) : (
+            <EmptyState icon="bar-chart" title="No Sales Yet" message="Top products for this range will appear here." />
+          )
+        ) : null}
+
+        {tab === 'packing' ? (
+          <View style={{ gap: theme.spacing.md }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Packing range ${formatRangeLabel(packingRange)}. Change`}
+              onPress={() => packingRangeSheetRef.current?.present()}
+              style={[
+                styles.rangeChip,
+                { backgroundColor: theme.colors.cardFill, borderColor: theme.isDark ? theme.colors.border : '#E6E1FA' },
+              ]}>
+              <Icon name="calendar" size={16} color={theme.colors.textFaint} />
+              <Text style={[styles.rangeText, { color: theme.colors.text }]} numberOfLines={1}>
+                {formatRangeLabel(packingRange)}
+              </Text>
+              <Text style={[styles.rangeChange, { color: theme.colors.primary }]}>Change</Text>
+            </Pressable>
+            {packing.isLoading ? (
+              <LoadingSkeleton height={120} />
+            ) : packing.error ? (
+              <ErrorState message={mapErrorToMessage(packing.error)} onRetry={() => void packing.refetch()} />
+            ) : packing.data && packing.data.usage.length > 0 ? (
+              <PackingMaterialsList rows={packing.data.usage} />
             ) : (
-              <EmptyState title="No Sales Yet" message="Sales for this range will appear here." />
-            )
-          ) : null}
+              <EmptyState icon="box" title="No Packing Requests" message="Packing material usage for this range will appear here." />
+            )}
+          </View>
+        ) : null}
 
-          {tab === 'topProducts' && data ? (
-            data.analytics.topProducts.length > 0 ? (
-              <TopProductsList products={data.analytics.topProducts} />
-            ) : (
-              <EmptyState title="No Sales Yet" message="Top products for this range will appear here." />
-            )
-          ) : null}
-
-          {tab === 'packing' ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => packingRangeSheetRef.current?.present()}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: theme.spacing.sm }}>
-                <Icon name="calendar" size={12} color={theme.colors.primary} />
-                <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>{formatRangeLabel(packingRange)}</Text>
-              </Pressable>
-              {packing.isLoading ? (
-                <LoadingSkeleton height={120} />
-              ) : packing.error ? (
-                <ErrorState message={mapErrorToMessage(packing.error)} onRetry={() => void packing.refetch()} />
-              ) : packing.data && packing.data.usage.length > 0 ? (
-                <PackingMaterialsList rows={packing.data.usage} />
-              ) : (
-                <EmptyState title="No Packing Requests" message="Packing material usage for this range will appear here." />
-              )}
-            </>
-          ) : null}
-        </View>
+        {data ? <PaymentMethodsCard methods={data.analytics.paymentMethods} /> : null}
       </ScrollView>
 
       <ExportMenu ref={exportSheetRef} onExportCsv={() => void handleExportCsv()} exporting={exporting} onRequestClose={() => exportSheetRef.current?.dismiss()} />

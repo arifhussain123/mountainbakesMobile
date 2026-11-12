@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import LinearGradient from 'react-native-linear-gradient';
 import Animated, { Extrapolation, interpolate, useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { images } from '@/assets';
 import { Routes, type AuthStackParamList } from '@/navigation';
 import { useNetworkStatus } from '@/shared/hooks';
-import { useAppTheme, useResponsive } from '@/shared/theme';
-import { Checkbox, Icon, PasswordField, PillButton, Screen, TextField } from '@/shared/ui';
+import { HERO_GRADIENT, useAppTheme, useResponsive } from '@/shared/theme';
+import { Checkbox, Icon, InfoBanner, PasswordField, PillButton, Screen, Sphere3D, TextField } from '@/shared/ui';
 import { useAuthStore } from '@/state';
 import { loginSchema, type LoginFormValues } from '../../loginSchema';
 import { mapLoginError } from '../../mapLoginError';
@@ -21,7 +23,9 @@ import { styles } from './styles';
 // keyboard height (which this doesn't need to match pixel-for-pixel, only
 // read as "shrinking as the keyboard rises").
 const KEYBOARD_SHRINK_RANGE = 150;
-const LOGIN_LOGO_SHRUNK = 56;
+const LOGIN_LOGO_SHRUNK = 48;
+/** Redesign B02c: the violet header is 220pt tall including the status bar (rounded 36 at the bottom, in styles). */
+const HERO_HEIGHT = 220;
 
 export function LoginScreen() {
   const theme = useAppTheme();
@@ -29,16 +33,18 @@ export function LoginScreen() {
   const rememberedEmail = useAuthStore((state) => state.rememberedEmail);
   const { isOffline } = useNetworkStatus();
   const loginMutation = useLogin();
-  const { width, size, clamp, contentWidth } = useResponsive();
-  const logoSize = clamp(80, width * 0.24, 120);
+  const insets = useSafeAreaInsets();
+  const { size, contentWidth } = useResponsive();
+  const logoSize = size(64, 56, 76);
   const fieldHeight = size(52, 48, 56);
   const inputFontSize = size(15, 14, 17);
   const labelFontSize = size(13, 12, 15);
   const buttonHeight = size(54, 48, 58);
   const buttonLabelSize = size(16, 15, 18);
   const maxWidth = contentWidth(420);
-  const headlineSize = size(34, 28, 40);
+  const headlineSize = size(32, 28, 38);
   const headlineSizeShrunk = size(26, 22, 30);
+  const heroHeight = Math.max(HERO_HEIGHT, insets.top + 160);
 
   // `useAnimatedKeyboard()` tracks the native keyboard's own show/hide
   // animation on the UI thread, so this stays perfectly in sync with it
@@ -52,7 +58,7 @@ export function LoginScreen() {
   });
   const headlineAnimatedStyle = useAnimatedStyle(() => {
     const shrunkSize = interpolate(keyboardOpenFraction.value, [0, 1], [headlineSize, headlineSizeShrunk]);
-    return { fontSize: shrunkSize, lineHeight: shrunkSize * 1.125 };
+    return { fontSize: shrunkSize, lineHeight: shrunkSize * 1.19 };
   });
 
   const [rememberMe, setRememberMe] = useState(true);
@@ -88,26 +94,49 @@ export function LoginScreen() {
 
   const busy = isSubmitting || loginMutation.isPending;
 
+  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const heroContent = (
+    <>
+      {theme.isDark ? null : (
+        <>
+          <Sphere3D size={150} tone="saffron" style={{ right: -30, top: 18 }} />
+          <Sphere3D size={70} ring style={{ right: 10, bottom: -34 }} />
+        </>
+      )}
+      <View style={[styles.heroInner, { maxWidth, paddingTop: insets.top }]}>
+        <Animated.Image source={images.logo} style={[styles.logo, logoAnimatedStyle]} />
+        <Animated.Text
+          accessibilityRole="header"
+          maxFontSizeMultiplier={1.2}
+          style={[styles.headline, { color: onHero }, headlineAnimatedStyle]}>
+          Welcome back
+        </Animated.Text>
+      </View>
+    </>
+  );
+
   return (
-    <Screen glow="warm">
+    <Screen glow="none" edges={['bottom', 'left', 'right']}>
+      {/* Light status-bar icons over the violet header; unmounting restores the theme's own style. */}
+      <StatusBar barStyle="light-content" />
       <Pressable style={styles.flex} onPress={Keyboard.dismiss} accessible={false}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.xl }]}
-            keyboardShouldPersistTaps="handled">
-            <View style={{ width: '100%', maxWidth, alignSelf: 'center' }}>
-              <Animated.Image source={images.logo} style={[styles.logo, logoAnimatedStyle]} />
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
+            {/* ── Violet hero header (behind the status bar) ── */}
+            {theme.isDark ? (
+              <View style={[styles.hero, { minHeight: heroHeight, backgroundColor: theme.colors.primary }]}>{heroContent}</View>
+            ) : (
+              <LinearGradient
+                colors={[...HERO_GRADIENT]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.6, y: 1 }}
+                style={[styles.hero, styles.heroLift, { minHeight: heroHeight }]}>
+                {heroContent}
+              </LinearGradient>
+            )}
 
-              <Animated.Text
-                accessibilityRole="header"
-                maxFontSizeMultiplier={1.2}
-                style={[theme.typography.screenTitle, styles.headline, { color: theme.colors.text }, headlineAnimatedStyle]}>
-                WELCOME{'\n'}
-                <Text style={{ color: theme.colors.primary }}>BACK</Text>
-              </Animated.Text>
-              <Text
-                maxFontSizeMultiplier={1.2}
-                style={[theme.typography.body, styles.subtitle, { color: theme.colors.textSecondary, fontSize: size(14, 13, 16) }]}>
+            <View style={[styles.body, { maxWidth, padding: theme.spacing.xl }]}>
+              <Text maxFontSizeMultiplier={1.2} style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
                 Sign in to open your branch.
               </Text>
 
@@ -162,43 +191,48 @@ export function LoginScreen() {
                 )}
               />
 
+              {/* ── Remember me · Forgot password ── */}
               <View style={styles.rememberRow}>
-                <Checkbox checked={rememberMe} onChange={setRememberMe} accessibilityLabel="Remember me" testID="login-remember-me" />
-                <View style={styles.rememberTextCol}>
-                  <View style={styles.rememberHeaderRow}>
-                    <Text style={[theme.typography.bodySmall, { color: theme.colors.text, fontWeight: '600' }]}>Remember me</Text>
-                    <Pressable accessibilityRole="link" onPress={() => navigation.navigate(Routes.FORGOT_PASSWORD)}>
-                      <Text style={[theme.typography.label, { color: theme.colors.primary, fontWeight: '700' }]}>Forgot password?</Text>
-                    </Pressable>
+                <View style={styles.rememberLeft}>
+                  <Checkbox checked={rememberMe} onChange={setRememberMe} accessibilityLabel="Remember me" testID="login-remember-me" />
+                  <View style={styles.rememberTextCol}>
+                    <Text style={[styles.rememberTitle, { color: theme.colors.text }]}>Remember me</Text>
+                    <Text style={[styles.xs, { color: theme.colors.textFaint }]}>Fills in your email next time.</Text>
                   </View>
-                  <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 4 }]}>
-                    Fills in your email next time. Your password is never saved.
-                  </Text>
                 </View>
+                <Pressable accessibilityRole="link" onPress={() => navigation.navigate(Routes.FORGOT_PASSWORD)} hitSlop={10}>
+                  <Text style={[styles.link, { color: theme.colors.primary }]}>Forgot password?</Text>
+                </Pressable>
               </View>
 
               {bannerError ? (
-                <View style={[styles.banner, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.danger }]}>
-                  <Text accessibilityLiveRegion="assertive" style={[theme.typography.bodySmall, styles.bannerText, { color: theme.colors.danger }]}>
-                    {bannerError}
-                  </Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setBannerError(null)}>
-                    <Icon name="close" size={16} color={theme.colors.danger} />
-                  </Pressable>
-                </View>
+                <InfoBanner kind="bad" style={styles.banner}>
+                  <View style={styles.bannerRow}>
+                    <Text accessibilityLiveRegion="assertive" style={[styles.bannerText, { color: theme.colors.danger }]}>
+                      {bannerError}
+                    </Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setBannerError(null)} hitSlop={10}>
+                      <Icon name="close" size={16} color={theme.colors.danger} />
+                    </Pressable>
+                  </View>
+                </InfoBanner>
               ) : null}
 
-              <View style={{ marginTop: theme.spacing.xl }}>
-                <PillButton
-                  label="Sign In"
-                  onPress={() => void onSubmit()}
-                  loading={busy}
-                  disabled={busy}
-                  showArrow
-                  height={buttonHeight}
-                  labelFontSize={buttonLabelSize}
-                  testID="login-submit"
-                />
+              <View style={styles.spacer} />
+
+              <PillButton
+                label="Sign In"
+                onPress={() => void onSubmit()}
+                loading={busy}
+                disabled={busy}
+                showArrow
+                height={buttonHeight}
+                labelFontSize={buttonLabelSize}
+                testID="login-submit"
+              />
+              <View style={styles.lockNote}>
+                <Icon name="lock" size={14} color={theme.colors.textFaint} />
+                <Text style={[styles.xs, { color: theme.colors.textFaint }]}>Your password is never saved on this phone.</Text>
               </View>
             </View>
           </ScrollView>

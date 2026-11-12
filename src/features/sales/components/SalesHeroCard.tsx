@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { HERO_CHIP, useAppTheme } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 
 export interface SalesHeroCardProps {
@@ -7,39 +7,37 @@ export interface SalesHeroCardProps {
   total: string;
   /** Gross = qty × rate, before discount. */
   gross: string;
-  /** Total discount taken off list price. */
+  /** Total discount taken off list price, already signed for display (e.g. "− Rs. 50"). */
   discount: string;
 }
 
+/** Honey — the mockup's discount figure on the violet hero. */
+const HONEY = '#FFD36E';
+
 /**
- * Design `09 Sales` lines 442-447 — the orange "TOTAL SALES" hero card with two
- * nested dark tiles (Gross / Discount) inside it. Not a generic `StatCard` row:
- * this is its own filled-orange shape, so it gets a dedicated component.
+ * Redesign `09 Sales` — the violet hero: "Total sales · after discount", the
+ * big figure, then Gross (qty × rate) and Discount side by side.
  */
 export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
   const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const ink = theme.isDark ? theme.colors.primaryText : HERO_CHIP.text;
+  const muted = theme.isDark ? theme.colors.primaryText : HERO_CHIP.textMuted;
 
   return (
-    <HeroSurface style={[styles.hero]}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.eyebrow, { color: onHero }]}>TOTAL SALES</Text>
-        <Text style={[styles.eyebrow, { color: onHero }]}>CHARGED, AFTER DISCOUNT</Text>
-      </View>
-      <Text style={[styles.amount, { color: onHero }]}>{total}</Text>
-      <View style={styles.tileRow}>
-        {/* `ON_DARK_CHIP` — a fixed dark chip inside the accent-colored hero
-            card regardless of theme mode/accent, not a themed surface. */}
-        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md }]}>
-          <Text style={styles.tileLabel}>Gross (qty × rate)</Text>
-          <Text style={styles.tileValue}>{gross}</Text>
-          <Text style={styles.tileSub}>Before discount</Text>
+    <HeroSurface style={styles.hero}>
+      <Text style={[styles.eyebrow, { color: muted }]}>Total sales · after discount</Text>
+      <Text style={[styles.amount, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {total}
+      </Text>
+      <View style={styles.row}>
+        <View style={styles.col}>
+          <Text style={[styles.sm, { color: muted }]}>Gross (qty × rate)</Text>
+          <Text style={[styles.value, { color: ink }]}>{gross}</Text>
         </View>
-        <View style={[styles.tile, { backgroundColor: ON_DARK_CHIP.fill, borderRadius: theme.radii.md }]}>
-          <Text style={styles.tileLabel}>Discount</Text>
-          <Text style={styles.tileValue}>{discount}</Text>
-          <Text style={styles.tileSub}>Off list price</Text>
+        <View style={styles.col}>
+          <Text style={[styles.sm, { color: muted }]}>Discount</Text>
+          <Text style={[styles.value, { color: theme.isDark ? ink : HONEY }]}>{discount}</Text>
         </View>
       </View>
     </HeroSurface>
@@ -47,13 +45,11 @@ export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
 }
 
 const styles = StyleSheet.create({
-  hero: { padding: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
-  amount: { marginTop: 8, fontSize: 32, fontWeight: '700' },
-  tileRow: { marginTop: 14, flexDirection: 'row', gap: 10 },
-  tile: { flex: 1, paddingHorizontal: 12, paddingVertical: 9 },
-  tileLabel: { fontSize: 11, fontWeight: '600', color: ON_DARK_CHIP.textMuted },
-  tileValue: { marginTop: 2, fontSize: 15, fontWeight: '700', color: ON_DARK_CHIP.text },
-  tileSub: { fontSize: 10, fontWeight: '500', color: ON_DARK_CHIP.text, opacity: 0.75 },
+  hero: { gap: 12 },
+  eyebrow: { fontSize: 12, lineHeight: 15, fontWeight: '600', letterSpacing: 0.6 },
+  amount: { fontSize: 34, lineHeight: 40, fontWeight: '600', letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  row: { flexDirection: 'row', gap: 24 },
+  col: { gap: 2 },
+  sm: { fontSize: 13, lineHeight: 18 },
+  value: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

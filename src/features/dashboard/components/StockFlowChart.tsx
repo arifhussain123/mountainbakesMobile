@@ -4,44 +4,38 @@ import { Card } from '@/shared/ui';
 import { formatCount } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 import { barScalePct } from '../calculations';
+import { dashType } from './dashType';
 
 export interface StockFlowChartProps {
   row: BranchStockHistoryRow;
 }
 
-/** Design lines 176-182 — "Stock Flow · Qty" 4-bar chart (Previous/New/Sold/Remaining). */
+/** "Stock flow · qty" — Previous / New / Sold / Remaining as four rounded bars. */
 export function StockFlowChart({ row }: StockFlowChartProps) {
   const theme = useAppTheme();
 
   const bars = [
-    { id: 'previous', label: 'PREVIOUS', value: row.openingQty, color: theme.colors.secondary },
-    { id: 'new', label: 'NEW', value: row.newQty, color: theme.colors.success },
-    { id: 'sold', label: 'SOLD', value: row.soldQty, color: theme.colors.danger },
-    { id: 'remaining', label: 'REMAINING', value: row.balanceQty, color: theme.colors.primary },
+    { id: 'previous', label: 'Previous', value: row.openingQty, color: theme.colors.lavender },
+    { id: 'new', label: 'New', value: row.newQty, color: theme.colors.success },
+    { id: 'sold', label: 'Sold', value: row.soldQty, color: theme.colors.danger },
+    { id: 'remaining', label: 'Remaining', value: row.balanceQty, color: theme.colors.primary },
   ];
   const max = Math.max(1, ...bars.map((bar) => (Number.isFinite(bar.value) ? bar.value : 0)));
 
   return (
-    <Card>
-      <Text style={[theme.typography.label, { color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.2 }]}>
-        Stock Flow · Qty
-      </Text>
-      <View style={[styles.chart, { marginTop: theme.spacing.md, borderBottomColor: theme.colors.border }]}>
+    <Card style={styles.card}>
+      <Text style={[dashType.h3, { color: theme.colors.text }]}>Stock flow · qty</Text>
+      <View style={styles.chart}>
         {bars.map((bar) => (
           <View key={bar.id} style={styles.column}>
-            <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCount(bar.value, `stockFlow.${bar.id}`)}</Text>
-            <View
-              style={[
-                styles.bar,
-                { height: `${Math.max(2, barScalePct(bar.value, max))}%`, backgroundColor: bar.color, borderRadius: theme.radii.sm },
-              ]}
-            />
+            <Text style={[dashType.amt, { color: theme.colors.text, fontSize: 14 }]}>{formatCount(bar.value, `stockFlow.${bar.id}`)}</Text>
+            <View style={[styles.bar, { height: `${Math.max(3, barScalePct(bar.value, max))}%`, backgroundColor: bar.color }]} />
           </View>
         ))}
       </View>
       <View style={styles.labelsRow}>
         {bars.map((bar) => (
-          <Text key={bar.id} style={[theme.typography.label, { color: theme.colors.textFaint, flex: 1, textAlign: 'center' }]} numberOfLines={1}>
+          <Text key={bar.id} style={[styles.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
             {bar.label}
           </Text>
         ))}
@@ -51,8 +45,10 @@ export function StockFlowChart({ row }: StockFlowChartProps) {
 }
 
 const styles = StyleSheet.create({
-  chart: { height: 150, flexDirection: 'row', alignItems: 'flex-end', borderBottomWidth: 1, gap: 18 },
+  card: { gap: 12 },
+  chart: { height: 140, flexDirection: 'row', alignItems: 'flex-end', gap: 14 },
   column: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
-  bar: { width: '100%' },
-  labelsRow: { flexDirection: 'row', marginTop: 6, gap: 18 },
+  bar: { width: '100%', borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 },
+  labelsRow: { flexDirection: 'row', gap: 14, marginTop: -6 },
+  label: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600' },
 });

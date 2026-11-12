@@ -42,43 +42,57 @@ export function QueryCard({ ticket, onPress }: QueryCardProps) {
 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} style={styles.touchTarget}>
-      <Card style={{ marginBottom: 10 }}>
+      {/* 2026 redesign B24: a flat card — "SUP-… · REF-…" over "Type · date · time", the status pill, then the message. */}
+      <Card style={[styles.card, theme.isDark ? null : styles.flat]}>
         <View style={styles.row}>
-          <View style={styles.titleRow}>
-            {referenceType ? <Icon name={referenceType.icon} size={16} color={theme.colors.textSecondary} /> : null}
-            <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginLeft: 6 }]}>{ticket.referenceId}</Text>
+          <View style={styles.titleBlock}>
+            <Text style={[styles.h3, { color: theme.colors.text }]} numberOfLines={1}>
+              {ticket.ticketNumber} · {ticket.referenceId}
+            </Text>
+            <Text style={[styles.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+              {[referenceType?.label, formatDisplayDate(dateStr), formatDisplayTime(ticket.createdAt)].filter(Boolean).join(' · ')}
+            </Text>
           </View>
           <StatusBadge label={STATUS_LABEL[ticket.status]} variant={STATUS_VARIANT[ticket.status]} />
         </View>
 
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 4 }]} numberOfLines={1}>
-          {recordSummary}
-        </Text>
+        {recordSummary !== ticket.referenceId ? (
+          <View style={styles.summaryRow}>
+            {referenceType ? <Icon name={referenceType.icon} size={14} color={theme.colors.textSecondary} /> : null}
+            <Text style={[styles.sm, { color: theme.colors.textSecondary, flex: 1 }]} numberOfLines={1}>
+              {recordSummary}
+            </Text>
+          </View>
+        ) : null}
 
-        <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 8 }]} numberOfLines={2}>
+        <Text style={[styles.p, { color: theme.colors.text }]} numberOfLines={2}>
           {ticket.message}
         </Text>
 
-        <View style={[styles.row, { marginTop: 10 }]}>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>
-            Raised {formatDisplayDate(dateStr)} · {formatDisplayTime(ticket.createdAt)}
-          </Text>
-          {ticket.resolutionNote ? (
-            <View style={styles.repliedRow}>
-              {unread ? <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} /> : null}
-              <Text style={[theme.typography.label, { color: theme.colors.success, fontWeight: '700' }]}>Admin replied</Text>
-            </View>
-          ) : null}
-        </View>
+        {ticket.resolutionNote ? (
+          <View style={styles.repliedRow}>
+            {unread ? <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} /> : null}
+            <Icon name="message-circle" size={14} color={theme.colors.success} />
+            <Text style={[styles.replied, { color: theme.colors.success }]}>Admin replied</Text>
+          </View>
+        ) : null}
       </Card>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  touchTarget: { minHeight: 44 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center' },
-  repliedRow: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  touchTarget: { minHeight: 44, marginBottom: 12 },
+  card: { gap: 10 },
+  flat: { shadowOpacity: 0, elevation: 0 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  titleBlock: { flex: 1, minWidth: 0, gap: 2 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  sm: { fontSize: 13, lineHeight: 18 },
+  p: { fontSize: 15, lineHeight: 21 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  repliedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  replied: { fontSize: 12, fontWeight: '700' },
+  dot: { width: 7, height: 7, borderRadius: 4 },
 });

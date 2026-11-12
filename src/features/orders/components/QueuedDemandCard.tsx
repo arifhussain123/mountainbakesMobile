@@ -15,22 +15,22 @@ export function QueuedDemandCard({ payload }: QueuedDemandCardProps) {
   const totalQty = (payload.items ?? []).reduce((sum, i) => sum + i.qty, 0);
 
   return (
-    <Card style={{ marginBottom: 10, opacity: 0.85 }}>
+    <Card style={styles.card}>
       <View style={styles.row}>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.textSecondary }]}>New demand</Text>
+        <Text style={[styles.h3, { color: theme.colors.textSecondary }]}>New demand</Text>
         <StatusBadge label="Waiting to sync" variant="neutral" />
       </View>
-      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 6 }]}>
+      <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
         {productCount} product{productCount === 1 ? '' : 's'} · {totalQty} units
         {payload.requiredDate ? ` · Required ${formatDisplayDate(payload.requiredDate)}` : ''}
       </Text>
-      <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 6 }]}>
-        Will submit automatically once you're back online.
-      </Text>
+      <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Will submit automatically once you're back online.</Text>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  card: { marginBottom: 12, gap: 6, opacity: 0.85 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  h3: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
 });

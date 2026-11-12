@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { Card, Icon } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
+import { FLAT_CARD, TYPE } from './RedesignBits';
 
 export interface ProductPickerRowProps {
   product: Product | null;
@@ -17,7 +18,13 @@ export interface ProductPickerRowProps {
   onRemove: () => void;
 }
 
-/** One line item in New Sale — CLAUDE.md Section 18: product/qty/price/discount/total. */
+/**
+ * One line item in New Sale (redesign `10 New Sale`): the product (tap to
+ * pick) with a ghost remove button, then the qty stepper beside "Rs. r each ·
+ * −Rs. d" and the line amount. The per-item discount stays its own small
+ * field under them — a sale's discount is entered per item, never for the
+ * whole sale.
+ */
 export function ProductPickerRow({
   product,
   qty,
@@ -32,78 +39,86 @@ export function ProductPickerRow({
 }: ProductPickerRowProps) {
   const theme = useAppTheme();
   const insufficient = availableQty != null && qty > availableQty;
+  // The row's own discount, back out of the amount the form already worked out.
+  const lineDiscount = product ? Math.max(0, product.price * qty - lineAmount) : 0;
+  const stepperBorder = insufficient ? theme.colors.danger : theme.colors.border;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderRadius: theme.radii.md }]}>
+    <Card style={[FLAT_CARD, styles.card]}>
       <View style={styles.topRow}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={product ? `Product ${product.name}, change` : 'Select product'}
           onPress={onPressSelect}
-          style={[styles.productButton, { backgroundColor: theme.colors.background, borderRadius: theme.radii.sm }]}>
-          <Text style={[theme.typography.body, { color: product ? theme.colors.text : theme.colors.textSecondary }]} numberOfLines={1}>
+          style={styles.productButton}>
+          <Text style={[TYPE.h3s, styles.productName, { color: product ? theme.colors.text : theme.colors.textFaint }]} numberOfLines={1}>
             {product ? product.name : 'Search product…'}
           </Text>
-          <Icon name="chevron-down" size={14} color={theme.colors.textSecondary} />
+          <Icon name="chevron-down" size={16} color={theme.colors.textFaint} />
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onRemove} style={styles.removeButton}>
-          <Icon name="close" size={16} color={theme.colors.danger} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Remove item" onPress={onRemove} hitSlop={8} style={styles.removeButton}>
+          <Icon name="close" size={18} color={theme.colors.textFaint} />
         </Pressable>
       </View>
 
-      <View style={styles.bottomRow}>
-        <View style={styles.qtyBlock}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>QTY</Text>
-          <View style={[styles.stepper, { borderColor: insufficient ? theme.colors.danger : theme.colors.border, borderRadius: theme.radii.sm }]}>
-            <Pressable onPress={onDecrement} style={styles.stepperButton}>
-              <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>−</Text>
-            </Pressable>
-            <Text style={[theme.typography.body, { color: theme.colors.text, minWidth: 24, textAlign: 'center' }]}>{qty}</Text>
-            <Pressable onPress={onIncrement} style={styles.stepperButton}>
-              <Text style={[theme.typography.body, { color: theme.colors.primary }]}>+</Text>
-            </Pressable>
+      <View style={styles.midRow}>
+        <View style={[styles.stepper, { borderColor: stepperBorder, backgroundColor: theme.colors.surface }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Decrease quantity" onPress={onDecrement} style={styles.stepperButton}>
+            <Text style={[styles.stepperSign, { color: theme.colors.textSecondary }]}>−</Text>
+          </Pressable>
+          <View style={[styles.stepperQty, { borderColor: stepperBorder }]}>
+            <Text style={[styles.qtyText, { color: theme.colors.text }]} accessibilityLabel={`Quantity ${qty}`}>
+              {qty}
+            </Text>
           </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Increase quantity" onPress={onIncrement} style={styles.stepperButton}>
+            <Text style={[styles.stepperSign, { color: theme.colors.primary }]}>+</Text>
+          </Pressable>
         </View>
-        <View style={styles.rateBlock}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>RATE</Text>
-          <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 10 }]}>{product ? formatCurrency(product.price) : '—'}</Text>
+        <View style={styles.amountCol}>
+          <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+            {product ? `${formatCurrency(product.price)} each` : 'No product yet'}
+            {lineDiscount > 0 ? ` · −${formatCurrency(lineDiscount)}` : ''}
+          </Text>
+          <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(lineAmount)}</Text>
         </View>
-        <View style={styles.discountBlock}>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>DISCOUNT</Text>
-          <TextInput
-            value={discountInput}
-            onChangeText={onChangeDiscount}
-            placeholder="0"
-            keyboardType="numeric"
-            style={[styles.discountInput, { borderColor: theme.colors.border, color: theme.colors.text, borderRadius: theme.radii.sm }]}
-          />
-        </View>
+      </View>
+
+      <View style={[styles.discountRow, { borderTopColor: theme.colors.border }]}>
+        <Text style={[TYPE.xs, { color: theme.colors.textSecondary }]}>Discount</Text>
+        <TextInput
+          value={discountInput}
+          onChangeText={onChangeDiscount}
+          placeholder="0"
+          placeholderTextColor={theme.colors.textFaint}
+          keyboardType="numeric"
+          accessibilityLabel="Item discount"
+          style={[styles.discountInput, { borderColor: theme.colors.border, color: theme.colors.text, backgroundColor: theme.colors.surface }]}
+        />
       </View>
 
       {insufficient ? (
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.danger, marginTop: 8 }]}>
+        <Text style={[TYPE.xs, { color: theme.colors.danger }]}>
           Insufficient Stock — Available: {availableQty} / Requested: {qty}
         </Text>
       ) : null}
-
-      <View style={[styles.amountRow, { borderTopColor: theme.colors.border }]}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Amount</Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{formatCurrency(lineAmount)}</Text>
-      </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, padding: 12, marginBottom: 8 },
+  card: { marginBottom: 10, gap: 10, paddingVertical: 14 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  productButton: { flex: 1, height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  removeButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
-  bottomRow: { flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'flex-end' },
-  qtyBlock: { flexShrink: 0 },
-  stepper: { flexDirection: 'row', alignItems: 'center', height: 36, borderWidth: 1, marginTop: 4 },
-  stepperButton: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  rateBlock: { flex: 1 },
-  discountBlock: { flex: 1 },
-  discountInput: { height: 36, borderWidth: 1, paddingHorizontal: 10, marginTop: 4, fontSize: 13 },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTopWidth: 1 },
+  productButton: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 },
+  productName: { flexShrink: 1 },
+  removeButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  midRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  stepper: { flexDirection: 'row', alignItems: 'stretch', height: 38, borderWidth: 1.5, borderRadius: 13, overflow: 'hidden' },
+  stepperButton: { width: 36, alignItems: 'center', justifyContent: 'center' },
+  stepperSign: { fontSize: 18, fontWeight: '600' },
+  stepperQty: { minWidth: 38, paddingHorizontal: 6, borderLeftWidth: 1, borderRightWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  qtyText: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  amountCol: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
+  discountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: 1, paddingTop: 10 },
+  discountInput: { width: 110, height: 36, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 0, fontSize: 14, fontWeight: '600', textAlign: 'right' },
 });

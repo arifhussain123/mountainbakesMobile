@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useBranchDiscounts } from '@/api';
 import type { DiscountsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
+import { Card, ErrorState, FormBottomSheet, HeroSurface, Icon, InfoBanner, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
+import { BackAppBar, Eyebrow, FLAT_CARD, HERO_TYPE, HeroMini, SmallButton, TYPE, useHeroInk } from '@/features/sales/components';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { DISCOUNT_STATUS_LABEL, DISCOUNT_STATUS_VARIANT, discountChangeActionLabel, isDiscountOpen } from '../../utils';
@@ -36,12 +37,13 @@ export function DiscountDetailScreen() {
   const requestSheetRef = useRef<BottomSheetModal>(null);
   const withdrawSheetRef = useRef<BottomSheetModal>(null);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const { ink: heroInk, muted: heroMuted } = useHeroInk();
 
   if (isLoading) {
     return (
       <Screen>
-        <AppHeader title="Discount Claim" />
-        <View style={{ padding: theme.spacing.lg }}>
+        <BackAppBar title="Discount Claim" />
+        <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
       </Screen>
@@ -51,7 +53,7 @@ export function DiscountDetailScreen() {
   if (error) {
     return (
       <Screen>
-        <AppHeader title="Discount Claim" />
+        <BackAppBar title="Discount Claim" />
         <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
       </Screen>
     );
@@ -60,8 +62,8 @@ export function DiscountDetailScreen() {
   if (!item) {
     return (
       <Screen>
-        <AppHeader title="Discount Claim" />
-        <Text style={[theme.typography.body, { color: theme.colors.textSecondary, padding: theme.spacing.lg }]}>
+        <BackAppBar title="Discount Claim" />
+        <Text style={[TYPE.p, { color: theme.colors.textSecondary, padding: 20 }]}>
           This claim is no longer in range — pull to refresh the Discounts list and reopen it.
         </Text>
       </Screen>
@@ -83,47 +85,51 @@ export function DiscountDetailScreen() {
 
   return (
     <Screen>
-      <AppHeader title={item.demandNumber} subtitle={item.branchName} />
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <BackAppBar title={item.demandNumber} subtitle={item.branchName} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <HeroSurface style={styles.hero}>
+          <Text style={[HERO_TYPE.eyebrow, { color: heroMuted }]}>Claimed amount</Text>
+          <Text style={[HERO_TYPE.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {formatCurrency(item.amount)}
+          </Text>
+          <View style={styles.miniRow}>
+            <HeroMini label="Claimed" value={formatDisplayDate(item.date)} />
+            <HeroMini label="Time" value={formatDisplayTime(item.createdAt)} />
+            <HeroMini label="Claim ID" value={item.id.slice(0, 8)} />
+          </View>
+        </HeroSurface>
+
+        <View style={styles.statusRow}>
           <StatusBadge label={DISCOUNT_STATUS_LABEL[item.status] ?? item.status} variant={DISCOUNT_STATUS_VARIANT[item.status] ?? 'neutral'} />
           {!isDiscountOpen(item.status) ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={styles.final}>
               <Icon name="lock" size={12} color={theme.colors.textFaint} />
-              <Text style={[theme.typography.label, { color: theme.colors.textFaint }]}>Final</Text>
+              <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Final</Text>
             </View>
           ) : null}
         </View>
 
-        <Card style={{ marginTop: theme.spacing.lg }}>
-          <View style={styles.row}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Amount</Text>
-            <Text style={[theme.typography.cardTitle, { color: theme.colors.primary }]}>{formatCurrency(item.amount)}</Text>
-          </View>
-          <AmountChangedNote item={item} />
-          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Claimed</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text }]}>
-              {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
-            </Text>
-          </View>
-          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-            <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>Claim ID</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.textFaint }]}>{item.id.slice(0, 8)}</Text>
-          </View>
-        </Card>
+        {item.originalAmount != null ? (
+          <Card style={[FLAT_CARD, styles.amountCard]}>
+            <View style={styles.row}>
+              <Text style={[TYPE.sm, { color: theme.colors.textSecondary }]}>Amount</Text>
+              <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+            </View>
+            <AmountChangedNote item={item} />
+          </Card>
+        ) : null}
 
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>REASON</Text>
-        <Card style={{ marginTop: theme.spacing.sm }}>
-          <Text style={[theme.typography.body, { color: theme.colors.text }]}>{item.reason}</Text>
+        <Eyebrow>Reason</Eyebrow>
+        <Card style={FLAT_CARD}>
+          <Text style={[TYPE.p, { color: theme.colors.text }]}>“{item.reason}”</Text>
         </Card>
 
         {item.reviewNote ? (
           <>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: theme.spacing.lg }]}>PRODUCTION'S NOTE</Text>
-            <Card style={{ marginTop: theme.spacing.sm }}>
-              <Text style={[theme.typography.body, { color: theme.colors.warning }]}>{item.reviewNote}</Text>
-            </Card>
+            <Eyebrow>Production's note</Eyebrow>
+            <InfoBanner kind="warn" icon="message-circle">
+              {item.reviewNote}
+            </InfoBanner>
           </>
         ) : null}
 
@@ -133,23 +139,25 @@ export function DiscountDetailScreen() {
 
         {canEdit ? (
           <View style={styles.actionsRow}>
-            <Pressable
-              accessibilityRole="button"
+            <SmallButton
+              size="sm"
+              kind="secondary"
+              icon="pencil"
+              label={discountChangeActionLabel(item.status)}
               onPress={() => requestSheetRef.current?.present()}
-              style={[styles.actionButton, { backgroundColor: theme.colors.border }]}>
-              <Icon name="pencil" size={14} color={theme.colors.text} />
-              <Text style={[theme.typography.body, { color: theme.colors.text, fontWeight: '700' }]}>{discountChangeActionLabel(item.status)}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
+              style={styles.action}
+            />
+            <SmallButton
+              size="sm"
+              kind="danger"
+              icon="trash"
+              label="Withdraw"
               onPress={() => {
                 setWithdrawOpen(true);
                 withdrawSheetRef.current?.present();
               }}
-              style={[styles.actionButton, { backgroundColor: `${theme.colors.danger}1A` }]}>
-              <Icon name="trash" size={14} color={theme.colors.danger} />
-              <Text style={[theme.typography.body, { color: theme.colors.danger, fontWeight: '700' }]}>Withdraw</Text>
-            </Pressable>
+              style={styles.action}
+            />
           </View>
         ) : null}
       </ScrollView>
@@ -173,3 +181,5 @@ export function DiscountDetailScreen() {
     </Screen>
   );
 }
+
+

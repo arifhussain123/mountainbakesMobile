@@ -3,6 +3,7 @@ import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View, type LayoutC
 import { openNewQuery } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
+import { tintFill } from './redesign';
 import type { StockRowWithDemand } from '../calculations';
 import { stockBalanceTone, stockCardColumns, type StockFigureTone } from '../stockCardColumns';
 
@@ -52,6 +53,8 @@ export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
   const isZero = row.balance === 0;
   const columns = stockCardColumns(row);
 
+  // A barely-there divider between the seven columns inside the lavender strip.
+  const columnRule = theme.isDark ? theme.colors.cardBorder : 'rgba(91, 72, 216, 0.12)';
   const toneColor = (tone: StockFigureTone) =>
     tone === 'positive' ? theme.colors.success : tone === 'negative' ? theme.colors.danger : theme.colors.text;
 
@@ -73,9 +76,9 @@ export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
           style={[
             styles.column,
             columnWidth ? { width: columnWidth } : { flex: 1 },
-            index > 0 ? { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: theme.colors.cardBorder } : null,
+            index > 0 ? { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: columnRule } : null,
           ]}>
-          <Text style={[styles.columnLabel, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+          <Text style={[styles.columnLabel, { color: theme.colors.textFaint }]} numberOfLines={2}>
             {column.label}
           </Text>
           <Text
@@ -95,17 +98,17 @@ export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
     <Card accessible accessibilityLabel={accessibilityLabel} style={[styles.card, isZero ? { opacity: 0.55 } : null]}>
       <View style={styles.header}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[theme.typography.cardTitle, { color: theme.colors.text }]} numberOfLines={2}>
+          <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={2}>
             {row.productName}
           </Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textSecondary, marginTop: 2 }]}>{row.stockCode}</Text>
+          <Text style={[styles.code, { color: theme.colors.textFaint }]}>{row.stockCode}</Text>
         </View>
         <ReportIssueIconButton referenceId={row.stockCode} />
       </View>
 
       <View
         onLayout={(event: LayoutChangeEvent) => setGridWidth(Math.round(event.nativeEvent.layout.width))}
-        style={[styles.gridFrame, { borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+        style={[styles.gridFrame, { backgroundColor: tintFill(theme) }]}>
         {mustScroll ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
             {grid}
@@ -116,7 +119,7 @@ export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
       </View>
 
       <View style={styles.stockRow}>
-        <Text style={[theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '600' }]}>Stock</Text>
+        <Text style={[styles.stockLabel, { color: theme.colors.textFaint }]}>Stock</Text>
         <Text style={[styles.stockValue, { color: isZero ? theme.colors.textSecondary : toneColor(stockBalanceTone(row.balance)) }]}>
           {row.balance}
         </Text>
@@ -126,14 +129,18 @@ export const StockCard = memo(function StockCardView({ row }: StockCardProps) {
 });
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 8, paddingHorizontal: 10, paddingVertical: 12 },
+  card: { marginBottom: 10, paddingHorizontal: 12, paddingVertical: 14 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  name: { fontSize: 15, lineHeight: 20, fontWeight: '600', letterSpacing: -0.2 },
+  code: { fontSize: 12, lineHeight: 16, fontWeight: '500', marginTop: 2 },
   flagButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginTop: -4, marginRight: -6 },
-  gridFrame: { marginTop: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  // The redesign's lavender `grid` strip (radius 12, 8pt vertical padding) — no horizontal padding, so the seven columns keep their full width.
+  gridFrame: { marginTop: 10, borderRadius: 12, overflow: 'hidden' },
   grid: { flexDirection: 'row', alignItems: 'stretch' },
   column: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  columnLabel: { fontSize: 10, lineHeight: 12, fontWeight: '500', textAlign: 'center' },
-  columnValue: { fontSize: 15, lineHeight: 20, marginTop: 4, fontVariant: ['tabular-nums'] },
+  columnLabel: { fontSize: 10, lineHeight: 12, fontWeight: '600', textAlign: 'center' },
+  columnValue: { fontSize: 14, lineHeight: 18, marginTop: 4, fontVariant: ['tabular-nums'] },
   stockRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 10 },
-  stockValue: { fontSize: 20, lineHeight: 26, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  stockLabel: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  stockValue: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.4, fontVariant: ['tabular-nums'] },
 });

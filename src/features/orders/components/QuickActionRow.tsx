@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { StyleSheet, View } from 'react-native';
+import type { IconName } from '@/shared/ui';
+import { MiniButton } from '@/features/stock/components/redesign';
 
 export interface QuickActionRowProps {
   onPressReturnItems: () => void;
@@ -15,10 +15,8 @@ interface QuickAction {
   onPress: () => void;
 }
 
-/** branchApp.md screen 05 — the three quick-action pills under the title: Return Items / Discount / Cash Deposit. */
+/** The three quick actions at the top of Create Order: Return Items / Discount / Cash Deposit — redesign `btn(…, 'secondary', icon, 'sm')`. */
 export function QuickActionRow({ onPressReturnItems, onPressDiscount, onPressCashDeposit }: QuickActionRowProps) {
-  const theme = useAppTheme();
-
   const actions: QuickAction[] = [
     { key: 'return', label: 'Return Items', icon: 'rotate-ccw', onPress: onPressReturnItems },
     { key: 'discount', label: 'Discount', icon: 'percent', onPress: onPressDiscount },
@@ -28,23 +26,7 @@ export function QuickActionRow({ onPressReturnItems, onPressDiscount, onPressCas
   return (
     <View style={styles.row}>
       {actions.map((action) => (
-        <Pressable
-          key={action.key}
-          accessibilityRole="button"
-          onPress={action.onPress}
-          style={({ pressed }) => [
-            styles.pill,
-            {
-              borderColor: theme.colors.border,
-              backgroundColor: pressed ? theme.colors.border : theme.colors.cardFill,
-              borderRadius: theme.radii.md,
-            },
-          ]}>
-          <Icon name={action.icon} size={14} color={theme.colors.primary} />
-          <Text style={[theme.typography.label, { color: theme.colors.text, fontWeight: '700' }]} numberOfLines={1}>
-            {action.label}
-          </Text>
-        </Pressable>
+        <MiniButton key={action.key} label={action.label} icon={action.icon} size="sm" onPress={action.onPress} style={styles.item} />
       ))}
     </View>
   );
@@ -52,5 +34,5 @@ export function QuickActionRow({ onPressReturnItems, onPressDiscount, onPressCas
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6 },
-  pill: { flex: 1, height: 38, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  item: { flex: 1, minWidth: 0, paddingHorizontal: 8 },
 });

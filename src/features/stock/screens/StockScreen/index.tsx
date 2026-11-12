@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,7 +11,7 @@ import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, useTabBarHeight, type StockStackParamList } from '@/navigation';
 import { useAppTheme, useResponsive } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, Icon, LoadingSkeleton, PillButton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime } from '@/shared/utils';
@@ -29,6 +29,7 @@ import {
   type StockSortDirection,
   type StockSortKey,
 } from '../../components';
+import { IconCircleButton, MiniButton } from '../../components/redesign';
 import { styles } from './styles';
 
 interface StockCachePayload {
@@ -40,8 +41,7 @@ const WIDE_LAYOUT_MIN_WIDTH = 900;
 
 export function StockScreen() {
   const theme = useAppTheme();
-  const { clamp, sh, width } = useResponsive();
-  const stockCheckHeight = clamp(48, sh(54), 58);
+  const { width } = useResponsive();
   /** Wide tablets / landscape: two cards side by side so each card's seven columns stay a readable width instead of stretching edge to edge. */
   const listColumns = width >= WIDE_LAYOUT_MIN_WIDTH ? 2 : 1;
   const tabBarHeight = useTabBarHeight();
@@ -98,43 +98,38 @@ export function StockScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Stock" actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]} />
+      <AppHeader
+        title="Branch stock"
+        subtitle={dateLabel}
+        actions={[...appearanceActions, bellAction, { icon: 'menu', onPress: openDrawer, accessibilityLabel: 'Open menu' }]}
+      />
       <View style={styles.headerPad}>
-        <View style={styles.subtitleRow}>
-          <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>{dateLabel}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="What do these columns mean?"
-            hitSlop={8}
-            onPress={() => infoSheetRef.current?.present()}
-            style={styles.infoButton}>
-            <Icon name="info" size={14} color={theme.colors.textFaint} />
-          </Pressable>
-        </View>
-
-        <View style={styles.stockCheckRow}>
-          <PillButton
-            label="Stock Check"
-            onPress={() => navigation.navigate(Routes.STOCK_CHECK)}
-            height={stockCheckHeight}
+        <View style={styles.actionRow}>
+          <MiniButton
+            label="Stock check"
+            icon="check"
+            kind="soft"
+            size="sm"
             accessibilityLabel="Stock Check"
+            onPress={() => navigation.navigate(Routes.STOCK_CHECK)}
+          />
+          <IconCircleButton
+            icon="info"
+            accessibilityLabel="What do these columns mean?"
+            onPress={() => infoSheetRef.current?.present()}
           />
         </View>
 
         {showingCache ? (
-          <View style={[styles.offlinePill, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>
-              Offline · Last updated {formatDisplayTime(new Date(cached!.updatedAt).toISOString())}
-            </Text>
-          </View>
+          <InfoBanner kind="info" style={styles.banner}>
+            {`Offline · Last updated ${formatDisplayTime(new Date(cached!.updatedAt).toISOString())}`}
+          </InfoBanner>
         ) : null}
 
         {pendingWrites > 0 ? (
-          <View style={[styles.offlinePill, { backgroundColor: `${theme.colors.warning}1A`, borderColor: theme.colors.warning, marginTop: 8 }]}>
-            <Text style={[theme.typography.label, { color: theme.colors.warning }]}>
-              {pendingWrites} local {pendingWrites === 1 ? 'change' : 'changes'} not yet synced. Balances may be higher than actual.
-            </Text>
-          </View>
+          <InfoBanner kind="warn" style={styles.banner}>
+            {`${pendingWrites} local ${pendingWrites === 1 ? 'change' : 'changes'} not yet synced. Balances may be higher than actual.`}
+          </InfoBanner>
         ) : null}
       </View>
 
@@ -146,27 +141,19 @@ export function StockScreen() {
         keyExtractor={(item) => item.productId}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.lg + tabBarHeight }}
         ListHeaderComponent={
-          <View style={{ marginBottom: theme.spacing.md }}>
+          <View style={styles.listHeader}>
             <StockSummaryGrid totals={totals} productCount={searched.length} />
+            <InfoBanner kind="brand">
+              Opening carries over from yesterday; new stock lands when you verify a delivery. Products with no stock and no movement are hidden.
+            </InfoBanner>
             <View style={styles.searchSortRow}>
               <View style={{ flex: 1 }}>
                 <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Sort"
-                onPress={() => sortSheetRef.current?.present()}
-                style={[styles.sortButton, { borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.cardFill, borderRadius: theme.radii.md }]}>
-                <Icon name="sort" size={18} color={theme.colors.text} />
-                {!isDefaultSort ? <View style={[styles.sortDot, { backgroundColor: theme.colors.primary }]} /> : null}
-              </Pressable>
+              <IconCircleButton icon="sort" accessibilityLabel="Sort" dot={!isDefaultSort} onPress={() => sortSheetRef.current?.present()} />
             </View>
-            {isLoading ? <View style={{ marginTop: 12 }}><LoadingSkeleton height={100} /></View> : null}
-            {error && !showingCache ? (
-              <View style={{ marginTop: 12 }}>
-                <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
-              </View>
-            ) : null}
+            {isLoading ? <LoadingSkeleton height={100} /> : null}
+            {error && !showingCache ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}
           </View>
         }
         ListEmptyComponent={

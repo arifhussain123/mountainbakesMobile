@@ -26,12 +26,17 @@ export function StatusBadge({ label, variant }: StatusBadgeProps) {
 
   return (
     <View style={[styles.pill, { backgroundColor: `${color}1A`, borderRadius: theme.radii.pill }]}>
-      <Text style={[styles.text, { color }]}>{label}</Text>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text style={[styles.text, { color }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill: { paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start' },
-  text: { fontSize: 10, fontWeight: '700' },
+  // 2026 redesign: a 24pt pill with a leading status dot.
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 24, paddingHorizontal: 10, alignSelf: 'flex-start', flexShrink: 0 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  text: { fontSize: 11, fontWeight: '600' },
 });

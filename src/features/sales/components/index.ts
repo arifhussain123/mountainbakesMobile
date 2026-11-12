@@ -13,7 +13,7 @@ export type { ProductPickerModalProps } from './ProductPickerModal';
 export { ProductPickerRow } from './ProductPickerRow';
 export type { ProductPickerRowProps } from './ProductPickerRow';
 
-export { SaleCard, paymentMethodColor } from './SaleCard';
+export { SaleCard, paymentMethodColor, PAYMENT_LABEL } from './SaleCard';
 export type { SaleCardProps } from './SaleCard';
 
 export { SalesDateChipRow } from './SalesDateChipRow';
@@ -24,3 +24,22 @@ export type { SalesHeroCardProps } from './SalesHeroCard';
 
 export { SortSheet, SORT_OPTIONS } from './SortSheet';
 export type { SortField, SortSheetProps } from './SortSheet';
+
+export {
+  BackAppBar,
+  Eyebrow,
+  HERO_TYPE,
+  HeroMini,
+  useHeroInk,
+  ExtendedFab,
+  FAB_CLEARANCE,
+  FLAT_CARD,
+  KpiTile,
+  PageTitle,
+  RoundIconButton,
+  SmallButton,
+  TopBar,
+  TYPE,
+  tintFill,
+} from './RedesignBits';
+export type { ExtendedFabProps, KpiTileProps, PageTitleProps, RoundIconButtonProps, SmallButtonProps, TopBarProps } from './RedesignBits';

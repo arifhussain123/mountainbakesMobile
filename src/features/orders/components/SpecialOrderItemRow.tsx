@@ -25,19 +25,19 @@ export function SpecialOrderItemRow({ name, qtyInput, onChangeName, onChangeQty,
         value={name}
         onChangeText={onChangeName}
         placeholder="Item name"
-        placeholderTextColor={theme.colors.textSecondary}
-        style={[styles.nameInput, { borderColor: theme.colors.border, color: theme.colors.text, borderRadius: theme.radii.sm }]}
+        placeholderTextColor={theme.colors.textFaint}
+        style={[styles.nameInput, { borderColor: theme.colors.border, color: theme.colors.text, backgroundColor: theme.isDark ? theme.colors.cardFill : theme.colors.surface }]}
       />
       <TextInput
         value={qtyInput}
         onChangeText={onChangeQty}
         placeholder="Qty"
-        placeholderTextColor={theme.colors.textSecondary}
+        placeholderTextColor={theme.colors.textFaint}
         keyboardType="numeric"
-        style={[styles.qtyInput, { borderColor: theme.colors.border, color: theme.colors.text, borderRadius: theme.radii.sm }]}
+        style={[styles.qtyInput, { borderColor: theme.colors.border, color: theme.colors.text, backgroundColor: theme.isDark ? theme.colors.cardFill : theme.colors.surface }]}
       />
-      <Pressable accessibilityRole="button" onPress={onRemove} style={styles.removeButton}>
-        <Icon name="close" size={16} color={theme.colors.danger} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Remove special order item" onPress={onRemove} style={[styles.removeButton, { backgroundColor: `${theme.colors.danger}14` }]}>
+        <Icon name="trash" size={16} color={theme.colors.danger} />
       </Pressable>
     </View>
   );
@@ -45,7 +45,7 @@ export function SpecialOrderItemRow({ name, qtyInput, onChangeName, onChangeQty,
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nameInput: { flex: 1, minWidth: 0, height: 38, borderWidth: 1, paddingHorizontal: 12, fontSize: 12, fontWeight: '600' },
-  qtyInput: { width: 56, height: 38, borderWidth: 1, textAlign: 'center' },
-  removeButton: { width: 32, height: 38, alignItems: 'center', justifyContent: 'center' },
+  nameInput: { flex: 1, minWidth: 0, height: 44, borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 0, fontSize: 14, fontWeight: '500' },
+  qtyInput: { width: 64, height: 44, borderWidth: 1.5, borderRadius: 14, textAlign: 'center', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
+  removeButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

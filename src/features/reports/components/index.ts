@@ -21,3 +21,6 @@ export type { PackingMaterialsListProps } from './PackingMaterialsList';
 
 export { ExportMenu } from './ExportMenu';
 export type { ExportMenuProps } from './ExportMenu';
+
+export { ReportsHero } from './ReportsHero';
+export type { ReportsHeroProps } from './ReportsHero';

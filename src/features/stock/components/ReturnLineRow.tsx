@@ -1,6 +1,7 @@
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { Icon, ListThumb, type IconName } from '@/shared/ui';
+import { MiniButton } from './redesign';
 import type { Product } from '@/api';
 import type { ReturnLinePhoto } from '../hooks/useReturnItemsForm';
 
@@ -28,6 +29,18 @@ export interface ReturnLineRowProps {
   onRemovePhoto: () => void;
   onRetryUpload: () => void;
   onLayout?: (event: LayoutChangeEvent) => void;
+  /** Position in the list — picks the thumbnail's pastel. */
+  index?: number;
+}
+
+/** "Banana Bread" → "BB" for the row's pastel thumbnail. */
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('');
 }
 
 /** What the photo is doing, in words and an icon — never colour alone. */
@@ -65,6 +78,7 @@ export function ReturnLineRow({
   onRemovePhoto,
   onRetryUpload,
   onLayout,
+  index = 0,
 }: ReturnLineRowProps) {
   const theme = useAppTheme();
   const atLimit = available != null && qty >= available;
@@ -81,42 +95,32 @@ export function ReturnLineRow({
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: showPhotoRequired || isDuplicate ? theme.colors.danger : theme.colors.border,
-          borderRadius: theme.radii.md,
+          backgroundColor: theme.colors.cardFill,
+          borderColor: showPhotoRequired || isDuplicate ? theme.colors.danger : theme.colors.cardBorder,
         },
       ]}>
       <View style={styles.topRow}>
+        {product ? <ListThumb text={initials(product.name)} index={index} /> : <ListThumb icon="search" index={index} />}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={product ? `Product: ${product.name}. Change product` : 'Choose a product'}
           onPress={onPressSelect}
-          style={[styles.productButton, { backgroundColor: theme.colors.background, borderRadius: theme.radii.sm }]}>
-          <Text style={[theme.typography.body, { color: product ? theme.colors.text : theme.colors.textSecondary }]} numberOfLines={1}>
-            {product ? product.name : 'Search product…'}
-          </Text>
-          <Icon name="chevron-down" size={14} color={theme.colors.textSecondary} />
+          style={styles.productButton}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: product ? theme.colors.text : theme.colors.textFaint }]} numberOfLines={1}>
+              {product ? product.name : 'Search product…'}
+            </Text>
+            <Icon name="chevron-down" size={14} color={theme.colors.textFaint} />
+          </View>
+          <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{available ?? '—'} available</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${productName} line`} onPress={onRemove} style={styles.removeButton}>
-          <Icon name="trash" size={16} color={theme.colors.danger} />
-        </Pressable>
-      </View>
-      {isDuplicate ? (
-        <View style={styles.messageRow}>
-          <Icon name="warning" size={12} color={theme.colors.danger} />
-          <Text style={[theme.typography.label, { color: theme.colors.danger }]}>Already on this return — change or delete this line</Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.bottomRow, { marginTop: 10 }]}>
-        <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary }]}>
-          Available <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{available ?? '—'}</Text>
-        </Text>
-        <View style={[styles.stepper, { borderColor: atLimit ? theme.colors.warning : theme.colors.primary, borderRadius: theme.radii.sm }]}>
+        <View style={[styles.stepper, { borderColor: atLimit ? theme.colors.warning : theme.colors.border, backgroundColor: theme.isDark ? 'transparent' : theme.colors.surface }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Decrease return quantity" onPress={onDecrement} style={styles.stepperButton}>
             <Icon name="minus" size={14} color={theme.colors.textSecondary} />
           </Pressable>
-          <Text accessibilityLabel={`Return quantity ${qty}`} style={[theme.typography.body, { color: theme.colors.text, minWidth: 24, textAlign: 'center' }]}>
+          <Text
+            accessibilityLabel={`Return quantity ${qty}`}
+            style={[styles.stepperValue, { color: theme.colors.text, borderColor: theme.colors.border }]}>
             {qty}
           </Text>
           <Pressable
@@ -126,10 +130,19 @@ export function ReturnLineRow({
             onPress={onIncrement}
             disabled={atLimit}
             style={styles.stepperButton}>
-            <Icon name="plus" size={14} color={atLimit ? theme.colors.textSecondary : theme.colors.primary} />
+            <Icon name="plus" size={14} color={atLimit ? theme.colors.textFaint : theme.colors.primary} />
           </Pressable>
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${productName} line`} onPress={onRemove} hitSlop={6} style={styles.removeButton}>
+          <Icon name="trash" size={16} color={theme.colors.danger} />
+        </Pressable>
       </View>
+      {isDuplicate ? (
+        <View style={styles.messageRow}>
+          <Icon name="warning" size={12} color={theme.colors.danger} />
+          <Text style={[theme.typography.label, { color: theme.colors.danger }]}>Already on this return — change or delete this line</Text>
+        </View>
+      ) : null}
       {overAvailable ? (
         <View style={styles.messageRow}>
           <Icon name="warning" size={12} color={theme.colors.danger} />
@@ -144,7 +157,7 @@ export function ReturnLineRow({
               accessibilityRole="imagebutton"
               accessibilityLabel={`Photo of returned ${productName}. Open full screen`}
               onPress={onOpenPhoto}
-              style={[styles.thumb, { borderColor: theme.colors.border, borderRadius: theme.radii.sm }]}>
+              style={[styles.thumb, { borderColor: theme.colors.border }]}>
               <Image source={{ uri: photo.previewUri }} style={styles.thumbImage} resizeMode="cover" accessibilityIgnoresInvertColors />
               {photo.status === 'uploading' ? (
                 <View style={styles.thumbOverlay}>
@@ -178,26 +191,25 @@ export function ReturnLineRow({
           </View>
         ) : (
           <View style={styles.photoButtonsRow}>
-            <Pressable
-              accessibilityRole="button"
+            <MiniButton
+              label="Camera"
+              icon="camera"
+              kind="soft"
+              size="sm"
               accessibilityLabel={`Take a photo of returned ${productName}`}
-              accessibilityState={{ disabled: photoDisabled }}
+              disabled={photoDisabled}
               onPress={onTakePhoto}
-              disabled={photoDisabled}
-              style={[styles.photoButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.background, opacity: photoDisabled ? 0.5 : 1 }]}>
-              <Icon name="camera" size={15} color={theme.colors.text} />
-              <Text style={[theme.typography.bodySmall, styles.bold, { color: theme.colors.text }]}>Camera</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
+              style={styles.flex1}
+            />
+            <MiniButton
+              label="Gallery"
+              icon="image"
+              size="sm"
               accessibilityLabel={`Choose a photo of returned ${productName} from the gallery`}
-              accessibilityState={{ disabled: photoDisabled }}
-              onPress={onPickPhoto}
               disabled={photoDisabled}
-              style={[styles.photoButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.background, opacity: photoDisabled ? 0.5 : 1 }]}>
-              <Icon name="image" size={15} color={theme.colors.text} />
-              <Text style={[theme.typography.bodySmall, styles.bold, { color: theme.colors.text }]}>Gallery</Text>
-            </Pressable>
+              onPress={onPickPhoto}
+              style={styles.flex1}
+            />
           </View>
         )}
         {!product ? (
@@ -221,25 +233,40 @@ export function ReturnLineRow({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, padding: 12, marginBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  productButton: { flex: 1, height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  removeButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepper: { flexDirection: 'row', alignItems: 'center', height: 34, borderWidth: 1 },
+  card: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  productButton: { flex: 1, minWidth: 0, gap: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  name: { flexShrink: 1, fontSize: 14, lineHeight: 20, fontWeight: '600', letterSpacing: -0.2 },
+  xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  // The redesign's `.stepper`: one 1.5-hairline box, −/qty/+ segments, the plus in the accent.
+  stepper: { flexDirection: 'row', alignItems: 'stretch', height: 36, borderWidth: 1.5, borderRadius: 13, overflow: 'hidden' },
   stepperButton: { width: 30, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: {
+    minWidth: 32,
+    paddingHorizontal: 4,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 33,
+    fontSize: 14,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  removeButton: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
   messageRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  photoArea: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  photoArea: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
   photoButtonsRow: { flexDirection: 'row', gap: 8 },
-  photoButton: { flex: 1, height: 40, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   photoRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  thumb: { width: 64, height: 64, borderWidth: 1, overflow: 'hidden' },
+  thumb: { width: 64, height: 64, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   thumbImage: { width: '100%', height: '100%' },
   thumbOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
   photoBody: { flex: 1, minWidth: 0 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   photoActions: { flexDirection: 'row', gap: 4, marginTop: 4 },
   linkButton: { minHeight: 32, paddingHorizontal: 6, justifyContent: 'center' },
+  flex1: { flex: 1 },
   flexShrink: { flexShrink: 1 },
   bold: { fontWeight: '700' },
   mt6: { marginTop: 6 },
