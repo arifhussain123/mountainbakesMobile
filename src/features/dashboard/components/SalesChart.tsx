@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
+import { designType, PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
 import { barScalePct } from '../calculations';
-import { dashType } from './dashType';
 
 export interface SalesChartProps {
   data: SalesAnalyticsDailyPoint[];
@@ -58,11 +57,11 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesCh
 
   return (
     <Card style={styles.card}>
-      {title ? <Text style={[dashType.h3, { color: theme.colors.text }]}>{title}</Text> : null}
+      {title ? <Text style={[designType.h3, { color: theme.colors.text }]}>{title}</Text> : null}
       <View style={styles.headerRow}>
         <View style={styles.avgCol}>
-          <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>Avg per day</Text>
-          <Text style={[dashType.h3, { color: theme.colors.text }]} numberOfLines={1}>
+          <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Avg per day</Text>
+          <Text style={[designType.h3, { color: theme.colors.text }]} numberOfLines={1}>
             {formatCurrency(average, 'averageDailySales')}
           </Text>
         </View>
@@ -108,7 +107,7 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesCh
         ))}
       </View>
       {selected ? (
-        <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>
+        <Text style={[designType.xs, { color: theme.colors.textFaint }]}>
           {formatDisplayDate(selected.date)} · {formatCount(selected.transactions, 'daily.transactions')} orders · tap a bar for its day
         </Text>
       ) : null}

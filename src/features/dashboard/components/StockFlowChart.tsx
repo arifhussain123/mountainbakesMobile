@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCount } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 import { barScalePct } from '../calculations';
-import { dashType } from './dashType';
 
 export interface StockFlowChartProps {
   row: BranchStockHistoryRow;
@@ -24,11 +23,11 @@ export function StockFlowChart({ row }: StockFlowChartProps) {
 
   return (
     <Card style={styles.card}>
-      <Text style={[dashType.h3, { color: theme.colors.text }]}>Stock flow · qty</Text>
+      <Text style={[designType.h3, { color: theme.colors.text }]}>Stock flow · qty</Text>
       <View style={styles.chart}>
         {bars.map((bar) => (
           <View key={bar.id} style={styles.column}>
-            <Text style={[dashType.amt, { color: theme.colors.text, fontSize: 14 }]}>{formatCount(bar.value, `stockFlow.${bar.id}`)}</Text>
+            <Text style={[designType.amt, { color: theme.colors.text, fontSize: 14 }]}>{formatCount(bar.value, `stockFlow.${bar.id}`)}</Text>
             <View style={[styles.bar, { height: `${Math.max(3, barScalePct(bar.value, max))}%`, backgroundColor: bar.color }]} />
           </View>
         ))}

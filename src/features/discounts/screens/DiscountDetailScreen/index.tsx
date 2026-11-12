@@ -4,9 +4,8 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useBranchDiscounts } from '@/api';
 import type { DiscountsStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, FormBottomSheet, HeroSurface, Icon, InfoBanner, LoadingSkeleton, Screen, StatusBadge } from '@/shared/ui';
-import { BackAppBar, Eyebrow, FLAT_CARD, HERO_TYPE, HeroMini, SmallButton, TYPE, useHeroInk } from '@/features/sales/components';
+import { designType, FLAT_CARD, heroType, useAppTheme } from '@/shared/theme';
+import { BackBar, Card, ErrorState, Eyebrow, FormBottomSheet, HeroSurface, Icon, InfoBanner, LoadingSkeleton, MiniStat, Screen, SmallButton, StatusBadge, useHeroInk } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { DISCOUNT_STATUS_LABEL, DISCOUNT_STATUS_VARIANT, discountChangeActionLabel, isDiscountOpen } from '../../utils';
@@ -42,7 +41,7 @@ export function DiscountDetailScreen() {
   if (isLoading) {
     return (
       <Screen>
-        <BackAppBar title="Discount Claim" />
+        <BackBar onBack={() => navigation.goBack()} title="Discount Claim" />
         <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
@@ -53,7 +52,7 @@ export function DiscountDetailScreen() {
   if (error) {
     return (
       <Screen>
-        <BackAppBar title="Discount Claim" />
+        <BackBar onBack={() => navigation.goBack()} title="Discount Claim" />
         <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} />
       </Screen>
     );
@@ -62,8 +61,8 @@ export function DiscountDetailScreen() {
   if (!item) {
     return (
       <Screen>
-        <BackAppBar title="Discount Claim" />
-        <Text style={[TYPE.p, { color: theme.colors.textSecondary, padding: 20 }]}>
+        <BackBar onBack={() => navigation.goBack()} title="Discount Claim" />
+        <Text style={[designType.p, { color: theme.colors.textSecondary, padding: 20 }]}>
           This claim is no longer in range — pull to refresh the Discounts list and reopen it.
         </Text>
       </Screen>
@@ -85,17 +84,17 @@ export function DiscountDetailScreen() {
 
   return (
     <Screen>
-      <BackAppBar title={item.demandNumber} subtitle={item.branchName} />
+      <BackBar onBack={() => navigation.goBack()} title={item.demandNumber} subtitle={item.branchName} />
       <ScrollView contentContainerStyle={styles.body}>
         <HeroSurface style={styles.hero}>
-          <Text style={[HERO_TYPE.eyebrow, { color: heroMuted }]}>Claimed amount</Text>
-          <Text style={[HERO_TYPE.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={[heroType.eyebrow, { color: heroMuted }]}>Claimed amount</Text>
+          <Text style={[heroType.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {formatCurrency(item.amount)}
           </Text>
           <View style={styles.miniRow}>
-            <HeroMini label="Claimed" value={formatDisplayDate(item.date)} />
-            <HeroMini label="Time" value={formatDisplayTime(item.createdAt)} />
-            <HeroMini label="Claim ID" value={item.id.slice(0, 8)} />
+            <MiniStat onHero label="Claimed" value={formatDisplayDate(item.date)} />
+            <MiniStat onHero label="Time" value={formatDisplayTime(item.createdAt)} />
+            <MiniStat onHero label="Claim ID" value={item.id.slice(0, 8)} />
           </View>
         </HeroSurface>
 
@@ -104,7 +103,7 @@ export function DiscountDetailScreen() {
           {!isDiscountOpen(item.status) ? (
             <View style={styles.final}>
               <Icon name="lock" size={12} color={theme.colors.textFaint} />
-              <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Final</Text>
+              <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Final</Text>
             </View>
           ) : null}
         </View>
@@ -112,8 +111,8 @@ export function DiscountDetailScreen() {
         {item.originalAmount != null ? (
           <Card style={[FLAT_CARD, styles.amountCard]}>
             <View style={styles.row}>
-              <Text style={[TYPE.sm, { color: theme.colors.textSecondary }]}>Amount</Text>
-              <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+              <Text style={[designType.sm, { color: theme.colors.textSecondary }]}>Amount</Text>
+              <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
             </View>
             <AmountChangedNote item={item} />
           </Card>
@@ -121,7 +120,7 @@ export function DiscountDetailScreen() {
 
         <Eyebrow>Reason</Eyebrow>
         <Card style={FLAT_CARD}>
-          <Text style={[TYPE.p, { color: theme.colors.text }]}>“{item.reason}”</Text>
+          <Text style={[designType.p, { color: theme.colors.text }]}>“{item.reason}”</Text>
         </Card>
 
         {item.reviewNote ? (

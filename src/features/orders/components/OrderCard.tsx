@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, InfoBanner, MiniStat, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { Card, InfoBanner, MiniStat, SmallButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import type { ProductionOrder } from '@/api';
-import { MiniButton, tintFill } from '@/features/stock/components/redesign';
 import { fulfilledTotals, isVerified, livePackingItems, requestedTotals } from '../utils/demandLines';
 
 export interface OrderCardProps {
@@ -95,9 +94,9 @@ export function OrderCard({ order, pendingSync, onView, onDemand, onDelete }: Or
       ) : null}
 
       <View style={styles.actionsRow}>
-        <MiniButton label="View" icon="chevron-right" onPress={onView} />
-        <MiniButton label="Demand" icon="box" onPress={onDemand} />
-        {order.status === 'pending' && onDelete ? <MiniButton label="Delete" icon="trash" kind="danger" onPress={onDelete} /> : null}
+        <SmallButton label="View" icon="chevron-right" onPress={onView} />
+        <SmallButton label="Demand" icon="box" onPress={onDemand} />
+        {order.status === 'pending' && onDelete ? <SmallButton label="Delete" icon="trash" kind="danger" onPress={onDelete} /> : null}
       </View>
     </Card>
   );

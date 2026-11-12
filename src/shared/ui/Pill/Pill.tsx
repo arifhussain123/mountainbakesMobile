@@ -1,14 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 
-export type PillKind = 'neutral' | 'warn' | 'ok' | 'bad' | 'brand';
+export type PillKind = 'neutral' | 'warn' | 'ok' | 'bad' | 'brand' | 'berry';
 
 export interface PillProps {
   label: string;
   kind?: PillKind;
 }
 
-/** The redesign's plain `pill()` (no status dot): a 24pt soft-tinted tag — category, "Due 12 Oct", "in 4 days". */
+/** The redesign's plain `pill()` (no status dot): a 24pt soft-tinted tag — a category, "Due 12 Oct", "Rs. 20 over". Use `StatusBadge` for statuses. */
 export function Pill({ label, kind = 'neutral' }: PillProps) {
   const theme = useAppTheme();
   const ink: Record<PillKind, string> = {
@@ -17,6 +17,7 @@ export function Pill({ label, kind = 'neutral' }: PillProps) {
     ok: theme.colors.success,
     bad: theme.colors.danger,
     brand: theme.isDark ? theme.colors.primary : '#5B48D8',
+    berry: theme.isDark ? theme.colors.violet : '#6C5CE7',
   };
   const lightFill: Record<PillKind, string> = {
     neutral: '#EEF0F8',
@@ -24,6 +25,7 @@ export function Pill({ label, kind = 'neutral' }: PillProps) {
     ok: '#E1F7EE',
     bad: '#FDE8E8',
     brand: '#EFEBFF',
+    berry: '#EEEBFD',
   };
   const color = ink[kind];
   return (

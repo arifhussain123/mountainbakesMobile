@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import type { PastelTone } from '@/shared/theme';
-import { KpiTile } from './RedesignBits';
+import { KpiTile } from '@/shared/ui';
 
 export interface PaymentMethodTile {
   key: string;

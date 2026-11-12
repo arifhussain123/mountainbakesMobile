@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, ListThumb, SearchBar } from '@/shared/ui';
+import { Icon, IconButton, ListThumb, SearchBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
 
@@ -31,13 +31,7 @@ export function AddProductModal({ visible, products, excludeIds, onSelect, onClo
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.text }]}>Add Product</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={onClose}
-            style={[styles.close, { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface }]}>
-            <Icon name="close" color={theme.colors.text} />
-          </Pressable>
+          <IconButton icon="close" accessibilityLabel="Close" onPress={onClose} />
         </View>
         <View style={{ paddingHorizontal: 20 }}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
@@ -82,7 +76,6 @@ function initials(name: string): string {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
   title: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.4 },
-  close: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   body: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontSize: 14, lineHeight: 20, fontWeight: '600', letterSpacing: -0.2 },

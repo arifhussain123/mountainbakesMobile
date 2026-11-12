@@ -3,11 +3,11 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Tex
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSpecialEvents } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, EmptyState, Icon, InfoBanner, MiniStat, PrimaryButton, Screen, SecondaryButton, TextField } from '@/shared/ui';
+import { AppHeader, Card, EmptyState, Icon, InfoBanner, MiniStat, Pill, PrimaryButton, Screen, SecondaryButton, TextField } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { EventsStackParamList } from '@/navigation';
 import type { Product } from '@/api';
-import { AddProductModal, EventDemandItemRow, Pill } from '../../components';
+import { AddProductModal, EventDemandItemRow } from '../../components';
 import { useEventDemandForm } from '../../hooks';
 import { styles } from './styles';
 

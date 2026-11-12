@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { MiniStat, type IconName } from '@/shared/ui';
-import { tintFill } from '@/features/stock/components/redesign';
 
 export interface OrderMetaItem {
   key: string;

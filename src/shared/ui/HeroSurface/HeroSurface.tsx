@@ -1,7 +1,7 @@
 import { StyleSheet, View, type ViewProps } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAppTheme } from '@/shared/theme';
-import { HERO_GRADIENT } from '@/shared/theme/design';
+import { HERO_CHIP, HERO_GRADIENT } from '@/shared/theme/design';
 import { Sphere3D } from '../Sphere3D';
 
 export interface HeroSurfaceProps extends ViewProps {
@@ -47,6 +47,15 @@ export function HeroSurface({ plain, style, children, ...rest }: HeroSurfaceProp
       </LinearGradient>
     </View>
   );
+}
+
+/**
+ * Text colours for content on a hero: white on the violet gradient (light);
+ * the accent's on-colour on dark mode's flat accent fill.
+ */
+export function useHeroInk(): { ink: string; muted: string } {
+  const theme = useAppTheme();
+  return theme.isDark ? { ink: theme.colors.primaryText, muted: theme.colors.primaryText } : { ink: HERO_CHIP.text, muted: HERO_CHIP.textMuted };
 }
 
 /**

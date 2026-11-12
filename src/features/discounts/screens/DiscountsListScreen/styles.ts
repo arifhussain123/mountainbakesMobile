@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { FAB_CLEARANCE } from '@/features/sales/components';
+import { FAB_CLEARANCE } from '@/shared/ui';
 
 export const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: FAB_CLEARANCE + 12 },

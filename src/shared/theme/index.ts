@@ -23,3 +23,5 @@ export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type
  * one source of truth (`ThemeProvider`), just two hook names onto it.
  */
 export { useTheme as useAppTheme } from './ThemeProvider';
+export { designType, heroType } from './designType';
+export { FLAT_CARD, MIDNIGHT_FILL, SOFT_LIFT, TINT_FILL, midnightFill, tintFill } from './surfaces';

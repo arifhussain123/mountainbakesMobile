@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, ListThumb, SearchBar } from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Icon, IconButton, ListThumb, SearchBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
-import { RoundIconButton, TYPE } from './RedesignBits';
 
 const initials = (name: string) =>
   name
@@ -37,8 +36,8 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.lg }}>
-          <Text style={[TYPE.h2, { color: theme.colors.text }]}>Search Product</Text>
-          <RoundIconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
+          <Text style={[designType.h2, { color: theme.colors.text }]}>Search Product</Text>
+          <IconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
         </View>
         <View style={{ paddingHorizontal: theme.spacing.lg }}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
@@ -63,10 +62,10 @@ export function ProductPickerModal({ visible, products, stockByProductId, onSele
                 }}>
                 <ListThumb text={initials(item.name)} index={index} />
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                  <Text style={[TYPE.h3s, { color: theme.colors.text }]} numberOfLines={1}>
+                  <Text style={[designType.h3s, { color: theme.colors.text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={[TYPE.xs, { color: available > 0 ? theme.colors.textFaint : theme.colors.danger }]}>
+                  <Text style={[designType.xs, { color: available > 0 ? theme.colors.textFaint : theme.colors.danger }]}>
                     {formatCurrency(item.price)} · Available {available}
                   </Text>
                 </View>

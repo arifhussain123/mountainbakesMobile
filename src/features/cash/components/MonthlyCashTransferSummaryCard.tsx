@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { MonthlyCashTransferSummary } from '@/api';
-import { useAppTheme, type PastelTone } from '@/shared/theme';
-import { ErrorState, HeroSurface, LoadingSkeleton, type IconName } from '@/shared/ui';
+import { heroType, type PastelTone, useAppTheme } from '@/shared/theme';
+import { ErrorState, HeroSurface, type IconName, KpiTile, LoadingSkeleton, MiniStat, useHeroInk } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatMonthToDateLine, formatSummaryWindow } from '@/shared/utils';
-import { HERO_TYPE, HeroMini, KpiTile, useHeroInk } from '@/features/sales/components';
 import { buildCashTransferSummaryTiles, type CashSummaryTile, type CashSummaryTone } from '../cashTransferSummary';
 
 export interface MonthlyCashTransferSummaryCardProps {
@@ -62,16 +61,16 @@ export function MonthlyCashTransferSummaryCard({ summary, isLoading, error, onRe
       ) : (
         <>
           <HeroSurface style={styles.hero} accessible accessibilityLabel={`${total.label}: ${total.value}, ${total.sub}`}>
-            <Text style={[HERO_TYPE.eyebrow, { color: muted }]}>{total.label}</Text>
-            <Text style={[HERO_TYPE.amount, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            <Text style={[heroType.eyebrow, { color: muted }]}>{total.label}</Text>
+            <Text style={[heroType.amount, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {total.value}
             </Text>
-            <Text style={[HERO_TYPE.sm, { color: muted }]}>{total.sub}</Text>
+            <Text style={[heroType.sm, { color: muted }]}>{total.sub}</Text>
             <View style={styles.miniRow}>
-              <HeroMini label="Cash" value={plain(t.cash.amount)} />
-              <HeroMini label="Easypaisa" value={plain(t.easypaisa.amount)} />
-              <HeroMini label="Bank" value={plain(t.bank.amount)} />
-              <HeroMini label="Fuel" value={plain(t.fuel.amount)} />
+              <MiniStat onHero label="Cash" value={plain(t.cash.amount)} />
+              <MiniStat onHero label="Easypaisa" value={plain(t.easypaisa.amount)} />
+              <MiniStat onHero label="Bank" value={plain(t.bank.amount)} />
+              <MiniStat onHero label="Fuel" value={plain(t.fuel.amount)} />
             </View>
           </HeroSurface>
 

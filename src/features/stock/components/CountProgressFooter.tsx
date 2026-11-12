@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { MiniStat, PillButton, SecondaryButton } from '@/shared/ui';
-import { tintFill } from './redesign';
 
 export interface CountProgressFooterProps {
   countedCount: number;

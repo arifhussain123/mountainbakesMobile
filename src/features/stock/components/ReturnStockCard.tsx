@@ -1,13 +1,12 @@
 import { memo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Card, ListThumb, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Card, ListThumb, SmallButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { BranchReturn } from '@/api';
 import { LEGACY_SINGLE_PHOTO_NOTE } from '../returnPhotos';
 import { describeReturnValue } from '../returnsSummary';
 import { shortReturnRef } from '../returnStockList';
-import { MiniButton } from './redesign';
 
 export interface ReturnStockCardProps {
   item: BranchReturn;
@@ -85,7 +84,7 @@ export const ReturnStockCard = memo(function ReturnStockCardView({ item, index =
           <Text style={[styles.xs, styles.meta, { color: theme.colors.textFaint }]} numberOfLines={1}>
             {shortReturnRef(item.id)} · {reviewed}
           </Text>
-          <MiniButton label="View" onPress={onView} accessibilityLabel={`View ${item.productName} return`} />
+          <SmallButton label="View" onPress={onView} accessibilityLabel={`View ${item.productName} return`} />
         </View>
       </Card>
     </Pressable>

@@ -3,8 +3,6 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 16 },
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  iconButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  iconLift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
   listCard: { paddingVertical: 4 },
   li: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   grow: { flex: 1, minWidth: 0, gap: 2 },

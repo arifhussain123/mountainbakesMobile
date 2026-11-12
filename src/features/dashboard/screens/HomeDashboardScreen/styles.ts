@@ -7,8 +7,6 @@ export const styles = StyleSheet.create({
   offline: { marginHorizontal: 20, marginBottom: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   titleCol: { flex: 1, minWidth: 0, gap: 4 },
-  iconBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  iconBtnLift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 3 },
   grid3: { flexDirection: 'row', gap: 8 },
   smallSeg: { width: 130 },
   center: { textAlign: 'center' },

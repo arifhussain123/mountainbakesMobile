@@ -1,9 +1,8 @@
 import { memo, useState } from 'react';
 import { PixelRatio, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { openNewQuery } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
-import { tintFill } from './redesign';
 import type { StockRowWithDemand } from '../calculations';
 import { stockBalanceTone, stockCardColumns, type StockFigureTone } from '../stockCardColumns';
 

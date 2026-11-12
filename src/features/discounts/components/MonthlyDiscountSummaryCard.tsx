@@ -1,8 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { MonthlyDiscountSummary } from '@/api';
 import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, InfoBanner, LoadingSkeleton } from '@/shared/ui';
-import { KpiTile } from '@/features/sales/components';
+import { Card, ErrorState, InfoBanner, KpiTile, LoadingSkeleton } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatCurrency, formatMonthToDateLine } from '@/shared/utils';
 import {

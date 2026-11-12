@@ -1,8 +1,7 @@
 import { Alert, Image, Pressable, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, InfoBanner, PrimaryButton, SecondaryButton, TextField } from '@/shared/ui';
+import { designType, tintFill, useAppTheme } from '@/shared/theme';
+import { Eyebrow, Icon, InfoBanner, PrimaryButton, SecondaryButton, SmallButton, TextField } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
-import { Eyebrow, SmallButton, TYPE, tintFill } from '@/features/sales/components';
 import { useCashDepositForm } from '../../hooks';
 import { styles } from './styles';
 
@@ -54,11 +53,11 @@ export function CashDepositSheetContent({ onClose }: CashDepositSheetContentProp
       <View
         style={[
           styles.totalCard,
-          { backgroundColor: tintFill(theme.isDark, theme.colors.cardFill), borderColor: theme.isDark ? theme.colors.cardBorder : '#E2DBFF' },
+          { backgroundColor: tintFill(theme, theme.colors.cardFill), borderColor: theme.isDark ? theme.colors.cardBorder : '#E2DBFF' },
         ]}>
         <View style={styles.totalText}>
-          <Text style={[TYPE.h3, { color: theme.colors.text }]}>Total amount</Text>
-          <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Cash + Easypaisa + Bank</Text>
+          <Text style={[designType.h3, { color: theme.colors.text }]}>Total amount</Text>
+          <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Cash + Easypaisa + Bank</Text>
         </View>
         <Text style={[styles.totalValue, { color: theme.colors.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {formatCurrency(form.totalAmount)}

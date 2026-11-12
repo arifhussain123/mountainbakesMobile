@@ -5,9 +5,8 @@ import { CashDepositSheetContent } from '@/features/cash';
 import { RequestDiscountSheetContent } from '@/features/discounts';
 import { ReturnItemsSheetContent } from '@/features/stock';
 import { useAuthStore } from '@/state';
-import { useAppTheme } from '@/shared/theme';
-import { Card, FormBottomSheet, InfoBanner, MiniStat, PrimaryButton, SearchBar, SecondaryButton } from '@/shared/ui';
-import { MiniButton, tintFill } from '@/features/stock/components/redesign';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { Card, FormBottomSheet, InfoBanner, MiniStat, PrimaryButton, SearchBar, SecondaryButton, SmallButton } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { getBusinessDate } from '@/api';
 import type { PackingMaterial } from '@/api';
@@ -189,8 +188,8 @@ export function CreateOrderSheetContent({ onClose }: CreateOrderSheetContentProp
       ) : null}
 
       <View style={[styles.grid2, styles.gapMd]}>
-        <MiniButton label="Packing material" icon="plus" size="sm" onPress={form.addPackingRow} style={styles.flex1} />
-        <MiniButton label="Special order item" icon="plus" size="sm" onPress={form.addSpecialOrderRow} style={styles.flex1} />
+        <SmallButton label="Packing material" icon="plus" size="sm" onPress={form.addPackingRow} style={styles.flex1} />
+        <SmallButton label="Special order item" icon="plus" size="sm" onPress={form.addSpecialOrderRow} style={styles.flex1} />
       </View>
 
       <View style={[styles.field, styles.gapLg]}>

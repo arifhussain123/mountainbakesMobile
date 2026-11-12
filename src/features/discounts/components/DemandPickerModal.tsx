@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/shared/theme';
-import { Icon, ListThumb, SearchBar } from '@/shared/ui';
-import { RoundIconButton, TYPE } from '@/features/sales/components';
+import { designType, useAppTheme } from '@/shared/theme';
+import { Icon, IconButton, ListThumb, SearchBar } from '@/shared/ui';
 import { formatDisplayDate, includesTerm } from '@/shared/utils';
 import type { ProductionOrder } from '@/api';
 
@@ -30,8 +29,8 @@ export function DemandPickerModal({ visible, demands, onSelect, onClose }: Deman
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.lg }}>
-          <Text style={[TYPE.h2, { color: theme.colors.text }]}>Select Demand</Text>
-          <RoundIconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
+          <Text style={[designType.h2, { color: theme.colors.text }]}>Select Demand</Text>
+          <IconButton icon="close" onPress={onClose} accessibilityLabel="Close" />
         </View>
         <View style={{ paddingHorizontal: theme.spacing.lg }}>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search demand…" />
@@ -54,8 +53,8 @@ export function DemandPickerModal({ visible, demands, onSelect, onClose }: Deman
               }}>
               <ListThumb icon="orders" index={index} />
               <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                <Text style={[TYPE.h3s, { color: theme.colors.text }]}>{item.demandNumber}</Text>
-                <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>
+                <Text style={[designType.h3s, { color: theme.colors.text }]}>{item.demandNumber}</Text>
+                <Text style={[designType.xs, { color: theme.colors.textFaint }]}>
                   {formatDisplayDate(item.date)} · {item.status}
                 </Text>
               </View>

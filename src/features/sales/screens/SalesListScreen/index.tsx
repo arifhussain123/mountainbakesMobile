@@ -8,23 +8,11 @@ import { exportSalesCsv, getBusinessDate, getBusinessDayBounds, useOrders, useSa
 import { Routes, openDrawer, useTabBarHeight, type SalesStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue } from '@/shared/hooks';
-import { EmptyState, ErrorState, FilterChipRow, Icon, LoadingSkeleton, Screen, SearchBar, type FilterChipOption } from '@/shared/ui';
+import { EmptyState, ErrorState, Fab, FAB_CLEARANCE, type FilterChipOption, FilterChipRow, Icon, LoadingSkeleton, PageTitle, Screen, SearchBar, TopBar } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { summarizeItemsSold, summarizeOrders } from '../../calculations';
-import {
-  ExtendedFab,
-  FAB_CLEARANCE,
-  PageTitle,
-  PaymentMethodTileGrid,
-  SaleCard,
-  SalesDateChipRow,
-  SalesHeroCard,
-  SortSheet,
-  SORT_OPTIONS,
-  TopBar,
-  type SortField,
-} from '../../components';
+import { PaymentMethodTileGrid, SaleCard, SalesDateChipRow, SalesHeroCard, SortSheet, SORT_OPTIONS, type SortField } from '../../components';
 import { styles } from './styles';
 
 const PAYMENT_FILTERS = ['All', 'cash', 'easypaisa', 'foodpanda', 'bank_account'] as const;
@@ -199,7 +187,7 @@ export function SalesListScreen() {
           void salesData.refetch();
         }}
       />
-      <ExtendedFab label="New sale" bottom={tabBarHeight + 16} onPress={() => navigation.navigate(Routes.NEW_SALE)} />
+      <Fab label="New sale" bottom={tabBarHeight + 16} onPress={() => navigation.navigate(Routes.NEW_SALE)} />
       <SortSheet ref={sortSheetRef} value={sortField} onChange={setSortField} onRequestClose={() => sortSheetRef.current?.dismiss()} />
     </Screen>
   );

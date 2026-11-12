@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card, ListThumb } from '@/shared/ui';
 import { formatCount, formatCurrency } from '@/shared/utils';
 import type { SalesAnalyticsTopProduct } from '@/api';
-import { dashType } from './dashType';
 
 export type TopSellersMetric = 'sales' | 'qty';
 
@@ -29,7 +28,7 @@ export function TopSellersCard({ products, metric }: TopSellersCardProps) {
   return (
     <Card style={styles.card}>
       {rows.length === 0 ? (
-        <Text style={[dashType.sm, styles.empty, { color: theme.colors.textSecondary }]}>No sales in this period yet.</Text>
+        <Text style={[designType.sm, styles.empty, { color: theme.colors.textSecondary }]}>No sales in this period yet.</Text>
       ) : (
         rows.map((p, i) => (
           <View key={p.productId || p.productName} style={[styles.row, i > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
@@ -38,11 +37,11 @@ export function TopSellersCard({ products, metric }: TopSellersCardProps) {
               <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
                 {p.productName}
               </Text>
-              <Text style={[dashType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+              <Text style={[designType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
                 {metric === 'qty' ? formatCurrency(p.sales, 'topProducts.sales') : `${formatCount(p.qty, 'topProducts.qty')} sold`}
               </Text>
             </View>
-            <Text style={[dashType.amt, { color: theme.colors.text }]} numberOfLines={1}>
+            <Text style={[designType.amt, { color: theme.colors.text }]} numberOfLines={1}>
               {metric === 'qty' ? `${formatCount(p.qty, 'topProducts.qty')} sold` : formatCurrency(p.sales, 'topProducts.sales')}
             </Text>
           </View>

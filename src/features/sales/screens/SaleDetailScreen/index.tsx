@@ -1,13 +1,13 @@
 import { ScrollView, Share, Text, View } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useOrder } from '@/api';
 import type { SalesStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, HeroSurface, ListThumb, LoadingSkeleton, PrimaryButton, Screen, StatusBadge } from '@/shared/ui';
+import { designType, FLAT_CARD, heroType, useAppTheme } from '@/shared/theme';
+import { BackBar, Card, ErrorState, Eyebrow, HeroSurface, ListThumb, LoadingSkeleton, MiniStat, PrimaryButton, Screen, StatusBadge, useHeroInk } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
-import { BackAppBar, Eyebrow, FLAT_CARD, HERO_TYPE, HeroMini, PAYMENT_LABEL, paymentMethodColor, TYPE, useHeroInk } from '../../components';
+import { PAYMENT_LABEL, paymentMethodColor } from '../../components';
 import { buildSaleReceiptText } from '../../receipt';
 import { styles } from './styles';
 
@@ -21,6 +21,7 @@ import { styles } from './styles';
  * correct line items; see `backend/src/routes/support.routes.ts`).
  */
 export function SaleDetailScreen() {
+  const navigation = useNavigation();
   const theme = useAppTheme();
   const route = useRoute<RouteProp<SalesStackParamList, 'SaleDetail'>>();
   const { orderId } = route.params;
@@ -30,7 +31,7 @@ export function SaleDetailScreen() {
   if (isLoading) {
     return (
       <Screen>
-        <BackAppBar title="Sale" />
+        <BackBar onBack={() => navigation.goBack()} title="Sale" />
         <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
@@ -41,7 +42,7 @@ export function SaleDetailScreen() {
   if (error || !order) {
     return (
       <Screen>
-        <BackAppBar title="Sale" />
+        <BackBar onBack={() => navigation.goBack()} title="Sale" />
         <ErrorState message={error ? mapErrorToMessage(error) : 'This sale could not be found.'} onRetry={() => void refetch()} />
       </Screen>
     );
@@ -55,19 +56,19 @@ export function SaleDetailScreen() {
 
   return (
     <Screen>
-      <BackAppBar title={order.orderNumber} subtitle={order.branchName} />
+      <BackBar onBack={() => navigation.goBack()} title={order.orderNumber} subtitle={order.branchName} />
       <ScrollView contentContainerStyle={styles.body}>
         <HeroSurface style={styles.hero}>
           <View style={styles.heroHead}>
-            <Text style={[HERO_TYPE.eyebrow, { color: heroMuted }]}>Grand total</Text>
+            <Text style={[heroType.eyebrow, { color: heroMuted }]}>Grand total</Text>
           </View>
-          <Text style={[HERO_TYPE.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={[heroType.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {formatCurrency(order.grandTotal)}
           </Text>
           <View style={styles.miniRow}>
-            <HeroMini label="Date" value={formatDisplayDate(order.businessDate)} />
-            <HeroMini label="Time" value={formatDisplayTime(order.createdAt)} />
-            <HeroMini label="Payment" value={payLabel} />
+            <MiniStat onHero label="Date" value={formatDisplayDate(order.businessDate)} />
+            <MiniStat onHero label="Time" value={formatDisplayTime(order.createdAt)} />
+            <MiniStat onHero label="Payment" value={payLabel} />
           </View>
         </HeroSurface>
         <View style={styles.statusRow}>
@@ -78,8 +79,8 @@ export function SaleDetailScreen() {
         <Card style={[FLAT_CARD, styles.customer]}>
           <ListThumb icon="user" index={1} />
           <View style={styles.grow}>
-            <Text style={[TYPE.h3s, { color: theme.colors.text }]}>{order.customerName || 'Walking Customer'}</Text>
-            {order.customerPhone ? <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>{order.customerPhone}</Text> : null}
+            <Text style={[designType.h3s, { color: theme.colors.text }]}>{order.customerName || 'Walking Customer'}</Text>
+            {order.customerPhone ? <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>{order.customerPhone}</Text> : null}
           </View>
         </Card>
 
@@ -91,15 +92,15 @@ export function SaleDetailScreen() {
               style={[styles.itemRow, { borderTopColor: theme.colors.border, borderTopWidth: index === 0 ? 0 : 1 }]}>
               <ListThumb text={initials(item.productName)} index={index} />
               <View style={styles.grow}>
-                <Text style={[TYPE.h3s, { color: theme.colors.text }]} numberOfLines={1}>
+                <Text style={[designType.h3s, { color: theme.colors.text }]} numberOfLines={1}>
                   {item.productName}
                 </Text>
-                <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
+                <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
                   {item.qty} × {formatCurrency(item.unitPrice)}
                   {item.discount > 0 ? ` · −${formatCurrency(item.discount)} disc.` : ''}
                 </Text>
               </View>
-              <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.lineTotal)}</Text>
+              <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(item.lineTotal)}</Text>
             </View>
           ))}
         </Card>
@@ -122,7 +123,7 @@ export function SaleDetailScreen() {
           <>
             <Eyebrow>Notes</Eyebrow>
             <Card style={FLAT_CARD}>
-              <Text style={[TYPE.p, { color: theme.colors.text }]}>{order.notes}</Text>
+              <Text style={[designType.p, { color: theme.colors.text }]}>{order.notes}</Text>
             </Card>
           </>
         ) : null}

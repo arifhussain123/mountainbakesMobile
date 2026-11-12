@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCount } from '@/shared/utils';
 import { completedOrders, orderCompletionPct } from '../calculations';
 import { DonutRing } from './DonutRing';
-import { dashType } from './dashType';
 
 export interface OrdersCardProps {
   total: number;
@@ -31,8 +30,8 @@ export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
   return (
     <Card style={styles.card}>
       <DonutRing size={112} stroke={16} parts={[{ pct, color: theme.colors.primary }]}>
-        <Text style={[dashType.h3, { color: theme.colors.text }]}>{pct}%</Text>
-        <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>completed</Text>
+        <Text style={[designType.h3, { color: theme.colors.text }]}>{pct}%</Text>
+        <Text style={[designType.xs, { color: theme.colors.textFaint }]}>completed</Text>
       </DonutRing>
       <View style={styles.list}>
         {rows.map((row) => (
@@ -40,9 +39,9 @@ export function OrdersCard({ total, pending, cancelled }: OrdersCardProps) {
             {row.variant ? (
               <StatusBadge label={row.label} variant={row.variant} />
             ) : (
-              <Text style={[dashType.sm, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
+              <Text style={[designType.sm, { color: theme.colors.textSecondary, fontWeight: '600' }]}>{row.label}</Text>
             )}
-            <Text style={[dashType.amt, { color: theme.colors.text }]}>{formatCount(row.value, `orders.${row.label}`)}</Text>
+            <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCount(row.value, `orders.${row.label}`)}</Text>
           </View>
         ))}
       </View>

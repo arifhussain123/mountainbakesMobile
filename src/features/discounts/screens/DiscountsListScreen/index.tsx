@@ -9,22 +9,10 @@ import { useAppTheme } from '@/shared/theme';
 import { useDebouncedValue, useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
-import {
-  DateRangeSheet,
-  EmptyState,
-  ErrorState,
-  FilterChipRow,
-  FormBottomSheet,
-  Icon,
-  LoadingSkeleton,
-  Screen,
-  SearchBar,
-  type FilterChipOption,
-} from '@/shared/ui';
+import { DateRangeSheet, EmptyState, ErrorState, Fab, type FilterChipOption, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, PageTitle, Screen, SearchBar, TopBar } from '@/shared/ui';
 import { formatDisplayTime, resolveDateRangePreset, type DateRange } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { BranchDiscount, BranchDiscountStatus } from '@/api';
-import { ExtendedFab, PageTitle, TopBar } from '@/features/sales/components';
 import { DiscountCard, MonthlyDiscountSummaryCard, SortSheet, WithdrawConfirmSheet, type DiscountSortField } from '../../components';
 import { useDiscountActions } from '../../hooks';
 import { RequestDiscountSheetContent } from '../RequestDiscountScreen';
@@ -288,7 +276,7 @@ export function DiscountsListScreen() {
         }}
       />
 
-      <ExtendedFab label="Request" accessibilityLabel="Request discount" bottom={20} onPress={openRequest} />
+      <Fab label="Request" accessibilityLabel="Request discount" bottom={20} onPress={openRequest} />
 
       <FormBottomSheet
         ref={requestSheetRef}

@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useAppTheme } from '@/shared/theme';
-import { FormBottomSheet, Icon, InfoBanner, MiniStat, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
+import { FormBottomSheet, Icon, InfoBanner, MiniStat, Pill, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { useManualFeedForm, type ManualFeedChannel } from '../../hooks';
-import { NoteCounter, Pill } from '../../components';
+import { NoteCounter } from '../../components';
 import { styles } from './styles';
 import type { DailySaleRecord, PaymentMethodLock } from '@/api';
 

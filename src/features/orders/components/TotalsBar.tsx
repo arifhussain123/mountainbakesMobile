@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { MiniStat } from '@/shared/ui';
-import { tintFill } from '@/features/stock/components/redesign';
 import type { ProductionOrder } from '@/api';
 import { fulfilledTotals, isVerified, livePackingItems, requestedTotals } from '../utils/demandLines';
 

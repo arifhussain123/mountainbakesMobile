@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card, InfoBanner } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
-import { dashType } from './dashType';
 
 export interface StockDetailTableProps {
   row: BranchStockHistoryRow;
@@ -29,17 +28,17 @@ export function StockDetailTable({ row, date, agrees, unexplained }: StockDetail
   return (
     <Card style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={[dashType.xs, styles.headCell, { color: theme.colors.textFaint }]}>{displayDate}</Text>
-        <Text style={[dashType.xs, styles.qtyCell, { color: theme.colors.textFaint }]}>Qty</Text>
-        <Text style={[dashType.xs, styles.amtCell, { color: theme.colors.textFaint }]}>Amount</Text>
+        <Text style={[designType.xs, styles.headCell, { color: theme.colors.textFaint }]}>{displayDate}</Text>
+        <Text style={[designType.xs, styles.qtyCell, { color: theme.colors.textFaint }]}>Qty</Text>
+        <Text style={[designType.xs, styles.amtCell, { color: theme.colors.textFaint }]}>Amount</Text>
       </View>
       {rows.map((item) => (
         <View key={item.id} style={[styles.row, { borderTopColor: theme.colors.border }]}>
           <Text style={[styles.label, styles.headCell, { color: theme.colors.text }]} numberOfLines={1}>
             {item.label}
           </Text>
-          <Text style={[dashType.amt, styles.qtyCell, { color: item.color, fontSize: 15 }]}>{formatCount(item.q, `stockDetail.${item.id}Qty`)}</Text>
-          <Text style={[dashType.amt, styles.amtCell, { color: item.color, fontSize: 14 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+          <Text style={[designType.amt, styles.qtyCell, { color: item.color, fontSize: 15 }]}>{formatCount(item.q, `stockDetail.${item.id}Qty`)}</Text>
+          <Text style={[designType.amt, styles.amtCell, { color: item.color, fontSize: 14 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {formatCurrency(item.a, `stockDetail.${item.id}Amount`)}
           </Text>
         </View>

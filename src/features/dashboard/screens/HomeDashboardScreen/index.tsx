@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native';
 import { format } from 'date-fns';
 import {
@@ -17,43 +17,14 @@ import {
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, Routes, useTabBarHeight } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import {
-  AppHeader,
-  type DatePeriod,
-  EmptyState,
-  ErrorState,
-  Icon,
-  InfoBanner,
-  LoadingSkeleton,
-  Screen,
-  SectionHeader,
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/shared/ui';
+import { designType, useAppTheme } from '@/shared/theme';
+import { AppHeader, type DatePeriod, EmptyState, ErrorState, IconButton, InfoBanner, KpiTile, LoadingSkeleton, Screen, SectionHeader, SegmentedControl, type SegmentedOption } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate, formatDisplayTime, formatPercent } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAuthStore } from '@/state';
-import {
-  DailyKpiGrid,
-  dashType,
-  HeadingActions,
-  HeroSalesCard,
-  KpiTile,
-  OrdersCard,
-  PaymentMethodsCard,
-  SalesChart,
-  SalesVsExpensesBar,
-  StockDetailTable,
-  StockFlowChart,
-  StockGrid,
-  StockHistoryList,
-  TopSellersCard,
-  type DailyKpiItem,
-  type TopSellersMetric,
-} from '../../components';
+import { DailyKpiGrid, HeadingActions, HeroSalesCard, OrdersCard, PaymentMethodsCard, SalesChart, SalesVsExpensesBar, StockDetailTable, StockFlowChart, StockGrid, StockHistoryList, TopSellersCard, type DailyKpiItem, type TopSellersMetric } from '../../components';
 import { sharePct } from '../../calculations';
 import { getAnalyticsWindow } from '../../utils';
 import { styles } from './styles';
@@ -194,7 +165,6 @@ export function HomeDashboardScreen() {
       : null;
   const lastSeven = data ? data.analytics.daily.slice(-7) : [];
   const lastSevenAverage = lastSeven.length > 0 ? lastSeven.reduce((sum, p) => sum + (Number.isFinite(p.sales) ? p.sales : 0), 0) / lastSeven.length : 0;
-  const iconBtn = [styles.iconBtn, { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface }, theme.isDark ? null : styles.iconBtnLift];
 
   return (
     <Screen>
@@ -215,14 +185,12 @@ export function HomeDashboardScreen() {
         {/* ── Title block: date eyebrow, "Today's overview", refresh ── */}
         <View style={styles.titleRow}>
           <View style={styles.titleCol}>
-            <Text style={[dashType.eyebrow, { color: theme.colors.textFaint }]}>{eyebrowDate(today)}</Text>
-            <Text accessibilityRole="header" style={[dashType.h1, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            <Text style={[designType.eyebrow, { color: theme.colors.textFaint }]}>{eyebrowDate(today)}</Text>
+            <Text accessibilityRole="header" style={[designType.h1, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
               {PERIOD_TITLE[period]}
             </Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Refresh dashboard" onPress={onRefresh} disabled={refreshing} style={iconBtn}>
-            {refreshing ? <ActivityIndicator size="small" color={theme.colors.text} /> : <Icon name="refresh" size={20} color={theme.colors.text} />}
-          </Pressable>
+          <IconButton icon="refresh" accessibilityLabel="Refresh dashboard" onPress={onRefresh} loading={refreshing} />
         </View>
 
         <SegmentedControl options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
@@ -294,7 +262,7 @@ export function HomeDashboardScreen() {
             {/* ── Branch stock ── */}
             <SectionHeader title="Branch stock" linkLabel="Open stock" onLinkPress={() => navigation.navigate(Routes.STOCK_TAB)} />
             <StockGrid row={data.stockDay.row} difference={data.stockDay.reconciliation.difference} />
-            <Text style={[dashType.sm, styles.center, { color: theme.colors.textSecondary }]}>
+            <Text style={[designType.sm, styles.center, { color: theme.colors.textSecondary }]}>
               Valued at current prices ·{' '}
               {data.stockDay.reconciliation.difference === 0
                 ? 'agrees with the Stock page'
@@ -316,7 +284,7 @@ export function HomeDashboardScreen() {
               style={styles.gapTop}
               right={<HeadingActions compareActive={compare} onToggleCompare={() => setCompare((v) => !v)} onExport={handleExport} exporting={exporting} />}
             />
-            <Text style={[dashType.sm, styles.subline, { color: theme.colors.textSecondary }]}>
+            <Text style={[designType.sm, styles.subline, { color: theme.colors.textSecondary }]}>
               {formatDisplayDate(window.from)} – {formatDisplayDate(window.to)} · {branchName ?? 'Branch'}
             </Text>
             <DailyKpiGrid
@@ -365,7 +333,7 @@ export function HomeDashboardScreen() {
             />
 
             <SectionHeader title="Stock history · 7 days" style={styles.gapTop} />
-            <Text style={[dashType.sm, styles.subline, { color: theme.colors.textSecondary }]}>Sold is valued at current prices, not the till total.</Text>
+            <Text style={[designType.sm, styles.subline, { color: theme.colors.textSecondary }]}>Sold is valued at current prices, not the till total.</Text>
             {data.stockHistory.rows.length > 0 ? (
               // Newest first (today at the top), regardless of what order the server returns —
               // sorted explicitly by date rather than assuming/flipping a particular server order.

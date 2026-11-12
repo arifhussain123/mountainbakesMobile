@@ -11,23 +11,7 @@ import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, type CashStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import {
-  DateRangeSheet,
-  EmptyState,
-  ErrorState,
-  FilterChipRow,
-  FormBottomSheet,
-  Icon,
-  InfoBanner,
-  LoadingSkeleton,
-  PhotoViewer,
-  SearchBar,
-  Screen,
-  SegmentedControl,
-  type FilterChipOption,
-  type SegmentedOption,
-} from '@/shared/ui';
-import { ExtendedFab, PageTitle, TopBar } from '@/features/sales/components';
+import { DateRangeSheet, EmptyState, ErrorState, Fab, type FilterChipOption, FilterChipRow, FormBottomSheet, Icon, InfoBanner, LoadingSkeleton, PageTitle, PhotoViewer, Screen, SearchBar, SegmentedControl, type SegmentedOption, TopBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime } from '@/shared/utils';
@@ -236,7 +220,7 @@ export function CashTransfersScreen() {
         }}
       />
 
-      <ExtendedFab label="Cash deposit" bottom={20} onPress={() => depositSheetRef.current?.present()} />
+      <Fab label="Cash deposit" bottom={20} onPress={() => depositSheetRef.current?.present()} />
 
       <FormBottomSheet
         ref={depositSheetRef}

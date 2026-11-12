@@ -15,12 +15,11 @@ import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, useTabBarHeight } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FilterChipRow, FormBottomSheet, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, FilterChipRow, FormBottomSheet, Icon, IconButton, LoadingSkeleton, PagerButton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useDebouncedValue } from '@/shared/hooks';
 import { useOfflineQueueStore } from '@/state';
 import { MonthlyReturnsSummaryCard, QueuedReturnCard, ReturnDetailSheet, ReturnOptionSheet, ReturnStockCard, ReviseReturnModal } from '../../components';
-import { GradientFab, IconCircleButton, PagerButton } from '../../components/redesign';
 import { ReturnItemsSheetContent } from '../ReturnItemsScreen';
 import {
   DEFAULT_RETURN_SORT,
@@ -208,7 +207,7 @@ export function ReturnStockListScreen() {
               <View style={styles.flex1}>
                 <SearchBar value={search} onChangeText={onSearch} placeholder="Search reason or product…" />
               </View>
-              <IconCircleButton
+              <IconButton
                 icon="sort"
                 accessibilityLabel={`Sort: ${sort.label}`}
                 dot={sort.key !== DEFAULT_RETURN_SORT.key}
@@ -271,7 +270,7 @@ export function ReturnStockListScreen() {
         onRefresh={onRefresh}
       />
 
-      <GradientFab label="Return items" onPress={() => returnItemsSheetRef.current?.present()} bottom={tabBarHeight + 20} />
+      <Fab label="Return items" onPress={() => returnItemsSheetRef.current?.present()} bottom={tabBarHeight + 20} />
 
       <ReturnOptionSheet
         ref={sortSheetRef}

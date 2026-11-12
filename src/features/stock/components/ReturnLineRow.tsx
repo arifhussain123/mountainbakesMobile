@@ -1,7 +1,6 @@
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, ListThumb, type IconName } from '@/shared/ui';
-import { MiniButton } from './redesign';
+import { Icon, type IconName, ListThumb, SmallButton } from '@/shared/ui';
 import type { Product } from '@/api';
 import type { ReturnLinePhoto } from '../hooks/useReturnItemsForm';
 
@@ -191,7 +190,7 @@ export function ReturnLineRow({
           </View>
         ) : (
           <View style={styles.photoButtonsRow}>
-            <MiniButton
+            <SmallButton
               label="Camera"
               icon="camera"
               kind="soft"
@@ -201,7 +200,7 @@ export function ReturnLineRow({
               onPress={onTakePhoto}
               style={styles.flex1}
             />
-            <MiniButton
+            <SmallButton
               label="Gallery"
               icon="image"
               size="sm"

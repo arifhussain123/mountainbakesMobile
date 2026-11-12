@@ -3,9 +3,8 @@ import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useProductionOrder, useProductionOrders } from '@/api';
 import type { OrdersStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, ErrorState, Icon, InfoBanner, LoadingSkeleton, MiniStat, PillButton, QtyStepper, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
-import { MiniButton, tintFill } from '@/features/stock/components/redesign';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { AppHeader, Card, ErrorState, Icon, InfoBanner, LoadingSkeleton, MiniStat, PillButton, QtyStepper, Screen, SmallButton, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
@@ -132,7 +131,7 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
         </View>
       ) : (
         <View style={styles.photoButtonsRow}>
-          <MiniButton
+          <SmallButton
             label="Camera"
             icon="camera"
             kind="soft"
@@ -141,7 +140,7 @@ function VerifyDeliverySection({ order }: { order: ProductionOrder }) {
             onPress={() => void form.capturePhoto('camera')}
             style={styles.flex1}
           />
-          <MiniButton
+          <SmallButton
             label="Gallery"
             icon="image"
             size="sm"

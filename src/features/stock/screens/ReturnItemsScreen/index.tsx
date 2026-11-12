@@ -1,12 +1,11 @@
 import { useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { useAuthStore } from '@/state';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { Icon, InfoBanner, ListThumb, MiniStat, PhotoViewer, PrimaryButton, SecondaryButton, useFormBottomSheetScroll, type IconName } from '@/shared/ui';
 import { formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { Product } from '@/api';
 import { ProductPickerModal, ReturnLineRow, ReturnPhotoConfirmModal } from '../../components';
-import { tintFill } from '../../components/redesign';
 import { useReturnItemsForm, type CapturePhotoOutcome, type ReturnPhotoSource } from '../../hooks';
 import { styles } from './styles';
 

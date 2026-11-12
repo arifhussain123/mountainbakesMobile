@@ -11,7 +11,7 @@ import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useOfflineQueueStore } from '@/state';
 import { Routes, openDrawer, useTabBarHeight, type StockStackParamList } from '@/navigation';
 import { useAppTheme, useResponsive } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, IconButton, InfoBanner, LoadingSkeleton, Screen, SearchBar, SmallButton } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatDisplayTime } from '@/shared/utils';
@@ -29,7 +29,6 @@ import {
   type StockSortDirection,
   type StockSortKey,
 } from '../../components';
-import { IconCircleButton, MiniButton } from '../../components/redesign';
 import { styles } from './styles';
 
 interface StockCachePayload {
@@ -105,7 +104,7 @@ export function StockScreen() {
       />
       <View style={styles.headerPad}>
         <View style={styles.actionRow}>
-          <MiniButton
+          <SmallButton
             label="Stock check"
             icon="check"
             kind="soft"
@@ -113,7 +112,7 @@ export function StockScreen() {
             accessibilityLabel="Stock Check"
             onPress={() => navigation.navigate(Routes.STOCK_CHECK)}
           />
-          <IconCircleButton
+          <IconButton
             icon="info"
             accessibilityLabel="What do these columns mean?"
             onPress={() => infoSheetRef.current?.present()}
@@ -150,7 +149,7 @@ export function StockScreen() {
               <View style={{ flex: 1 }}>
                 <SearchBar value={search} onChangeText={setSearch} placeholder="Search products…" />
               </View>
-              <IconCircleButton icon="sort" accessibilityLabel="Sort" dot={!isDefaultSort} onPress={() => sortSheetRef.current?.present()} />
+              <IconButton icon="sort" accessibilityLabel="Sort" dot={!isDefaultSort} onPress={() => sortSheetRef.current?.present()} />
             </View>
             {isLoading ? <LoadingSkeleton height={100} /> : null}
             {error && !showingCache ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}

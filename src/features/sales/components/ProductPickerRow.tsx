@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
 import { Card, Icon } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { Product } from '@/api';
-import { FLAT_CARD, TYPE } from './RedesignBits';
 
 export interface ProductPickerRowProps {
   product: Product | null;
@@ -51,7 +50,7 @@ export function ProductPickerRow({
           accessibilityLabel={product ? `Product ${product.name}, change` : 'Select product'}
           onPress={onPressSelect}
           style={styles.productButton}>
-          <Text style={[TYPE.h3s, styles.productName, { color: product ? theme.colors.text : theme.colors.textFaint }]} numberOfLines={1}>
+          <Text style={[designType.h3s, styles.productName, { color: product ? theme.colors.text : theme.colors.textFaint }]} numberOfLines={1}>
             {product ? product.name : 'Search product…'}
           </Text>
           <Icon name="chevron-down" size={16} color={theme.colors.textFaint} />
@@ -76,16 +75,16 @@ export function ProductPickerRow({
           </Pressable>
         </View>
         <View style={styles.amountCol}>
-          <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+          <Text style={[designType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
             {product ? `${formatCurrency(product.price)} each` : 'No product yet'}
             {lineDiscount > 0 ? ` · −${formatCurrency(lineDiscount)}` : ''}
           </Text>
-          <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(lineAmount)}</Text>
+          <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(lineAmount)}</Text>
         </View>
       </View>
 
       <View style={[styles.discountRow, { borderTopColor: theme.colors.border }]}>
-        <Text style={[TYPE.xs, { color: theme.colors.textSecondary }]}>Discount</Text>
+        <Text style={[designType.xs, { color: theme.colors.textSecondary }]}>Discount</Text>
         <TextInput
           value={discountInput}
           onChangeText={onChangeDiscount}
@@ -98,7 +97,7 @@ export function ProductPickerRow({
       </View>
 
       {insufficient ? (
-        <Text style={[TYPE.xs, { color: theme.colors.danger }]}>
+        <Text style={[designType.xs, { color: theme.colors.danger }]}>
           Insufficient Stock — Available: {availableQty} / Requested: {qty}
         </Text>
       ) : null}

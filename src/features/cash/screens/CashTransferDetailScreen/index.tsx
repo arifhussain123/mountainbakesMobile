@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useCashTransferDetail } from '@/api';
 import type { CashStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, HeroSurface, Icon, InfoBanner, LoadingSkeleton, PhotoViewer, Screen, StatusBadge, type StatusVariant } from '@/shared/ui';
-import { BackAppBar, Eyebrow, FLAT_CARD, HERO_TYPE, HeroMini, TYPE, useHeroInk } from '@/features/sales/components';
+import { designType, FLAT_CARD, heroType, useAppTheme } from '@/shared/theme';
+import { BackBar, Card, ErrorState, Eyebrow, HeroSurface, Icon, InfoBanner, LoadingSkeleton, MiniStat, PhotoViewer, Screen, StatusBadge, type StatusVariant, useHeroInk } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { ReportIssueAction } from '@/features/support';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
@@ -32,8 +31,8 @@ function Row({ label, value, divided }: { label: string; value: string; divided?
   const theme = useAppTheme();
   return (
     <View style={[styles.row, divided ? { borderTopWidth: 1, borderTopColor: theme.colors.border } : null]}>
-      <Text style={[TYPE.sm, { color: theme.colors.textSecondary }]}>{label}</Text>
-      <Text style={[TYPE.label, styles.rowValue, { color: theme.colors.text }]} numberOfLines={1}>
+      <Text style={[designType.sm, { color: theme.colors.textSecondary }]}>{label}</Text>
+      <Text style={[designType.label, styles.rowValue, { color: theme.colors.text }]} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -42,6 +41,7 @@ function Row({ label, value, divided }: { label: string; value: string; divided?
 
 /** Cash transfer detail (redesign language: back bar, violet total hero) — a single cash transfer's full detail. No edit/withdraw exists for this resource — the only client action after create is wait, or resubmit after rejection. */
 export function CashTransferDetailScreen() {
+  const navigation = useNavigation();
   const theme = useAppTheme();
   const route = useRoute<RouteProp<CashStackParamList, 'CashTransferDetail'>>();
   const { data: transfer, isLoading, error, refetch } = useCashTransferDetail(route.params.transferId);
@@ -52,7 +52,7 @@ export function CashTransferDetailScreen() {
   if (isLoading) {
     return (
       <Screen>
-        <BackAppBar title="Transfer Detail" />
+        <BackBar onBack={() => navigation.goBack()} title="Transfer Detail" />
         <View style={{ padding: 20 }}>
           <LoadingSkeleton height={220} />
         </View>
@@ -63,7 +63,7 @@ export function CashTransferDetailScreen() {
   if (error || !transfer) {
     return (
       <Screen>
-        <BackAppBar title="Transfer Detail" />
+        <BackBar onBack={() => navigation.goBack()} title="Transfer Detail" />
         <View style={{ padding: 20 }}>
           <ErrorState message={error ? mapErrorToMessage(error) : 'Transfer not found.'} onRetry={() => void refetch()} />
         </View>
@@ -75,25 +75,25 @@ export function CashTransferDetailScreen() {
 
   return (
     <Screen>
-      <BackAppBar title={transfer.transferNo} subtitle={`${formatDisplayDate(transfer.date)} · ${formatDisplayTime(transfer.createdAt)}`} />
+      <BackBar onBack={() => navigation.goBack()} title={transfer.transferNo} subtitle={`${formatDisplayDate(transfer.date)} · ${formatDisplayTime(transfer.createdAt)}`} />
       <ScrollView contentContainerStyle={styles.body}>
         <HeroSurface style={styles.hero}>
-          <Text style={[HERO_TYPE.eyebrow, { color: heroMuted }]}>Total amount</Text>
-          <Text style={[HERO_TYPE.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          <Text style={[heroType.eyebrow, { color: heroMuted }]}>Total amount</Text>
+          <Text style={[heroType.amount, { color: heroInk }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {formatCurrency(transfer.amount)}
           </Text>
           <View style={styles.miniRow}>
-            <HeroMini label="Cash" value={plain(transfer.cashAmount)} />
-            <HeroMini label="Easypaisa" value={plain(transfer.easypaisaAmount)} />
-            <HeroMini label="Bank" value={plain(transfer.bankAmount)} />
-            <HeroMini label="Fuel" value={plain(transfer.fuelCharges)} />
+            <MiniStat onHero label="Cash" value={plain(transfer.cashAmount)} />
+            <MiniStat onHero label="Easypaisa" value={plain(transfer.easypaisaAmount)} />
+            <MiniStat onHero label="Bank" value={plain(transfer.bankAmount)} />
+            <MiniStat onHero label="Fuel" value={plain(transfer.fuelCharges)} />
           </View>
         </HeroSurface>
 
         <View style={styles.statusRow}>
           <StatusBadge label={STATUS_LABEL[transfer.status]} variant={STATUS_VARIANT[transfer.status]} />
           {transfer.fuelCharges > 0 ? (
-            <Text style={[TYPE.xs, styles.grow, { color: theme.colors.textFaint }]}>Fuel is booked separately as fuel income</Text>
+            <Text style={[designType.xs, styles.grow, { color: theme.colors.textFaint }]}>Fuel is booked separately as fuel income</Text>
           ) : null}
         </View>
 
@@ -106,7 +106,7 @@ export function CashTransferDetailScreen() {
           <>
             <Eyebrow>Note</Eyebrow>
             <Card style={FLAT_CARD}>
-              <Text style={[TYPE.p, { color: theme.colors.text }]}>“{transfer.note}”</Text>
+              <Text style={[designType.p, { color: theme.colors.text }]}>“{transfer.note}”</Text>
             </Card>
           </>
         ) : null}
@@ -120,7 +120,7 @@ export function CashTransferDetailScreen() {
                 {transfer.approvedAt ? ` · ${formatDisplayDate(transfer.approvedAt)}` : ''}
               </Text>
               {transfer.approvalNote ? (
-                <Text style={[TYPE.sm, { color: theme.colors.textSecondary, marginTop: 2 }]}>{transfer.approvalNote}</Text>
+                <Text style={[designType.sm, { color: theme.colors.textSecondary, marginTop: 2 }]}>{transfer.approvalNote}</Text>
               ) : null}
             </InfoBanner>
           </>
@@ -131,7 +131,7 @@ export function CashTransferDetailScreen() {
             <InfoBanner kind="bad">
               <Text style={[styles.reviewTitle, { color: theme.colors.danger }]}>Rejected</Text>
               {transfer.rejectionReason ? (
-                <Text style={[TYPE.sm, { color: theme.colors.danger, marginTop: 2 }]}>{transfer.rejectionReason}</Text>
+                <Text style={[designType.sm, { color: theme.colors.danger, marginTop: 2 }]}>{transfer.rejectionReason}</Text>
               ) : null}
             </InfoBanner>
           </>
@@ -140,7 +140,7 @@ export function CashTransferDetailScreen() {
         {isTransferFinal(transfer.status) ? (
           <View style={styles.finalRow}>
             <Icon name="lock" size={12} color={theme.colors.textFaint} />
-            <Text style={[TYPE.xs, styles.grow, { color: theme.colors.textFaint }]}>Final — there is no edit or withdraw for a reviewed transfer.</Text>
+            <Text style={[designType.xs, styles.grow, { color: theme.colors.textFaint }]}>Final — there is no edit or withdraw for a reviewed transfer.</Text>
           </View>
         ) : (
           <InfoBanner kind="warn" icon="clock">
@@ -159,7 +159,7 @@ export function CashTransferDetailScreen() {
           ) : (
             <View style={styles.photoPlaceholder}>
               <Icon name="image" size={28} color={theme.colors.textFaint} />
-              <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 6 }]}>
+              <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 6 }]}>
                 {photoFailed ? 'Photo could not load — pull to refresh.' : 'No photo for this transfer.'}
               </Text>
             </View>

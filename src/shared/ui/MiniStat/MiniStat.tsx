@@ -1,11 +1,12 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { useHeroInk } from '../HeroSurface';
 
 export interface MiniStatProps {
   label: string;
   value: string;
   valueColor?: string;
-  /** Text colours for use on the violet hero (white-on-violet). */
+  /** Text colours for use on a `HeroSurface` (white on violet; the accent's on-colour in dark mode). */
   onHero?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -13,12 +14,13 @@ export interface MiniStatProps {
 /** The redesign's `mini`: an uppercase micro-label over a small tabular number. */
 export function MiniStat({ label, value, valueColor, onHero, style }: MiniStatProps) {
   const theme = useAppTheme();
+  const hero = useHeroInk();
   return (
     <View style={[styles.box, style]}>
-      <Text style={[styles.k, { color: onHero ? 'rgba(255,255,255,0.78)' : theme.colors.textFaint }]} numberOfLines={1}>
+      <Text style={[styles.k, { color: onHero ? hero.muted : theme.colors.textFaint }]} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={[styles.v, { color: valueColor ?? (onHero ? '#FFFFFF' : theme.colors.text) }]} numberOfLines={1}>
+      <Text style={[styles.v, { color: valueColor ?? (onHero ? hero.ink : theme.colors.text) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {value}
       </Text>
     </View>

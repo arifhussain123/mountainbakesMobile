@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card, MiniStat } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate, formatSigned } from '@/shared/utils';
 import { computeStockHistoryRetAdj } from '../calculations';
 import type { BranchStockHistoryRow } from '@/api';
-import { dashType } from './dashType';
 
 export interface StockHistoryListProps {
   rows: BranchStockHistoryRow[];
@@ -27,10 +26,10 @@ export function StockHistoryList({ rows }: StockHistoryListProps) {
         return (
           <Card key={row.date} style={styles.card}>
             <View style={styles.headerRow}>
-              <Text style={[dashType.h3, { color: theme.colors.text, fontSize: 15 }]}>{formatDisplayDate(row.date)}</Text>
-              <Text style={[dashType.amt, { color: theme.colors.text, fontSize: 15 }]} numberOfLines={1}>
+              <Text style={[designType.h3, { color: theme.colors.text, fontSize: 15 }]}>{formatDisplayDate(row.date)}</Text>
+              <Text style={[designType.amt, { color: theme.colors.text, fontSize: 15 }]} numberOfLines={1}>
                 {formatCount(row.balanceQty, 'stockHistory.balanceQty')}{' '}
-                <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>left · {formatCurrency(row.balanceAmount, 'stockHistory.balanceAmount')}</Text>
+                <Text style={[designType.xs, { color: theme.colors.textFaint }]}>left · {formatCurrency(row.balanceAmount, 'stockHistory.balanceAmount')}</Text>
               </Text>
             </View>
             <View style={[styles.strip, { backgroundColor: theme.colors.background }]}>

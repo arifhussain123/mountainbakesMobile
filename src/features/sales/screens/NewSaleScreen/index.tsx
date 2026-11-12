@@ -3,12 +3,12 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'r
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useHideTabBarOnFocus } from '@/navigation/tabBar';
-import { useAppTheme } from '@/shared/theme';
-import { Card, InfoBanner, PrimaryButton, Screen, TextField } from '@/shared/ui';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
+import { Card, Eyebrow, IconButton, InfoBanner, PrimaryButton, Screen, SmallButton, TextField } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { useAuthStore } from '@/state';
 import type { Product } from '@/api';
-import { Eyebrow, FLAT_CARD, PaymentMethodPicker, ProductPickerModal, ProductPickerRow, RoundIconButton, SmallButton, TYPE } from '../../components';
+import { PaymentMethodPicker, ProductPickerModal, ProductPickerRow } from '../../components';
 import { useNewSaleForm } from '../../hooks';
 import { styles } from './styles';
 
@@ -37,12 +37,12 @@ export function NewSaleScreen() {
   return (
     <Screen>
       <View style={styles.appBar}>
-        <RoundIconButton icon="chevron-left" onPress={() => navigation.goBack()} accessibilityLabel="Back" />
+        <IconButton icon="chevron-left" onPress={() => navigation.goBack()} accessibilityLabel="Back" />
         <View style={styles.appBarText}>
-          <Text accessibilityRole="header" style={[TYPE.h2, { color: theme.colors.text }]}>
+          <Text accessibilityRole="header" style={[designType.h2, { color: theme.colors.text }]}>
             New sale
           </Text>
-          <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+          <Text style={[designType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
             {branchName ? `${openedAt} · ${branchName}` : openedAt}
           </Text>
         </View>
@@ -105,7 +105,7 @@ export function NewSaleScreen() {
             <InfoBanner kind="bad">
               <Text style={[styles.bannerTitle, { color: theme.colors.danger }]}>Insufficient Stock</Text>
               {form.insufficientStock.map((detail) => (
-                <Text key={detail.productId} style={[TYPE.sm, { color: theme.colors.danger, marginTop: 2 }]}>
+                <Text key={detail.productId} style={[designType.sm, { color: theme.colors.danger, marginTop: 2 }]}>
                   {detail.productName} — Available: {detail.available} / Requested: {detail.requested}
                 </Text>
               ))}

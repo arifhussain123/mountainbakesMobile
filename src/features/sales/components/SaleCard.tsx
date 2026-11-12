@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
 import { Card, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayTime } from '@/shared/utils';
 import type { Order } from '@/api';
-import { FLAT_CARD, TYPE } from './RedesignBits';
 
 export interface SaleCardProps {
   order: Order;
@@ -58,15 +57,15 @@ export function SaleCard({ order, onPress, syncState }: SaleCardProps) {
         ) : null}
         <View style={styles.row}>
           <View style={styles.left}>
-            <Text style={[TYPE.h3s, { color: theme.colors.text }]} numberOfLines={2}>
+            <Text style={[designType.h3s, { color: theme.colors.text }]} numberOfLines={2}>
               {productsLine || '—'} <Text style={{ color: theme.colors.textSecondary }}>· {totalQty} units</Text>
             </Text>
-            <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+            <Text style={[designType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
               {subline}
             </Text>
           </View>
           <View style={styles.right}>
-            <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
+            <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(order.grandTotal)}</Text>
             <View style={[styles.payPill, { backgroundColor: `${payColor}1A` }]}>
               <Text style={[styles.payPillText, { color: payColor }]}>{PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}</Text>
             </View>

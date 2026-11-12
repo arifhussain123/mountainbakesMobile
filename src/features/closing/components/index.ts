@@ -11,4 +11,3 @@ export { CashInHandCard } from './CashInHandCard';
 export { ClosingStatTiles } from './ClosingStatTiles';
 export { NoteCounter } from './NoteCounter';
 export { DailySaleSortSheet, DAILY_SALE_SORT_OPTIONS, DAILY_SALE_SORT_DIRECTION, type DailySaleSortField } from './DailySaleSortSheet';
-export { Pill, type PillKind } from './Pill';

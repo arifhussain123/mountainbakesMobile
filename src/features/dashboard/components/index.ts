@@ -40,13 +40,9 @@ export type { StockHistoryListProps } from './StockHistoryList';
 export { TopProductsBars } from './TopProductsBars';
 export type { TopProductsBarsProps } from './TopProductsBars';
 
-export { KpiTile } from './KpiTile';
-export type { KpiTileProps } from './KpiTile';
-
 export { DonutRing } from './DonutRing';
 export type { DonutRingProps } from './DonutRing';
 
 export { TopSellersCard } from './TopSellersCard';
 export type { TopSellersCardProps, TopSellersMetric } from './TopSellersCard';
 
-export { dashType } from './dashType';

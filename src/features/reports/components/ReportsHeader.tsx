@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { FilterChipRow, Icon, type FilterChipOption, type IconName } from '@/shared/ui';
+import { type FilterChipOption, FilterChipRow, Icon, IconButton, type IconName } from '@/shared/ui';
 import type { UiReportPeriod } from '../ranges';
 
 const PERIOD_OPTIONS: FilterChipOption<UiReportPeriod>[] = [
@@ -38,8 +38,8 @@ export function ReportsHeader({ rangeLabel, includesTodayNote, period, onChangeP
       <View style={styles.titleRow}>
         <Text style={[styles.h1, { color: theme.colors.text }]}>Reports</Text>
         <View style={styles.actions}>
-          <RoundIconButton icon="file-spreadsheet" label="Export report" onPress={onOpenExport} />
-          <RoundIconButton icon="menu" label="Open menu" onPress={openDrawer} />
+          <IconButton icon="file-spreadsheet" accessibilityLabel="Export report" onPress={onOpenExport} />
+          <IconButton icon="menu" accessibilityLabel="Open menu" onPress={openDrawer} />
         </View>
       </View>
 
@@ -70,19 +70,6 @@ export function ReportsHeader({ rangeLabel, includesTodayNote, period, onChangeP
   );
 }
 
-function RoundIconButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
-  const theme = useAppTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={[styles.iconBtn, { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface }, theme.isDark ? null : styles.lift]}>
-      <Icon name={icon} size={20} color={theme.colors.text} />
-    </Pressable>
-  );
-}
-
 function StepButton({ icon, label, disabled, onPress }: { icon: IconName; label: string; disabled: boolean; onPress: () => void }) {
   const theme = useAppTheme();
   return (
@@ -105,7 +92,6 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   h1: { flex: 1, fontSize: 32, lineHeight: 38, fontWeight: '600', letterSpacing: -1 },
   actions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   lift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
   label: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

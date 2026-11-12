@@ -1,9 +1,9 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { Icon, InfoBanner, Screen } from '@/shared/ui';
+import { IconButton, InfoBanner, Screen } from '@/shared/ui';
 import { styles } from './styles';
 
 /**
@@ -20,14 +20,7 @@ export function ForgotPasswordScreen() {
   return (
     <Screen glow="warm">
       <View style={[styles.header, { paddingHorizontal: theme.spacing.lg }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => navigation.goBack()}
-          hitSlop={8}
-          style={[styles.iconBtn, { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface }, theme.isDark ? null : styles.iconBtnLift]}>
-          <Icon name="chevron-left" size={22} color={theme.colors.text} />
-        </Pressable>
+        <IconButton icon="chevron-left" accessibilityLabel="Go back" onPress={() => navigation.goBack()} />
       </View>
       <View style={[styles.content, { paddingHorizontal: theme.spacing.xl }]}>
         <Text accessibilityRole="header" style={[styles.h1, { color: theme.colors.text }]}>

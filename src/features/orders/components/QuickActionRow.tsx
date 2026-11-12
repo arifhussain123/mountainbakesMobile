@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import type { IconName } from '@/shared/ui';
-import { MiniButton } from '@/features/stock/components/redesign';
+import { SmallButton } from '@/shared/ui';
 
 export interface QuickActionRowProps {
   onPressReturnItems: () => void;
@@ -26,7 +26,7 @@ export function QuickActionRow({ onPressReturnItems, onPressDiscount, onPressCas
   return (
     <View style={styles.row}>
       {actions.map((action) => (
-        <MiniButton key={action.key} label={action.label} icon={action.icon} size="sm" onPress={action.onPress} style={styles.item} />
+        <SmallButton key={action.key} label={action.label} icon={action.icon} size="sm" onPress={action.onPress} style={styles.item} />
       ))}
     </View>
   );

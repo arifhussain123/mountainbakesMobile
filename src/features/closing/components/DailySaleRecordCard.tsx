@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { AccentFill, Card, MiniStat, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { AccentFill, Card, MiniStat, Pill, type PillKind, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { DailySaleRecord } from '@/api';
-import { Pill, type PillKind } from './Pill';
 
 export interface DailySaleRecordCardProps {
   record: DailySaleRecord;

@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { KpiTile } from './KpiTile';
+import { KpiTile } from '@/shared/ui';
 
 export interface DailyKpiItem {
   id: string;

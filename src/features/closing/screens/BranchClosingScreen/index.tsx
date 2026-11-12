@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { exportBranchClosingCsv, getBusinessDate, useBranchClosing, useStock } from '@/api';
 import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
@@ -13,7 +13,7 @@ import {
 } from '@/features/closing/api/closingReceipt';
 import { countUnsyncedForDate } from '@/features/closing/api/unsyncedForDate';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, Card, EmptyState, ErrorState, Icon, ListThumb, LoadingSkeleton, Screen, SectionHeader, type IconName } from '@/shared/ui';
+import { AppHeader, Card, EmptyState, ErrorState, IconButton, type IconName, ListThumb, LoadingSkeleton, Screen, SectionHeader } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { useOfflineQueueStore } from '@/state';
@@ -143,11 +143,6 @@ export function BranchClosingScreen() {
     });
   };
 
-  const iconButton = [
-    styles.iconButton,
-    { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface },
-    theme.isDark ? null : styles.iconLift,
-  ];
   const rowLine = { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border };
   const printDisabled = !totals || stock.isLoading;
 
@@ -162,25 +157,14 @@ export function BranchClosingScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={closing.isRefetching || stock.isRefetching} onRefresh={onRefresh} />}>
         <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
+          <IconButton
+            icon="file-spreadsheet"
             accessibilityLabel={isExporting ? 'Exporting to Excel' : 'Export to Excel'}
             disabled={isExporting}
             onPress={() => void handleExportExcel()}
-            style={[iconButton, { opacity: isExporting ? 0.5 : 1 }]}>
-            <Icon name="file-spreadsheet" size={20} color={theme.colors.text} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Share summary" onPress={handleShareSummary} style={iconButton}>
-            <Icon name="arrow-up-right" size={20} color={theme.colors.text} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Print closing receipt"
-            disabled={printDisabled}
-            onPress={handlePrintReceipt}
-            style={[iconButton, { opacity: printDisabled ? 0.5 : 1 }]}>
-            <Icon name="printer" size={20} color={theme.colors.text} />
-          </Pressable>
+          />
+          <IconButton icon="arrow-up-right" accessibilityLabel="Share summary" onPress={handleShareSummary} />
+          <IconButton icon="printer" accessibilityLabel="Print closing receipt" disabled={printDisabled} onPress={handlePrintReceipt} />
         </View>
 
         <BusinessDateControl

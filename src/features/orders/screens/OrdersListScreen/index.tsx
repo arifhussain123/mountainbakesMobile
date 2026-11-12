@@ -11,8 +11,7 @@ import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
 import { Routes, openDrawer, useTabBarHeight, type OrdersStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FilterChipRow, FormBottomSheet, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
-import { GradientFab, IconCircleButton } from '@/features/stock/components/redesign';
+import { AppHeader, EmptyState, ErrorState, Fab, FilterChipRow, FormBottomSheet, IconButton, InfoBanner, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import type { ProductionOrder } from '@/api';
 import { CancelDemandModal, DemandTotalModal, OrderCard, QueuedDemandCard, SortSheet, TotalsBar, type OrderSort } from '../../components';
@@ -122,7 +121,7 @@ export function OrdersListScreen() {
             placeholder={tab === 'active' ? 'Search active demands...' : 'Search order history...'}
           />
         </View>
-        <IconCircleButton
+        <IconButton
           icon="sort"
           accessibilityLabel="Sort"
           dot={sort.field !== 'date' || sort.dir !== 'desc'}
@@ -176,7 +175,7 @@ export function OrdersListScreen() {
         onRefresh={() => void refetch()}
       />
 
-      <GradientFab
+      <Fab
         label="New order"
         accessibilityLabel="New production order"
         onPress={() => sheetRef.current?.present()}

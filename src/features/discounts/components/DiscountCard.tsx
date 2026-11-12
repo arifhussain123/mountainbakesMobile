@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, StatusBadge } from '@/shared/ui';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
+import { Card, Icon, SmallButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
-import { FLAT_CARD, SmallButton, TYPE } from '@/features/sales/components';
 import type { BranchDiscount } from '@/api';
 import { DISCOUNT_STATUS_LABEL, DISCOUNT_STATUS_VARIANT, discountChangeActionLabel, isDiscountOpen } from '../utils';
 
@@ -44,12 +43,12 @@ export function DiscountCard({ item, onPress, onChange, onWithdraw, disableActio
           <Text style={[styles.liTitle, { color: theme.colors.text }]} numberOfLines={1}>
             {item.demandNumber} · {formatDisplayDate(item.date)}
           </Text>
-          <Text style={[TYPE.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
+          <Text style={[designType.xs, { color: theme.colors.textFaint }]} numberOfLines={1}>
             {item.reason}
           </Text>
         </View>
         <View style={styles.right}>
-          <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+          <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
           {badge}
         </View>
       </View>
@@ -66,28 +65,28 @@ export function DiscountCard({ item, onPress, onChange, onWithdraw, disableActio
       <Card style={[FLAT_CARD, styles.card]}>
         <View style={styles.between}>
           <View style={styles.grow}>
-            <Text style={[TYPE.h3s, { color: theme.colors.text }]}>{item.demandNumber}</Text>
-            <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
+            <Text style={[designType.h3s, { color: theme.colors.text }]}>{item.demandNumber}</Text>
+            <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
               {formatDisplayDate(item.date)} · {formatDisplayTime(item.createdAt)}
             </Text>
           </View>
           <View style={styles.right}>
-            <Text style={[TYPE.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+            <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
             {badge}
           </View>
         </View>
 
-        <Text style={[TYPE.p, { color: theme.colors.text }]} numberOfLines={2}>
+        <Text style={[designType.p, { color: theme.colors.text }]} numberOfLines={2}>
           “{item.reason}”
         </Text>
         {item.reviewNote ? (
-          <Text style={[TYPE.sm, { color: theme.colors.warning }]} numberOfLines={2}>
+          <Text style={[designType.sm, { color: theme.colors.warning }]} numberOfLines={2}>
             Production: {item.reviewNote}
           </Text>
         ) : null}
 
         <View style={styles.between}>
-          <Text style={[TYPE.xs, styles.grow, { color: theme.colors.textFaint }]} numberOfLines={2}>
+          <Text style={[designType.xs, styles.grow, { color: theme.colors.textFaint }]} numberOfLines={2}>
             {item.id.slice(0, 8)} ·{' '}
             {item.reviewedAt ? `Reviewed ${formatDisplayDate(item.reviewedAt.slice(0, 10))} · ${formatDisplayTime(item.reviewedAt)}` : 'Not reviewed yet'}
           </Text>
@@ -99,7 +98,7 @@ export function DiscountCard({ item, onPress, onChange, onWithdraw, disableActio
           ) : (
             <View style={styles.final}>
               <Icon name="lock" size={12} color={theme.colors.textFaint} />
-              <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Final</Text>
+              <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Final</Text>
             </View>
           )}
         </View>

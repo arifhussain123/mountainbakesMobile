@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
 import { Card, Icon, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate, formatDisplayTime } from '@/shared/utils';
 import type { CashTransfer } from '@/api';
-import { FLAT_CARD, TYPE } from '@/features/sales/components';
 import { isTransferFinal } from '../calculations';
 import { ChannelBreakdown } from './ChannelBreakdown';
 
@@ -63,18 +62,18 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
       <Card style={[FLAT_CARD, styles.card, highlight ? { borderLeftWidth: 4, borderLeftColor: theme.colors.orange } : null]}>
         <View style={styles.row}>
           <View style={styles.grow}>
-            <Text style={[TYPE.h3, { color: theme.colors.text }]}>{item.transferNo}</Text>
+            <Text style={[designType.h3, { color: theme.colors.text }]}>{item.transferNo}</Text>
             {showBranch ? (
-              <Text style={[TYPE.sm, { color: theme.colors.text }]} numberOfLines={1}>
+              <Text style={[designType.sm, { color: theme.colors.text }]} numberOfLines={1}>
                 {item.branchName}
               </Text>
             ) : null}
-            <Text style={[TYPE.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
+            <Text style={[designType.xs, { color: theme.colors.textFaint, marginTop: 2 }]}>
               {dateLine ?? `${formatDisplayDate(item.date)} · ${formatDisplayTime(item.createdAt)}`}
             </Text>
           </View>
           <View style={styles.right}>
-            <Text style={[TYPE.amt, styles.total, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
+            <Text style={[designType.amt, styles.total, { color: theme.colors.text }]}>{formatCurrency(item.amount)}</Text>
             <StatusBadge label={STATUS_LABEL[item.status]} variant={STATUS_VARIANT[item.status]} />
           </View>
         </View>
@@ -89,7 +88,7 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
         <ChannelBreakdown cashAmount={item.cashAmount} easypaisaAmount={item.easypaisaAmount} bankAmount={item.bankAmount} fuelCharges={item.fuelCharges} />
 
         {item.status === 'rejected' && item.rejectionReason ? (
-          <Text style={[TYPE.sm, { color: theme.colors.danger, marginTop: 10 }]} numberOfLines={2}>
+          <Text style={[designType.sm, { color: theme.colors.danger, marginTop: 10 }]} numberOfLines={2}>
             {item.rejectionReason}
           </Text>
         ) : null}
@@ -104,7 +103,7 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
               <Icon name="image" size={16} color={theme.colors.textFaint} />
             </View>
           )}
-          <Text style={[TYPE.sm, styles.grow, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+          <Text style={[designType.sm, styles.grow, { color: theme.colors.textSecondary }]} numberOfLines={2}>
             {item.note ? `“${item.note}”` : ''}
           </Text>
           <View style={styles.right}>
@@ -115,12 +114,12 @@ export function TransferCard({ item, onPress, onPressPhoto, showBranch, dateLine
                 </Text>
               </View>
             ) : item.status === 'pending' ? (
-              <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Waiting for Finance</Text>
+              <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Waiting for Finance</Text>
             ) : null}
             {isTransferFinal(item.status) ? (
               <View style={styles.finalRow}>
                 <Icon name="lock" size={12} color={theme.colors.textFaint} />
-                <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Final</Text>
+                <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Final</Text>
               </View>
             ) : null}
           </View>

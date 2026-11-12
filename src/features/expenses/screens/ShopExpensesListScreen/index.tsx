@@ -7,7 +7,7 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { useSummaryFocusRefresh } from '@/features/discounts/hooks';
 import { openDrawer } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { ACCENT_GLOW, AccentFill, AppHeader, EmptyState, ErrorState, FormBottomSheet, HeroSurface, Icon, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, FormBottomSheet, HeroSurface, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { useDebouncedValue } from '@/shared/hooks';
 import { formatCurrency } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -109,19 +109,7 @@ export function ShopExpensesListScreen() {
       />
 
       {/* B16's floating "+ Expense" button (saffron gradient pill, bottom-right). */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="New shop expense"
-        onPress={() => sheetRef.current?.present()}
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: theme.colors.primary, borderRadius: 20, opacity: pressed ? 0.88 : 1 },
-          theme.isDark ? null : ACCENT_GLOW,
-        ]}>
-        <AccentFill borderRadius={20} />
-        <Icon name="plus" size={20} color={theme.colors.primaryText} />
-        <Text style={[styles.fabLabel, { color: theme.colors.primaryText }]}>Expense</Text>
-      </Pressable>
+      <Fab label="Expense" accessibilityLabel="New shop expense" onPress={() => sheetRef.current?.present()} bottom={24} />
 
       <FormBottomSheet ref={sheetRef} title="New Expense" onRequestClose={() => sheetRef.current?.dismiss()}>
         <NewShopExpenseSheetContent onClose={() => sheetRef.current?.dismiss()} />

@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { designType, useAppTheme } from '@/shared/theme';
 import { Card } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import { barScalePct } from '../calculations';
-import { dashType } from './dashType';
 
 export interface SalesVsExpensesBarProps {
   /** The period the figures cover ("Today", "This Week"…), shown as the card's eyebrow. */
@@ -32,21 +31,21 @@ export function SalesVsExpensesBar({ dayLabel, sales, discounts, expenses, net }
 
   return (
     <Card style={styles.card}>
-      <Text style={[dashType.eyebrow, { color: theme.colors.textFaint }]}>{dayLabel}</Text>
+      <Text style={[designType.eyebrow, { color: theme.colors.textFaint }]}>{dayLabel}</Text>
       {rows.map((row) => (
         <View key={row.label} style={styles.item}>
           <View style={styles.labelRow}>
-            <Text style={[dashType.sm, { color: theme.colors.text, fontWeight: '600' }]}>
-              {row.label} <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>{row.kind}</Text>
+            <Text style={[designType.sm, { color: theme.colors.text, fontWeight: '600' }]}>
+              {row.label} <Text style={[designType.xs, { color: theme.colors.textFaint }]}>{row.kind}</Text>
             </Text>
-            <Text style={[dashType.amt, { color: theme.colors.text }]}>{formatCurrency(row.value, `salesVsDeductions.${row.label}`)}</Text>
+            <Text style={[designType.amt, { color: theme.colors.text }]}>{formatCurrency(row.value, `salesVsDeductions.${row.label}`)}</Text>
           </View>
           <View style={[styles.track, { backgroundColor: track }]}>
             <View style={[styles.fill, { width: `${barScalePct(Math.abs(row.value), max)}%`, backgroundColor: row.color }]} />
           </View>
         </View>
       ))}
-      <Text style={[dashType.xs, { color: theme.colors.textFaint }]}>Bars share one scale, so a deduction that is small against sales draws small.</Text>
+      <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Bars share one scale, so a deduction that is small against sales draws small.</Text>
     </Card>
   );
 }

@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
 import { formatCount, formatCurrency } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
-import { KpiTile } from './KpiTile';
+import { KpiTile } from '@/shared/ui';
 
 export interface StockGridProps {
   row: BranchStockHistoryRow;

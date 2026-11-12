@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Controller } from 'react-hook-form';
 import { useBranchDiscounts } from '@/api';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, InfoBanner, PrimaryButton, TextField } from '@/shared/ui';
-import { Eyebrow, FLAT_CARD, TYPE } from '@/features/sales/components';
+import { designType, FLAT_CARD, useAppTheme } from '@/shared/theme';
+import { Card, Eyebrow, Icon, InfoBanner, PrimaryButton, TextField } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { BranchDiscount, ProductionOrder } from '@/api';
 import { DemandPickerModal, DiscountCard } from '../../components';
@@ -127,10 +126,10 @@ export function RequestDiscountSheetContent({ editItem, onDone }: RequestDiscoun
         <View>
           <View style={styles.recentHead}>
             <Eyebrow>Your recent requests</Eyebrow>
-            <Text style={[TYPE.xs, { color: theme.colors.textFaint }]}>Last 90 days</Text>
+            <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Last 90 days</Text>
           </View>
           {recent.length === 0 ? (
-            <Text style={[TYPE.sm, { color: theme.colors.textSecondary }]}>No discount claims yet.</Text>
+            <Text style={[designType.sm, { color: theme.colors.textSecondary }]}>No discount claims yet.</Text>
           ) : (
             <Card style={[FLAT_CARD, styles.recentCard]}>
               {recent.map((item, index) => (

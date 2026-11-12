@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { HERO_CHIP, useAppTheme } from '@/shared/theme';
+import { designType, HERO_CHIP, useAppTheme } from '@/shared/theme';
 import { HeroSurface, Icon } from '@/shared/ui';
 import { formatCount, formatCurrency } from '@/shared/utils';
-import { dashType } from './dashType';
 
 export interface HeroSalesCardProps {
   /** e.g. "Today", "This Week", "This Month" — the active period label. */
@@ -38,7 +37,7 @@ export function HeroSalesCard({ periodLabel, sales, netAmount, orders, averageOr
   return (
     <HeroSurface style={styles.card}>
       <View style={styles.eyebrowRow}>
-        <Text style={[dashType.eyebrow, { color: muted }]}>Sales · {periodLabel.toLowerCase()}</Text>
+        <Text style={[designType.eyebrow, { color: muted }]}>Sales · {periodLabel.toLowerCase()}</Text>
         {comparison ? (
           <View style={[styles.pill, { backgroundColor: HERO_CHIP.fill }]}>
             {comparison.direction !== 'stable' ? (
@@ -56,7 +55,7 @@ export function HeroSalesCard({ periodLabel, sales, netAmount, orders, averageOr
       <View style={styles.row}>
         {stats.map((s) => (
           <View key={s.id} style={styles.stat}>
-            <Text style={[dashType.sm, { color: muted, opacity: theme.isDark ? 0.8 : 1 }]} numberOfLines={1}>
+            <Text style={[designType.sm, { color: muted, opacity: theme.isDark ? 0.8 : 1 }]} numberOfLines={1}>
               {s.label}
             </Text>
             <Text style={[styles.statValue, { color: onHero }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>

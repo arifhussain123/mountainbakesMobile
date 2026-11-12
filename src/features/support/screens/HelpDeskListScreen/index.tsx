@@ -7,7 +7,7 @@ import { openDrawer, openNewQuery, openQueryDetail } from '@/navigation';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
 import { useAppTheme } from '@/shared/theme';
-import { AccentFill, ACCENT_GLOW, AppHeader, EmptyState, ErrorState, FilterChipRow, Icon, InfoBanner, ListThumb, LoadingSkeleton, Screen, SearchBar, type FilterChipOption } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, Fab, type FilterChipOption, FilterChipRow, Icon, InfoBanner, ListThumb, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { QueryCard } from '../../components';
@@ -126,19 +126,7 @@ export function HelpDeskListScreen() {
         onRefresh={() => void refetch()}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="New query"
-        onPress={() => openNewQuery()}
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
-          theme.isDark ? null : ACCENT_GLOW,
-        ]}>
-        <AccentFill borderRadius={20} />
-        <Icon name="plus" size={20} color={theme.colors.primaryText} />
-        <Text style={[styles.fabText, { color: theme.colors.primaryText }]}>New query</Text>
-      </Pressable>
+      <Fab label="New query" onPress={() => openNewQuery()} bottom={20} />
     </Screen>
   );
 }
@@ -153,16 +141,4 @@ const styles = StyleSheet.create({
   grow: { flex: 1, minWidth: 0, gap: 2 },
   tintTitle: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
   xs: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    height: 56,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  fabText: { fontSize: 15, fontWeight: '600' },
 });

@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
-import { StatusBadge, type StatusVariant } from '@/shared/ui';
+import { Pill, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import { EVENT_CATEGORY_LABELS, type SpecialEvent } from '@/api';
-import { Pill } from './Pill';
 
 export interface EventCardProps {
   event: SpecialEvent;

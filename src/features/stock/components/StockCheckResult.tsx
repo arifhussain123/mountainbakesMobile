@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, Icon, InfoBanner, MiniStat } from '@/shared/ui';
+import { tintFill, useAppTheme } from '@/shared/theme';
+import { Card, Icon, InfoBanner, MiniStat, SmallButton } from '@/shared/ui';
 import type { CheckResult, StockCheckDifference } from '../calculations';
-import { MiniButton, tintFill } from './redesign';
 
 export interface StockCheckResultProps {
   result: CheckResult;
@@ -56,7 +55,7 @@ export function StockCheckResult({ result, onEditCounts, onOpenReturnItems }: St
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
         <Text style={[styles.h2, { color: theme.colors.text }]}>Check result</Text>
-        <MiniButton label="Edit counts" icon="pencil" size="sm" onPress={onEditCounts} />
+        <SmallButton label="Edit counts" icon="pencil" size="sm" onPress={onEditCounts} />
       </View>
 
       <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>

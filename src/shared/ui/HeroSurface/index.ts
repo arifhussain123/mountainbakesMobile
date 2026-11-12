@@ -1,2 +1,2 @@
-export { HeroSurface } from './HeroSurface';
+export { HeroSurface, useHeroInk } from './HeroSurface';
 export type { HeroSurfaceProps } from './HeroSurface';

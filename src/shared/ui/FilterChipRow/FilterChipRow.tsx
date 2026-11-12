@@ -1,6 +1,6 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
+import { PRIMARY_GRADIENT, midnightFill, useAppTheme } from '@/shared/theme';
 
 export interface FilterChipOption<T extends string = string> {
   value: T;
@@ -22,7 +22,7 @@ export interface FilterChipRowProps<T extends string = string> {
  */
 export function FilterChipRow<T extends string = string>({ options, value, onChange }: FilterChipRowProps<T>) {
   const theme = useAppTheme();
-  const activeFill = theme.isDark ? theme.colors.primary : '#1E1B4B';
+  const activeFill = midnightFill(theme);
   // Unselected chips: white with a faint lavender border (light).
   const activeInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 

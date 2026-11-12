@@ -25,21 +25,3 @@ export type { SalesHeroCardProps } from './SalesHeroCard';
 export { SortSheet, SORT_OPTIONS } from './SortSheet';
 export type { SortField, SortSheetProps } from './SortSheet';
 
-export {
-  BackAppBar,
-  Eyebrow,
-  HERO_TYPE,
-  HeroMini,
-  useHeroInk,
-  ExtendedFab,
-  FAB_CLEARANCE,
-  FLAT_CARD,
-  KpiTile,
-  PageTitle,
-  RoundIconButton,
-  SmallButton,
-  TopBar,
-  TYPE,
-  tintFill,
-} from './RedesignBits';
-export type { ExtendedFabProps, KpiTileProps, PageTitleProps, RoundIconButtonProps, SmallButtonProps, TopBarProps } from './RedesignBits';
