@@ -33,7 +33,8 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      mode: 'system',
+      // 2026 redesign: the lavender light theme is the app's look; Dark stays one tap away.
+      mode: 'light',
       accent: DEFAULT_ACCENT,
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
@@ -48,6 +49,15 @@ export const useThemeStore = create<ThemeState>()(
       name: 'mountainbakes.theme',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ mode: state.mode, accent: state.accent }),
+      // v1 (2026 redesign): installs still on the old untouched default ('system', which
+      // resolved to dark on most phones) move to the new light look once. An explicit
+      // 'dark' or 'light' choice is kept.
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as { mode?: ThemeModeSetting; accent?: AccentId };
+        if (version < 1 && (state.mode == null || state.mode === 'system')) state.mode = 'light';
+        return state as ThemeState;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },

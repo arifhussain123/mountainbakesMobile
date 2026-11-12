@@ -18,6 +18,7 @@ export function Card({ style, ...rest }: CardProps) {
         theme.cardShadow,
         {
           backgroundColor: theme.colors.cardFill,
+          // radii.lg is 22 since the 2026 redesign (white cards, faint violet border, soft violet lift).
           borderRadius: theme.radii.lg,
           borderColor: theme.colors.cardBorder,
           padding: theme.spacing.lg,

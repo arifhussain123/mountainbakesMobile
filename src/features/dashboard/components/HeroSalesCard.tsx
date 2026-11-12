@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { HeroSurface } from '@/shared/ui';
 import { formatCount, formatCurrency } from '@/shared/utils';
 
 export interface HeroSalesCardProps {
@@ -21,14 +22,16 @@ export interface HeroSalesCardProps {
  */
 export function HeroSalesCard({ periodLabel, salesSub, sales, netAmount, orders, pending, cancelled }: HeroSalesCardProps) {
   const theme = useAppTheme();
+  // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
+  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg + 6, padding: theme.spacing.lg }]}>
+    <HeroSurface style={[styles.card, { padding: theme.spacing.lg }]}>
       <View style={styles.eyebrowRow}>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primaryText }]}>Sales · {periodLabel}</Text>
-        <Text style={[theme.typography.label, styles.eyebrow, { color: theme.colors.primaryText }]}>{salesSub}</Text>
+        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>Sales · {periodLabel}</Text>
+        <Text style={[theme.typography.label, styles.eyebrow, { color: onHero }]}>{salesSub}</Text>
       </View>
-      <Text style={[theme.typography.screenTitle, { color: theme.colors.primaryText, fontSize: 36, marginTop: theme.spacing.sm }]}>
+      <Text style={[theme.typography.screenTitle, { color: onHero, fontSize: 36, marginTop: theme.spacing.sm }]}>
         {formatCurrency(sales, 'sales')}
       </Text>
       <View style={[styles.grid, { marginTop: theme.spacing.md, gap: theme.spacing.sm }]}>
@@ -45,7 +48,7 @@ export function HeroSalesCard({ periodLabel, salesSub, sales, netAmount, orders,
           </Text>
         </View>
       </View>
-    </View>
+    </HeroSurface>
   );
 }
 

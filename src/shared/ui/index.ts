@@ -1,3 +1,6 @@
+export { AccentFill, ACCENT_GLOW } from './AccentFill';
+export type { AccentFillProps } from './AccentFill';
+
 export { AppHeader } from './AppHeader';
 export type { AppHeaderProps, AppHeaderAction } from './AppHeader';
 
@@ -34,6 +37,15 @@ export { useFormBottomSheetScroll } from './FormBottomSheet';
 
 export { GlowLayer, WARM_GLOW_RGB } from './GlowLayer';
 export type { GlowLayerProps } from './GlowLayer';
+
+export { HeroSurface } from './HeroSurface';
+export type { HeroSurfaceProps } from './HeroSurface';
+
+export { Sphere3D } from './Sphere3D';
+export type { Sphere3DProps } from './Sphere3D';
+
+export { PastelTile, PASTEL_INK } from './PastelTile';
+export type { PastelTileProps } from './PastelTile';
 
 export { Icon } from './Icon';
 export type { IconName, IconProps } from './Icon';

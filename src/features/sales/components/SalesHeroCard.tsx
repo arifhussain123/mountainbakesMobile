@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { HeroSurface } from '@/shared/ui';
 
 export interface SalesHeroCardProps {
   /** Grand total after discount — the big headline figure. */
@@ -17,14 +18,16 @@ export interface SalesHeroCardProps {
  */
 export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
   const theme = useAppTheme();
+  // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
+  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
 
   return (
-    <View style={[styles.hero, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg }]}>
+    <HeroSurface style={[styles.hero]}>
       <View style={styles.headerRow}>
-        <Text style={[styles.eyebrow, { color: theme.colors.primaryText }]}>TOTAL SALES</Text>
-        <Text style={[styles.eyebrow, { color: theme.colors.primaryText }]}>CHARGED, AFTER DISCOUNT</Text>
+        <Text style={[styles.eyebrow, { color: onHero }]}>TOTAL SALES</Text>
+        <Text style={[styles.eyebrow, { color: onHero }]}>CHARGED, AFTER DISCOUNT</Text>
       </View>
-      <Text style={[styles.amount, { color: theme.colors.primaryText }]}>{total}</Text>
+      <Text style={[styles.amount, { color: onHero }]}>{total}</Text>
       <View style={styles.tileRow}>
         {/* `ON_DARK_CHIP` — a fixed dark chip inside the accent-colored hero
             card regardless of theme mode/accent, not a themed surface. */}
@@ -39,7 +42,7 @@ export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
           <Text style={styles.tileSub}>Off list price</Text>
         </View>
       </View>
-    </View>
+    </HeroSurface>
   );
 }
 

@@ -34,7 +34,9 @@ export interface AccentDef {
 const NEAR_BLACK = '#1C1917';
 
 export const ACCENTS: Record<AccentId, AccentDef> = {
-  orange: { id: 'orange', label: 'Orange', hex: '#FB6E31', pressedHex: '#D55D29', onAccentText: NEAR_BLACK },
+  // 2026 redesign saffron (#F2542D, gradient start #FF8A3D). White on it is ~3.5:1 — the design uses it only
+  // for bold/large button and badge text, where that passes WCAG AA-large.
+  orange: { id: 'orange', label: 'Orange', hex: '#F2542D', pressedHex: '#D9431F', onAccentText: '#FFFFFF' },
   blue: { id: 'blue', label: 'Blue', hex: '#2389E2', pressedHex: '#1D74C0', onAccentText: NEAR_BLACK },
   green: { id: 'green', label: 'Green', hex: '#33AC5A', pressedHex: '#2B924C', onAccentText: NEAR_BLACK },
   purple: { id: 'purple', label: 'Purple', hex: '#8E57D8', pressedHex: '#7849B7', onAccentText: '#FFFFFF' },

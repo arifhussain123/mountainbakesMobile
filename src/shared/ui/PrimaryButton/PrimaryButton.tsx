@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type GestureResponderEvent } from 'react-native';
 import { useAppTheme } from '@/shared/theme';
+import { ACCENT_GLOW, AccentFill } from '../AccentFill';
 
 export interface PrimaryButtonProps {
   label: string;
@@ -29,10 +30,13 @@ export function PrimaryButton({ label, onPress, loading, disabled, inactive, tes
         styles.base,
         {
           backgroundColor: theme.colors.primary,
-          borderRadius: theme.radii.md,
+          // 2026 redesign: a full pill with the saffron gradient and a soft glow (light mode).
+          borderRadius: theme.isDark ? theme.radii.md : theme.radii.pill,
           opacity: isDisabled || inactive ? 0.5 : pressed ? 0.85 : 1,
         },
+        theme.isDark || isDisabled || inactive ? null : ACCENT_GLOW,
       ]}>
+      <AccentFill borderRadius={theme.isDark ? theme.radii.md : 999} />
       {loading ? (
         <ActivityIndicator color={theme.colors.primaryText} />
       ) : (

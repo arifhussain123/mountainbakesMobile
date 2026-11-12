@@ -5,8 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FINANCE_TICKET_STATUS_LABELS, useFinanceTicketStats, useFinanceTickets, type FinanceTicket } from '@/api';
 import { Routes, type FinanceHelpDeskStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PrimaryButton, Screen, SearchBar, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { AppHeader, EmptyState, ErrorState, FormBottomSheet, LoadingSkeleton, PastelTile, PrimaryButton, Screen, SearchBar, StatusBadge, type StatusVariant } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { NewFinanceQuerySheetContent } from './NewFinanceQuerySheetContent';
@@ -62,7 +62,7 @@ export function FinanceHelpDeskListScreen() {
             </View>
             <View style={styles.statsGrid}>
               {statTiles.map((tile) => (
-                <View key={tile.label} style={[styles.statTile, { borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill }]}>
+                <PastelTile tone={toneFor(tile.label)} key={tile.label} style={[styles.statTile, { borderColor: theme.colors.border, backgroundColor: theme.colors.cardFill }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tile.color }} />
                     <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
@@ -70,7 +70,7 @@ export function FinanceHelpDeskListScreen() {
                     </Text>
                   </View>
                   <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 4 }]}>{tile.value}</Text>
-                </View>
+                </PastelTile>
               ))}
             </View>
 

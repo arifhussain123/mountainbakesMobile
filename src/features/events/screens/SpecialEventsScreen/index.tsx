@@ -7,7 +7,7 @@ import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { Routes, openDrawer, type EventsStackParamList } from '@/navigation';
 import { useAppTheme } from '@/shared/theme';
-import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, Screen } from '@/shared/ui';
+import { AppHeader, EmptyState, ErrorState, LoadingSkeleton, PastelTile, Screen } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { EventCard } from '../../components';
 import { styles } from './styles';
@@ -51,20 +51,20 @@ export function SpecialEventsScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.statsRow}>
-              <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <PastelTile tone={0} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Upcoming</Text>
                 <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4, fontWeight: '700' }]}>{stats.upcoming}</Text>
-              </View>
-              <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              </PastelTile>
+              <PastelTile tone={1} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Demand due soon</Text>
                 <Text style={[theme.typography.body, { color: theme.colors.danger, marginTop: 4, fontWeight: '700' }]}>{stats.dueSoon}</Text>
-              </View>
-              <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              </PastelTile>
+              <PastelTile tone={2} style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>Days to next</Text>
                 <Text style={[theme.typography.body, { color: theme.colors.info, marginTop: 4, fontWeight: '700' }]}>
                   {stats.nextDays ?? '—'}
                 </Text>
-              </View>
+              </PastelTile>
             </View>
             {isLoading ? <LoadingSkeleton height={100} /> : null}
             {error ? <ErrorState message={mapErrorToMessage(error)} onRetry={() => void refetch()} /> : null}

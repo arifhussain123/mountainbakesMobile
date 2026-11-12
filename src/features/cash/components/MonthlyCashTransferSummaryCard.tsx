@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { MonthlyCashTransferSummary } from '@/api';
-import { useAppTheme } from '@/shared/theme';
-import { Card, ErrorState, LoadingSkeleton } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { Card, ErrorState, LoadingSkeleton, PastelTile } from '@/shared/ui';
 import { mapErrorToMessage } from '@/shared/helpers';
 import { formatMonthToDateLine, formatSummaryWindow } from '@/shared/utils';
 import { buildCashTransferSummaryTiles, type CashSummaryTone } from '../cashTransferSummary';
@@ -52,7 +52,9 @@ export function MonthlyCashTransferSummaryCard({ summary, isLoading, error, onRe
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: theme.spacing.sm }} contentContainerStyle={styles.row}>
           {buildCashTransferSummaryTiles(summary).map((tile) => (
-            <View
+            <PastelTile
+              tone={toneFor(String(tile.key))}
+              off={!!tile.highlight}
               key={tile.key}
               accessible
               accessibilityLabel={`${tile.label}: ${tile.value}, ${tile.sub}`}
@@ -75,7 +77,7 @@ export function MonthlyCashTransferSummaryCard({ summary, isLoading, error, onRe
               <Text style={[theme.typography.label, styles.mt2, { color: tile.highlight ? theme.colors.primaryText : theme.colors.textFaint }]} numberOfLines={1}>
                 {tile.sub}
               </Text>
-            </View>
+            </PastelTile>
           ))}
         </ScrollView>
       )}

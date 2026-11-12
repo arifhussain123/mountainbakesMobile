@@ -9,23 +9,8 @@ import {
   type FinanceAccount,
 } from '@/api';
 import { openDrawer } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
-import {
-  AppHeader,
-  Card,
-  DateField,
-  Dropdown,
-  EmptyState,
-  FormBottomSheet,
-  Icon,
-  PhotoViewer,
-  PrimaryButton,
-  Screen,
-  SecondaryButton,
-  StatusBadge,
-  TextField,
-  type DropdownOption,
-} from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { AppHeader, Card, DateField, Dropdown, type DropdownOption, EmptyState, FormBottomSheet, Icon, PastelTile, PhotoViewer, PrimaryButton, Screen, SecondaryButton, StatusBadge, TextField } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { useFinanceCan } from '../../hooks/useFinanceCan';
 import { useAiExpenseCapture } from '../../hooks/useAiExpenseCapture';
@@ -106,10 +91,10 @@ export function FinanceAiExpenseCaptureScreen() {
             ['Total', formatCurrency(capture.summary.totalAmount)],
             ['To verify', String(capture.summary.needingReview)],
           ].map(([k, v]) => (
-            <View key={k} style={[styles.stat, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
+            <PastelTile tone={toneFor(String(k))} key={k} style={[styles.stat, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderRadius: theme.radii.md }]}>
               <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]}>{k}</Text>
               <Text style={[theme.typography.cardTitle, { color: k === 'To verify' && capture.summary.needingReview > 0 ? theme.colors.warning : theme.colors.text }]} numberOfLines={1}>{v}</Text>
-            </View>
+            </PastelTile>
           ))}
         </View>
 

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { useAppTheme, type PastelTone } from '@/shared/theme';
+import { PASTEL_INK, PastelTile } from '@/shared/ui';
 import { formatCount, formatCurrency } from '@/shared/utils';
 import type { BranchStockHistoryRow } from '@/api';
 
@@ -20,25 +21,34 @@ export function StockGrid({ row, difference }: StockGridProps) {
 
   return (
     <View style={styles.grid}>
-      {tiles.map((tile) => (
-        <View
-          key={tile.id}
-          style={[styles.cell, { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder, borderWidth: 1, borderRadius: theme.radii.lg, padding: theme.spacing.md }]}>
+      {tiles.map((tile, i) => (
+        // 2026 redesign: pastel tiles (mint / aqua / amber), Remaining in lilac; glass cards in dark mode.
+        <PastelTile key={tile.id} tone={(i % 3) as PastelTone} style={[styles.cell, { padding: theme.spacing.md }]}>
           <View style={styles.labelRow}>
-            <View style={[styles.dot, { backgroundColor: tile.dot }]} />
-            <Text style={[theme.typography.label, { color: theme.colors.textSecondary, letterSpacing: 1 }]}>{tile.label}</Text>
+            {theme.isDark ? <View style={[styles.dot, { backgroundColor: tile.dot }]} /> : null}
+            <Text style={[theme.typography.label, { color: theme.isDark ? theme.colors.textSecondary : PASTEL_INK.muted, letterSpacing: 1 }]}>{tile.label}</Text>
           </View>
           <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6 }]}>{formatCurrency(tile.amount, `stock.${tile.id}Amount`)}</Text>
-          <Text style={[theme.typography.label, { color: theme.colors.textFaint, marginTop: 2 }]}>{tile.sub}</Text>
-        </View>
+          <Text style={[theme.typography.label, { color: theme.isDark ? theme.colors.textFaint : PASTEL_INK.muted, marginTop: 2 }]}>{tile.sub}</Text>
+        </PastelTile>
       ))}
-      <View style={[styles.cell, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg, padding: theme.spacing.md }]}>
-        <Text style={[theme.typography.label, { color: theme.colors.primaryText, letterSpacing: 1 }]}>REMAINING</Text>
-        <Text style={[theme.typography.cardTitle, { color: theme.colors.primaryText, marginTop: 6 }]}>{formatCurrency(row.balanceAmount, 'stock.balanceAmount')}</Text>
-        <Text style={[theme.typography.label, { color: theme.colors.primaryText, opacity: 0.75, marginTop: 2 }]}>
-          {formatCount(row.balanceQty, 'stock.balanceQty')} items · {formatCount(difference, 'stock.difference')} difference
-        </Text>
-      </View>
+      {theme.isDark ? (
+        <View style={[styles.cell, { backgroundColor: theme.colors.primary, borderRadius: theme.radii.lg, padding: theme.spacing.md }]}>
+          <Text style={[theme.typography.label, { color: theme.colors.primaryText, letterSpacing: 1 }]}>REMAINING</Text>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.primaryText, marginTop: 6 }]}>{formatCurrency(row.balanceAmount, 'stock.balanceAmount')}</Text>
+          <Text style={[theme.typography.label, { color: theme.colors.primaryText, opacity: 0.75, marginTop: 2 }]}>
+            {formatCount(row.balanceQty, 'stock.balanceQty')} items · {formatCount(difference, 'stock.difference')} difference
+          </Text>
+        </View>
+      ) : (
+        <PastelTile tone={3} style={[styles.cell, { padding: theme.spacing.md }]}>
+          <Text style={[theme.typography.label, { color: PASTEL_INK.muted, letterSpacing: 1 }]}>REMAINING</Text>
+          <Text style={[theme.typography.cardTitle, { color: theme.colors.text, marginTop: 6 }]}>{formatCurrency(row.balanceAmount, 'stock.balanceAmount')}</Text>
+          <Text style={[theme.typography.label, { color: PASTEL_INK.muted, marginTop: 2 }]}>
+            {formatCount(row.balanceQty, 'stock.balanceQty')} items · {formatCount(difference, 'stock.difference')} difference
+          </Text>
+        </PastelTile>
+      )}
     </View>
   );
 }

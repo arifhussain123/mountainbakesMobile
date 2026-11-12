@@ -2,8 +2,9 @@
      <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
           <!-- Customize your theme here. -->
           <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
-          <!-- The app is fixed to one dark theme (no light/dark toggle — see
-               shared/theme's useAppTheme). Without this, DayNight falls back to
+          <!-- 2026 redesign: the window/splash background is the lavender light
+               theme's #F5F3FE (dark mode is still selectable in-app). Originally:
+               the app was fixed to one dark theme. Without this, DayNight falls back to
                a white window background on a light-mode system, which shows
                through as a white band wherever an RN view doesn't fully cover
                the window instead of the app's own near-black background. -->
@@ -18,7 +19,7 @@
                fixed dark theme. `android:navigationBarColor` below is just the
                pre-edge-to-edge fallback. -->
           <item name="android:navigationBarColor">@color/bootsplash_background</item>
-          <item name="android:windowLightNavigationBar">false</item>
+          <item name="android:windowLightNavigationBar">true</item>
           <item name="android:enforceNavigationBarContrast">false</item>
      </style>
 

@@ -59,11 +59,11 @@ describe('buildColors', () => {
     expect(buildColors('dark', 'orange').background).toBe('#0B0C12');
   });
 
-  it('light mode matches the web\'s own cream background/foreground/border (Step 0 conversion)', () => {
+  it('light mode is the 2026 redesign\'s lavender theme (same tokens as the web\'s phone view)', () => {
     const light = buildColors('light', 'orange');
-    expect(light.background).toBe('#FDF7EA');
-    expect(light.text).toBe('#1F0B03');
-    expect(light.border).toBe('#E3DECF');
+    expect(light.background).toBe('#F5F3FE');
+    expect(light.text).toBe('#171A35');
+    expect(light.border).toBe('#E6E1FA');
   });
 });
 
@@ -79,7 +79,10 @@ describe('ACCENT_LIST', () => {
     expect(ACCENT_LIST.map((a) => a.id)).toEqual(['orange', 'blue', 'green', 'purple', 'rose']);
   });
 
-  it('every accent\'s onAccentText clears WCAG AA (>=4.5:1) contrast against its own hex', () => {
+  // Orange is the 2026 redesign's saffron with WHITE text (as designed) — 3.45:1, which clears
+  // WCAG AA for large/bold text and UI components (3:1) but not body text. It is only used on bold
+  // button/badge labels. Every other accent still has to clear full AA.
+  it('every accent\'s onAccentText clears WCAG AA (>=4.5:1; orange >=3:1) contrast against its own hex', () => {
     const luminance = (hex: string): number => {
       const n = parseInt(hex.replace('#', ''), 16);
       const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
@@ -95,7 +98,7 @@ describe('ACCENT_LIST', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     for (const def of ACCENT_LIST) {
-      expect(contrast(def.hex, def.onAccentText)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(def.hex, def.onAccentText)).toBeGreaterThanOrEqual(def.id === 'orange' ? 3 : 4.5);
     }
   });
 });

@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { PastelTile } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 import type { CashTransferTotals } from '../calculations';
 
@@ -32,7 +33,9 @@ export function TransferSummaryStrip({ totals, mayBeIncomplete }: TransferSummar
     <View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {tiles.map((tile) => (
-          <View
+          <PastelTile
+            tone={toneFor(tile.label)}
+            off={!!tile.highlight}
             key={tile.label}
             style={[
               styles.tile,
@@ -50,7 +53,7 @@ export function TransferSummaryStrip({ totals, mayBeIncomplete }: TransferSummar
               numberOfLines={1}>
               {tile.value}
             </Text>
-          </View>
+          </PastelTile>
         ))}
       </ScrollView>
       {mayBeIncomplete ? (

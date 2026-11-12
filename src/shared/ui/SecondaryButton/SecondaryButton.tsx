@@ -23,8 +23,9 @@ export function SecondaryButton({ label, onPress, loading, disabled, testID }: S
         styles.base,
         {
           borderColor: theme.colors.border,
-          borderRadius: theme.radii.md,
-          backgroundColor: pressed ? theme.colors.border : 'transparent',
+          // 2026 redesign: white pill with a hairline border (light); dark keeps the outline button.
+          borderRadius: theme.isDark ? theme.radii.md : theme.radii.pill,
+          backgroundColor: pressed ? theme.colors.border : theme.isDark ? 'transparent' : theme.colors.surface,
           opacity: isDisabled ? 0.5 : 1,
         },
       ]}>

@@ -1,5 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ON_DARK_CHIP, useAppTheme } from '@/shared/theme';
+import { useAppTheme } from '@/shared/theme';
+
+/** Dark label printed on the coloured share bars (they're light/pastel in both modes). */
+const BAR_LABEL_INK = '#1C1917';
 import { Card } from '@/shared/ui';
 import { formatCount, formatCurrency, formatPercent } from '@/shared/utils';
 import type { SalesAnalyticsPaymentMethod } from '@/api';
@@ -45,7 +48,7 @@ export function PaymentMethodsCard({ methods }: PaymentMethodsCardProps) {
                       paddingLeft: index === 0 ? 8 : 6,
                     },
                   ]}>
-                  <Text style={[theme.typography.label, { color: ON_DARK_CHIP.fill, fontWeight: '700' }]} numberOfLines={1}>
+                  <Text style={[theme.typography.label, { color: BAR_LABEL_INK, fontWeight: '700' }]} numberOfLines={1}>
                     {formatPercent(pct, 'paymentMethods.share')}
                   </Text>
                 </View>

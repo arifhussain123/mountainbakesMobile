@@ -3,6 +3,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
+import { ACCENT_GLOW, AccentFill } from '../AccentFill';
 
 export interface PillButtonProps {
   label: string;
@@ -58,8 +59,10 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
         style={[
           styles.base,
           { backgroundColor: theme.colors.primary, borderRadius: theme.radii.pill, opacity: isDisabled ? 0.5 : 1 },
+          theme.isDark || isDisabled ? null : ACCENT_GLOW,
           height !== undefined ? { height } : null,
         ]}>
+        <AccentFill borderRadius={999} />
         {loading ? (
           <ActivityIndicator color={theme.colors.primaryText} />
         ) : (
@@ -68,8 +71,8 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
               {label}
             </Text>
             {showArrow ? (
-              <View style={[styles.chip, { backgroundColor: theme.colors.background }]}>
-                <Icon name="arrow-up-right" size={16} color={theme.colors.primary} />
+              <View style={[styles.chip, { backgroundColor: theme.isDark ? theme.colors.background : 'rgba(255, 255, 255, 0.24)' }]}>
+                <Icon name="arrow-up-right" size={16} color={theme.isDark ? theme.colors.primary : '#FFFFFF'} />
               </View>
             ) : null}
           </>

@@ -27,13 +27,27 @@ export function Screen({ glow = 'default', edges, style, contentStyle, children,
 
   return (
     <SafeAreaView edges={edges} style={[styles.container, { backgroundColor: theme.colors.background }, style]} {...rest}>
-      {glow === 'default' ? (
+      {glow === 'default' && theme.isDark ? (
         <>
           <GlowLayer rgb={[88, 70, 210]} alpha={0.3} corner="topRight" />
           <GlowLayer rgb={[24, 110, 140]} alpha={0.22} corner="bottomLeft" />
         </>
       ) : null}
-      {glow === 'warm' ? <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.55} corner="topRight" /> : null}
+      {glow === 'default' && !theme.isDark ? (
+        // 2026 redesign: faint violet (top-right) and peach (top-left) light on the lavender canvas.
+        <>
+          <GlowLayer rgb={[169, 145, 255]} alpha={0.3} corner="topRight" />
+          <GlowLayer rgb={[255, 195, 107]} alpha={0.18} corner="topLeft" />
+        </>
+      ) : null}
+      {glow === 'warm' && theme.isDark ? <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.55} corner="topRight" /> : null}
+      {glow === 'warm' && !theme.isDark ? (
+        // 2026 redesign: on lavender, the splash/login glow is violet + saffron light instead of warm brown.
+        <>
+          <GlowLayer rgb={[142, 124, 255]} alpha={0.35} corner="topRight" />
+          <GlowLayer rgb={[255, 138, 61]} alpha={0.22} corner="bottomLeft" />
+        </>
+      ) : null}
       <View style={[styles.content, contentStyle]}>{children}</View>
     </SafeAreaView>
   );

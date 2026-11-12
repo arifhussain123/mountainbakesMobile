@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors as fin } from '../../theme';
 import { useAppTheme } from '@/shared/theme';
-import { FormBottomSheet, Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
+import { FormBottomSheet, HeroSurface, Icon, PrimaryButton, SecondaryButton } from '@/shared/ui';
 import {
   dayRangeLabel,
   daysInMonth,
@@ -66,7 +66,8 @@ export function FilterCard({
     </Pressable>
   );
   return (
-    <View style={[styles.card, { backgroundColor: BAND.overall, borderRadius: theme.radii.lg, marginBottom: theme.spacing.md }]}>
+    // 2026 redesign: the month/filter card is the screen's violet hero (flat midnight band in dark mode).
+    <HeroSurface style={[styles.card, { marginBottom: theme.spacing.md }, theme.isDark ? { backgroundColor: BAND.overall } : null]}>
       <View style={styles.monthRow}>
         {arrow(-1, filter.month <= oldest)}
         <Text accessibilityRole="header" numberOfLines={1} style={[styles.monthTitle, { color: BAND.ink }]}>
@@ -103,7 +104,7 @@ export function FilterCard({
           <Text style={[styles.actionText, { color: BAND.ink }]}>Reset</Text>
         </Pressable>
       </View>
-    </View>
+    </HeroSurface>
   );
 }
 

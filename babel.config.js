@@ -1,6 +1,10 @@
 module.exports = {
   presets: ['module:@react-native/babel-preset'],
   plugins: [
+    // App font (Urbanist): routes src/'s `Text`/`TextInput` imports from
+    // 'react-native' to @/shared/ui/AppText. Before module-resolver so the
+    // '@/...' path it adds gets resolved too.
+    './babel/appTextFont',
     [
       'module-resolver',
       {

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
-import { Card, StatusBadge, type StatusVariant } from '@/shared/ui';
+import { useAppTheme, toneFor } from '@/shared/theme';
+import { Card, PastelTile, StatusBadge, type StatusVariant } from '@/shared/ui';
 
 export interface AdminRowProps {
   title: string;
@@ -52,14 +52,14 @@ export function SummaryTiles({ tiles }: { tiles: SummaryTile[] }) {
   return (
     <View style={styles.tiles}>
       {tiles.map((t) => (
-        <Card key={t.label} style={styles.tile}>
+        <PastelTile tone={toneFor(t.label)} key={t.label} style={styles.tile}>
           <Text style={[theme.typography.label, { color: theme.colors.textSecondary }]} numberOfLines={1}>
             {t.label}
           </Text>
           <Text style={[theme.typography.kpi, { color: t.tone ? toneColor[t.tone] : theme.colors.text, marginTop: 2 }]} numberOfLines={1}>
             {t.value}
           </Text>
-        </Card>
+        </PastelTile>
       ))}
     </View>
   );

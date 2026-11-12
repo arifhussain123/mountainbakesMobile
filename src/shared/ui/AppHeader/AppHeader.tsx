@@ -25,7 +25,7 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
   return (
     <View style={[styles.row, { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md }]}>
       <View style={styles.titleBlock}>
-        <Text style={[theme.typography.screenTitle, { color: theme.colors.text }]}>{title}</Text>
+        <Text style={[theme.typography.screenTitle, { color: theme.colors.text, letterSpacing: -0.6 }]}>{title}</Text>
         {subtitle ? (
           <Text style={[theme.typography.bodySmall, { color: theme.colors.textSecondary, marginTop: 2 }]}>{subtitle}</Text>
         ) : null}
@@ -40,7 +40,11 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
               onPress={action.onPress}
               onLongPress={action.onLongPress}
               delayLongPress={action.onLongPress ? 350 : undefined}
-              style={[styles.actionButton, { backgroundColor: theme.colors.border, borderRadius: theme.radii.pill }]}>
+              style={[
+                styles.actionButton,
+                { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface, borderRadius: theme.radii.pill },
+                theme.isDark ? null : styles.actionLift,
+              ]}>
               <Icon name={action.icon} color={theme.colors.text} />
               {action.badgeCount ? (
                 <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
@@ -62,6 +66,7 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, minWidth: 0 },
   actions: { flexDirection: 'row', gap: 8 },
   actionButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  actionLift: { shadowColor: '#4C3CAA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3 },
   badge: {
     position: 'absolute',
     top: -2,

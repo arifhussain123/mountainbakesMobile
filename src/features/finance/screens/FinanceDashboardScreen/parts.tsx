@@ -24,7 +24,7 @@ export const SERIES = {
 } as const;
 
 /** Header bands: Income purple, Expense brown, the ledger's navy. Text on them is always the light ink. */
-export const BAND = { income: fin.incomeHeader, expense: fin.expenseHeader, overall: fin.navyCard, ink: fin.text, inkMuted: '#D9D2F5' } as const;
+export const BAND = { income: fin.incomeHeader, expense: fin.expenseHeader, overall: fin.navyCard, ink: fin.text, inkMuted: 'rgba(255, 255, 255, 0.82)' } as const;
 
 /** Money that never clips: shrinks to 85% before it would, and reads as words to a screen reader. */
 export function Money({

@@ -59,10 +59,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleLightDark = useThemeStore((s) => s.toggleLightDark);
   const reduceMotion = useReducedMotion();
 
-  // Before AsyncStorage rehydrates, render dark — matching the fixed-dark
-  // native bootsplash, so there's no flash of (System-resolved) light on a
-  // device whose OS is in light mode, before the persisted choice is known.
-  const resolvedMode: ThemeMode = !hydrated ? 'dark' : mode === 'system' ? resolveSystemScheme(systemScheme) : mode;
+  // Before AsyncStorage rehydrates, render the default light look (2026
+  // redesign) — the native bootsplash background is the same lavender.
+  const resolvedMode: ThemeMode = !hydrated ? 'light' : mode === 'system' ? resolveSystemScheme(systemScheme) : mode;
 
   const colors = useMemo(() => buildColors(resolvedMode, accent), [resolvedMode, accent]);
 
