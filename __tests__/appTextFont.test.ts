@@ -45,11 +45,23 @@ describe('babel/appTextFont', () => {
   it('moves Text/TextInput imports from react-native to the AppText wrappers inside src/', () => {
     const out = run("import { View, Text as T, TextInput } from 'react-native';", inSrc);
     expect(out).toMatch(/import \{ View \} from ['"]react-native['"];/);
-    expect(out).toMatch(/import \{ Text as T, TextInput \} from ['"]@\/shared\/ui\/AppText['"];/);
+    expect(out).toMatch(/import \{ Text as T, TextInput \} from ['"]\.\.\/\.\.\/shared\/ui\/AppText['"];/);
   });
 
   it('replaces the whole import when only Text was imported', () => {
-    expect(run("import { Text } from 'react-native';", inSrc)).toMatch(/^import \{ Text \} from ['"]@\/shared\/ui\/AppText['"];$/);
+    expect(run("import { Text } from 'react-native';", inSrc)).toMatch(/^import \{ Text \} from ['"]\.\.\/\.\.\/shared\/ui\/AppText['"];$/);
+  });
+
+  it('adds a path that resolves under the real babel.config.js (no unresolved @/ alias)', () => {
+    const out = transformSync("import { Text } from 'react-native';\nexport const X = Text;", {
+      filename: inSrc,
+      cwd: join(__dirname, '..'),
+      root: join(__dirname, '..'),
+      configFile: join(__dirname, '..', 'babel.config.js'),
+      babelrc: false,
+    })!.code!;
+    expect(out).not.toMatch(/@\/shared\/ui\/AppText/);
+    expect(out).toMatch(/\.\.\/\.\.\/shared\/ui\/AppText/);
   });
 
   it('never touches the wrapper itself, files outside src/, or type-only imports', () => {
