@@ -52,7 +52,9 @@ export function SplashView() {
   const logoScale = useSharedValue(reduceMotion ? 1 : NATIVE_BOOTSPLASH_LOGO_SIZE / logoSize);
   const blockTranslateY = useSharedValue(reduceMotion ? 0 : nativeCenterY - blockCenterY);
   const textOpacity = useSharedValue(reduceMotion ? 1 : 0);
-  const violet = !theme.isDark;
+  // The violet splash in both modes (the 2026 dark redesign keeps it); the old warm
+  // dark splash below is no longer reached.
+  const violet = true;
 
   useEffect(() => {
     logoScale.value = withTiming(1, { duration: HANDOFF_DURATION_MS });

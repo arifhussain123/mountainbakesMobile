@@ -8,13 +8,13 @@ export interface AccentFillProps {
 
 /**
  * The 2026 redesign's saffron gradient (#FF8A3D → #F2542D), laid behind a
- * primary button's content. Only for the light theme with the default orange
- * accent — any other accent or dark mode keeps the parent's flat
- * `theme.colors.primary` fill, so this renders nothing.
+ * primary button's content, in light and dark. Only for the default orange
+ * accent — any other accent keeps the parent's flat `theme.colors.primary`
+ * fill, so this renders nothing.
  */
 export function AccentFill({ borderRadius }: AccentFillProps) {
   const theme = useAppTheme();
-  if (theme.isDark || theme.accent !== 'orange') return null;
+  if (theme.accent !== 'orange') return null;
   return (
     <LinearGradient
       pointerEvents="none"
@@ -26,7 +26,7 @@ export function AccentFill({ borderRadius }: AccentFillProps) {
   );
 }
 
-/** The soft saffron glow under a light-mode primary button. */
+/** The soft saffron glow under a primary button. */
 export const ACCENT_GLOW = {
   shadowColor: '#F2542D',
   shadowOffset: { width: 0, height: 10 },

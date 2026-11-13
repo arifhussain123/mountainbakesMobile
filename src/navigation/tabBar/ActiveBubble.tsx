@@ -62,13 +62,13 @@ export function ActiveBubble({ notchX, icon, showDot, diameter, iconSize }: Acti
           height: diameter,
           borderRadius: diameter / 2,
           backgroundColor: theme.colors.primary,
-          // White ring in light mode (2026 redesign) so the bubble reads as raised out of the white bar.
-          borderColor: theme.isDark ? theme.colors.background : theme.colors.surface,
+          // A ring in the bar's own colour (2026 redesign) so the bubble reads as raised out of the bar.
+          borderColor: theme.colors.surface,
           shadowColor: theme.colors.primary,
         },
       ]}>
       <Animated.View style={iconStyle}>
-        <Icon name={icon} size={iconSize} color={theme.isDark ? theme.colors.background : '#FFFFFF'} />
+        <Icon name={icon} size={iconSize} color={theme.colors.primaryText} />
       </Animated.View>
       {showDot ? <TabBadge dot /> : null}
     </Animated.View>

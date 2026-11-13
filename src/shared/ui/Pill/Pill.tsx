@@ -16,7 +16,7 @@ export function Pill({ label, kind = 'neutral' }: PillProps) {
     warn: theme.colors.warning,
     ok: theme.colors.success,
     bad: theme.colors.danger,
-    brand: theme.isDark ? theme.colors.primary : '#5B48D8',
+    brand: theme.isDark ? '#C9BEFF' : '#5B48D8',
     berry: theme.isDark ? theme.colors.violet : '#6C5CE7',
   };
   const lightFill: Record<PillKind, string> = {

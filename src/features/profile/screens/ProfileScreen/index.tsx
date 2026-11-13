@@ -17,8 +17,8 @@ export function ProfileScreen() {
 
   const name = user?.displayName ?? user?.username ?? '—';
   const role = user ? roleLabel(user.role) : '—';
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
-  const muted = theme.isDark ? theme.colors.primaryText : HERO_CHIP.textMuted;
+  const onHero = '#FFFFFF';
+  const muted = HERO_CHIP.textMuted;
 
   const rows: { label: string; value: string; icon: IconName }[] = [
     { label: 'Email', value: user?.email ?? '—', icon: 'send' },

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { HERO_CHIP, useAppTheme } from '@/shared/theme';
+import { HERO_CHIP } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 
 export interface SalesHeroCardProps {
@@ -19,10 +19,9 @@ const HONEY = '#FFD36E';
  * big figure, then Gross (qty × rate) and Discount side by side.
  */
 export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
-  const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const ink = theme.isDark ? theme.colors.primaryText : HERO_CHIP.text;
-  const muted = theme.isDark ? theme.colors.primaryText : HERO_CHIP.textMuted;
+  const ink = HERO_CHIP.text;
+  const muted = HERO_CHIP.textMuted;
 
   return (
     <HeroSurface style={styles.hero}>
@@ -37,7 +36,7 @@ export function SalesHeroCard({ total, gross, discount }: SalesHeroCardProps) {
         </View>
         <View style={styles.col}>
           <Text style={[styles.sm, { color: muted }]}>Discount</Text>
-          <Text style={[styles.value, { color: theme.isDark ? ink : HONEY }]}>{discount}</Text>
+          <Text style={[styles.value, { color: HONEY }]}>{discount}</Text>
         </View>
       </View>
     </HeroSurface>

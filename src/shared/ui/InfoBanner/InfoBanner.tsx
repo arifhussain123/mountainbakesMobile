@@ -28,7 +28,7 @@ export function InfoBanner({ kind = 'info', icon, children, style }: InfoBannerP
     warn: theme.colors.warning,
     bad: theme.colors.danger,
     ok: theme.colors.success,
-    brand: theme.isDark ? theme.colors.primary : '#5B48D8',
+    brand: theme.isDark ? '#C9BEFF' : '#5B48D8',
   };
   const color = ink[kind];
   return (

@@ -1,5 +1,4 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
@@ -19,10 +18,9 @@ export interface BranchClosingHeroCardProps {
  * working underneath ("cash takings − cash expenses").
  */
 export function BranchClosingHeroCard({ net, sales, expenses, cashInHand, cashSales, cashExpenses }: BranchClosingHeroCardProps) {
-  const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
-  const honey = theme.isDark ? onHero : '#FFD36E';
+  const onHero = '#FFFFFF';
+  const honey = '#FFD36E';
 
   const cols = [
     { key: 'sales', label: 'Sales', value: formatCurrency(sales), color: onHero },

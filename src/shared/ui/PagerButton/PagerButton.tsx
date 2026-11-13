@@ -25,13 +25,13 @@ export function PagerButton({ label, icon, active, disabled, onPress, accessibil
       onPress={onPress}
       style={[
         styles.page,
-        active ? { backgroundColor: on, borderColor: on } : { backgroundColor: theme.isDark ? 'transparent' : theme.colors.surface, borderColor: theme.colors.border },
+        active ? { backgroundColor: on, borderColor: on } : { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
         disabled ? styles.disabled : null,
       ]}>
       {icon ? (
         <Icon name={icon} size={16} color={theme.colors.textSecondary} />
       ) : (
-        <Text style={[styles.text, { color: active ? (theme.isDark ? theme.colors.primaryText : '#FFFFFF') : theme.colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.text, { color: active ? '#FFFFFF' : theme.colors.textSecondary }]}>{label}</Text>
       )}
     </Pressable>
   );
