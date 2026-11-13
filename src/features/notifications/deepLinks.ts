@@ -86,11 +86,26 @@ export const NOTIFICATION_TYPES: Record<NotificationType, NotificationTypeConfig
     icon: 'wallet',
     openRecord: () => navigateToRecord(Routes.FINANCE_DRAWER, { screen: Routes.FINANCE_SUPPLIER_PAYMENTS_STACK }),
   },
+  // Store module — this app has no Store screens, so these show as plain alerts.
+  store_demand: { icon: 'stock', openRecord: null },
+  store_demand_reviewed: { icon: 'stock', openRecord: null },
+  store_issue: { icon: 'stock', openRecord: null },
+  store_issue_received: { icon: 'stock', openRecord: null },
+  store_query: { icon: 'headset', openRecord: null },
+  store_query_reply: { icon: 'headset', openRecord: null },
 };
+
+/** Used for any type the server sends that this build doesn't know yet — a new server-side type must never crash the feed. */
+const UNKNOWN_TYPE_CONFIG: NotificationTypeConfig = { icon: 'bell', openRecord: null };
+
+/** The type's icon/deep link, or a plain bell with no deep link for a type this build doesn't know. */
+export function notificationTypeConfig(type: string): NotificationTypeConfig {
+  return (NOTIFICATION_TYPES as Record<string, NotificationTypeConfig | undefined>)[type] ?? UNKNOWN_TYPE_CONFIG;
+}
 
 /** Opens the right screen for a notification, or returns `false` when this type has no deep link (`relatedId` missing or the type has none) — the caller falls back to a plain alert-style detail view. */
 export function openNotificationRecord(notification: Pick<AppNotification, 'type' | 'relatedId'>): boolean {
-  const config = NOTIFICATION_TYPES[notification.type];
+  const config = notificationTypeConfig(notification.type);
   if (!config.openRecord || !notification.relatedId) return false;
   config.openRecord(notification.relatedId);
   return true;

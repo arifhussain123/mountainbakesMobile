@@ -21,7 +21,7 @@ jest.mock('@/navigation/routes', () => ({
   },
 }));
 
-import { NOTIFICATION_TYPES, openNotificationRecord } from '@/features/notifications/deepLinks';
+import { NOTIFICATION_TYPES, notificationTypeConfig, openNotificationRecord } from '@/features/notifications/deepLinks';
 import type { NotificationType } from '@/api';
 
 describe('NOTIFICATION_TYPES', () => {
@@ -34,6 +34,7 @@ describe('NOTIFICATION_TYPES', () => {
       'finance_query_updated', 'finance_query_message', 'finance_query_amended', 'event_created', 'event_reminder',
       'event_demand_due', 'event_demand_submitted', 'event_demand_reviewed', 'event_production_updated', 'security_alert',
       'purchase_quotation', 'purchase_bill', 'purchase_message', 'purchase_payment', 'purchase_payment_reviewed',
+      'store_demand', 'store_demand_reviewed', 'store_issue', 'store_issue_received', 'store_query', 'store_query_reply',
     ];
     for (const type of ALL_TYPES) {
       expect(NOTIFICATION_TYPES[type]).toBeDefined();
@@ -109,5 +110,11 @@ describe('openNotificationRecord', () => {
   it("routes purchase_payment to Finance's Supplier Payments queue", () => {
     expect(openNotificationRecord({ type: 'purchase_payment', relatedId: 'payment-uuid' })).toBe(true);
     expect(mockNavigateToRecord).toHaveBeenCalledWith('FinanceDrawer', { screen: 'FinanceSupplierPaymentsStack' });
+  });
+
+  it('falls back to a plain bell with no deep link for a type this build does not know (never crashes)', () => {
+    const unknown = 'some_future_type' as NotificationType;
+    expect(notificationTypeConfig(unknown)).toEqual({ icon: 'bell', openRecord: null });
+    expect(openNotificationRecord({ type: unknown, relatedId: 'x' })).toBe(false);
   });
 });

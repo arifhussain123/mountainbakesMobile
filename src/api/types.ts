@@ -3905,7 +3905,15 @@ export type NotificationType =
   | 'purchase_bill'
   | 'purchase_message'
   | 'purchase_payment'
-  | 'purchase_payment_reviewed';
+  | 'purchase_payment_reviewed'
+  // Store module (relatedId: the store demand, or the store query for
+  // store_query/store_query_reply). No Store screens in this app yet.
+  | 'store_demand'
+  | 'store_demand_reviewed'
+  | 'store_issue'
+  | 'store_issue_received'
+  | 'store_query'
+  | 'store_query_reply';
 
 export interface AppNotification {
   id: string;

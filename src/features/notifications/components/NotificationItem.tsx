@@ -4,7 +4,7 @@ import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/R
 import { useAppTheme } from '@/shared/theme';
 import { Icon, ListThumb } from '@/shared/ui';
 import { formatRelativeTime } from '@/shared/utils';
-import { NOTIFICATION_TYPES } from '../deepLinks';
+import { notificationTypeConfig } from '../deepLinks';
 import type { NotificationWithReadState } from '@/api';
 
 export interface NotificationItemProps {
@@ -18,7 +18,7 @@ export interface NotificationItemProps {
 
 export function NotificationItem({ notification, onPress, onToggleRead, index = 0 }: NotificationItemProps) {
   const theme = useAppTheme();
-  const config = NOTIFICATION_TYPES[notification.type];
+  const config = notificationTypeConfig(notification.type);
   const swipeableRef = useRef<SwipeableMethods>(null);
 
   const accessibilityLabel = `${notification.title}. ${notification.message}. ${formatRelativeTime(notification.createdAt)}${notification.read ? '' : ', unread'}`;
