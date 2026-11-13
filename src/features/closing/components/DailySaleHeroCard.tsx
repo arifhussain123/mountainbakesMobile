@@ -1,5 +1,4 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
@@ -18,10 +17,9 @@ export interface DailySaleHeroCardProps {
  * violet; Branch share in honey, the branch's own cut).
  */
 export function DailySaleHeroCard({ rangeLabel, totalSale, companyShare, branchShare, cashOnTable }: DailySaleHeroCardProps) {
-  const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
-  const honey = theme.isDark ? onHero : '#FFD36E';
+  const onHero = '#FFFFFF';
+  const honey = '#FFD36E';
 
   const cols = [
     { label: 'Company share', value: companyShare, color: onHero },

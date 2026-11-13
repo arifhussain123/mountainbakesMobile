@@ -21,7 +21,7 @@ export interface KpiGridProps {
 /**
  * The redesign's `kpi()` tiles in a 2-column grid — pastel gradient tiles
  * cycling mint / aqua / amber / lilac / pink in order (`.kpi:nth-child(5n+k)`),
- * navy text. Dark mode gets the ordinary glass card (PastelTile's fallback).
+ * navy text. Dark mode gets the deep versions of the same five hues.
  * Also used by the Super Admin Reports and Daily Sale screens.
  */
 export function KpiGrid({ items }: KpiGridProps) {

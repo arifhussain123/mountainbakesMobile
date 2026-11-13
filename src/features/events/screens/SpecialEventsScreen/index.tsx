@@ -91,7 +91,7 @@ export function SpecialEventsScreen() {
 
   const next = stats.next;
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const onHero = '#FFFFFF';
   const openDemand = (eventId: string) => navigation.navigate(Routes.EVENT_DEMAND, { eventId });
 
   return (
@@ -112,7 +112,7 @@ export function SpecialEventsScreen() {
                   <Text style={[styles.eyebrow, { color: onHero, opacity: 0.8 }]}>
                     Next event · {next.daysRemaining === 0 ? 'today' : `in ${next.daysRemaining} days`}
                   </Text>
-                  <Icon name="sparkle" size={20} color={theme.isDark ? onHero : '#FFD36E'} />
+                  <Icon name="sparkle" size={20} color={'#FFD36E'} />
                 </View>
                 <Text style={[styles.heroTitle, { color: onHero }]} numberOfLines={2}>
                   {next.name}
@@ -128,8 +128,8 @@ export function SpecialEventsScreen() {
                   onPress={() => openDemand(next.id)}
                   style={({ pressed }) => [
                     styles.heroButton,
-                    { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.2)' : theme.colors.primary, opacity: pressed ? 0.85 : 1 },
-                    theme.isDark ? null : ACCENT_GLOW,
+                    { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+                    ACCENT_GLOW,
                   ]}>
                   <AccentFill borderRadius={14} />
                   <Icon name="plus" size={18} color="#FFFFFF" />

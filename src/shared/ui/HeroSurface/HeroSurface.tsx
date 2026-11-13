@@ -14,24 +14,15 @@ export interface HeroSurfaceProps extends ViewProps {
  * sphere peeking out of the top-right corner and a small lilac ball at the
  * bottom-right. Text on it is white (`HERO_CHIP` for nested tiles).
  *
- * In dark mode it falls back to the old flat accent fill, so the dark theme
- * keeps its own look.
+ * The same in light and dark (only the drop shadow deepens in dark).
  */
 export function HeroSurface({ plain, style, children, ...rest }: HeroSurfaceProps) {
   const theme = useAppTheme();
   const radius = 28;
 
-  if (theme.isDark) {
-    return (
-      <View style={[{ backgroundColor: theme.colors.primary, borderRadius: radius, padding: theme.spacing.lg }, style]} {...rest}>
-        {children}
-      </View>
-    );
-  }
-
   const { outer, inner } = splitStyle(style);
   return (
-    <View style={[styles.shadow, { borderRadius: radius }, outer]} {...rest}>
+    <View style={[styles.shadow, theme.isDark && styles.shadowDark, { borderRadius: radius }, outer]} {...rest}>
       <LinearGradient
         colors={[...HERO_GRADIENT]}
         start={{ x: 0, y: 0 }}
@@ -49,13 +40,9 @@ export function HeroSurface({ plain, style, children, ...rest }: HeroSurfaceProp
   );
 }
 
-/**
- * Text colours for content on a hero: white on the violet gradient (light);
- * the accent's on-colour on dark mode's flat accent fill.
- */
+/** Text colours for content on a hero: white on the violet gradient, in both modes. */
 export function useHeroInk(): { ink: string; muted: string } {
-  const theme = useAppTheme();
-  return theme.isDark ? { ink: theme.colors.primaryText, muted: theme.colors.primaryText } : { ink: HERO_CHIP.text, muted: HERO_CHIP.textMuted };
+  return { ink: HERO_CHIP.text, muted: HERO_CHIP.textMuted };
 }
 
 /**
@@ -88,5 +75,6 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     elevation: 8,
   },
+  shadowDark: { shadowColor: '#000000', shadowOpacity: 0.45 },
   clip: { overflow: 'hidden' },
 });

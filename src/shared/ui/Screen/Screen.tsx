@@ -1,7 +1,7 @@
 import { StyleSheet, View, type ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/theme';
-import { GlowLayer, WARM_GLOW_RGB } from '../GlowLayer';
+import { GlowLayer } from '../GlowLayer';
 
 export interface ScreenProps extends Omit<ViewProps, 'style'> {
   /**
@@ -29,8 +29,9 @@ export function Screen({ glow = 'default', edges, style, contentStyle, children,
     <SafeAreaView edges={edges} style={[styles.container, { backgroundColor: theme.colors.background }, style]} {...rest}>
       {glow === 'default' && theme.isDark ? (
         <>
-          <GlowLayer rgb={[88, 70, 210]} alpha={0.3} corner="topRight" />
-          <GlowLayer rgb={[24, 110, 140]} alpha={0.22} corner="bottomLeft" />
+          {/* 2026 redesign, dark: violet light top-right, a faint saffron one top-left. */}
+          <GlowLayer rgb={[127, 107, 242]} alpha={0.28} corner="topRight" />
+          <GlowLayer rgb={[255, 138, 61]} alpha={0.12} corner="topLeft" />
         </>
       ) : null}
       {glow === 'default' && !theme.isDark ? (
@@ -40,7 +41,12 @@ export function Screen({ glow = 'default', edges, style, contentStyle, children,
           <GlowLayer rgb={[255, 195, 107]} alpha={0.18} corner="topLeft" />
         </>
       ) : null}
-      {glow === 'warm' && theme.isDark ? <GlowLayer rgb={WARM_GLOW_RGB} alpha={0.55} corner="topRight" /> : null}
+      {glow === 'warm' && theme.isDark ? (
+        <>
+          <GlowLayer rgb={[127, 107, 242]} alpha={0.35} corner="topRight" />
+          <GlowLayer rgb={[255, 138, 61]} alpha={0.16} corner="bottomLeft" />
+        </>
+      ) : null}
       {glow === 'warm' && !theme.isDark ? (
         // 2026 redesign: on lavender, the splash/login glow is violet + saffron light instead of warm brown.
         <>

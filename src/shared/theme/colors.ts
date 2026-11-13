@@ -78,33 +78,34 @@ const lightBase: BaseTokens = {
 };
 
 /**
- * branchApp.md's "Branch" dark theme — ported from mountainbakesBranch.html's
- * default "Midnight" mood: near-black background, glass-card surface. Kept
- * exactly as this app's existing dark theme per this task's own instruction
- * ("Dark = the current charcoal theme") — deliberately NOT matched to the
- * web's own dark theme, which is a different warm-brown mood entirely.
+ * 2026 redesign, dark — the same lavender-3D screens on a midnight canvas
+ * (`design UIandUX/redesign-2026/common.py` DARK_CSS; build the mockups with
+ * `MB_THEME=dark python3 branch.py branch.html`). Deep-violet cards, light
+ * lavender-white text, brighter status colours; the violet hero, saffron
+ * buttons and 3D shapes are shared with light (see `design.ts`). Mirrors the
+ * web's phone-width `:root.dark` block in frontend/src/app/globals.css.
  */
 const darkBase: BaseTokens = {
-  background: '#0B0C12',
-  surface: '#15161D',
-  cardFill: 'rgba(255, 255, 255, 0.05)',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
-  text: '#F5F1EC',
-  textSecondary: '#A39A92',
-  textMuted: '#A39A92',
-  textFaint: '#857B73',
-  textLabel: '#6E655E',
-  border: 'rgba(255, 255, 255, 0.08)',
-  success: '#34C38A',
-  warning: '#F5B800',
-  danger: '#FF5A5F',
-  secondary: '#7B6CD9',
-  info: '#4EA8DE',
+  background: '#0E0F1F',
+  surface: '#1A1B33',
+  cardFill: '#1A1B33',
+  cardBorder: '#2A2B4D',
+  text: '#F3F2FF',
+  textSecondary: '#B7B9D6',
+  textMuted: '#B7B9D6',
+  textFaint: '#8A8EB3',
+  textLabel: '#6E7299',
+  border: '#2D2F52',
+  success: '#3DD68C',
+  warning: '#F5B544',
+  danger: '#FF6B70',
+  secondary: '#8E7CFF',
+  info: '#7AA5FF',
   infoAlt: '#608CFF',
-  violet: '#9D91E8',
+  violet: '#B3A6FF',
   orange: '#FF8A5C',
   lavender: '#C9BFF0',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(0, 0, 0, 0.62)',
 };
 
 export type ThemeMode = 'light' | 'dark';

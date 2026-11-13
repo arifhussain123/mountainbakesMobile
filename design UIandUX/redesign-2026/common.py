@@ -15,6 +15,20 @@ T = dict(
     berry='#6C5CE7', berrySoft='#EEEBFD',
 )
 
+# MB_THEME=dark python3 branch.py branch.html  -> dark build of the same screens
+import os as _os_theme
+DARK = _os_theme.environ.get('MB_THEME', '').lower() == 'dark'
+if DARK:
+    T.update(
+        bg='#0E0F1F', surface='#1A1B33', tint='#24254A', tint2='#3A2219', border='#2D2F52',
+        text='#F3F2FF', text2='#B7B9D6', text3='#7F83A8',
+        primary='#FF6A3D', primaryPress='#FF8A5C', primarySoft='#3A2219',
+        cocoa='#3B3478', cocoa2='#D6CEFF', cream='#FFFFFF', honey='#FFD36E',
+        success='#3DD68C', successSoft='#123327', warning='#F5B544', warningSoft='#3A2C10',
+        danger='#FF6B70', dangerSoft='#3D1A20', info='#7AA5FF', infoSoft='#172A52',
+        berry='#B3A6FF', berrySoft='#2B2557',
+    )
+
 CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#E9E1D5;font-family:Urbanist,sans-serif;color:%(text)s;-webkit-font-smoothing:antialiased;padding:40px;display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start}
@@ -280,6 +294,63 @@ LOGO_URI = 'data:image/png;base64,' + _b64.b64encode(open(_LOGO, 'rb').read()).d
 CSS += ('.logo,.logo-lg{background:url(%s) center/100%% 100%% no-repeat !important;border-radius:50%%;color:transparent !important;font-size:0 !important;'
         'box-shadow:0 0 0 2px #FFFFFF,0 8px 18px rgba(190,30,30,.30) !important}'
         '.logo-lg{box-shadow:0 0 0 5px rgba(255,255,255,.95),0 22px 44px rgba(60,30,160,.35) !important}') % LOGO_URI
+
+DARK_CSS = """
+/* ===== v7 dark: midnight canvas, deep-violet surfaces, same orange/violet accents ===== */
+body{background:#06070F}
+.screen{background:radial-gradient(70% 28% at 100% 0%,rgba(127,107,242,.22) 0%,rgba(127,107,242,0) 100%),radial-gradient(60% 22% at 0% 6%,rgba(255,138,61,.10) 0%,rgba(255,138,61,0) 100%),#0E0F1F}
+.card{background:linear-gradient(180deg,#1C1D37 0%,#17182E 100%);border:1px solid #2A2B4D;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 2px 4px rgba(0,0,0,.25),0 14px 30px rgba(0,0,0,.35)}
+.card.tint{background:linear-gradient(145deg,#2A2556 0%,#211D47 100%);border-color:#332D66;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.card.hero{box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -10px 24px rgba(40,20,140,.30),0 18px 36px rgba(0,0,0,.45)}
+.kpi{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 24px rgba(0,0,0,.35)}
+.kpi .k,.kpi .s{color:rgba(255,255,255,.62)}
+.kpi:nth-child(5n+1){background:linear-gradient(150deg,#164A33 0%,#0F3324 100%)}
+.kpi:nth-child(5n+2){background:linear-gradient(150deg,#124650 0%,#0C3139 100%)}
+.kpi:nth-child(5n+3){background:linear-gradient(150deg,#5A3F12 0%,#3E2B0B 100%)}
+.kpi:nth-child(5n+4){background:linear-gradient(150deg,#3A3175 0%,#28215A 100%)}
+.kpi:nth-child(5n+5){background:linear-gradient(150deg,#5A2453 0%,#3E173A 100%)}
+.thumb{background:linear-gradient(150deg,#4A3E9A,#332A75);color:#F3F2FF;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 12px rgba(0,0,0,.30)}
+.li:nth-child(5n+1) .thumb{background:linear-gradient(150deg,#6A4415,#4A2F0C)}
+.li:nth-child(5n+2) .thumb{background:linear-gradient(150deg,#4A3E9A,#332A75)}
+.li:nth-child(5n+3) .thumb{background:linear-gradient(150deg,#1D5A3D,#123F2A)}
+.li:nth-child(5n+4) .thumb{background:linear-gradient(150deg,#175560,#0F3C45)}
+.li:nth-child(5n+5) .thumb{background:linear-gradient(150deg,#6A2B62,#4A1C45)}
+.iconbtn{background:#1F2040;box-shadow:inset 0 0 0 1px #2D2F52,0 6px 16px rgba(0,0,0,.35);color:#F3F2FF}
+.iconbtn.ghost{background:transparent;box-shadow:none}
+.chip{background:#1A1B33;border-color:#2D2F52;color:#B7B9D6}
+.chip.on{background:linear-gradient(145deg,#8E7CFF 0%,#5B48D8 100%);border-color:#5B48D8;color:#fff;box-shadow:0 6px 14px rgba(91,72,216,.35)}
+.chip .n{background:#24254A;color:#B7B9D6}
+.seg{background:#1A1B33;box-shadow:inset 0 0 0 1px #2D2F52}
+.seg .on{background:#2E2F5C;color:#F3F2FF;box-shadow:0 4px 10px rgba(0,0,0,.35)}
+.input,.search{background:#15162B;border-color:#2D2F52;box-shadow:none}
+.input.focus{border-color:#FF6A3D;box-shadow:0 0 0 4px rgba(255,106,61,.18)}
+.btn.secondary{background:#1F2040;color:#F3F2FF;border:1.5px solid #2D2F52;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.btn.soft{background:linear-gradient(135deg,#3F2418 0%,#331C13 100%);color:#FF8A5C;box-shadow:inset 0 0 0 1px rgba(255,106,61,.25)}
+.btn.danger{background:linear-gradient(135deg,#431C22 0%,#36161B 100%);color:#FF6B70;box-shadow:inset 0 0 0 1px rgba(255,107,112,.25)}
+.btn.dark{background:linear-gradient(135deg,#4A418F 0%,#2E2766 100%);box-shadow:0 10px 22px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.14)}
+.pager div{background:#1A1B33;border-color:#2D2F52}
+.pager .on{background:#5B48D8;border-color:#5B48D8;color:#fff}
+.photo{border-color:#3A3C66;background:#15162B}
+.check{background:#15162B;border-color:#3A3C66}
+.toggle{background:#2D2F52}
+.stepper{background:#15162B;border-color:#2D2F52}
+.stepper div:last-child{color:#FF6A3D}
+.chart .b i{background:#2B2557}
+.scrim{background:rgba(0,0,0,.62)}
+.sheet{background:#13142A;box-shadow:0 -12px 40px rgba(0,0,0,.55)}
+.footer{background:rgba(23,24,46,.94);box-shadow:0 -8px 24px rgba(0,0,0,.35)}
+.drawer{background:#15162B;box-shadow:12px 0 40px rgba(0,0,0,.5)}
+.navi.on{background:linear-gradient(145deg,#2E2766 0%,#251F57 100%);color:#C9BEFF}
+.pill.brand{background:#2B2557;color:#C9BEFF}
+.empty .ei{background:#24254A}
+.tabbar{background:#16172D;box-shadow:0 -6px 24px rgba(0,0,0,.45),inset 0 1px 0 #2A2B4D}
+.tab{color:#8A8EB3}
+.tab.on{color:#FF8A5C}
+.tab.on .ti{border-color:#16172D;box-shadow:0 10px 20px rgba(255,106,61,.35),inset 0 1px 0 rgba(255,255,255,.35)}
+.tab .badge{border-color:#16172D}
+"""
+if DARK:
+    CSS += DARK_CSS
 
 FONTS = "<link href=\"https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&display=swap\" rel=\"stylesheet\">"
 
@@ -553,7 +624,7 @@ NAV_FILL = {'home': '#FFD9C7', 'orders': '#DCD7FD', 'sales': '#FFE7B8', 'stock':
             'return': '#FFE7B8', 'ledger': '#DCD7FD', 'transfer': '#CDEFE0', 'payroll': '#FFE7B8'}
 NAV_BADGE = {'Orders': '1', 'Transfers': '18', 'Returns': '2'}
 
-NAV_INK = '#7A685C'   # warm taupe, as in the reference bar
+NAV_INK = '#8A8EB3' if DARK else '#7A685C'   # warm taupe, as in the reference bar
 
 def tabbar(tabs, active):
     """v6 nav: full-width white bar, rounded top; active tab = raised orange circle with a white ring + orange label."""

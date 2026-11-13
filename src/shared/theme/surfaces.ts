@@ -13,17 +13,21 @@ export const TINT_FILL = '#EFEBFF';
 /** Midnight navy for selected chips and the current pager page (light mode). */
 export const MIDNIGHT_FILL = '#1E1B4B';
 
+/** Dark mode's tinted inset panel and its selected-chip violet. */
+export const TINT_FILL_DARK = '#24254A';
+export const VIOLET_FILL = '#5B48D8';
+
 /**
  * The mockup's `card tint` / `background:T['tint']` lavender inset panel in
- * light mode; in dark mode `darkFill` (default: a faint glass layer).
+ * light mode; in dark mode `darkFill` (default: the deep-violet tint).
  */
-export function tintFill(theme: ThemeLike, darkFill: string = theme.colors.border): string {
+export function tintFill(theme: ThemeLike, darkFill: string = TINT_FILL_DARK): string {
   return theme.isDark ? darkFill : TINT_FILL;
 }
 
-/** The selected-chip / active-page fill: midnight (light), the accent (dark). */
+/** The selected-chip / active-page fill: midnight (light), violet (dark). White text on both. */
 export function midnightFill(theme: ThemeLike): string {
-  return theme.isDark ? theme.colors.primary : MIDNIGHT_FILL;
+  return theme.isDark ? VIOLET_FILL : MIDNIGHT_FILL;
 }
 
 /** `card flat` — a Card without its lift, for rows in a list. */

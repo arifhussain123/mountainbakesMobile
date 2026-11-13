@@ -3,8 +3,8 @@
  * colours that don't fit `ThemeColors`' flat-token shape. Source: the Figma
  * file dTwAoYFfccfAV8o3fjwq9m / `design UIandUX/redesign-2026/common.py`.
  *
- * Light mode uses these; dark mode keeps its own flat look, so components
- * check `theme.isDark` before reaching for them.
+ * Both modes use the hero gradient, primary gradient and spheres; the tiles,
+ * thumbnails and nav ink have a `_DARK` twin (the mockups' DARK_CSS).
  */
 
 /** Primary buttons, the active tab bubble, FABs: saffron, top-left → bottom-right. */
@@ -30,6 +30,25 @@ export const PASTEL_TILES = [
   { from: '#FBD3F6', to: '#F3A9EC' }, // pink
 ] as const;
 
+/** Dark mode's stat tiles: the same five hues, deep and muted (white text on all). */
+export const PASTEL_TILES_DARK = [
+  { from: '#164A33', to: '#0F3324' }, // mint
+  { from: '#124650', to: '#0C3139' }, // aqua
+  { from: '#5A3F12', to: '#3E2B0B' }, // amber
+  { from: '#3A3175', to: '#28215A' }, // lilac
+  { from: '#5A2453', to: '#3E173A' }, // pink
+] as const;
+
+/** The tile set for a mode. */
+export function pastelTiles(isDark: boolean) {
+  return isDark ? PASTEL_TILES_DARK : PASTEL_TILES;
+}
+
+/** Label/value ink on a stat tile: navy on pastel (light), white on the deep tiles (dark). */
+export function tileInk(isDark: boolean): { text: string; muted: string } {
+  return isDark ? { text: '#FFFFFF', muted: 'rgba(255, 255, 255, 0.62)' } : { text: '#171A35', muted: 'rgba(23, 26, 53, 0.62)' };
+}
+
 export type PastelTone = 0 | 1 | 2 | 3 | 4;
 
 /** A stable tone for a label, so the same stat always gets the same colour. */
@@ -51,6 +70,12 @@ export type SphereTone = keyof typeof SPHERES;
 
 /** Warm taupe for inactive bottom-tab icons/labels (light mode). */
 export const NAV_INK = '#7A685C';
+
+/** Inactive bottom-tab icons/labels in dark mode. */
+export const NAV_INK_DARK = '#8A8EB3';
+
+/** The selected filter chip in dark mode: a violet pill (light uses midnight navy). */
+export const VIOLET_CHIP_GRADIENT = ['#8E7CFF', '#5B48D8'] as const;
 
 /** Violet-tinted soft shadow for light-mode cards. */
 export const SOFT_SHADOW = {

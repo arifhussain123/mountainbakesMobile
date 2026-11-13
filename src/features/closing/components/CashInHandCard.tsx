@@ -18,7 +18,7 @@ export interface CashInHandCardProps {
 export function CashInHandCard({ cashInHand, cashSales, cashExpenses }: CashInHandCardProps) {
   const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const onHero = '#FFFFFF';
 
   return (
     <HeroSurface style={[styles.card, { padding: theme.spacing.lg }]}>

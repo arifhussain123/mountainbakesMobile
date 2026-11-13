@@ -55,8 +55,11 @@ describe('buildColors', () => {
     expect(light.surface).not.toBe(dark.surface);
   });
 
-  it('dark mode keeps this app\'s existing charcoal background exactly — not matched to the web\'s warm-brown dark theme', () => {
-    expect(buildColors('dark', 'orange').background).toBe('#0B0C12');
+  it('dark mode is the 2026 redesign\'s midnight theme (same tokens as the web\'s phone-width dark view)', () => {
+    const dark = buildColors('dark', 'orange');
+    expect(dark.background).toBe('#0E0F1F');
+    expect(dark.surface).toBe('#1A1B33');
+    expect(dark.text).toBe('#F3F2FF');
   });
 
   it('light mode is the 2026 redesign\'s lavender theme (same tokens as the web\'s phone view)', () => {

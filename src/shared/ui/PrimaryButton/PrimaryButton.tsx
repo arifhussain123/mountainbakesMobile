@@ -30,13 +30,13 @@ export function PrimaryButton({ label, onPress, loading, disabled, inactive, tes
         styles.base,
         {
           backgroundColor: theme.colors.primary,
-          // 2026 redesign: a full pill with the saffron gradient and a soft glow (light mode).
-          borderRadius: theme.isDark ? theme.radii.md : theme.radii.pill,
+          // 2026 redesign: a full pill with the saffron gradient and a soft glow (both modes).
+          borderRadius: theme.radii.pill,
           opacity: isDisabled || inactive ? 0.5 : pressed ? 0.85 : 1,
         },
-        theme.isDark || isDisabled || inactive ? null : ACCENT_GLOW,
+        isDisabled || inactive ? null : ACCENT_GLOW,
       ]}>
-      <AccentFill borderRadius={theme.isDark ? theme.radii.md : 999} />
+      <AccentFill borderRadius={999} />
       {loading ? (
         <ActivityIndicator color={theme.colors.primaryText} />
       ) : (

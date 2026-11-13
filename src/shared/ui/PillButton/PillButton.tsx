@@ -59,7 +59,7 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
         style={[
           styles.base,
           { backgroundColor: theme.colors.primary, borderRadius: theme.radii.pill, opacity: isDisabled ? 0.5 : 1 },
-          theme.isDark || isDisabled ? null : ACCENT_GLOW,
+          isDisabled ? null : ACCENT_GLOW,
           height !== undefined ? { height } : null,
         ]}>
         <AccentFill borderRadius={999} />
@@ -71,8 +71,8 @@ export function PillButton({ label, onPress, showArrow, loading, disabled, testI
               {label}
             </Text>
             {showArrow ? (
-              <View style={[styles.chip, { backgroundColor: theme.isDark ? theme.colors.background : 'rgba(255, 255, 255, 0.24)' }]}>
-                <Icon name="arrow-up-right" size={16} color={theme.isDark ? theme.colors.primary : '#FFFFFF'} />
+              <View style={[styles.chip, { backgroundColor: 'rgba(255, 255, 255, 0.24)' }]}>
+                <Icon name="arrow-up-right" size={16} color={theme.colors.primaryText} />
               </View>
             ) : null}
           </>

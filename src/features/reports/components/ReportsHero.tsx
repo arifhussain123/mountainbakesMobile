@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { HERO_CHIP, useAppTheme } from '@/shared/theme';
+import { HERO_CHIP } from '@/shared/theme';
 import { HeroSurface } from '@/shared/ui';
 
 export interface ReportsHeroProps {
@@ -16,10 +16,9 @@ export interface ReportsHeroProps {
  * revenue figure, and Net (sales − expenses) / Expenses underneath.
  */
 export function ReportsHero({ revenue, totalOrders, net, expenses, delta }: ReportsHeroProps) {
-  const theme = useAppTheme();
   // White on the violet hero (light); the accent's on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
-  const muted = theme.isDark ? theme.colors.primaryText : HERO_CHIP.textMuted;
+  const onHero = '#FFFFFF';
+  const muted = HERO_CHIP.textMuted;
 
   return (
     <HeroSurface style={styles.hero}>

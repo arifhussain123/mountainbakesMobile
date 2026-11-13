@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { designType, HERO_CHIP, useAppTheme } from '@/shared/theme';
+import { designType, HERO_CHIP } from '@/shared/theme';
 import { HeroSurface, Icon } from '@/shared/ui';
 import { formatCount, formatCurrency } from '@/shared/utils';
 
@@ -23,10 +23,9 @@ export interface HeroSalesCardProps {
  * Net (sales − expenses), Orders and Avg order in a row underneath.
  */
 export function HeroSalesCard({ periodLabel, sales, netAmount, orders, averageOrder, comparison }: HeroSalesCardProps) {
-  const theme = useAppTheme();
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
-  const muted = theme.isDark ? theme.colors.primaryText : HERO_CHIP.textMuted;
+  const onHero = '#FFFFFF';
+  const muted = HERO_CHIP.textMuted;
 
   const stats = [
     { id: 'net', label: 'Net (sales − expenses)', value: formatCurrency(netAmount, 'netAmount') },
@@ -55,7 +54,7 @@ export function HeroSalesCard({ periodLabel, sales, netAmount, orders, averageOr
       <View style={styles.row}>
         {stats.map((s) => (
           <View key={s.id} style={styles.stat}>
-            <Text style={[designType.sm, { color: muted, opacity: theme.isDark ? 0.8 : 1 }]} numberOfLines={1}>
+            <Text style={[designType.sm, { color: muted, opacity: 1 }]} numberOfLines={1}>
               {s.label}
             </Text>
             <Text style={[styles.statValue, { color: onHero }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>

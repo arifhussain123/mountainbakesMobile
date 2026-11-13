@@ -26,7 +26,7 @@ export function Fab({ label, onPress, bottom, icon = 'plus', accessibilityLabel 
       style={({ pressed }) => [
         styles.fab,
         { bottom, backgroundColor: theme.colors.primary, opacity: pressed ? 0.88 : 1 },
-        theme.isDark ? styles.darkLift : ACCENT_GLOW,
+        ACCENT_GLOW,
       ]}>
       <AccentFill borderRadius={20} />
       <Icon name={icon} size={20} color={theme.colors.primaryText} />
@@ -37,6 +37,5 @@ export function Fab({ label, onPress, bottom, icon = 'plus', accessibilityLabel 
 
 const styles = StyleSheet.create({
   fab: { position: 'absolute', right: 20, height: 56, borderRadius: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  darkLift: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 6 },
   text: { fontSize: 15, fontWeight: '600' },
 });

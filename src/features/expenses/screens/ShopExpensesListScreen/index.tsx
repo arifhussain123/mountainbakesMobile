@@ -47,7 +47,7 @@ export function ShopExpensesListScreen() {
   const totalText = totalQ.data ? formatCurrency(totalQ.data.amount) : totalQ.isError ? '—' : '…';
 
   // White on the violet hero (light); the accent's own on-colour on dark mode's flat accent hero.
-  const onHero = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const onHero = '#FFFFFF';
   const countText = count !== undefined ? ` · ${count} ${count === 1 ? 'expense' : 'expenses'}` : '';
 
   return (

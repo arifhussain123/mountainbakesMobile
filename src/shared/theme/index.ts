@@ -10,7 +10,21 @@ export { spacing } from './spacing';
 export { radii } from './radii';
 export { typography } from './typography';
 export { cardShadow } from './shadows';
-export { HERO_CHIP, HERO_GRADIENT, NAV_INK, PASTEL_TILES, PRIMARY_GRADIENT, SOFT_SHADOW, SPHERES, toneFor } from './design';
+export {
+  HERO_CHIP,
+  HERO_GRADIENT,
+  NAV_INK,
+  NAV_INK_DARK,
+  PASTEL_TILES,
+  PASTEL_TILES_DARK,
+  PRIMARY_GRADIENT,
+  SOFT_SHADOW,
+  SPHERES,
+  VIOLET_CHIP_GRADIENT,
+  pastelTiles,
+  tileInk,
+  toneFor,
+} from './design';
 export type { PastelTone, SphereTone } from './design';
 export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type ResponsiveMetrics } from './responsive';
 
@@ -24,4 +38,4 @@ export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type
  */
 export { useTheme as useAppTheme } from './ThemeProvider';
 export { designType, heroType } from './designType';
-export { FLAT_CARD, MIDNIGHT_FILL, SOFT_LIFT, TINT_FILL, midnightFill, tintFill } from './surfaces';
+export { FLAT_CARD, MIDNIGHT_FILL, SOFT_LIFT, TINT_FILL, TINT_FILL_DARK, VIOLET_FILL, midnightFill, tintFill } from './surfaces';
