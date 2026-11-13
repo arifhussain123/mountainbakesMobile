@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, inputFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
 const styles = StyleSheet.create({
@@ -61,7 +61,7 @@ export function Dropdown<T extends string = string>({ options, value, onChange, 
         accessibilityState={{ expanded: open }}
         disabled={options.length === 0}
         onPress={() => setOpen((o) => !o)}
-        style={[styles.field, { borderColor: open ? theme.colors.primary : theme.colors.border, backgroundColor: theme.colors.surface }]}>
+        style={[styles.field, { borderColor: open ? theme.colors.primary : theme.colors.border, backgroundColor: inputFill(theme) }]}>
         <Text style={[theme.typography.body, { flex: 1, color: selected ? theme.colors.text : theme.colors.textSecondary }]} numberOfLines={1}>
           {selected ? selected.label : closedLabel}
         </Text>
@@ -69,7 +69,7 @@ export function Dropdown<T extends string = string>({ options, value, onChange, 
         <Icon name="chevron-down" size={16} color={theme.colors.textSecondary} />
       </Pressable>
       {open ? (
-        <View style={[styles.list, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.list, { borderColor: theme.colors.border, backgroundColor: theme.isDark ? DARK_SURFACES.raised : theme.colors.surface }]}>
           {options.length > SEARCH_THRESHOLD ? (
             <TextInput
               value={search}

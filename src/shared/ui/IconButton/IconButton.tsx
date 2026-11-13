@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { SOFT_LIFT, useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, SOFT_LIFT, useAppTheme } from '@/shared/theme';
 import { Icon, type IconName } from '../Icon';
 
 export interface IconButtonProps {
@@ -36,8 +36,8 @@ export function IconButton({ icon, onPress, onLongPress, accessibilityLabel, bad
       style={({ pressed }) => [
         styles.base,
         { width: size, height: size, borderRadius: size / 2 },
-        { backgroundColor: theme.isDark ? theme.colors.border : theme.colors.surface, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
-        theme.isDark ? null : SOFT_LIFT,
+        { backgroundColor: theme.isDark ? DARK_SURFACES.raised : theme.colors.surface, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
+        theme.isDark ? [styles.darkRing, { borderColor: theme.colors.border }] : SOFT_LIFT,
         style,
       ]}>
       {loading ? <ActivityIndicator size="small" color={ink} /> : <Icon name={icon} size={20} color={ink} />}
@@ -53,6 +53,7 @@ export function IconButton({ icon, onPress, onLongPress, accessibilityLabel, bad
 }
 
 const styles = StyleSheet.create({
+  darkRing: { borderWidth: 1 },
   base: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   badge: {
     position: 'absolute',

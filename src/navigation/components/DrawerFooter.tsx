@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import {
   FOOTER_AVATAR_SIZE,
@@ -107,7 +107,7 @@ function FooterAvatar({ initials }: { initials: string }) {
   const theme = useAppTheme();
   if (theme.isDark) {
     return (
-      <View style={[styles.avatar, { backgroundColor: theme.colors.surface }]}>
+      <View style={[styles.avatar, { backgroundColor: DARK_SURFACES.primarySoft }]}>
         <Text style={[styles.avatarText, { color: theme.colors.primary }]} maxFontSizeMultiplier={1.2}>{initials}</Text>
       </View>
     );

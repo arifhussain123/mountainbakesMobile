@@ -38,4 +38,4 @@ export { useResponsive, computeResponsiveMetrics, clamp as responsiveClamp, type
  */
 export { useTheme as useAppTheme } from './ThemeProvider';
 export { designType, heroType } from './designType';
-export { FLAT_CARD, MIDNIGHT_FILL, SOFT_LIFT, TINT_FILL, TINT_FILL_DARK, VIOLET_FILL, midnightFill, tintFill } from './surfaces';
+export { DARK_SURFACES, FLAT_CARD, MIDNIGHT_FILL, SOFT_LIFT, TINT_FILL, TINT_FILL_DARK, VIOLET_FILL, inputFill, midnightFill, sheetFill, tintFill } from './surfaces';

@@ -8,7 +8,7 @@ import { useAppearanceHeaderActions } from '@/features/appearance';
 import { useNotificationBellAction } from '@/features/notifications';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { openDrawer, Routes, type ClosingStackParamList } from '@/navigation';
-import { useAppTheme, type PastelTone } from '@/shared/theme';
+import { tintFill, type PastelTone, useAppTheme } from '@/shared/theme';
 import {
   AccentFill,
   AppHeader,
@@ -389,7 +389,7 @@ export function DailySaleRecordListScreen() {
         ListFooterComponent={
           filteredRecords.length > 0 ? (
             <View style={styles.footer}>
-              <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+              <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
                 <View style={styles.tintRow}>
                   <MiniStat label="Total sale" value={formatCurrency(aggregates.totalSale)} />
                   <MiniStat label="Company share" value={formatCurrency(aggregates.companyShare)} />

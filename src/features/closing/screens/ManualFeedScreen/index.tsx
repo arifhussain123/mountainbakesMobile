@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { FormBottomSheet, Icon, InfoBanner, MiniStat, Pill, PrimaryButton, SecondaryButton, StatusBadge } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import { useManualFeedForm, type ManualFeedChannel } from '../../hooks';
@@ -154,7 +154,7 @@ export function ManualFeedSheetContent({ businessDate, record, locks, onClose }:
 
   return (
     <View style={styles.stack}>
-      <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+      <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
         <MiniStat label="Business date" value={formatDisplayDate(businessDate)} />
         <MiniStat label="Total sale" value={record ? formatCurrency(record.autoTotalSale) : '—'} />
       </View>

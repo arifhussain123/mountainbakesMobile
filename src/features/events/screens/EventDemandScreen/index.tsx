@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSpecialEvents } from '@/api';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, tintFill, useAppTheme } from '@/shared/theme';
 import { AppHeader, Card, EmptyState, Icon, InfoBanner, MiniStat, Pill, PrimaryButton, Screen, SecondaryButton, TextField } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { EventsStackParamList } from '@/navigation';
@@ -163,7 +163,7 @@ export function EventDemandScreen() {
           </View>
 
           {form.lines.length > 0 ? (
-            <View style={[styles.tint, { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF' }]}>
+            <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
               <MiniStat label="Products" value={String(form.lines.length)} />
               <MiniStat label="Units" value={String(totals.units)} />
               {totals.value !== null ? <MiniStat label="Value" value={formatCurrency(totals.value)} /> : null}
@@ -174,7 +174,7 @@ export function EventDemandScreen() {
         </ScrollView>
 
         {!form.isSubmitted ? (
-          <View style={[styles.footer, { backgroundColor: theme.isDark ? theme.colors.surface : 'rgba(255,255,255,0.92)' }]}>
+          <View style={[styles.footer, { backgroundColor: theme.isDark ? DARK_SURFACES.footer : 'rgba(255,255,255,0.92)' }]}>
             <View style={styles.grow}>
               <SecondaryButton label="Save draft" onPress={() => void handleSaveDraft()} loading={form.isSavingDraft} disabled={!form.canSave} />
             </View>

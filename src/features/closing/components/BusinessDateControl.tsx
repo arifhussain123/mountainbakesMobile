@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { sheetFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 
@@ -90,7 +90,7 @@ export function BusinessDateControl({ value, onChange, maxDate, help }: Business
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: theme.colors.overlay }]} onPress={() => setOpen(false)}>
           <Pressable
-            style={[styles.sheet, { backgroundColor: theme.isDark ? theme.colors.background : '#F7F5FF', borderColor: theme.colors.border, borderRadius: 26 }]}
+            style={[styles.sheet, { backgroundColor: sheetFill(theme), borderColor: theme.colors.border, borderRadius: 26 }]}
             onPress={(event) => event.stopPropagation()}>
             <View style={styles.header}>
               <Pressable accessibilityRole="button" onPress={() => shiftMonth(-1)} style={styles.navButton}>

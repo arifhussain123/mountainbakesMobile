@@ -1,7 +1,7 @@
 import { createContext, forwardRef, useContext, useMemo, useRef, type ReactNode } from 'react';
 import { Pressable, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView, type BottomSheetModalProps, type BottomSheetScrollViewMethods } from '@gorhom/bottom-sheet';
-import { useAppTheme } from '@/shared/theme';
+import { sheetFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
 export interface FormBottomSheetProps {
@@ -71,7 +71,7 @@ export const FormBottomSheet = forwardRef<BottomSheetModal, FormBottomSheetProps
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
-        backgroundStyle={{ backgroundColor: theme.isDark ? theme.colors.background : '#F7F5FF' }}
+        backgroundStyle={{ backgroundColor: sheetFill(theme) }}
         handleIndicatorStyle={{ backgroundColor: theme.colors.border }}>
         <View
           style={{

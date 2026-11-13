@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type GestureResponderEvent } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 
 export interface SecondaryButtonProps {
   label: string;
@@ -23,9 +23,10 @@ export function SecondaryButton({ label, onPress, loading, disabled, testID }: S
         styles.base,
         {
           borderColor: theme.colors.border,
-          // 2026 redesign: white pill with a hairline border (light); dark keeps the outline button.
-          borderRadius: theme.isDark ? theme.radii.md : theme.radii.pill,
-          backgroundColor: pressed ? theme.colors.border : theme.isDark ? 'transparent' : theme.colors.surface,
+          // 2026 redesign: a pill with a hairline border — white (light), raised midnight with a 1.5 border (dark).
+          borderWidth: theme.isDark ? 1.5 : 1,
+          borderRadius: theme.radii.pill,
+          backgroundColor: pressed ? theme.colors.border : theme.isDark ? DARK_SURFACES.raised : theme.colors.surface,
           opacity: isDisabled ? 0.5 : 1,
         },
       ]}>

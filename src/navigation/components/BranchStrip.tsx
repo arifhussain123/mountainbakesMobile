@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { BRANCH_STRIP_CARD_HEIGHT, BRANCH_STRIP_FONT_SIZE, BRANCH_STRIP_MARGIN_BOTTOM, ROW_HORIZONTAL_PADDING } from './drawerLayout';
 
@@ -10,8 +10,8 @@ export interface BranchStripProps {
 
 /**
  * The role shell's context line (the branch, or "Production · All branches").
- * 2026 redesign: a rounded lavender card with a home glyph (light); dark keeps
- * a flat `surface` card. A label, not a picker: `SessionUser.branchId`/
+ * 2026 redesign `.card.tint`: a rounded lavender card with a home glyph
+ * (light), a deep-violet gradient card with a violet hairline (dark). A label, not a picker: `SessionUser.branchId`/
  * `branchName` are singular, with no multi-branch switching in the data model.
  */
 export function BranchStrip({ branchName }: BranchStripProps) {
@@ -20,7 +20,7 @@ export function BranchStrip({ branchName }: BranchStripProps) {
     <>
       <Icon name="home" size={18} color={theme.colors.primary} />
       <Text
-        style={[styles.text, { color: theme.isDark ? theme.colors.primary : theme.colors.text, fontSize: BRANCH_STRIP_FONT_SIZE }]}
+        style={[styles.text, { color: theme.colors.text, fontSize: BRANCH_STRIP_FONT_SIZE }]}
         numberOfLines={1}
         ellipsizeMode="tail"
         maxFontSizeMultiplier={1.2}>
@@ -30,13 +30,13 @@ export function BranchStrip({ branchName }: BranchStripProps) {
   );
   return (
     <View style={{ paddingHorizontal: ROW_HORIZONTAL_PADDING, marginBottom: BRANCH_STRIP_MARGIN_BOTTOM }}>
-      {theme.isDark ? (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>{content}</View>
-      ) : (
-        <LinearGradient colors={['#EFEBFF', '#E2DBFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
-          {content}
-        </LinearGradient>
-      )}
+      <LinearGradient
+        colors={theme.isDark ? [...DARK_SURFACES.tintCard] : ['#EFEBFF', '#E2DBFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.card, theme.isDark ? { borderWidth: 1, borderColor: DARK_SURFACES.tintCardBorder } : null]}>
+        {content}
+      </LinearGradient>
     </View>
   );
 }

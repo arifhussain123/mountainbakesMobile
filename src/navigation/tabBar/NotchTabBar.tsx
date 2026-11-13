@@ -17,7 +17,7 @@ import { openDrawer } from '../helpers';
 import { useRoleShell } from '../roleShells';
 import { useNavBadges } from '../useNavBadges';
 import { useOfflineQueueStore } from '@/state';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { buildNotchBarPath, clampNotchX } from './notchPath';
 import { BAR_CONTENT_HEIGHT, computeTabBarHideOffset, CORNER_RADIUS, getTabBarLayout } from './tabBarLayout';
 import { ActiveBubble } from './ActiveBubble';
@@ -133,7 +133,7 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
   return (
     <Animated.View style={[styles.container, containerStyle, { height: totalBarHeight }]} pointerEvents="box-none">
       <Svg width={width} height={totalBarHeight} style={StyleSheet.absoluteFill}>
-        <Path d={pathD} fill={theme.colors.surface} stroke={theme.colors.border} strokeWidth={1} />
+        <Path d={pathD} fill={theme.isDark ? DARK_SURFACES.tabbar : theme.colors.surface} stroke={theme.isDark ? theme.colors.cardBorder : theme.colors.border} strokeWidth={1} />
       </Svg>
 
       <View style={[styles.row, { height: BAR_CONTENT_HEIGHT }]}>

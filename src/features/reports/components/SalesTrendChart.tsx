@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { Card, MiniStat } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
@@ -145,7 +145,7 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
         </View>
       </View>
 
-      <View style={[styles.summaryRow, { backgroundColor: theme.isDark ? theme.colors.border : '#EFEBFF' }]}>
+      <View style={[styles.summaryRow, { backgroundColor: tintFill(theme) }]}>
         <View style={styles.summaryCell}>
           <MiniStat label="Best day" value={trend.bestDay ? formatCurrency(trend.bestDay.sales) : '—'} valueColor={theme.colors.success} />
           <Text style={[styles.xs, { color: theme.colors.textFaint }]}>{trend.bestDay ? formatDisplayDate(trend.bestDay.date) : ' '}</Text>

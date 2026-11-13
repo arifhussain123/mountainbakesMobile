@@ -6,7 +6,7 @@ import { useNotificationBellAction } from '@/features/notifications';
 import { openDrawer, openNewQuery, openQueryDetail } from '@/navigation';
 import { useOfflineQueueStore } from '@/state';
 import { useNetworkStatus } from '@/shared/hooks';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, tintFill, useAppTheme } from '@/shared/theme';
 import { AppHeader, EmptyState, ErrorState, Fab, type FilterChipOption, FilterChipRow, Icon, InfoBanner, ListThumb, LoadingSkeleton, Screen, SearchBar } from '@/shared/ui';
 import { formatDisplayTime } from '@/shared/utils';
 import { mapErrorToMessage } from '@/shared/helpers';
@@ -110,7 +110,7 @@ export function HelpDeskListScreen() {
               onPress={() => openNewQuery()}
               style={[
                 styles.tint,
-                { backgroundColor: theme.isDark ? theme.colors.cardFill : '#EFEBFF', borderColor: theme.isDark ? theme.colors.cardBorder : '#E2DBFF' },
+                { backgroundColor: tintFill(theme), borderColor: theme.isDark ? DARK_SURFACES.tintCardBorder : '#E2DBFF' },
               ]}>
               <ListThumb icon="headset" index={1} />
               <View style={styles.grow}>

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { midnightFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface SalesDateChipRowProps {
@@ -21,8 +21,8 @@ export interface SalesDateChipRowProps {
  */
 export function SalesDateChipRow({ dateLabel, isToday, onPrevDay, onToday }: SalesDateChipRowProps) {
   const theme = useAppTheme();
-  const activeFill = theme.isDark ? theme.colors.primary : '#1E1B4B';
-  const activeInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const activeFill = midnightFill(theme);
+  const activeInk = '#FFFFFF';
 
   return (
     <View style={styles.row}>

@@ -1,5 +1,5 @@
 import { StyleSheet, TextInput, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { inputFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
 export interface SearchBarProps {
@@ -16,7 +16,7 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search…' }: Se
       style={[
         styles.row,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: inputFill(theme),
           borderColor: theme.colors.border,
           borderRadius: theme.radii.md,
           paddingHorizontal: theme.spacing.md,
