@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { inputFill, useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
 export interface QtyStepperProps {
@@ -48,7 +48,7 @@ export function QtyStepper({ value, onChange, min = 0, accessibilityLabel, retur
         accessibilityLabel="Decrease"
         disabled={decrementDisabled}
         onPress={handleDecrement}
-        style={[styles.button, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, opacity: decrementDisabled ? 0.4 : 1 }]}>
+        style={[styles.button, { borderColor: theme.colors.border, backgroundColor: inputFill(theme), opacity: decrementDisabled ? 0.4 : 1 }]}>
         <Icon name="minus" size={14} color={theme.colors.text} />
       </Pressable>
       <TextInput
@@ -63,14 +63,15 @@ export function QtyStepper({ value, onChange, min = 0, accessibilityLabel, retur
         accessibilityLabel={accessibilityLabel}
         testID={testID}
         textAlignVertical="center"
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text, includeFontPadding: false }]}
+        style={[styles.input, { borderColor: theme.colors.border, backgroundColor: theme.isDark ? inputFill(theme) : undefined, color: theme.colors.text, includeFontPadding: false }]}
       />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Increase"
         onPress={handleIncrement}
-        style={[styles.button, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-        <Icon name="plus" size={14} color={theme.colors.text} />
+        style={[styles.button, { borderColor: theme.colors.border, backgroundColor: inputFill(theme) }]}>
+        {/* Dark mockup: the stepper's "+" is the accent. */}
+        <Icon name="plus" size={14} color={theme.isDark ? theme.colors.primary : theme.colors.text} />
       </Pressable>
     </View>
   );

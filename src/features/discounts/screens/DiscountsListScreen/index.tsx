@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { getBusinessDate, useBranchDiscountSummary, useBranchDiscountsList } from '@/api';
 import { Routes, openDrawer, type DiscountsStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { useDebouncedValue, useNetworkStatus } from '@/shared/hooks';
 import { getCachedResponse, setCachedResponse } from '@/shared/offline';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
@@ -217,7 +217,7 @@ export function DiscountsListScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Clear filter ${f.label}`}
                     onPress={f.onClear}
-                    style={[styles.activeChip, { backgroundColor: theme.isDark ? theme.colors.border : '#EFEBFF' }]}>
+                    style={[styles.activeChip, { backgroundColor: tintFill(theme) }]}>
                     <Text style={[theme.typography.label, { color: theme.colors.text }]}>{f.label}</Text>
                     <Icon name="close" size={10} color={theme.colors.textSecondary} />
                   </Pressable>

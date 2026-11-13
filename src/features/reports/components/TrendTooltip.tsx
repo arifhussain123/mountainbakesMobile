@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
@@ -19,8 +19,8 @@ export interface TrendTooltipProps {
  */
 export function TrendTooltip({ point, onStep, canStepPrev, canStepNext }: TrendTooltipProps) {
   const theme = useAppTheme();
-  const pillBg = theme.isDark ? theme.colors.border : '#EFEBFF';
-  const pillInk = theme.isDark ? theme.colors.text : '#5B48D8';
+  const pillBg = theme.isDark ? DARK_SURFACES.brandSoft : '#EFEBFF';
+  const pillInk = theme.isDark ? DARK_SURFACES.brandInk : '#5B48D8';
 
   return (
     <View style={styles.row}>

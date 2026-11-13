@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { goBack, openQueryDetail, Routes, type RootStackParamList } from '@/navigation';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, sheetFill, useAppTheme } from '@/shared/theme';
 import { AppHeader, InfoBanner, PrimaryButton, Screen, SecondaryButton } from '@/shared/ui';
 import { IssueStarterChips, RecentRecordsSheet, RecordPreview, ReferenceIdField } from '../../components';
 import { useNewQueryForm } from '../../hooks';
@@ -40,7 +40,7 @@ export function NewQueryScreen() {
 
   return (
     // 2026 redesign B25: the New query sheet's pale lavender surface (light); dark keeps the app background.
-    <Screen glow="none" style={theme.isDark ? undefined : { backgroundColor: SHEET_BG }}>
+    <Screen glow="none" style={{ backgroundColor: sheetFill(theme) }}>
       <AppHeader title="New query" actions={[{ icon: 'close', onPress: handleCancel, accessibilityLabel: 'Cancel' }]} />
       <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.p, { color: theme.colors.textSecondary }]}>
@@ -91,7 +91,7 @@ export function NewQueryScreen() {
         {form.submitError ? <InfoBanner kind="bad">{form.submitError}</InfoBanner> : null}
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.border, backgroundColor: theme.isDark ? theme.colors.background : theme.colors.surface }]}>
+      <View style={[styles.footer, { borderTopColor: theme.colors.border, backgroundColor: theme.isDark ? DARK_SURFACES.footer : theme.colors.surface }]}>
         <View style={styles.flex}>
           <SecondaryButton label="Cancel" onPress={handleCancel} />
         </View>
@@ -113,7 +113,6 @@ export function NewQueryScreen() {
   );
 }
 
-const SHEET_BG = '#F7F5FF';
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

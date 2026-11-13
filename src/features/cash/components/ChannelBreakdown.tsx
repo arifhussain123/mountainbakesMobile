@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { tintFill, useAppTheme } from '@/shared/theme';
 import { MiniStat } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils';
 
@@ -32,7 +32,7 @@ export function ChannelBreakdown({ cashAmount, easypaisaAmount, bankAmount, fuel
     <View
       accessible
       accessibilityLabel={channels.map((c) => `${c.label} ${formatCurrency(c.value)}`).join(', ') + (fuelCharges > 0 ? ', fuel booked separately' : '')}
-      style={[styles.strip, { backgroundColor: theme.isDark ? theme.colors.border : '#EFEBFF' }]}>
+      style={[styles.strip, { backgroundColor: tintFill(theme) }]}>
       {channels.map((c) => (
         <MiniStat key={c.label} label={c.label} value={plain(c.value)} valueColor={c.value === 0 ? theme.colors.textFaint : (c.tint ?? theme.colors.text)} />
       ))}

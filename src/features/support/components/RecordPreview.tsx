@@ -1,6 +1,6 @@
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useEffect } from 'react';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, tintFill, useAppTheme } from '@/shared/theme';
 import { Icon, ListThumb } from '@/shared/ui';
 import { referenceTypeFor } from '../referenceTypes';
 import type { SupportReference } from '@/api';
@@ -24,9 +24,9 @@ export function RecordPreview({ reference, showOpenRecord, announceOnMount }: Re
     AccessibilityInfo.announceForAccessibility(`Found: ${reference.title}${amountField ? `, ${amountField.value}` : ''}`);
   }, [announceOnMount, reference]);
 
-  // 2026 redesign B25: the found record sits on a lavender tint card (light); dark keeps the glass card.
+  // 2026 redesign B25: the found record sits on a tint card — lavender (light), deep violet (dark).
   const tint = theme.isDark
-    ? { backgroundColor: theme.colors.cardFill, borderColor: theme.colors.cardBorder }
+    ? { backgroundColor: tintFill(theme), borderColor: DARK_SURFACES.tintCardBorder }
     : { backgroundColor: '#EFEBFF', borderColor: '#E2DBFF' };
 
   return (

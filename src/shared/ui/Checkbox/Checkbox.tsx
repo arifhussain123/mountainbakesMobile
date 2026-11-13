@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { Icon } from '../Icon';
 
 export interface CheckboxProps {
@@ -27,8 +27,8 @@ export function Checkbox({ checked, onChange, accessibilityLabel, testID }: Chec
           styles.box,
           {
             borderRadius: theme.radii.sm - 2,
-            borderColor: checked ? theme.colors.primary : theme.colors.border,
-            backgroundColor: checked ? theme.colors.primary : 'transparent',
+            borderColor: checked ? theme.colors.primary : theme.isDark ? DARK_SURFACES.control : theme.colors.border,
+            backgroundColor: checked ? theme.colors.primary : theme.isDark ? DARK_SURFACES.input : 'transparent',
           },
         ]}>
         {checked ? <Icon name="check" size={12} color={theme.colors.primaryText} /> : null}

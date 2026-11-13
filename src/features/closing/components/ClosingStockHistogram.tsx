@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { midnightFill, useAppTheme } from '@/shared/theme';
 import { useClosingStockHistogram } from '../hooks';
 import type { StockRow } from '@/api';
 
@@ -22,8 +22,8 @@ export function ClosingStockHistogram({ rows }: ClosingStockHistogramProps) {
   const dotPalette = [theme.colors.secondary, theme.colors.lavender, theme.colors.success, theme.colors.infoAlt, theme.colors.orange, theme.colors.violet];
   const [selected, setSelected] = useState<string[]>([]);
   // The selected chip: a midnight pill on light (as FilterChipRow), the accent on dark.
-  const chipOn = theme.isDark ? theme.colors.primary : '#1E1B4B';
-  const chipOnInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const chipOn = midnightFill(theme);
+  const chipOnInk = '#FFFFFF';
 
   const toggle = (productId: string) => {
     setSelected((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]));

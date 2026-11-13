@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 
 export interface SegmentedOption<T extends string = string> {
   value: T;
@@ -20,10 +20,10 @@ export interface SegmentedControlProps<T extends string = string> {
 export function SegmentedControl<T extends string = string>({ options, value, onChange, style }: SegmentedControlProps<T>) {
   const theme = useAppTheme();
   const track = theme.isDark ? theme.colors.cardFill : '#E9E4FD';
-  const on = theme.isDark ? theme.colors.border : theme.colors.surface;
+  const on = theme.isDark ? DARK_SURFACES.segOn : theme.colors.surface;
 
   return (
-    <View style={[styles.track, { backgroundColor: track }, style]} accessibilityRole="tablist">
+    <View style={[styles.track, { backgroundColor: track }, theme.isDark ? [styles.trackDark, { borderColor: theme.colors.border }] : null, style]} accessibilityRole="tablist">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -45,6 +45,8 @@ export function SegmentedControl<T extends string = string>({ options, value, on
 
 const styles = StyleSheet.create({
   track: { flexDirection: 'row', borderRadius: 16, padding: 4, gap: 4 },
+  // Dark mockup: a hairline round the track; padding drops by the border so the height stays the same.
+  trackDark: { borderWidth: 1, padding: 3 },
   item: { flex: 1, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   lift: { shadowColor: '#171A35', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
   text: { fontSize: 13, fontWeight: '600' },

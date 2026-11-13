@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { useAppTheme } from '@/shared/theme';
+import { inputFill, useAppTheme } from '@/shared/theme';
 import { formatDisplayDate } from '@/shared/utils';
 import { Icon } from '../Icon';
 import { dateToHm, dateToYmd, hmToDate, ymdToDate } from './dateFieldValue';
@@ -84,7 +84,7 @@ export function DateField({
               {required ? <Text style={{ color: theme.colors.danger }}> *</Text> : null}
             </Text>
           ) : null}
-          <View style={[styles.field, { borderColor, backgroundColor: theme.colors.surface, borderRadius: theme.radii.md }]}>
+          <View style={[styles.field, { borderColor, backgroundColor: inputFill(theme), borderRadius: theme.radii.md }]}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${label ?? (mode === 'date' ? 'Date' : 'Time')}${display ? `, ${display}` : ''}. Pick ${mode === 'date' ? 'a date' : 'a time'}`}

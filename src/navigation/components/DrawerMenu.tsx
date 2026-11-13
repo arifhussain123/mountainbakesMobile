@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import type { IconName } from '@/shared/ui';
 import { useAppearanceSheetStore } from '@/features/appearance';
 import { useAuthStore, useOfflineQueueStore } from '@/state';
@@ -70,7 +70,7 @@ export function DrawerMenu({ roleLabel, contextLine, rows, closeDrawer, onPressP
   const metrics = computeDrawerRowMetrics(available, rows.length, sectionCount);
 
   // 2026 redesign: a white drawer panel in light mode; dark keeps the charcoal background.
-  const panel = theme.isDark ? theme.colors.background : theme.colors.surface;
+  const panel = theme.isDark ? DARK_SURFACES.drawer : theme.colors.surface;
 
   const handleSignOut = () => {
     setSignOutOpen(false);

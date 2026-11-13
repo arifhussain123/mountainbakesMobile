@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { designType, HERO_CHIP, PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, designType, HERO_CHIP, PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
 import { Card, HeroSurface } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
@@ -51,9 +51,9 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales', hero = fa
   // On the violet hero everything is white / frosted, in both modes.
   const ink = hero ? HERO_CHIP.text : theme.colors.text;
   const faint = hero ? HERO_CHIP.textMuted : theme.colors.textFaint;
-  const idleBar = hero ? 'rgba(255, 255, 255, 0.28)' : theme.isDark ? theme.colors.border : '#E4E1FB';
-  const pillBg = hero ? HERO_CHIP.fill : theme.isDark ? theme.colors.border : '#EFEBFF';
-  const pillInk = hero ? HERO_CHIP.text : theme.isDark ? theme.colors.text : '#5B48D8';
+  const idleBar = hero ? 'rgba(255, 255, 255, 0.28)' : theme.isDark ? DARK_SURFACES.brandSoft : '#E4E1FB';
+  const pillBg = hero ? HERO_CHIP.fill : theme.isDark ? DARK_SURFACES.brandSoft : '#EFEBFF';
+  const pillInk = hero ? HERO_CHIP.text : theme.isDark ? DARK_SURFACES.brandInk : '#5B48D8';
   // The saffron gradient is the default (orange) accent's look; other accents keep a flat primary bar.
   const gradientBar = theme.accent === 'orange';
   const Surface = hero ? HeroSurface : Card;

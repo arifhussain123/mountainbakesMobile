@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { tintFill, useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, tintFill, useAppTheme } from '@/shared/theme';
 import { MiniStat, PillButton, SecondaryButton } from '@/shared/ui';
 
 export interface CountProgressFooterProps {
@@ -21,7 +21,7 @@ export function CountProgressFooter({ countedCount, heldCount, hiddenAtZero, dif
   const theme = useAppTheme();
 
   return (
-    <View style={[styles.footer, { backgroundColor: theme.isDark ? theme.colors.surface : 'rgba(255, 255, 255, 0.92)' }, theme.isDark ? null : styles.lift]}>
+    <View style={[styles.footer, { backgroundColor: theme.isDark ? DARK_SURFACES.footer : 'rgba(255, 255, 255, 0.92)' }, theme.isDark ? null : styles.lift]}>
       <View style={[styles.tint, { backgroundColor: tintFill(theme) }]}>
         <MiniStat label="Counted" value={`${countedCount} of ${heldCount}`} valueColor={countedCount > 0 ? theme.colors.primary : undefined} />
         {differenceCount !== undefined ? (

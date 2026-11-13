@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { getBusinessDate } from '@/api';
-import { useAppTheme } from '@/shared/theme';
+import { midnightFill, useAppTheme } from '@/shared/theme';
 import { Icon, PrimaryButton, SegmentedControl, TextField, type SegmentedOption } from '@/shared/ui';
 import { formatDisplayDate } from '@/shared/utils';
 import type { ExpensePaymentMethod } from '@/api';
@@ -28,8 +28,8 @@ export function NewShopExpenseSheetContent({ onClose }: NewShopExpenseSheetConte
   const form = useNewExpenseForm();
   const [remarksFocused, setRemarksFocused] = useState(false);
   // The selected chip: a midnight pill on light (as FilterChipRow), the accent on dark.
-  const chipOn = theme.isDark ? theme.colors.primary : '#1E1B4B';
-  const chipOnInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const chipOn = midnightFill(theme);
+  const chipOnInk = '#FFFFFF';
   const labelStyle = [theme.typography.label, { color: theme.colors.textSecondary, fontWeight: '700' as const }];
 
   const handleSubmit = async () => {

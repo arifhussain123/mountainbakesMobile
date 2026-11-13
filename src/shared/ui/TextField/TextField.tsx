@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { inputFill, useAppTheme } from '@/shared/theme';
 
 export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   label: string;
@@ -49,7 +49,7 @@ export function TextField({ label, required, error, rightAccessory, inputRef, on
           {
             marginTop: theme.spacing.sm,
             borderRadius: theme.radii.lg,
-            backgroundColor: theme.colors.cardFill,
+            backgroundColor: inputFill(theme),
             borderColor,
           },
           height !== undefined ? { height } : null,

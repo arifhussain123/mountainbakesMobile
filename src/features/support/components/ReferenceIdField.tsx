@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { DARK_SURFACES, useAppTheme } from '@/shared/theme';
 import { Icon, TextField } from '@/shared/ui';
 import { SUPPORTED_REFERENCE_PREFIXES } from '../schemas';
 
@@ -15,7 +15,7 @@ export interface ReferenceIdFieldProps {
 /** Reference ID input + Find + "Pick from recent" — auto-uppercase/trim happens on submit (`schemas.ts#normalizeReferenceId`), not as-you-type, so a branch manager can still see exactly what they typed while typing it. */
 export function ReferenceIdField({ value, onChangeText, onFind, onOpenRecent, isLookingUp, error }: ReferenceIdFieldProps) {
   const theme = useAppTheme();
-  const findInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const findInk = '#FFFFFF';
 
   return (
     // TextField brings its own 16pt top margin; New Query lays its sections out with a gap instead.
@@ -39,7 +39,7 @@ export function ReferenceIdField({ value, onChangeText, onFind, onOpenRecent, is
             style={[
               styles.find,
               // 2026 redesign B25: a midnight "Find" pill (light); dark keeps the accent fill.
-              { backgroundColor: theme.isDark ? theme.colors.primary : DARK_BTN, opacity: isLookingUp || !value.trim() ? 0.5 : 1 },
+              { backgroundColor: theme.isDark ? DARK_SURFACES.darkButton[0] : DARK_BTN, opacity: isLookingUp || !value.trim() ? 0.5 : 1 },
             ]}>
             {isLookingUp ? (
               <ActivityIndicator size="small" color={findInk} />

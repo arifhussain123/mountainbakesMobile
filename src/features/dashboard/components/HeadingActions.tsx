@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppTheme } from '@/shared/theme';
+import { midnightFill, useAppTheme } from '@/shared/theme';
 
 export interface HeadingActionsProps {
   compareActive: boolean;
@@ -16,8 +16,8 @@ export interface HeadingActionsProps {
 export function HeadingActions({ compareActive, onToggleCompare, onExport, exporting }: HeadingActionsProps) {
   const theme = useAppTheme();
   const idleBg = theme.isDark ? theme.colors.cardFill : theme.colors.surface;
-  const onBg = theme.isDark ? theme.colors.primary : '#2E2A5C';
-  const onInk = theme.isDark ? theme.colors.primaryText : '#FFFFFF';
+  const onBg = theme.isDark ? midnightFill(theme) : '#2E2A5C';
+  const onInk = '#FFFFFF';
 
   return (
     <View style={styles.row}>
