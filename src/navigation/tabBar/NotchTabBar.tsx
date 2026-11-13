@@ -109,8 +109,18 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
   const containerStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
+  // No slots for this role — e.g. the session just ended (logout, or a token
+  // refresh failing when the phone wakes from screen-off) and the role is
+  // briefly empty while the tab navigator is still mounted. Reading
+  // `tabItems[activeIndex].icon` here used to crash the whole app with
+  // "Cannot read property 'icon' of undefined". Render nothing; the root
+  // navigator swaps this shell out on the next render.
+  const activeItem = tabItems[activeIndex];
+  if (!activeItem) return null;
+
   const handlePress = (index: number) => {
-    const item = tabItems[index]!;
+    const item = tabItems[index];
+    if (!item) return;
     if (item.route === null) {
       // "More" — opens the drawer, never becomes the active tab.
       openDrawer();
@@ -158,10 +168,10 @@ export function NotchTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
       <ActiveBubble
         notchX={notchX}
-        icon={tabItems[activeIndex]!.icon}
+        icon={activeItem.icon}
         diameter={bubbleSize}
         iconSize={iconSize}
-        showDot={failedSync && tabItems[activeIndex]!.key === 'orders'}
+        showDot={failedSync && activeItem.key === 'orders'}
       />
     </Animated.View>
   );
