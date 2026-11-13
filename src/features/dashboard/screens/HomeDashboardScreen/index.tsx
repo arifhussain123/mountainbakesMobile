@@ -243,7 +243,7 @@ export function HomeDashboardScreen() {
             {/* ── Last 7 days ── */}
             <SectionHeader title="Last 7 days" linkLabel="Reports" onLinkPress={() => navigation.navigate(Routes.REPORTS_STACK)} />
             {lastSeven.length > 0 ? (
-              <SalesChart key={`last7-${period}`} data={lastSeven} average={lastSevenAverage} title={null} />
+              <SalesChart key={`last7-${period}`} data={lastSeven} average={lastSevenAverage} title={null} hero />
             ) : (
               <EmptyState title="No Sales Yet" message="Sales for the last 7 days will appear here." />
             )}

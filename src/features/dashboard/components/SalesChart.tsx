@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { designType, PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
-import { Card } from '@/shared/ui';
+import { designType, HERO_CHIP, PRIMARY_GRADIENT, useAppTheme } from '@/shared/theme';
+import { Card, HeroSurface } from '@/shared/ui';
 import { formatCount, formatCurrency, formatDisplayDate } from '@/shared/utils';
 import type { SalesAnalyticsDailyPoint } from '@/api';
 import { barScalePct } from '../calculations';
@@ -13,6 +13,8 @@ export interface SalesChartProps {
   average?: number;
   /** Heading inside the card; `null` hides it (when a section header outside already names the chart). */
   title?: string | null;
+  /** Draw it on the violet hero (like the Sales card) instead of a plain card — the home "Last 7 days". */
+  hero?: boolean;
 }
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -36,7 +38,7 @@ function barLabel(iso: string, count: number): string {
  * tap a bar for its day's revenue and orders). Lavender bars with the
  * selected day raised in saffron; it starts on the best day, like the mockup.
  */
-export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesChartProps) {
+export function SalesChart({ data, average = 0, title = 'Daily Sales', hero = false }: SalesChartProps) {
   const theme = useAppTheme();
   // Non-finite values are left out of the scale (never `Math.max(…, NaN)` = NaN for every bar).
   const highestSales = Math.max(1, ...data.map((d) => (Number.isFinite(d.sales) ? d.sales : 0)));
@@ -46,22 +48,26 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesCh
   const maxSales = Number.isFinite(average) ? Math.max(highestSales, average) : highestSales;
   const selected = data[selectedIndex];
   const averageLineBottomPct = average > 0 ? Math.min(96, barScalePct(average, maxSales)) : null;
-  const idleBar = theme.isDark ? theme.colors.border : '#E4E1FB';
-  const pillBg = theme.isDark ? theme.colors.border : '#EFEBFF';
-  const pillInk = theme.isDark ? theme.colors.text : '#5B48D8';
-  // The saffron gradient is the default (orange) accent's look; other accents/dark keep a flat primary bar.
-  const gradientBar = !theme.isDark && theme.accent === 'orange';
+  // On the violet hero everything is white / frosted, in both modes.
+  const ink = hero ? HERO_CHIP.text : theme.colors.text;
+  const faint = hero ? HERO_CHIP.textMuted : theme.colors.textFaint;
+  const idleBar = hero ? 'rgba(255, 255, 255, 0.28)' : theme.isDark ? theme.colors.border : '#E4E1FB';
+  const pillBg = hero ? HERO_CHIP.fill : theme.isDark ? theme.colors.border : '#EFEBFF';
+  const pillInk = hero ? HERO_CHIP.text : theme.isDark ? theme.colors.text : '#5B48D8';
+  // The saffron gradient is the default (orange) accent's look; other accents keep a flat primary bar.
+  const gradientBar = theme.accent === 'orange';
+  const Surface = hero ? HeroSurface : Card;
   // A week of bars gets the mockup's 8pt gaps; a month or more (Admin's ranges) packs tighter.
   const gap = data.length <= 14 ? 8 : data.length <= 31 ? 3 : 1;
   const labelEvery = Math.max(1, Math.ceil(data.length / 7));
 
   return (
-    <Card style={styles.card}>
-      {title ? <Text style={[designType.h3, { color: theme.colors.text }]}>{title}</Text> : null}
+    <Surface style={styles.card} {...(hero ? { plain: true } : null)}>
+      {title ? <Text style={[designType.h3, { color: ink }]}>{title}</Text> : null}
       <View style={styles.headerRow}>
         <View style={styles.avgCol}>
-          <Text style={[designType.xs, { color: theme.colors.textFaint }]}>Avg per day</Text>
-          <Text style={[designType.h3, { color: theme.colors.text }]} numberOfLines={1}>
+          <Text style={[designType.xs, { color: faint }]}>Avg per day</Text>
+          <Text style={[designType.h3, { color: ink }]} numberOfLines={1}>
             {formatCurrency(average, 'averageDailySales')}
           </Text>
         </View>
@@ -75,7 +81,7 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesCh
       </View>
       <View style={[styles.chart, { gap }]}>
         {averageLineBottomPct !== null ? (
-          <View pointerEvents="none" style={[styles.averageLine, { bottom: `${averageLineBottomPct}%`, borderColor: theme.colors.textFaint }]} />
+          <View pointerEvents="none" style={[styles.averageLine, { bottom: `${averageLineBottomPct}%`, borderColor: faint }]} />
         ) : null}
         {data.map((point, index) => {
           const heightPct = `${Math.max(3, barScalePct(point.sales, maxSales))}%` as const;
@@ -101,17 +107,17 @@ export function SalesChart({ data, average = 0, title = 'Daily Sales' }: SalesCh
       </View>
       <View style={[styles.labelsRow, { gap }]}>
         {data.map((point, index) => (
-          <Text key={point.date} style={[styles.label, { color: theme.colors.textFaint }]} numberOfLines={1}>
+          <Text key={point.date} style={[styles.label, { color: faint }]} numberOfLines={1}>
             {(data.length - 1 - index) % labelEvery === 0 ? barLabel(point.date, data.length) : ''}
           </Text>
         ))}
       </View>
       {selected ? (
-        <Text style={[designType.xs, { color: theme.colors.textFaint }]}>
+        <Text style={[designType.xs, { color: faint }]}>
           {formatDisplayDate(selected.date)} · {formatCount(selected.transactions, 'daily.transactions')} orders · tap a bar for its day
         </Text>
       ) : null}
-    </Card>
+    </Surface>
   );
 }
 
